@@ -6,13 +6,15 @@
 
 **SafeCode Agent**
 
-SafeCode Agent 是一个用 Python 实现的安全型终端 Coding Agent。它面向个人开发者和学习型项目，核心目标是让 AI 能够读取项目、理解上下文、生成代码修改建议、展示 Diff、经过人工确认后应用修改，并支持 Checkpoint、Rollback、Audit Log、权限控制和后续扩展。
+SafeCode Agent 是一个用 Python 实现的安全型终端 Coding Agent。它面向个人开发者和学习型项目，短期目标是让 AI 能够读取项目、理解上下文、生成代码修改建议、展示 Diff、经过人工确认后应用修改，并支持 Checkpoint、Rollback、Audit Log、权限控制和后续扩展。
 
-本项目不是完整复刻 Claude Code，也不是追求大而全的 Agent 平台。它的目标是做成一个个人可维护、可以演示、可以写进简历、并且能真实辅助本地开发的 Python 终端工具。
+长期目标上，本项目不是“聊天机器人 + 工具调用”，而是一个简化版 Agent Harness / Runtime：模型负责推理和生成提案，运行时负责上下文、工具、文件系统、权限边界、状态、日志、回滚和扩展能力。
+
+本项目不是完整复刻 Claude Code，也不是追求大而全的 Agent 平台。它的目标是做成一个个人可维护、可以演示、可以写进简历、并且能真实辅助本地开发的 Python 终端工具，并逐步演进成一个轻量的本地 Agent 运行时。
 
 ### 1.2 一句话描述
 
-SafeCode Agent 是一个安全优先的终端 AI 编程助手：LLM 不能直接写文件，只能生成 Patch Proposal；所有写入都经过 Diff Review、人工确认、Checkpoint 和 Audit Log。
+SafeCode Agent 是一个安全优先的终端 AI 编程助手和轻量 Agent Harness：LLM 不能直接写文件，只能生成 Patch Proposal；所有写入都经过 Diff Review、人工确认、Checkpoint 和 Audit Log。
 
 ### 1.3 核心价值
 
@@ -21,6 +23,22 @@ SafeCode Agent 是一个安全优先的终端 AI 编程助手：LLM 不能直接
 3. **可回滚**：修改前自动保存 Checkpoint，支持恢复。
 4. **适合个人维护**：第一版不引入过重框架，优先做稳定闭环。
 5. **可持续扩展**：后续可以加入 Shell 权限、Hooks、Memory、代码索引、MCP、Subagents、TUI / IDE 插件。
+
+### 1.4 最终产品标准
+
+SafeCode Agent 的最终产品形态应该对齐现代 Agent Runtime 的核心能力，但按版本逐步实现：
+
+| 方向 | 最终标准 | 当前落点 |
+|---|---|---|
+| Agent Harness | 模型外部有清晰运行时，负责上下文、工具、权限、状态、日志 | v0.1 的 CLI + Orchestrator + Patch/Checkpoint/Audit |
+| 可操作计算机环境 | 能安全读写项目文件、运行受控命令、验证结果 | v0.1 文件 Patch，v0.2 Shell |
+| 长任务状态 | 能跨多轮保留 pending task、progress、checkpoint、history | v0.1 `.sac/`，v0.3 progress / memory |
+| 工具生态 | 工具可发现、可注册、可按需调用，而不是全部塞进 prompt | v0.4 Skills / Tool Registry，v0.5 MCP |
+| 安全 containment | 默认限制能力边界，而不是只靠每次弹窗确认 | v0.1 路径限制和人工确认，v0.2+ sandbox / policy |
+| 可审计性 | 每次读取、提案、应用、回滚、命令执行都有结构化记录 | v0.1 JSONL Audit Log |
+| 可回滚性 | 写入前有 checkpoint，失败后能恢复 | v0.1 checkpoint / rollback |
+
+产品验收不以“模型能不能聊天”为核心，而以“能否安全、可解释、可回滚地操作本地项目”为核心。
 
 ---
 
@@ -74,6 +92,31 @@ sac edit
 ```
 
 这个闭环跑通后，再逐步加入 Shell、Hooks、Memory、Index、Subagents。
+
+### 2.4 Harness 优先，而不是聊天优先
+
+SafeCode Agent 的设计重点不是让模型自由聊天，而是让模型在一个受控运行时里工作。
+
+运行时需要负责：
+
+- 上下文收集：只读取必要项目文件，默认跳过敏感文件。
+- 状态管理：pending patch、checkpoint、history、progress。
+- 权限控制：写文件、Shell、网络、工具调用必须有边界。
+- 工具调度：未来工具通过 registry / skills / MCP 接入。
+- 结果验证：修改后可以运行测试、检查 diff、记录日志。
+
+模型只负责推理、生成回答和生成结构化提案；实际动作由 Harness 校验和执行。
+
+### 2.5 Containment 优先，而不是只靠确认弹窗
+
+用户确认很重要，但不能把安全全部建立在用户每次点确认上。后续版本要逐步加入 containment：
+
+- 文件系统限制在 project root。
+- 默认拒绝 `.env`、`.ssh`、私钥、token 等敏感路径。
+- Shell 命令按风险等级分类。
+- 高风险命令默认阻止或强确认。
+- 网络访问、外部工具、MCP 需要单独策略。
+- 长任务必须有 progress 和 audit trail，不能只依赖上下文记忆。
 
 ---
 
@@ -162,9 +205,9 @@ sac config init
 - 识别管道、重定向、`&&`、`;`、`$()` 等高风险 shell 结构。
 - 默认阻止读取 secret、私钥、`.env`、系统敏感路径。
 
-### 3.3 v0.3：Hooks 与 Memory
+### 3.3 v0.3：Hooks、Memory 与长任务状态
 
-v0.3 加入可扩展自动化能力，让项目更接近真实 Coding Agent。
+v0.3 加入可扩展自动化能力和长期状态，让项目更接近真实 Coding Agent Harness。
 
 #### 目标
 
@@ -173,6 +216,8 @@ v0.3 加入可扩展自动化能力，让项目更接近真实 Coding Agent。
 3. 支持项目级 Memory。
 4. 支持 `SAC.md` 项目规则文件。
 5. 支持自动记忆低风险项目事实，例如测试命令、启动命令、包管理器。
+6. 支持 `.sac/progress.md` 或 `.sac/progress.json`，记录长任务当前目标、已完成事项、下一步和阻塞点。
+7. 支持 apply 后建议 git commit message，但默认不自动提交。
 
 #### 示例
 
@@ -183,18 +228,73 @@ hooks:
     - "pytest -q"
 ```
 
-### 3.4 v0.4+：高级能力
+### 3.4 v0.4：Skills 与 Tool Registry
 
-后续版本再考虑：
+v0.4 开始把工具和专业能力做成可发现、可组合的资源，而不是把所有工具说明塞进 prompt。
 
-- 代码语义索引。
-- Tree-sitter 代码结构解析。
-- MCP。
-- Skills。
-- Subagents。
+#### 目标
+
+1. 支持 `skills/` 目录。
+2. 每个 skill 包含 `SKILL.md`、可选脚本、模板和示例。
+3. 支持 `sac skills list` / `sac skills show`。
+4. 支持 Tool Registry，把内部能力注册成可发现工具。
+5. 工具说明按需加载，不一次性塞入模型上下文。
+
+### 3.5 v0.5：代码索引与检索增强
+
+v0.5 再考虑大项目上下文不足的问题。注意，这不是 v0.1 的需求。
+
+#### 目标
+
+1. 支持代码结构索引。
+2. 可选 Tree-sitter 解析函数、类、入口文件。
+3. 可选轻量全文索引。
+4. 只有在项目规模变大、上下文不足时才加入 embedding / vector search。
+5. 检索结果必须保留来源文件和行号，方便审查。
+
+### 3.6 v0.6：MCP 与外部工具生态
+
+v0.6 接入 MCP 或类似协议，把 GitHub、Notion、浏览器、文档等外部工具纳入统一工具层。
+
+#### 目标
+
+1. 支持 MCP server 配置。
+2. 工具按需发现和调用。
+3. 外部工具调用写入 audit log。
+4. 对外部写操作使用独立权限策略。
+5. 不把所有 MCP tool schema 一次性塞进 prompt。
+
+### 3.7 v0.7：Sandbox 与受控执行环境
+
+v0.7 强化 containment，让 Agent 能在更安全的边界内运行命令和工具。
+
+#### 目标
+
+1. 支持 workspace sandbox。
+2. 限制 project root 外文件读写。
+3. 网络访问默认关闭或按 allowlist 控制。
+4. Shell 命令在隔离环境中执行。
+5. 高风险命令强确认或默认阻止。
+
+### 3.8 v0.8：Subagents 与长期任务协作
+
+v0.8 再探索多 Agent 和长期自治任务。
+
+#### 目标
+
+1. Lead Agent 负责规划和汇总。
+2. Subagent 负责独立子任务，例如代码搜索、测试修复、文档整理。
+3. 子任务通过文件化 progress / result 回传。
+4. 每个子 agent 有独立上下文和权限边界。
+5. 默认不并行写同一文件，避免冲突。
+
+### 3.9 更后续能力
+
 - Textual TUI。
 - VSCode / JetBrains 插件。
 - Langfuse / OpenTelemetry 观测。
+- 云端任务队列。
+- 团队协作和 PR 工作流。
 
 ---
 
@@ -820,8 +920,9 @@ safecode-agent/
       checkpoint/
         manager.py
         models.py
-      logging/
-        audit.py
+      audit/
+        logger.py
+        models.py
       permissions/
         risk.py
         policy.py
@@ -830,6 +931,16 @@ safecode-agent/
         runner.py
       memory/
         sqlite_store.py
+        progress.py
+      skills/
+        registry.py
+        loader.py
+      tools/
+        registry.py
+        schemas.py
+      sandbox/
+        runner.py
+        policy.py
       utils/
         paths.py
         time.py
@@ -842,7 +953,9 @@ safecode-agent/
     fastapi-demo/
 ```
 
-v0.1 可以先创建部分目录，`permissions`、`hooks`、`memory` 可以保留空模块或放到 v0.2/v0.3 再创建。
+v0.1 可以先创建核心目录：`agent`、`context`、`llm`、`patch`、`checkpoint`、`audit`、`utils`。
+
+`permissions`、`hooks`、`memory`、`skills`、`tools`、`sandbox` 不建议在 v0.1 急着实现，可以等对应版本到来时再创建。这样目录结构能表达长期目标，但不会让第一版学习成本失控。
 
 ---
 

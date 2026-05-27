@@ -1,8 +1,8 @@
 # FastAPI Demo
 
-This demo will be used after v0.1 is implemented.
+This demo shows the full SafeCode Agent v0.1 loop on a small FastAPI project.
 
-Planned scenario:
+Run from this directory:
 
 ```bash
 cd examples/fastapi-demo
@@ -12,3 +12,10 @@ sac apply
 sac history
 sac rollback --last
 ```
+
+Expected behavior:
+
+- `sac edit` previews a patch for `app/main.py` and saves `.sac/pending_patch.json`.
+- `sac apply` asks for confirmation before writing.
+- `sac history` shows the audit log.
+- `sac rollback --last` restores the file from the latest checkpoint.

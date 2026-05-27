@@ -4,6 +4,8 @@
 
 主设计文档负责说明项目愿景和总体架构；本文件只负责 v0.1 怎么一步一步落地。后续开发时，每次只实现一个小版本，先审计划和 diff，再写代码。
 
+长期产品方向见 `docs/agent_runtime_target_roadmap.md`。v0.1 的职责是先完成安全修改闭环，不把 Shell、Skills、MCP、Subagents 提前塞进第一版。
+
 ## v0.1 总目标
 
 v0.1 只做安全 Patch 修改闭环：
