@@ -62,4 +62,36 @@ class CheckpointManager:
 
     def rollback_last(self) -> CheckpointMetadata:
         """Restore the latest checkpoint."""
-        raise NotImplementedError
+        metadata = self._load_latest_metadata()
+        checkpoint_dir = self.checkpoints_dir / metadata.checkpoint_id
+
+        for operation in metadata.file_operations:
+            target_path = (self.project_root / operation.path).resolve()
+            try:
+                target_path.relative_to(self.project_root)
+            except ValueError as exc:
+                raise ValueError(f"Checkpoint path escapes project root: {operation.path}") from exc
+
+            if operation.existed_before:
+                if operation.backup_path is None:
+                    raise ValueError(f"Missing backup path for {operation.path}")
+                backup_file = checkpoint_dir / operation.backup_path
+                target_path.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(backup_file, target_path)
+            elif target_path.exists():
+                target_path.unlink()
+
+        return metadata
+
+    def _load_latest_metadata(self) -> CheckpointMetadata:
+        """Load metadata for the newest checkpoint directory."""
+        if not self.checkpoints_dir.exists():
+            raise FileNotFoundError("No checkpoints found.")
+
+        checkpoint_dirs = sorted(path for path in self.checkpoints_dir.iterdir() if path.is_dir())
+        if not checkpoint_dirs:
+            raise FileNotFoundError("No checkpoints found.")
+
+        metadata_path = checkpoint_dirs[-1] / "metadata.json"
+        data = json.loads(metadata_path.read_text(encoding="utf-8"))
+        return CheckpointMetadata(**data)

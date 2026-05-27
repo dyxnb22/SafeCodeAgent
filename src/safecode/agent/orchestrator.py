@@ -45,6 +45,14 @@ class ApplyResult:
     files: list[str]
 
 
+@dataclass
+class RollbackResult:
+    """Result after restoring the latest checkpoint."""
+
+    checkpoint: CheckpointMetadata
+    files: list[str]
+
+
 class AgentOrchestrator:
     """High-level workflow entrypoint for v0.1 commands."""
 
@@ -134,6 +142,26 @@ class AgentOrchestrator:
             )
         )
         return ApplyResult(proposal=proposal, checkpoint=checkpoint, files=files)
+
+    def rollback_last(self) -> RollbackResult:
+        """Restore the latest checkpoint and audit the rollback."""
+        checkpoint = CheckpointManager(self.project_root).rollback_last()
+        files = [operation.path for operation in checkpoint.file_operations]
+        self.audit_logger.write(
+            AuditEvent(
+                type="rollback_completed",
+                timestamp=utc_now_iso(),
+                patch_id=checkpoint.patch_id,
+                checkpoint_id=checkpoint.checkpoint_id,
+                files=files,
+                message=checkpoint.task,
+            )
+        )
+        return RollbackResult(checkpoint=checkpoint, files=files)
+
+    def history(self, limit: int = 20) -> list[AuditEvent]:
+        """Read recent audit events."""
+        return self.audit_logger.read_recent(limit=limit)
 
     def _save_pending_patch(self, proposal: PatchProposal) -> Path:
         """Save the parsed proposal for a future sac apply command."""

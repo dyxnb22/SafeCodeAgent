@@ -38,3 +38,16 @@ def test_create_checkpoint_backs_up_existing_file(tmp_path) -> None:
     assert operation.operation == "update"
     assert operation.existed_before is True
     assert operation.backup_path == "files/README.md"
+
+
+def test_rollback_last_restores_existing_file(tmp_path) -> None:
+    readme = tmp_path / "README.md"
+    readme.write_text("before\n", encoding="utf-8")
+    manager = CheckpointManager(tmp_path)
+    metadata = manager.create(make_proposal())
+
+    readme.write_text("after\n", encoding="utf-8")
+    restored = manager.rollback_last()
+
+    assert restored.checkpoint_id == metadata.checkpoint_id
+    assert readme.read_text(encoding="utf-8") == "before\n"

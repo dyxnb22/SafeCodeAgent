@@ -6,6 +6,7 @@ import typer
 from rich.console import Console
 from rich.panel import Panel
 from rich.syntax import Syntax
+from rich.table import Table
 
 from safecode.agent.orchestrator import AgentOrchestrator
 from safecode.patch.parser import PatchParseError
@@ -86,13 +87,52 @@ def rollback(last: bool = typer.Option(False, "--last", help="Rollback the lates
     if not last:
         console.print("[red]Only --last is planned for v0.1.[/red]")
         raise typer.Exit(code=1)
-    console.print("[yellow]TODO:[/yellow] rollback the latest checkpoint")
+
+    project_root = Path.cwd()
+    try:
+        result = AgentOrchestrator(project_root).rollback_last()
+    except FileNotFoundError as exc:
+        console.print(f"[red]Rollback failed:[/red] {exc}")
+        raise typer.Exit(code=1) from exc
+
+    console.print(
+        Panel.fit(
+            f"Rolled back checkpoint: {result.checkpoint.checkpoint_id}\n"
+            f"Files: {', '.join(result.files)}",
+            title="SafeCode",
+        )
+    )
 
 
 @app.command()
 def history() -> None:
     """Show recent SafeCode Agent audit events."""
-    console.print("[yellow]TODO:[/yellow] read .sac/logs/events.jsonl")
+    events = AgentOrchestrator(Path.cwd()).history()
+    if not events:
+        console.print("[yellow]No audit events found.[/yellow]")
+        return
+
+    table = Table(title="SafeCode History")
+    table.add_column("Time")
+    table.add_column("Type")
+    table.add_column("Status")
+    table.add_column("Patch")
+    table.add_column("Checkpoint")
+    table.add_column("Files")
+    table.add_column("Message")
+
+    for event in events:
+        table.add_row(
+            event.timestamp,
+            event.type,
+            event.status,
+            event.patch_id or "",
+            event.checkpoint_id or "",
+            ", ".join(event.files),
+            event.message or "",
+        )
+
+    console.print(table)
 
 
 def main() -> None:
