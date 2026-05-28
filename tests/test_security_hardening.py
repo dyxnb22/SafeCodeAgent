@@ -168,7 +168,8 @@ def test_approved_hook_uses_persisted_approval(tmp_path: Path) -> None:
     assert "hook_approval_used" in event_types
 
 
-def test_audit_log_hash_chain_detects_tampering(tmp_path: Path) -> None:
+def test_audit_log_hash_chain_detects_tampering(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(tmp_path / "anchors"))
     logger = AuditLogger(tmp_path)
     logger.write(AuditEvent(type="one", timestamp="2026-01-01T00:00:00Z", message="first"))
     logger.write(AuditEvent(type="two", timestamp="2026-01-01T00:00:01Z", message="second"))
@@ -183,6 +184,42 @@ def test_audit_log_hash_chain_detects_tampering(tmp_path: Path) -> None:
     ok, message = logger.verify_integrity()
     assert ok is False
     assert "mismatch" in message
+
+
+def test_audit_anchor_detects_full_log_rewrite(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(tmp_path / "anchors"))
+    logger = AuditLogger(tmp_path)
+    logger.write(AuditEvent(type="one", timestamp="2026-01-01T00:00:00Z", message="first"))
+    logger.write(AuditEvent(type="two", timestamp="2026-01-01T00:00:01Z", message="second"))
+
+    rewritten_events = [
+        AuditEvent(type="one", timestamp="2026-01-01T00:00:00Z", message="rewritten first"),
+        AuditEvent(type="two", timestamp="2026-01-01T00:00:01Z", message="rewritten second"),
+    ]
+    previous_hash = None
+    lines = []
+    for event in rewritten_events:
+        event.previous_hash = previous_hash
+        event.event_hash = logger._hash_event(event)
+        previous_hash = event.event_hash
+        lines.append(event.model_dump_json())
+    (tmp_path / ".sac" / "logs" / "events.jsonl").write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    ok, message = logger.verify_integrity()
+
+    assert ok is False
+    assert "anchor mismatch" in message
+
+
+def test_audit_verify_reports_legacy_events_cleanly(tmp_path: Path) -> None:
+    log_file = tmp_path / ".sac" / "logs" / "events.jsonl"
+    log_file.parent.mkdir(parents=True)
+    log_file.write_text('{"type":"old","timestamp":"2026-01-01T00:00:00Z"}\n', encoding="utf-8")
+
+    ok, message = AuditLogger(tmp_path).verify_integrity()
+
+    assert ok is False
+    assert "Legacy audit event" in message
 
 
 def test_checkpoint_create_rejects_path_escape(tmp_path: Path) -> None:

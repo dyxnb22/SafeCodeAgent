@@ -4,6 +4,9 @@ import hashlib
 import json
 from pathlib import Path
 
+from pydantic import ValidationError
+
+from safecode.audit.anchor import AuditAnchorStore
 from safecode.audit.models import AuditEvent
 from safecode.config import SafeCodeConfig
 
@@ -13,8 +16,9 @@ class AuditLogger:
 
     def __init__(self, project_root: Path, config: SafeCodeConfig | None = None) -> None:
         self.project_root = project_root
-        self.config = config or SafeCodeConfig()
+        self.config = config or SafeCodeConfig.load(project_root)
         self.log_file = self.project_root / self.config.sac_dir / "logs" / "events.jsonl"
+        self.anchor_store = AuditAnchorStore(project_root)
 
     def write(self, event: AuditEvent) -> None:
         """Append one event to .sac/logs/events.jsonl."""
@@ -25,6 +29,7 @@ class AuditLogger:
         line = json.dumps(event.model_dump(), ensure_ascii=False, sort_keys=True)
         with self.log_file.open("a", encoding="utf-8") as file:
             file.write(line + "\n")
+        self.anchor_store.write(self.log_file, self._line_count(), event.event_hash)
 
     def read_recent(self, limit: int = 20) -> list[AuditEvent]:
         """Read recent events for sac history."""
@@ -41,16 +46,28 @@ class AuditLogger:
             return True, "No audit log found."
 
         previous_hash: str | None = None
+        line_count = 0
         for line_number, line in enumerate(self.log_file.read_text(encoding="utf-8").splitlines(), start=1):
             if not line.strip():
                 continue
-            event = AuditEvent(**json.loads(line))
+            line_count += 1
+            try:
+                event = AuditEvent(**json.loads(line))
+            except (json.JSONDecodeError, ValidationError) as exc:
+                return False, f"Audit log parse error at line {line_number}: {exc}"
+            if not event.event_hash:
+                return False, f"Legacy audit event without hash at line {line_number}."
             if event.previous_hash != previous_hash:
                 return False, f"Audit hash chain break at line {line_number}."
             expected_hash = self._hash_event(event)
             if event.event_hash != expected_hash:
                 return False, f"Audit event hash mismatch at line {line_number}."
             previous_hash = event.event_hash
+        anchor = self.anchor_store.latest(self.log_file)
+        if anchor:
+            if anchor.line_count != line_count or anchor.event_hash != previous_hash:
+                return False, "Audit anchor mismatch; the log may have been rewritten."
+            return True, "Audit log integrity verified with external anchor."
         return True, "Audit log integrity verified."
 
     def _last_hash(self) -> str | None:
@@ -61,6 +78,12 @@ class AuditLogger:
             if line.strip():
                 return AuditEvent(**json.loads(line)).event_hash
         return None
+
+    def _line_count(self) -> int:
+        """Count non-empty audit events."""
+        if not self.log_file.exists():
+            return 0
+        return sum(1 for line in self.log_file.read_text(encoding="utf-8").splitlines() if line.strip())
 
     def _hash_event(self, event: AuditEvent) -> str:
         """Hash event content excluding event_hash itself."""
