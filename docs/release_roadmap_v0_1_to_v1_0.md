@@ -459,6 +459,12 @@ v1.1.x 不改变核心安全模型，只提供外部集成和产品化辅助。
 | `v1.5.12` | `v1.5.12-command-policy-bypass-fixes` | 补 `core.pager`、`core.editor`、`pager.*`、`diff.*.command`、`node --eval`、`python -`、`npx/pip3/pipx/uv pip` 等绕过 | allowlisted command 的参数绕过面继续收窄 |
 | `v1.5.13` | `v1.5.13-audit-context-hardening` | anchor 缺失失败、anchor 权限收紧、context 移除绝对 project root、路径片段按敏感规则过滤 | 减少 audit 降级和 context 路径泄漏 |
 | `v1.5.14` | `v1.5.14-security-review-docs` | 把第二轮生产安全 review 后的整改写回文档 | v1.6 前安全门槛保持可追踪 |
+| `v1.5.15` | `v1.5.15-command-policy-final-bypass-fixes` | 补 git include.* 旁路、git clean 无条件阻止、清理 Git 环境变量注入 | Git 参数和环境变量注入面继续收敛 |
+| `v1.5.16` | `v1.5.16-approval-parsing-hardening` | 审批 JSON/expiry 解析容错，审批绑定 policy 版本 | 审批解析失败时安全拒绝 |
+| `v1.5.17` | `v1.5.17-audit-anchor-trust-boundary` | anchor 目录禁止落在 project root，缺失 anchor 直接失败 | anchor 只能是用户级信任锚点（签名/密钥留作后续） |
+| `v1.5.18` | `v1.5.18-context-redaction-extension` | GitHub/JWT/Bearer/base64 secret redaction 扩展 | context 更难泄漏高风险 token |
+| `v1.5.19` | `v1.5.19-patch-apply-symlink-race-guard` | apply 前重验边界、拒绝 symlink swap、记录 inode/device | 降低 TOCTOU（xattr/ownership 仍是已知限制） |
+| `v1.5.20` | `v1.5.20-security-review-docs` | 补 v1.5.15-1.5.19 文档，明确 v1.6 guardrails | v1.6 前置条件清晰可追踪 |
 
 暂缓到后续：
 
@@ -468,7 +474,16 @@ v1.1.x 不改变核心安全模型，只提供外部集成和产品化辅助。
 
 ## v1.6.x: Controlled Tooling and Subagents
 
-目标：在 `v1.5.x` 核心安全边界完成后，再扩展真实 MCP 和 subagent 能力。
+目标：在 `v1.5.x` 核心安全边界完成后，再扩展真实 MCP 和 subagent 能力。只有 `v1.5.15` 到 `v1.5.19` 的测试全部通过，才允许开始 v1.6 相关工作。
+
+### v1.6 guardrails
+
+- MCP 写操作默认禁用。
+- 所有工具执行必须走 command policy。
+- 项目目录不能提供审批或提权。
+- audit anchor 必须存在且可验证。
+- context 收集保持 bounded + redacted。
+- subagent 初期必须只读。
 
 | 版本 | 建议分支名 | 功能 | 验收 |
 |---|---|---|---|

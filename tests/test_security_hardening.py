@@ -1,4 +1,7 @@
 from pathlib import Path
+import json
+import subprocess
+from datetime import datetime, timedelta, timezone
 
 from safecode.config import SafeCodeConfig, merge_trusted_config
 from safecode.checkpoint.manager import CheckpointManager
@@ -18,6 +21,11 @@ from safecode.policy.commands import CommandPolicy
 from safecode.patch.validator import PatchValidationError, PatchValidator
 from safecode.shell.risk import RiskLevel, ShellRiskClassifier
 from safecode.shell.runner import ShellRunner
+import safecode.hooks.approvals as approvals
+
+
+def future_timestamp() -> str:
+    return (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat().replace("+00:00", "Z")
 
 
 def test_high_risk_command_is_blocked_even_when_approved(tmp_path: Path) -> None:
@@ -39,6 +47,37 @@ def test_shell_runner_uses_argv_execution(tmp_path: Path) -> None:
 
     assert result.executed is True
     assert result.stdout.strip() == "hello"
+
+
+def test_shell_runner_sanitizes_git_env_vars(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("GIT_CONFIG_PARAMETERS", "alias.pwn=!sh")
+    monkeypatch.setenv("GIT_CONFIG_COUNT", "1")
+    monkeypatch.setenv("GIT_CONFIG_KEY_0", "alias.pwn")
+    monkeypatch.setenv("GIT_CONFIG_VALUE_0", "!sh")
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", "/tmp/global")
+    monkeypatch.setenv("GIT_CONFIG_SYSTEM", "/tmp/system")
+    monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
+    monkeypatch.setenv("GIT_DIR", "/tmp/.git")
+    monkeypatch.setenv("GIT_WORK_TREE", "/tmp/work")
+
+    def fake_run(args, cwd, text, capture_output, env, timeout, check):
+        assert "GIT_CONFIG_PARAMETERS" not in env
+        assert "GIT_CONFIG_COUNT" not in env
+        assert "GIT_CONFIG_GLOBAL" not in env
+        assert "GIT_CONFIG_SYSTEM" not in env
+        assert "GIT_CONFIG_NOSYSTEM" not in env
+        assert "GIT_DIR" not in env
+        assert "GIT_WORK_TREE" not in env
+        assert not any(key.startswith("GIT_CONFIG_KEY_") for key in env)
+        assert not any(key.startswith("GIT_CONFIG_VALUE_") for key in env)
+        return subprocess.CompletedProcess(args, 0, stdout="ok\n", stderr="")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    result = ShellRunner(tmp_path).run("echo ok", approved=False)
+
+    assert result.executed is True
+    assert result.stdout.strip() == "ok"
 
 
 def test_project_config_cannot_lower_user_security() -> None:
@@ -199,6 +238,93 @@ def test_hook_approval_requires_allow_medium_switch(tmp_path: Path, monkeypatch)
     assert summary.results[0].exit_code == 125
 
 
+def test_hook_approval_parsing_skips_malformed_json(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("SAFECODE_APPROVAL_DIR", str(tmp_path / "user-approvals"))
+    store = HookApprovalStore(tmp_path, SafeCodeConfig())
+    store.path.parent.mkdir(parents=True, exist_ok=True)
+    store.path.write_text("{broken json\n", encoding="utf-8")
+
+    assert store.is_approved("after_apply", "git status") is False
+
+
+def test_hook_approval_parsing_skips_missing_fields(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("SAFECODE_APPROVAL_DIR", str(tmp_path / "user-approvals"))
+    store = HookApprovalStore(tmp_path, SafeCodeConfig())
+    store.path.parent.mkdir(parents=True, exist_ok=True)
+    store.path.write_text('{"hook_name":"after_apply"}\n', encoding="utf-8")
+
+    assert store.is_approved("after_apply", "git status") is False
+
+
+def test_hook_approval_parsing_invalid_expires_at(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("SAFECODE_APPROVAL_DIR", str(tmp_path / "user-approvals"))
+    store = HookApprovalStore(tmp_path, SafeCodeConfig())
+    payload = {
+        "hook_name": "after_apply",
+        "command": "git status",
+        "command_hash": store.command_hash("after_apply", "git status"),
+        "approved_at": "2026-01-01T00:00:00Z",
+        "expires_at": "not-a-date",
+        "user": store._current_user(),
+        "config_hash": store.config_hash(),
+        "policy_version": store._policy_version(),
+    }
+    store.path.parent.mkdir(parents=True, exist_ok=True)
+    store.path.write_text(json.dumps(payload) + "\n", encoding="utf-8")
+
+    assert store.is_approved("after_apply", "git status") is False
+
+
+def test_hook_approval_user_mismatch(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("SAFECODE_APPROVAL_DIR", str(tmp_path / "user-approvals"))
+    store = HookApprovalStore(tmp_path, SafeCodeConfig())
+    payload = {
+        "hook_name": "after_apply",
+        "command": "git status",
+        "command_hash": store.command_hash("after_apply", "git status"),
+        "approved_at": "2026-01-01T00:00:00Z",
+        "expires_at": future_timestamp(),
+        "user": "someone-else",
+        "config_hash": store.config_hash(),
+        "policy_version": store._policy_version(),
+    }
+    store.path.parent.mkdir(parents=True, exist_ok=True)
+    store.path.write_text(json.dumps(payload) + "\n", encoding="utf-8")
+
+    assert store.is_approved("after_apply", "git status") is False
+
+
+def test_hook_approval_config_hash_mismatch(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("SAFECODE_APPROVAL_DIR", str(tmp_path / "user-approvals"))
+    store = HookApprovalStore(tmp_path, SafeCodeConfig())
+    payload = {
+        "hook_name": "after_apply",
+        "command": "git status",
+        "command_hash": store.command_hash("after_apply", "git status"),
+        "approved_at": "2026-01-01T00:00:00Z",
+        "expires_at": future_timestamp(),
+        "user": store._current_user(),
+        "config_hash": "tampered",
+        "policy_version": store._policy_version(),
+    }
+    store.path.parent.mkdir(parents=True, exist_ok=True)
+    store.path.write_text(json.dumps(payload) + "\n", encoding="utf-8")
+
+    assert store.is_approved("after_apply", "git status") is False
+
+
+def test_hook_approval_policy_version_mismatch(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("SAFECODE_APPROVAL_DIR", str(tmp_path / "user-approvals"))
+    config = SafeCodeConfig()
+    config.hooks.allow_medium_after_apply = True
+    monkeypatch.setattr(approvals, "APPROVAL_POLICY_VERSION", "v1")
+    HookApprovalStore(tmp_path, config).approve("after_apply", "git status")
+
+    monkeypatch.setattr(approvals, "APPROVAL_POLICY_VERSION", "v2")
+
+    assert HookApprovalStore(tmp_path, config).is_approved("after_apply", "git status") is False
+
+
 def test_hook_approval_is_bound_to_config(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("SAFECODE_APPROVAL_DIR", str(tmp_path / "user-approvals"))
     approved_config = SafeCodeConfig()
@@ -216,7 +342,8 @@ def test_hook_approval_is_bound_to_config(tmp_path: Path, monkeypatch) -> None:
 
 
 def test_audit_log_hash_chain_detects_tampering(tmp_path: Path, monkeypatch) -> None:
-    monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(tmp_path / "anchors"))
+    anchor_dir = tmp_path.parent / f"anchors-{tmp_path.name}"
+    monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor_dir))
     logger = AuditLogger(tmp_path)
     logger.write(AuditEvent(type="one", timestamp="2026-01-01T00:00:00Z", message="first"))
     logger.write(AuditEvent(type="two", timestamp="2026-01-01T00:00:01Z", message="second"))
@@ -233,8 +360,28 @@ def test_audit_log_hash_chain_detects_tampering(tmp_path: Path, monkeypatch) -> 
     assert "mismatch" in message
 
 
+def test_audit_anchor_rejects_project_local_dir(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(tmp_path / "anchors"))
+
+    try:
+        AuditLogger(tmp_path)
+    except PermissionError as exc:
+        assert "outside the project root" in str(exc)
+    else:
+        raise AssertionError("Project-local anchor dir should be rejected.")
+
+
+def test_audit_anchor_allows_external_dir(tmp_path: Path, monkeypatch) -> None:
+    anchor_dir = tmp_path.parent / f"anchors-{tmp_path.name}"
+    monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor_dir))
+    logger = AuditLogger(tmp_path)
+    logger.write(AuditEvent(type="one", timestamp="2026-01-01T00:00:00Z", message="first"))
+
+    assert any(anchor_dir.glob("*.jsonl"))
+
+
 def test_audit_verify_fails_when_anchor_missing(tmp_path: Path, monkeypatch) -> None:
-    anchor_dir = tmp_path / "anchors"
+    anchor_dir = tmp_path.parent / f"anchors-{tmp_path.name}"
     monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor_dir))
     logger = AuditLogger(tmp_path)
     logger.write(AuditEvent(type="one", timestamp="2026-01-01T00:00:00Z", message="first"))
@@ -248,7 +395,7 @@ def test_audit_verify_fails_when_anchor_missing(tmp_path: Path, monkeypatch) -> 
 
 
 def test_audit_anchor_permissions_are_restricted(tmp_path: Path, monkeypatch) -> None:
-    anchor_dir = tmp_path / "anchors"
+    anchor_dir = tmp_path.parent / f"anchors-{tmp_path.name}"
     monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor_dir))
     AuditLogger(tmp_path).write(AuditEvent(type="one", timestamp="2026-01-01T00:00:00Z", message="first"))
     anchor_file = next(anchor_dir.glob("*.jsonl"))
@@ -258,7 +405,8 @@ def test_audit_anchor_permissions_are_restricted(tmp_path: Path, monkeypatch) ->
 
 
 def test_audit_anchor_detects_full_log_rewrite(tmp_path: Path, monkeypatch) -> None:
-    monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(tmp_path / "anchors"))
+    anchor_dir = tmp_path.parent / f"anchors-{tmp_path.name}"
+    monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor_dir))
     logger = AuditLogger(tmp_path)
     logger.write(AuditEvent(type="one", timestamp="2026-01-01T00:00:00Z", message="first"))
     logger.write(AuditEvent(type="two", timestamp="2026-01-01T00:00:01Z", message="second"))
@@ -393,6 +541,50 @@ def test_context_collector_redacts_json_bearer_and_aws_keys(tmp_path: Path) -> N
     assert "AKIAABCDEFGHIJKLMNOP" not in context["readme"]
 
 
+def test_context_collector_redacts_github_token(tmp_path: Path) -> None:
+    token = "ghp_1234567890abcdef1234567890abcdef1234"
+    (tmp_path / "README.md").write_text(f"token={token}\n", encoding="utf-8")
+
+    context = ContextCollector(tmp_path).collect()
+
+    assert token not in context["readme"]
+    assert "[REDACTED]" in context["readme"]
+
+
+def test_context_collector_redacts_jwt_token(tmp_path: Path) -> None:
+    jwt = (
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9."
+        "eyJzdWIiOiIxMjM0NTY3ODkwIn0."
+        "SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
+    )
+    (tmp_path / "README.md").write_text(f"{jwt}\n", encoding="utf-8")
+
+    context = ContextCollector(tmp_path).collect()
+
+    assert jwt not in context["readme"]
+    assert "[REDACTED]" in context["readme"]
+
+
+def test_context_collector_redacts_bearer_token(tmp_path: Path) -> None:
+    token = "Bearer abcdef1234567890abcdef1234567890"
+    (tmp_path / "README.md").write_text(f"Authorization: {token}\n", encoding="utf-8")
+
+    context = ContextCollector(tmp_path).collect()
+
+    assert "abcdef1234567890abcdef1234567890" not in context["readme"]
+    assert "[REDACTED]" in context["readme"]
+
+
+def test_context_collector_redacts_base64_secret(tmp_path: Path) -> None:
+    secret = "YWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXo0MTIzNDU2Nzg5MA=="
+    (tmp_path / "README.md").write_text(f"{secret}\n", encoding="utf-8")
+
+    context = ContextCollector(tmp_path).collect()
+
+    assert secret not in context["readme"]
+    assert "[REDACTED]" in context["readme"]
+
+
 def test_context_collector_caps_file_list_by_total_budget(tmp_path: Path) -> None:
     config = SafeCodeConfig(max_context_chars=30)
     (tmp_path / "README.md").write_text("public", encoding="utf-8")
@@ -518,6 +710,55 @@ def test_patch_apply_rechecks_preimage_before_write(tmp_path: Path, monkeypatch)
     assert target.read_text(encoding="utf-8") == "changed elsewhere"
 
 
+def test_patch_apply_rejects_symlink_swap(tmp_path: Path, monkeypatch) -> None:
+    target = tmp_path / "README.md"
+    target.write_text("before", encoding="utf-8")
+    outside = tmp_path.parent / "outside-secret.txt"
+    outside.write_text("outside", encoding="utf-8")
+    proposal = PatchProposal(
+        id="patch-symlink",
+        task="symlink",
+        blocks=[PatchBlock(operation="update", file_path=Path("README.md"), search="before", replace="after")],
+        created_at="2026-01-01T00:00:00Z",
+        model="test",
+    )
+    applier = PatchApplier(tmp_path)
+    original_prepare = applier._prepare_operations
+
+    def swapping_prepare(proposal: PatchProposal):
+        operations = original_prepare(proposal)
+        target.unlink()
+        target.symlink_to(outside)
+        return operations
+
+    monkeypatch.setattr(applier, "_prepare_operations", swapping_prepare)
+
+    try:
+        applier.apply(proposal)
+    except PatchValidationError as exc:
+        assert "symlink" in str(exc)
+    else:
+        raise AssertionError("Apply should reject symlink swaps.")
+
+    assert outside.read_text(encoding="utf-8") == "outside"
+
+
+def test_patch_apply_still_applies_after_identity_check(tmp_path: Path) -> None:
+    target = tmp_path / "README.md"
+    target.write_text("before", encoding="utf-8")
+    proposal = PatchProposal(
+        id="patch-identity",
+        task="identity",
+        blocks=[PatchBlock(operation="update", file_path=Path("README.md"), search="before", replace="after")],
+        created_at="2026-01-01T00:00:00Z",
+        model="test",
+    )
+
+    PatchApplier(tmp_path).apply(proposal)
+
+    assert target.read_text(encoding="utf-8") == "after"
+
+
 def test_orchestrator_writes_trace_id_to_audit(tmp_path: Path) -> None:
     AgentOrchestrator(tmp_path).ask("what is this")
 
@@ -579,6 +820,9 @@ def test_command_policy_blocks_git_path_overrides() -> None:
 
 def test_command_policy_blocks_stateful_git_commands() -> None:
     for command in [
+        "git clean",
+        "git clean -d",
+        "git -c clean.requireForce=0 clean -d",
         "git clean -fdx",
         "git checkout -- README.md",
         "git checkout README.md",
@@ -597,11 +841,27 @@ def test_command_policy_blocks_git_config_execution_hooks() -> None:
     for command in [
         "git -c core.pager=!sh status",
         "git -c core.editor=sh status",
+        "git -c core.hooksPath=/tmp/hooks status",
+        "git -c core.sshCommand=ssh status",
         "git -c pager.log=!sh log",
         "git -c sequence.editor=sh rebase",
         "git -c diff.safe.command=sh diff",
         "git config core.pager !sh",
+        "git config core.hooksPath /tmp/hooks",
+        "git config core.sshCommand ssh",
         "git config diff.safe.command sh",
+    ]:
+        decision = CommandPolicy(SafeCodeConfig()).evaluate(command, approved=True)
+
+        assert decision.allowed is False
+
+
+def test_command_policy_blocks_git_config_include_paths() -> None:
+    for command in [
+        "git -c include.path=/tmp/pwn status",
+        "git config include.path /tmp/pwn",
+        "git -c includeIf.onbranch:main.path=/tmp/pwn status",
+        "git config includeIf.onbranch:main.path /tmp/pwn",
     ]:
         decision = CommandPolicy(SafeCodeConfig()).evaluate(command, approved=True)
 

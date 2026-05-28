@@ -66,9 +66,20 @@ class AuditAnchorStore:
         """Return the user-level anchor directory."""
         env_path = os.getenv("SAFECODE_AUDIT_ANCHOR_DIR")
         if env_path:
-            return Path(env_path).expanduser()
+            candidate = Path(env_path).expanduser()
+            resolved = candidate.resolve()
+            if self._inside_project(resolved):
+                raise PermissionError("Audit anchor directory must be outside the project root.")
+            return candidate
         return Path.home() / ".safecode" / "audit-anchors"
 
     def _project_key(self) -> str:
         """Create a stable filename for the project path."""
         return hashlib.sha256(str(self.project_root).encode("utf-8")).hexdigest()
+
+    def _inside_project(self, path: Path) -> bool:
+        try:
+            path.relative_to(self.project_root)
+            return True
+        except ValueError:
+            return False

@@ -6,9 +6,14 @@ import re
 SECRET_PATTERNS = [
     re.compile(r'(?i)("?(?:api[_-]?key|secret|token|password|access[_-]?key|client[_-]?secret)"?)\s*([:=])\s*("?)[^"\s,}]+("?)'),
     re.compile(r"(?i)(authorization\s*:\s*bearer\s+)[a-z0-9._~+/=-]+"),
+    re.compile(r"(?i)(\bbearer\s+)[a-z0-9._~+/=-]{20,}"),
+    re.compile(r"\bgh[pousr]_[A-Za-z0-9]{20,}\b"),
+    re.compile(r"\bgithub_pat_[A-Za-z0-9_]{20,}\b"),
+    re.compile(r"\b[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b"),
     re.compile(r"\bAKIA[0-9A-Z]{16}\b"),
     re.compile(r"\bASIA[0-9A-Z]{16}\b"),
     re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----.*?-----END [A-Z ]*PRIVATE KEY-----", re.DOTALL),
+    re.compile(r"\b(?=[A-Za-z0-9+/=]{40,}\b)(?=.*[A-Za-z])(?=.*\d)[A-Za-z0-9+/=]{40,}\b"),
 ]
 
 

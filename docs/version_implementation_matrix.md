@@ -162,6 +162,12 @@
 | `v1.5.12` | `v1.5.12-command-policy-bypass-fixes` | `src/safecode/policy/commands.py` | git pager/editor/diff command、node --eval、python stdin、npx/pip3/pipx/uv pip 被阻止 |
 | `v1.5.13` | `v1.5.13-audit-context-hardening` | `src/safecode/audit/*`、`src/safecode/context/collector.py` | anchor missing fail、0600 anchor、project_root redaction、sensitive path segment skip |
 | `v1.5.14` | `v1.5.14-security-review-docs` | `docs/*`、`safe_code_agent_software_design_doc.md` | 第二轮安全 review 后续整改写入文档 |
+| `v1.5.15` | `v1.5.15-command-policy-final-bypass-fixes` | `src/safecode/policy/commands.py`、`src/safecode/shell/runner.py` | git include/clean 旁路被阻止，Git env 注入被清理 |
+| `v1.5.16` | `v1.5.16-approval-parsing-hardening` | `src/safecode/hooks/approvals.py` | 审批 JSON/expiry 解析失败不崩溃，审批绑定 policy 版本 |
+| `v1.5.17` | `v1.5.17-audit-anchor-trust-boundary` | `src/safecode/audit/anchor.py`、`src/safecode/audit/logger.py` | anchor 不能落在 project root，缺失 anchor 直接失败 |
+| `v1.5.18` | `v1.5.18-context-redaction-extension` | `src/safecode/context/redactor.py`、`src/safecode/context/collector.py` | GitHub/JWT/Bearer/base64 secret redaction 扩展 |
+| `v1.5.19` | `v1.5.19-patch-apply-symlink-race-guard` | `src/safecode/patch/applier.py`、`src/safecode/sandbox/filesystem.py` | apply 前重验边界与 inode，拒绝 symlink swap |
+| `v1.5.20` | `v1.5.20-security-review-docs` | `docs/*`、`safe_code_agent_software_design_doc.md` | v1.5.15-1.5.19 补充 + v1.6 guardrails |
 
 ## v1.6.x: Controlled Tooling and Subagents
 

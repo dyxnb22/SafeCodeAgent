@@ -1,5 +1,6 @@
 """Run shell commands through SafeCode policy checks."""
 
+import os
 import subprocess
 import time
 from dataclasses import dataclass
@@ -47,12 +48,14 @@ class ShellRunner:
             return ShellRunResult(command, risk, exit_code, "", decision.reason, 0, False)
 
         started = time.perf_counter()
+        env = self._sanitized_env()
         try:
             completed = subprocess.run(
                 risk.tokens,
                 cwd=self.project_root,
                 text=True,
                 capture_output=True,
+                env=env,
                 timeout=self.config.shell.default_timeout_seconds,
                 check=False,
             )
@@ -72,3 +75,22 @@ class ShellRunner:
             duration_ms=duration_ms,
             executed=True,
         )
+
+    def _sanitized_env(self) -> dict[str, str]:
+        """Return environment variables with Git override injection removed."""
+        env = dict(os.environ)
+        blocked_keys = {
+            "GIT_CONFIG_PARAMETERS",
+            "GIT_CONFIG_COUNT",
+            "GIT_CONFIG_GLOBAL",
+            "GIT_CONFIG_SYSTEM",
+            "GIT_CONFIG_NOSYSTEM",
+            "GIT_DIR",
+            "GIT_WORK_TREE",
+        }
+        for key in blocked_keys:
+            env.pop(key, None)
+        for key in list(env.keys()):
+            if key.startswith("GIT_CONFIG_KEY_") or key.startswith("GIT_CONFIG_VALUE_"):
+                env.pop(key, None)
+        return env

@@ -269,6 +269,20 @@ v1.5.9 apply-metadata-preimage
 v1.5.11 hook-approval-trust
 v1.5.12 command-policy-bypass-fixes
 v1.5.13 audit-context-hardening
+v1.5.15 command-policy-final-bypass-fixes
+v1.5.16 approval-parsing-hardening
+v1.5.17 audit-anchor-trust-boundary
+v1.5.18 context-redaction-extension
+v1.5.19 patch-apply-symlink-race-guard
 ```
 
-`MCP 真执行` 和 `subagent 并发` 推迟到 `v1.6.x`。后续所有高级工具能力都应该建立在 `v1.5.x` 的核心安全边界上。
+`MCP 真执行` 和 `subagent 并发` 推迟到 `v1.6.x`。只有上述 `v1.5.15` 到 `v1.5.19` 的测试全部通过后，才允许开始 v1.6。
+
+### v1.6 guardrails
+
+- MCP 写操作默认禁用。
+- 所有工具执行必须走 command policy。
+- 项目目录不能提供审批或提权。
+- audit anchor 必须存在且可验证。
+- context 收集保持 bounded + redacted。
+- subagent 初期必须只读。

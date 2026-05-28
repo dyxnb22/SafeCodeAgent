@@ -83,24 +83,28 @@ class CommandPolicy:
                 if index + 1 >= len(tokens):
                     return "git -c without a key/value is not allowed."
                 if self._git_config_is_dangerous(tokens[index + 1]):
-                    return "git -c alias or core hook config can execute arbitrary shell."
+                    return "git -c config can load external config or execute arbitrary shell."
             if token.startswith("-c") and len(token) > 2 and self._git_config_is_dangerous(token[2:]):
-                return "git -c alias or core hook config can execute arbitrary shell."
+                return "git -c config can load external config or execute arbitrary shell."
 
-        if len(lowered) < 2:
+        subcommand, subcommand_index = self._git_subcommand(tokens)
+        if not subcommand:
             return None
 
-        subcommand = lowered[1]
-        if subcommand == "config" and any(self._git_config_is_dangerous(token) for token in tokens[2:]):
-            return "git config alias or hook path can persist arbitrary shell execution."
-        if subcommand == "reset" and "--hard" in lowered[2:]:
+        lowered_subcommand = subcommand.lower()
+        tail_tokens = tokens[subcommand_index + 1 :]
+        lowered_tail = [token.lower() for token in tail_tokens]
+
+        if lowered_subcommand == "config" and any(self._git_config_is_dangerous(token) for token in tail_tokens):
+            return "git config can persist unsafe configuration."
+        if lowered_subcommand == "reset" and "--hard" in lowered_tail:
             return "git reset --hard is destructive."
-        if subcommand == "clean" and any(flag in lowered[2:] for flag in {"-f", "-df", "-fd", "-fdx", "-dfx", "-fx", "-xf"}):
+        if lowered_subcommand == "clean":
             return "git clean can delete untracked files."
-        if subcommand in {"checkout", "restore"}:
-            return f"git {subcommand} -- can overwrite working tree files."
-        if subcommand in {"switch", "push"}:
-            return f"git {subcommand} changes repository state outside the safe patch flow."
+        if lowered_subcommand in {"checkout", "restore"}:
+            return f"git {lowered_subcommand} -- can overwrite working tree files."
+        if lowered_subcommand in {"switch", "push"}:
+            return f"git {lowered_subcommand} changes repository state outside the safe patch flow."
         return None
 
     def _git_config_is_dangerous(self, token: str) -> bool:
@@ -111,6 +115,8 @@ class CommandPolicy:
             key.startswith("alias.")
             or key.startswith("pager.")
             or (key.startswith("diff.") and key.endswith(".command"))
+            or key == "include.path"
+            or (key.startswith("includeif.") and key.endswith(".path"))
             or key
             in {
                 "core.hookspath",
@@ -121,6 +127,29 @@ class CommandPolicy:
             }
             or value.startswith("!")
         )
+
+    def _git_subcommand(self, tokens: list[str]) -> tuple[str | None, int]:
+        """Return the git subcommand and its index."""
+        index = 1
+        while index < len(tokens):
+            token = tokens[index]
+            if token in {"-c", "-C"}:
+                index += 2
+                continue
+            if token in {"--work-tree", "--git-dir"}:
+                index += 2
+                continue
+            if token.startswith("-c") or token.startswith("-C"):
+                index += 1
+                continue
+            if token.startswith("--work-tree") or token.startswith("--git-dir"):
+                index += 1
+                continue
+            if token.startswith("-"):
+                index += 1
+                continue
+            return token, index
+        return None, -1
 
     def _python_arg_risk(self, tokens: list[str]) -> str | None:
         """Detect Python execution modes that bypass patch review."""

@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+from safecode import __version__ as SAFECODE_VERSION
 from safecode.audit.logger import AuditLogger
 from safecode.audit.models import AuditEvent
 from safecode.config import SafeCodeConfig
@@ -24,6 +25,20 @@ class HookApproval:
     expires_at: str
     user: str
     config_hash: str
+    policy_version: str
+
+
+APPROVAL_POLICY_VERSION = f"{SAFECODE_VERSION}-hook-approval-v1"
+REQUIRED_APPROVAL_FIELDS = {
+    "hook_name",
+    "command",
+    "command_hash",
+    "approved_at",
+    "expires_at",
+    "user",
+    "config_hash",
+    "policy_version",
+}
 
 
 class HookApprovalStore:
@@ -47,6 +62,7 @@ class HookApprovalStore:
             expires_at=expires_at,
             user=self._current_user(),
             config_hash=self.config_hash(),
+            policy_version=self._policy_version(),
         )
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.path.parent.chmod(0o700)
@@ -66,6 +82,7 @@ class HookApprovalStore:
                     "expires_at": approval.expires_at,
                     "user": approval.user,
                     "config_hash": approval.config_hash,
+                    "policy_version": approval.policy_version,
                 },
             )
         )
@@ -79,6 +96,7 @@ class HookApprovalStore:
         return any(
             approval.command_hash == expected_hash
             and approval.config_hash == expected_config
+            and approval.policy_version == self._policy_version()
             and approval.user == current_user
             and not self._is_expired(approval)
             for approval in self.list()
@@ -92,7 +110,17 @@ class HookApprovalStore:
         for line in self.path.read_text(encoding="utf-8").splitlines():
             if line.strip():
                 try:
-                    approvals.append(HookApproval(**json.loads(line)))
+                    payload = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if not isinstance(payload, dict):
+                    continue
+                if not REQUIRED_APPROVAL_FIELDS.issubset(payload.keys()):
+                    continue
+                if not all(isinstance(payload[field], str) for field in REQUIRED_APPROVAL_FIELDS):
+                    continue
+                try:
+                    approvals.append(HookApproval(**payload))
                 except TypeError:
                     continue
         return approvals
@@ -111,6 +139,7 @@ class HookApprovalStore:
             "require_confirm_for_medium": self.config.shell.require_confirm_for_medium,
             "block_high_risk": self.config.shell.block_high_risk,
             "policy": self.config.policy,
+            "policy_version": self._policy_version(),
         }
         encoded = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
         return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
@@ -132,5 +161,12 @@ class HookApprovalStore:
 
     def _is_expired(self, approval: HookApproval) -> bool:
         """Return true when an approval has expired."""
-        expires_at = approval.expires_at.replace("Z", "+00:00")
-        return datetime.fromisoformat(expires_at) <= datetime.now(timezone.utc)
+        try:
+            expires_at = approval.expires_at.replace("Z", "+00:00")
+            return datetime.fromisoformat(expires_at) <= datetime.now(timezone.utc)
+        except (ValueError, TypeError):
+            return True
+
+    def _policy_version(self) -> str:
+        """Return the approval policy version for binding."""
+        return APPROVAL_POLICY_VERSION
