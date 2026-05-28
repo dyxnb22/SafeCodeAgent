@@ -13,6 +13,7 @@ from safecode.audit.models import AuditEvent
 from safecode.config import SafeCodeConfig, ensure_config_file
 from safecode.index.files import FileIndexer
 from safecode.index.python_symbols import PythonSymbolIndexer
+from safecode.mcp.discovery import MCPDiscovery
 from safecode.patch.parser import PatchParseError
 from safecode.patch.validator import PatchValidationError
 from safecode.memory.store import MemoryStore
@@ -34,6 +35,7 @@ skills_app = typer.Typer(help="List and inspect skills.")
 tools_app = typer.Typer(help="List internal tools.")
 index_app = typer.Typer(help="Build lightweight project indexes.")
 progress_app = typer.Typer(help="Read and update long-running progress.")
+mcp_app = typer.Typer(help="Inspect configured MCP servers and tools.")
 console = Console()
 
 
@@ -286,11 +288,25 @@ def index_symbols() -> None:
     console.print(table)
 
 
+@mcp_app.command("tools")
+def mcp_tools() -> None:
+    """List configured MCP tools."""
+    tools = MCPDiscovery(Path.cwd()).list_tools()
+    table = Table(title="MCP Tools")
+    table.add_column("Server")
+    table.add_column("Tool")
+    table.add_column("Risk")
+    for tool in tools:
+        table.add_row(tool.server, tool.name, tool.risk)
+    console.print(table if tools else "[yellow]No MCP tools configured.[/yellow]")
+
+
 app.add_typer(config_app, name="config")
 app.add_typer(skills_app, name="skills")
 app.add_typer(tools_app, name="tools")
 app.add_typer(index_app, name="index")
 app.add_typer(progress_app, name="progress")
+app.add_typer(mcp_app, name="mcp")
 
 
 def main() -> None:
