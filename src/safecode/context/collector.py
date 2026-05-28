@@ -36,7 +36,7 @@ class ContextCollector:
     def collect(self) -> dict:
         """Return a small context dictionary for v0.1."""
         context = {
-            "project_root": str(self.project_root),
+            "project_root": "[PROJECT_ROOT]",
             "files": self._list_files(),
             "readme": self._read_limited("README.md", self.config.max_file_lines),
             "pyproject": self._read_limited("pyproject.toml", self.config.max_file_lines),
@@ -115,7 +115,8 @@ class ContextCollector:
             return True
         if name in configured_sensitive or lowered_parts & configured_sensitive:
             return True
-        if any(fnmatch(name, pattern) for pattern in SENSITIVE_PATTERNS):
+        relative_text = relative_path.as_posix().lower()
+        if any(fnmatch(name, pattern) or fnmatch(relative_text, pattern) for pattern in SENSITIVE_PATTERNS):
             return True
         return False
 

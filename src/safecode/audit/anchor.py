@@ -39,8 +39,10 @@ class AuditAnchorStore:
             anchored_at=utc_now_iso(),
         )
         self.path.parent.mkdir(parents=True, exist_ok=True)
+        self.path.parent.chmod(0o700)
         with self.path.open("a", encoding="utf-8") as file:
             file.write(json.dumps(anchor.__dict__, ensure_ascii=False, sort_keys=True) + "\n")
+        self.path.chmod(0o600)
 
     def latest(self, log_file: Path) -> AuditAnchor | None:
         """Return the latest anchor for a log file."""
@@ -55,6 +57,10 @@ class AuditAnchorStore:
             if anchor.log_file == log_file_text:
                 latest_anchor = anchor
         return latest_anchor
+
+    def has_anchor_history(self) -> bool:
+        """Return true when an anchor file has ever existed for this project."""
+        return self.path.exists()
 
     def _anchor_dir(self) -> Path:
         """Return the user-level anchor directory."""

@@ -68,6 +68,8 @@ class AuditLogger:
             if anchor.line_count != line_count or anchor.event_hash != previous_hash:
                 return False, "Audit anchor mismatch; the log may have been rewritten."
             return True, "Audit log integrity verified with external anchor."
+        if line_count > 0:
+            return False, "Audit anchor missing for non-empty log; integrity cannot be trusted."
         return True, "Audit log integrity verified."
 
     def _last_hash(self) -> str | None:

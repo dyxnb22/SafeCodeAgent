@@ -233,6 +233,30 @@ def test_audit_log_hash_chain_detects_tampering(tmp_path: Path, monkeypatch) -> 
     assert "mismatch" in message
 
 
+def test_audit_verify_fails_when_anchor_missing(tmp_path: Path, monkeypatch) -> None:
+    anchor_dir = tmp_path / "anchors"
+    monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor_dir))
+    logger = AuditLogger(tmp_path)
+    logger.write(AuditEvent(type="one", timestamp="2026-01-01T00:00:00Z", message="first"))
+    for path in anchor_dir.glob("*.jsonl"):
+        path.unlink()
+
+    ok, message = logger.verify_integrity()
+
+    assert ok is False
+    assert "anchor missing" in message
+
+
+def test_audit_anchor_permissions_are_restricted(tmp_path: Path, monkeypatch) -> None:
+    anchor_dir = tmp_path / "anchors"
+    monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor_dir))
+    AuditLogger(tmp_path).write(AuditEvent(type="one", timestamp="2026-01-01T00:00:00Z", message="first"))
+    anchor_file = next(anchor_dir.glob("*.jsonl"))
+
+    assert anchor_file.stat().st_mode & 0o777 == 0o600
+    assert anchor_dir.stat().st_mode & 0o777 == 0o700
+
+
 def test_audit_anchor_detects_full_log_rewrite(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(tmp_path / "anchors"))
     logger = AuditLogger(tmp_path)
@@ -305,6 +329,25 @@ def test_context_collector_skips_secret_like_files(tmp_path: Path) -> None:
     assert "README.md" in context["files"]
     assert ".env.local" not in context["files"]
     assert "api_token.txt" not in context["files"]
+
+
+def test_context_collector_skips_sensitive_path_segments(tmp_path: Path) -> None:
+    (tmp_path / "secrets").mkdir()
+    (tmp_path / "secrets" / "visible.txt").write_text("hidden", encoding="utf-8")
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "visible.txt").write_text("public", encoding="utf-8")
+
+    context = ContextCollector(tmp_path).collect()
+
+    assert "secrets/visible.txt" not in context["files"]
+    assert "src/visible.txt" in context["files"]
+
+
+def test_context_collector_redacts_project_root(tmp_path: Path) -> None:
+    context = ContextCollector(tmp_path).collect()
+
+    assert context["project_root"] == "[PROJECT_ROOT]"
+    assert str(tmp_path) not in str(context)
 
 
 def test_context_collector_skips_symlinks(tmp_path: Path) -> None:
