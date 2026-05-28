@@ -6,6 +6,7 @@ from pathlib import Path
 from safecode.audit.logger import AuditLogger
 from safecode.audit.models import AuditEvent
 from safecode.config import SafeCodeConfig
+from safecode.hooks.approvals import HookApprovalStore
 from safecode.shell.runner import ShellRunResult, ShellRunner
 from safecode.utils.time import utc_now_iso
 
@@ -25,6 +26,7 @@ class HookRunner:
         self.project_root = project_root
         self.config = config or SafeCodeConfig.load(project_root)
         self.audit_logger = AuditLogger(project_root, self.config)
+        self.approvals = HookApprovalStore(project_root, self.config)
 
     def run_after_apply(self) -> HookRunSummary:
         """Run after_apply commands."""
@@ -32,7 +34,10 @@ class HookRunner:
         results: list[ShellRunResult] = []
         for command in self.config.hooks.after_apply:
             self._audit("hook_proposed", command, "pending", "after_apply hook proposed")
-            result = runner.run(command, approved=self.config.hooks.allow_medium_after_apply)
+            approved = self.approvals.is_approved("after_apply", command)
+            if approved:
+                self._audit("hook_approval_used", command, "success", "stored hook approval matched")
+            result = runner.run(command, approved=approved)
             results.append(result)
             if not result.executed and result.exit_code == 125:
                 self._audit("hook_approval_required", command, "blocked", result.stderr)

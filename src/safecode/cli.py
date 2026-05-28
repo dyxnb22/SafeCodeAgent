@@ -16,6 +16,7 @@ from safecode.doctor import Doctor
 from safecode.eval.cases import default_cases
 from safecode.eval.runner import EvalRunner
 from safecode.export.bundle import Exporter
+from safecode.hooks.approvals import HookApprovalStore
 from safecode.ide.manifest import render_manifest, write_manifest
 from safecode.index.files import FileIndexer
 from safecode.index.python_symbols import PythonSymbolIndexer
@@ -54,6 +55,7 @@ ide_app = typer.Typer(help="Generate IDE adapter metadata.")
 release_app = typer.Typer(help="Generate release helpers.")
 logs_app = typer.Typer(help="Inspect runtime logs.")
 audit_app = typer.Typer(help="Inspect and verify audit logs.")
+hooks_app = typer.Typer(help="Approve and inspect project hooks.")
 console = Console()
 
 
@@ -491,6 +493,27 @@ def audit_verify() -> None:
         raise typer.Exit(code=1)
 
 
+@hooks_app.command("approve")
+def hooks_approve(command: str, hook: str = typer.Option("after_apply", "--hook")) -> None:
+    """Approve one exact hook command."""
+    approval = HookApprovalStore(Path.cwd()).approve(hook, command)
+    console.print(f"[green]Hook approved:[/green] {approval.command_hash}")
+
+
+@hooks_app.command("list")
+def hooks_list() -> None:
+    """List stored hook approvals."""
+    approvals = HookApprovalStore(Path.cwd()).list()
+    table = Table(title="SafeCode Hook Approvals")
+    table.add_column("Hook")
+    table.add_column("Command")
+    table.add_column("Approved At")
+    table.add_column("Hash")
+    for approval in approvals:
+        table.add_row(approval.hook_name, approval.command, approval.approved_at, approval.command_hash[:12])
+    console.print(table if approvals else "[yellow]No hook approvals found.[/yellow]")
+
+
 app.add_typer(config_app, name="config")
 app.add_typer(skills_app, name="skills")
 app.add_typer(tools_app, name="tools")
@@ -504,6 +527,7 @@ app.add_typer(ide_app, name="ide")
 app.add_typer(release_app, name="release")
 app.add_typer(logs_app, name="logs")
 app.add_typer(audit_app, name="audit")
+app.add_typer(hooks_app, name="hooks")
 
 
 def main() -> None:

@@ -6,6 +6,7 @@ from safecode.context.collector import ContextCollector
 from safecode.agent.orchestrator import AgentOrchestrator
 from safecode.audit.logger import AuditLogger
 from safecode.audit.models import AuditEvent
+from safecode.hooks.approvals import HookApprovalStore
 from safecode.hooks.runner import HookRunner
 from safecode.llm.factory import create_llm_client
 from safecode.llm.mock import MockLLMClient
@@ -141,6 +142,30 @@ def test_hook_runner_writes_audit_chain(tmp_path: Path) -> None:
     assert "hook_proposed" in event_types
     assert "hook_completed" in event_types
     assert events[-1].command == "python -c 'print(1)'"
+
+
+def test_medium_hook_requires_persisted_approval(tmp_path: Path) -> None:
+    config = SafeCodeConfig()
+    config.hooks.after_apply = ["git status"]
+    config.hooks.allow_medium_after_apply = True
+
+    summary = HookRunner(tmp_path, config).run_after_apply()
+
+    assert summary.results[0].executed is False
+    assert summary.results[0].exit_code == 125
+
+
+def test_approved_hook_uses_persisted_approval(tmp_path: Path) -> None:
+    config = SafeCodeConfig()
+    config.hooks.after_apply = ["git status"]
+    HookApprovalStore(tmp_path, config).approve("after_apply", "git status")
+
+    summary = HookRunner(tmp_path, config).run_after_apply()
+    events = AgentOrchestrator(tmp_path).history(limit=5)
+    event_types = [event.type for event in events]
+
+    assert summary.results[0].executed is True
+    assert "hook_approval_used" in event_types
 
 
 def test_audit_log_hash_chain_detects_tampering(tmp_path: Path) -> None:
