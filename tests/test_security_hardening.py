@@ -164,6 +164,34 @@ def test_context_collector_skips_secret_like_files(tmp_path: Path) -> None:
     assert "api_token.txt" not in context["files"]
 
 
+def test_context_collector_skips_symlinks(tmp_path: Path) -> None:
+    outside = tmp_path.parent / "outside-secret.txt"
+    outside.write_text("SECRET=value", encoding="utf-8")
+    (tmp_path / "linked.txt").symlink_to(outside)
+
+    context = ContextCollector(tmp_path).collect()
+
+    assert "linked.txt" not in context["files"]
+
+
+def test_context_collector_redacts_secret_content(tmp_path: Path) -> None:
+    (tmp_path / "README.md").write_text("API_KEY=abc123\nnormal text", encoding="utf-8")
+
+    context = ContextCollector(tmp_path).collect()
+
+    assert "abc123" not in context["readme"]
+    assert "[REDACTED]" in context["readme"]
+
+
+def test_context_collector_caps_large_files(tmp_path: Path) -> None:
+    config = SafeCodeConfig(max_file_bytes=10)
+    (tmp_path / "README.md").write_text("x" * 100, encoding="utf-8")
+
+    context = ContextCollector(tmp_path, config).collect()
+
+    assert context["readme"] is None
+
+
 def test_orchestrator_writes_trace_id_to_audit(tmp_path: Path) -> None:
     AgentOrchestrator(tmp_path).ask("what is this")
 

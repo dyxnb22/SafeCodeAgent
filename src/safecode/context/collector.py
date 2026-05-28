@@ -4,6 +4,8 @@ from fnmatch import fnmatch
 from pathlib import Path
 
 from safecode.config import SafeCodeConfig
+from safecode.context.redactor import redact_secrets
+from safecode.sandbox.filesystem import FilesystemBoundary
 
 
 SKIP_DIRS = {".git", ".sac", ".venv", "__pycache__", ".pytest_cache"}
@@ -26,17 +28,19 @@ class ContextCollector:
     """Read project metadata while avoiding sensitive files."""
 
     def __init__(self, project_root: Path, config: SafeCodeConfig | None = None) -> None:
-        self.project_root = project_root
+        self.project_root = project_root.resolve()
         self.config = config or SafeCodeConfig.load(project_root)
+        self.filesystem = FilesystemBoundary(self.project_root, self.config)
 
     def collect(self) -> dict:
         """Return a small context dictionary for v0.1."""
-        return {
+        context = {
             "project_root": str(self.project_root),
             "files": self._list_files(),
             "readme": self._read_limited("README.md", self.config.max_file_lines),
             "pyproject": self._read_limited("pyproject.toml", self.config.max_file_lines),
         }
+        return self._cap_context(context)
 
     def _list_files(self) -> list[str]:
         """Return a bounded, sorted file list relative to project_root."""
@@ -46,6 +50,9 @@ class ContextCollector:
             relative = path.relative_to(self.project_root)
 
             if self._should_skip(relative):
+                continue
+
+            if path.is_symlink():
                 continue
 
             if path.is_file():
@@ -63,7 +70,13 @@ class ContextCollector:
             return None
 
         path = self.project_root / relative
-        if not path.exists() or not path.is_file():
+        if path.is_symlink() or not path.exists() or not path.is_file():
+            return None
+        try:
+            self.filesystem.validate(path)
+        except PermissionError:
+            return None
+        if path.stat().st_size > self.config.max_file_bytes:
             return None
 
         lines: list[str] = []
@@ -72,7 +85,7 @@ class ContextCollector:
                 if index >= max_lines:
                     break
                 lines.append(line)
-        return "".join(lines)
+        return redact_secrets("".join(lines))
 
     def _should_skip(self, relative_path: Path) -> bool:
         """Skip generated, internal, and sensitive paths."""
@@ -91,3 +104,15 @@ class ContextCollector:
         if any(fnmatch(name, pattern) for pattern in SENSITIVE_PATTERNS):
             return True
         return False
+
+    def _cap_context(self, context: dict) -> dict:
+        """Keep string context under a global character budget."""
+        remaining = self.config.max_context_chars
+        capped: dict = {}
+        for key, value in context.items():
+            if isinstance(value, str):
+                capped[key] = value[: max(remaining, 0)]
+                remaining -= len(capped[key])
+            else:
+                capped[key] = value
+        return capped

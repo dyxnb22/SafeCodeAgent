@@ -48,6 +48,8 @@ class SafeCodeConfig(BaseModel):
     sac_dir: str = ".sac"
     max_tree_files: int = 200
     max_file_lines: int = 300
+    max_file_bytes: int = 200_000
+    max_context_chars: int = 40_000
     policy: str = "normal"
     shell: ShellPolicy = Field(default_factory=ShellPolicy)
     sandbox: SandboxPolicy = Field(default_factory=SandboxPolicy)
@@ -80,6 +82,8 @@ class SafeCodeConfig(BaseModel):
             f'sac_dir = "{self.sac_dir}"\n'
             f"max_tree_files = {self.max_tree_files}\n"
             f"max_file_lines = {self.max_file_lines}\n"
+            f"max_file_bytes = {self.max_file_bytes}\n"
+            f"max_context_chars = {self.max_context_chars}\n"
             f'policy = "{self.policy}"\n\n'
             "[shell]\n"
             f"default_timeout_seconds = {self.shell.default_timeout_seconds}\n"
@@ -119,6 +123,8 @@ def merge_trusted_config(user_config: SafeCodeConfig, project_config: SafeCodeCo
     merged.sac_dir = project_config.sac_dir or user_config.sac_dir
     merged.max_tree_files = min(user_config.max_tree_files, project_config.max_tree_files)
     merged.max_file_lines = min(user_config.max_file_lines, project_config.max_file_lines)
+    merged.max_file_bytes = min(user_config.max_file_bytes, project_config.max_file_bytes)
+    merged.max_context_chars = min(user_config.max_context_chars, project_config.max_context_chars)
     merged.policy = _stricter_policy(user_config.policy, project_config.policy)
 
     merged.shell.default_timeout_seconds = min(
