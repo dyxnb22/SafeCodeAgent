@@ -33,6 +33,14 @@ class HookConfig(BaseModel):
     after_apply: list[str] = Field(default_factory=list)
 
 
+class LLMConfig(BaseModel):
+    """LLM provider configuration."""
+
+    provider: str = "mock"
+    model: str = "gpt-4.1-mini"
+    base_url: str = "https://api.openai.com/v1/chat/completions"
+
+
 class SafeCodeConfig(BaseModel):
     """Runtime configuration with safe defaults."""
 
@@ -43,6 +51,7 @@ class SafeCodeConfig(BaseModel):
     shell: ShellPolicy = Field(default_factory=ShellPolicy)
     sandbox: SandboxPolicy = Field(default_factory=SandboxPolicy)
     hooks: HookConfig = Field(default_factory=HookConfig)
+    llm: LLMConfig = Field(default_factory=LLMConfig)
 
     @classmethod
     def load(cls, project_root: Path) -> "SafeCodeConfig":
@@ -53,6 +62,12 @@ class SafeCodeConfig(BaseModel):
         env_policy = os.getenv("SAFECODE_POLICY")
         if env_policy:
             config.policy = _stricter_policy(config.policy, env_policy)
+        env_provider = os.getenv("SAFECODE_LLM_PROVIDER")
+        if env_provider:
+            config.llm.provider = env_provider
+        env_model = os.getenv("SAFECODE_LLM_MODEL")
+        if env_model:
+            config.llm.model = env_model
         return config
 
     def to_toml(self) -> str:
@@ -76,7 +91,11 @@ class SafeCodeConfig(BaseModel):
             f"network_allowlist = [{allowlist}]\n"
             f"sensitive_names = [{sensitive}]\n\n"
             "[hooks]\n"
-            f"after_apply = [{after_apply}]\n"
+            f"after_apply = [{after_apply}]\n\n"
+            "[llm]\n"
+            f'provider = "{self.llm.provider}"\n'
+            f'model = "{self.llm.model}"\n'
+            f'base_url = "{self.llm.base_url}"\n'
         )
 
 
@@ -129,6 +148,9 @@ def merge_trusted_config(user_config: SafeCodeConfig, project_config: SafeCodeCo
     )
 
     merged.hooks.after_apply = list(project_config.hooks.after_apply)
+    merged.llm.provider = project_config.llm.provider if project_config.llm.provider != "mock" else user_config.llm.provider
+    merged.llm.model = project_config.llm.model or user_config.llm.model
+    merged.llm.base_url = project_config.llm.base_url or user_config.llm.base_url
     return merged
 
 

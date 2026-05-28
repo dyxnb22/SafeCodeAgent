@@ -11,7 +11,7 @@ from safecode.checkpoint.models import CheckpointMetadata
 from safecode.config import SafeCodeConfig
 from safecode.context.collector import ContextCollector
 from safecode.hooks.runner import HookRunner, HookRunSummary
-from safecode.llm.mock import MockLLMClient
+from safecode.llm.factory import create_llm_client
 from safecode.patch.applier import PatchApplier
 from safecode.patch.diff import build_unified_diff
 from safecode.patch.models import PatchProposal
@@ -63,7 +63,7 @@ class AgentOrchestrator:
         self.project_root = project_root
         self.config = SafeCodeConfig.load(project_root)
         self.context_collector = ContextCollector(project_root, self.config)
-        self.llm_client = MockLLMClient()
+        self.llm_client = create_llm_client(self.config)
         self.audit_logger = AuditLogger(project_root, self.config)
 
     def ask(self, question: str) -> str:

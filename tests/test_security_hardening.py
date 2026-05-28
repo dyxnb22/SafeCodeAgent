@@ -1,6 +1,8 @@
 from pathlib import Path
 
 from safecode.config import SafeCodeConfig, merge_trusted_config
+from safecode.llm.factory import create_llm_client
+from safecode.llm.mock import MockLLMClient
 from safecode.mcp.discovery import MCPDiscovery
 from safecode.patch.models import PatchBlock, PatchProposal
 from safecode.patch.validator import PatchValidationError, PatchValidator
@@ -68,3 +70,9 @@ def test_mcp_write_operations_are_disabled(tmp_path: Path) -> None:
         assert "disabled" in str(exc)
     else:
         raise AssertionError("MCP writes should be rejected by default.")
+
+
+def test_llm_factory_defaults_to_mock() -> None:
+    client = create_llm_client(SafeCodeConfig())
+
+    assert isinstance(client, MockLLMClient)
