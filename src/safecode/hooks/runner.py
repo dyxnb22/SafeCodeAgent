@@ -25,5 +25,8 @@ class HookRunner:
     def run_after_apply(self) -> HookRunSummary:
         """Run after_apply commands."""
         runner = ShellRunner(self.project_root, self.config)
-        results = [runner.run(command, approved=True) for command in self.config.hooks.after_apply]
+        results = [
+            runner.run(command, approved=self.config.hooks.allow_medium_after_apply)
+            for command in self.config.hooks.after_apply
+        ]
         return HookRunSummary("after_apply", results)

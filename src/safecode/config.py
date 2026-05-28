@@ -31,6 +31,7 @@ class HookConfig(BaseModel):
     """Project hooks run by SafeCode after controlled operations."""
 
     after_apply: list[str] = Field(default_factory=list)
+    allow_medium_after_apply: bool = False
 
 
 class LLMConfig(BaseModel):
@@ -92,6 +93,7 @@ class SafeCodeConfig(BaseModel):
             f"sensitive_names = [{sensitive}]\n\n"
             "[hooks]\n"
             f"after_apply = [{after_apply}]\n\n"
+            f"allow_medium_after_apply = {str(self.hooks.allow_medium_after_apply).lower()}\n\n"
             "[llm]\n"
             f'provider = "{self.llm.provider}"\n'
             f'model = "{self.llm.model}"\n'
@@ -148,6 +150,9 @@ def merge_trusted_config(user_config: SafeCodeConfig, project_config: SafeCodeCo
     )
 
     merged.hooks.after_apply = list(project_config.hooks.after_apply)
+    merged.hooks.allow_medium_after_apply = (
+        user_config.hooks.allow_medium_after_apply and project_config.hooks.allow_medium_after_apply
+    )
     merged.llm.provider = project_config.llm.provider if project_config.llm.provider != "mock" else user_config.llm.provider
     merged.llm.model = project_config.llm.model or user_config.llm.model
     merged.llm.base_url = project_config.llm.base_url or user_config.llm.base_url

@@ -91,6 +91,16 @@ def test_hook_injection_is_blocked_by_shell_policy(tmp_path: Path) -> None:
     assert summary.results[0].exit_code == 126
 
 
+def test_medium_risk_hook_is_not_auto_approved(tmp_path: Path) -> None:
+    config = SafeCodeConfig()
+    config.hooks.after_apply = ["python -c 'print(1)'"]
+
+    summary = HookRunner(tmp_path, config).run_after_apply()
+
+    assert summary.results[0].executed is False
+    assert summary.results[0].exit_code == 125
+
+
 def test_checkpoint_create_rejects_path_escape(tmp_path: Path) -> None:
     proposal = PatchProposal(
         id="checkpoint-escape",
