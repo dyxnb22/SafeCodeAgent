@@ -1,6 +1,8 @@
 from pathlib import Path
 
 from safecode.config import SafeCodeConfig, merge_trusted_config
+from safecode.checkpoint.manager import CheckpointManager
+from safecode.hooks.runner import HookRunner
 from safecode.llm.factory import create_llm_client
 from safecode.llm.mock import MockLLMClient
 from safecode.mcp.discovery import MCPDiscovery
@@ -76,3 +78,39 @@ def test_llm_factory_defaults_to_mock() -> None:
     client = create_llm_client(SafeCodeConfig())
 
     assert isinstance(client, MockLLMClient)
+
+
+def test_hook_injection_is_blocked_by_shell_policy(tmp_path: Path) -> None:
+    config = SafeCodeConfig()
+    config.hooks.after_apply = ["rm -rf /tmp/safecode-hook-example"]
+
+    summary = HookRunner(tmp_path, config).run_after_apply()
+
+    assert summary.results[0].executed is False
+    assert summary.results[0].exit_code == 126
+
+
+def test_checkpoint_create_rejects_path_escape(tmp_path: Path) -> None:
+    proposal = PatchProposal(
+        id="checkpoint-escape",
+        task="escape",
+        blocks=[PatchBlock(operation="update", file_path=Path("../outside.txt"), search="a", replace="b")],
+        created_at="2026-01-01T00:00:00Z",
+        model="test",
+    )
+
+    try:
+        CheckpointManager(tmp_path).create(proposal)
+    except PermissionError as exc:
+        assert "escapes project root" in str(exc)
+    else:
+        raise AssertionError("Checkpoint path escape should be rejected.")
+
+
+def test_rollback_without_checkpoint_has_clear_error(tmp_path: Path) -> None:
+    try:
+        CheckpointManager(tmp_path).rollback_last()
+    except FileNotFoundError as exc:
+        assert "No checkpoints found" in str(exc)
+    else:
+        raise AssertionError("Rollback without checkpoint should fail clearly.")

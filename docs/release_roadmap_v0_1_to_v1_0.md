@@ -24,6 +24,7 @@
 | `v0.9.x` | Observability + Evaluation | 可观测和可评估 | Trace、指标、回归样例、报告 |
 | `v1.0.x` | Stable Local Agent Runtime | 稳定发布版本 | 安装体验、文档、兼容性、安全基线 |
 | `v1.1.x` | Product Extension Layer | 产品扩展层 | 本地 API、导出、任务队列、IDE metadata、发布流程 |
+| `v1.2.x` | Production Hardening | 生产安全加固 | shell hardening、trusted policy、sandbox enforcement、real LLM、deploy、prod eval |
 
 ## Branch 命名约定
 
@@ -399,7 +400,20 @@ v0.1 不追求：
 
 v1.1.x 不改变核心安全模型，只提供外部集成和产品化辅助。
 
-## v1.2 之后暂不展开
+## v1.2.x: Production Hardening
+
+目标：把学习型 runtime 推近生产可用边界，优先补安全、部署和生产测试。
+
+| 版本 | 建议分支名 | 功能 | 验收 |
+|---|---|---|---|
+| `v1.2.0` | `v1.2.0-security-hardening` | 去掉默认 `shell=True`，高风险命令即使 `--yes` 也拒绝 | 高风险命令不执行 |
+| `v1.2.1` | `v1.2.1-trusted-policy` | 区分 user-level 和 project-level config | 项目配置不能降低用户策略 |
+| `v1.2.2` | `v1.2.2-sandbox-enforcement` | patch、shell、MCP 接入统一边界 | 路径逃逸和 MCP 写操作被拒绝 |
+| `v1.2.3` | `v1.2.3-real-llm-provider` | OpenAI-compatible provider | 真实 LLM 输出仍走 parser/validator |
+| `v1.2.4` | `v1.2.4-deploy-package` | README、Dockerfile、CI、安装说明 | `uv tool install .` 和 Docker 路径清楚 |
+| `v1.2.5` | `v1.2.5-prod-eval-suite` | 生产安全回归测试 | dangerous shell、path escape、hook injection、checkpoint missing、MCP write 均有测试 |
+
+## v1.3 之后暂不展开
 
 `v1.1+` 可以考虑：
 
