@@ -162,18 +162,6 @@ class AgentOrchestrator:
                 trace_id=trace_id,
             )
         )
-        for hook_result in hooks.results:
-            self.audit_logger.write(
-                AuditEvent(
-                    type="hook_completed",
-                    timestamp=utc_now_iso(),
-                    status="success" if hook_result.exit_code == 0 else "failed",
-                    command=hook_result.command,
-                    exit_code=hook_result.exit_code,
-                    message=f"{hooks.hook_name}: {hook_result.risk.level}",
-                    trace_id=trace_id,
-                )
-            )
         return ApplyResult(proposal=proposal, checkpoint=checkpoint, files=files, hooks=hooks)
 
     def rollback_last(self) -> RollbackResult:

@@ -128,6 +128,19 @@ def test_medium_risk_hook_is_not_auto_approved(tmp_path: Path) -> None:
     assert summary.results[0].exit_code == 126
 
 
+def test_hook_runner_writes_audit_chain(tmp_path: Path) -> None:
+    config = SafeCodeConfig()
+    config.hooks.after_apply = ["python -c 'print(1)'"]
+
+    HookRunner(tmp_path, config).run_after_apply()
+    events = AgentOrchestrator(tmp_path).history(limit=5)
+    event_types = [event.type for event in events]
+
+    assert "hook_proposed" in event_types
+    assert "hook_completed" in event_types
+    assert events[-1].command == "python -c 'print(1)'"
+
+
 def test_checkpoint_create_rejects_path_escape(tmp_path: Path) -> None:
     proposal = PatchProposal(
         id="checkpoint-escape",
