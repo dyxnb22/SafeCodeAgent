@@ -60,12 +60,16 @@ class CommandPolicy:
             python_risk = self._python_arg_risk(tokens)
             if python_risk:
                 return python_risk
-        if executable == "node" and "-e" in tokens[1:]:
-            return "node -e can execute arbitrary JavaScript."
+        if executable == "node" and any(token in {"-e", "--eval"} for token in tokens[1:]):
+            return "node eval can execute arbitrary JavaScript."
         if executable in {"npm", "pnpm"} and len(lowered) >= 2 and lowered[1] in {"run", "exec", "dlx"}:
             return f"{executable} {lowered[1]} can execute project-defined scripts."
-        if executable in {"pip", "uv"} and "install" in lowered[1:]:
+        if executable == "npx":
+            return "npx can execute external packages."
+        if executable in {"pip", "pip3", "pipx", "uv"} and "install" in lowered[1:]:
             return "package installation changes the execution environment."
+        if executable == "uv" and "pip" in lowered[1:]:
+            return "uv pip can change the execution environment."
         if executable == "uv" and any(token in {"run", "tool"} for token in lowered[1:]):
             return "uv run/tool can execute project or external code."
         return None
@@ -73,7 +77,7 @@ class CommandPolicy:
     def _git_arg_risk(self, tokens: list[str], lowered: list[str]) -> str | None:
         """Detect git flags and subcommands that escape the project boundary or shell out."""
         for index, token in enumerate(tokens[1:], start=1):
-            if token == "-C" or token.startswith("--work-tree") or token.startswith("--git-dir"):
+            if token == "-C" or token.startswith("-C") or token.startswith("--work-tree") or token.startswith("--git-dir"):
                 return "git path override can operate outside the project boundary."
             if token == "-c":
                 if index + 1 >= len(tokens):
@@ -93,7 +97,7 @@ class CommandPolicy:
             return "git reset --hard is destructive."
         if subcommand == "clean" and any(flag in lowered[2:] for flag in {"-f", "-df", "-fd", "-fdx", "-dfx", "-fx", "-xf"}):
             return "git clean can delete untracked files."
-        if subcommand in {"checkout", "restore"} and "--" in tokens[2:]:
+        if subcommand in {"checkout", "restore"}:
             return f"git {subcommand} -- can overwrite working tree files."
         if subcommand in {"switch", "push"}:
             return f"git {subcommand} changes repository state outside the safe patch flow."
@@ -103,7 +107,20 @@ class CommandPolicy:
         """Return true for git config keys that can shell out or change hooks."""
         key = token.split("=", 1)[0].lower()
         value = token.split("=", 1)[1] if "=" in token else ""
-        return key.startswith("alias.") or key in {"core.hookspath", "core.sshcommand"} or value.startswith("!")
+        return (
+            key.startswith("alias.")
+            or key.startswith("pager.")
+            or (key.startswith("diff.") and key.endswith(".command"))
+            or key
+            in {
+                "core.hookspath",
+                "core.sshcommand",
+                "core.pager",
+                "core.editor",
+                "sequence.editor",
+            }
+            or value.startswith("!")
+        )
 
     def _python_arg_risk(self, tokens: list[str]) -> str | None:
         """Detect Python execution modes that bypass patch review."""
@@ -111,4 +128,6 @@ class CommandPolicy:
             return "python -c can execute arbitrary code."
         if "-m" in tokens[1:]:
             return "python -m can execute arbitrary modules."
+        if "-" in tokens[1:]:
+            return "python - can execute code from stdin."
         return None
