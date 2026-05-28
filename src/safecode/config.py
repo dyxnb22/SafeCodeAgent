@@ -14,6 +14,7 @@ class ShellPolicy(BaseModel):
     allow_readonly_without_confirm: bool = True
     require_confirm_for_medium: bool = True
     block_high_risk: bool = True
+    allowed_commands: list[str] = Field(default_factory=lambda: ["pwd", "ls", "echo", "git"])
 
 
 class SandboxPolicy(BaseModel):
@@ -78,6 +79,7 @@ class SafeCodeConfig(BaseModel):
         after_apply = ", ".join(f'"{command}"' for command in self.hooks.after_apply)
         allowlist = ", ".join(f'"{host}"' for host in self.sandbox.network_allowlist)
         sensitive = ", ".join(f'"{name}"' for name in self.sandbox.sensitive_names)
+        allowed_commands = ", ".join(f'"{command}"' for command in self.shell.allowed_commands)
         return (
             f'sac_dir = "{self.sac_dir}"\n'
             f"max_tree_files = {self.max_tree_files}\n"
@@ -90,6 +92,7 @@ class SafeCodeConfig(BaseModel):
             f"allow_readonly_without_confirm = {str(self.shell.allow_readonly_without_confirm).lower()}\n"
             f"require_confirm_for_medium = {str(self.shell.require_confirm_for_medium).lower()}\n"
             f"block_high_risk = {str(self.shell.block_high_risk).lower()}\n\n"
+            f"allowed_commands = [{allowed_commands}]\n\n"
             "[sandbox]\n"
             f"restrict_to_project_root = {str(self.sandbox.restrict_to_project_root).lower()}\n"
             f"network_enabled = {str(self.sandbox.network_enabled).lower()}\n"
@@ -138,6 +141,9 @@ def merge_trusted_config(user_config: SafeCodeConfig, project_config: SafeCodeCo
         user_config.shell.require_confirm_for_medium or project_config.shell.require_confirm_for_medium
     )
     merged.shell.block_high_risk = user_config.shell.block_high_risk or project_config.shell.block_high_risk
+    merged.shell.allowed_commands = sorted(set(user_config.shell.allowed_commands) & set(project_config.shell.allowed_commands))
+    if not merged.shell.allowed_commands:
+        merged.shell.allowed_commands = sorted(set(user_config.shell.allowed_commands))
 
     merged.sandbox.restrict_to_project_root = (
         user_config.sandbox.restrict_to_project_root or project_config.sandbox.restrict_to_project_root

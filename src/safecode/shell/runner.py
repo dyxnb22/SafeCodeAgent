@@ -6,8 +6,9 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from safecode.config import SafeCodeConfig
+from safecode.policy.commands import CommandPolicy
 from safecode.sandbox.filesystem import FilesystemBoundary
-from safecode.shell.risk import RiskLevel, ShellRisk, ShellRiskClassifier
+from safecode.shell.risk import ShellRisk, ShellRiskClassifier
 
 
 @dataclass(frozen=True)
@@ -30,6 +31,7 @@ class ShellRunner:
         self.project_root = project_root
         self.config = config or SafeCodeConfig.load(project_root)
         self.classifier = ShellRiskClassifier()
+        self.policy = CommandPolicy(self.config)
         FilesystemBoundary(project_root, self.config).validate(project_root)
 
     def assess(self, command: str) -> ShellRisk:
@@ -38,13 +40,11 @@ class ShellRunner:
 
     def run(self, command: str, approved: bool = False) -> ShellRunResult:
         """Run a command when policy allows it."""
-        risk = self.assess(command)
-        if risk.level == RiskLevel.HIGH and self.config.shell.block_high_risk:
-            return ShellRunResult(command, risk, 126, "", "Blocked high-risk command.", 0, False)
-        if risk.level == RiskLevel.MEDIUM and self.config.shell.require_confirm_for_medium and not approved:
-            return ShellRunResult(command, risk, 125, "", "Approval required for medium-risk command.", 0, False)
-        if not risk.tokens:
-            return ShellRunResult(command, risk, 125, "", "No executable tokens found.", 0, False)
+        decision = self.policy.evaluate(command, approved=approved)
+        risk = decision.risk
+        if not decision.allowed:
+            exit_code = 125 if decision.requires_approval else 126
+            return ShellRunResult(command, risk, exit_code, "", decision.reason, 0, False)
 
         started = time.perf_counter()
         try:

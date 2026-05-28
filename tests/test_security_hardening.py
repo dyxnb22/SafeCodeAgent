@@ -11,6 +11,7 @@ from safecode.logs.runtime import RuntimeLogger
 from safecode.mcp.discovery import MCPDiscovery
 from safecode.patch.models import PatchBlock, PatchProposal
 from safecode.patch.applier import PatchApplier
+from safecode.policy.commands import CommandPolicy
 from safecode.patch.validator import PatchValidationError, PatchValidator
 from safecode.shell.risk import RiskLevel, ShellRiskClassifier
 from safecode.shell.runner import ShellRunner
@@ -124,7 +125,7 @@ def test_medium_risk_hook_is_not_auto_approved(tmp_path: Path) -> None:
     summary = HookRunner(tmp_path, config).run_after_apply()
 
     assert summary.results[0].executed is False
-    assert summary.results[0].exit_code == 125
+    assert summary.results[0].exit_code == 126
 
 
 def test_checkpoint_create_rejects_path_escape(tmp_path: Path) -> None:
@@ -260,4 +261,25 @@ def test_shell_runner_reports_missing_executable(tmp_path: Path) -> None:
     result = ShellRunner(tmp_path).run("definitely-not-a-safecode-command", approved=True)
 
     assert result.executed is False
-    assert result.exit_code == 127
+    assert result.exit_code == 126
+
+
+def test_command_policy_blocks_dangerous_git_args() -> None:
+    decision = CommandPolicy(SafeCodeConfig()).evaluate("git reset --hard HEAD", approved=True)
+
+    assert decision.allowed is False
+    assert "destructive" in decision.reason
+
+
+def test_command_policy_blocks_python_inline_code() -> None:
+    decision = CommandPolicy(SafeCodeConfig()).evaluate("python -c 'print(1)'", approved=True)
+
+    assert decision.allowed is False
+    assert "arbitrary code" in decision.reason
+
+
+def test_command_policy_blocks_non_allowlisted_command() -> None:
+    decision = CommandPolicy(SafeCodeConfig()).evaluate("curl https://example.com", approved=True)
+
+    assert decision.allowed is False
+    assert "not allowlisted" in decision.reason
