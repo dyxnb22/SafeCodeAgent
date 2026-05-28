@@ -3,6 +3,7 @@ from pathlib import Path
 from safecode.config import SafeCodeConfig, merge_trusted_config
 from safecode.checkpoint.manager import CheckpointManager
 from safecode.context.collector import ContextCollector
+from safecode.agent.orchestrator import AgentOrchestrator
 from safecode.hooks.runner import HookRunner
 from safecode.llm.factory import create_llm_client
 from safecode.llm.mock import MockLLMClient
@@ -160,3 +161,12 @@ def test_context_collector_skips_secret_like_files(tmp_path: Path) -> None:
     assert "README.md" in context["files"]
     assert ".env.local" not in context["files"]
     assert "api_token.txt" not in context["files"]
+
+
+def test_orchestrator_writes_trace_id_to_audit(tmp_path: Path) -> None:
+    AgentOrchestrator(tmp_path).ask("what is this")
+
+    event = AgentOrchestrator(tmp_path).history(limit=1)[0]
+
+    assert event.trace_id
+    assert (tmp_path / ".sac" / "logs" / "traces.jsonl").exists()

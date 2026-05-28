@@ -17,6 +17,7 @@ from safecode.patch.diff import build_unified_diff
 from safecode.patch.models import PatchProposal
 from safecode.patch.parser import PatchParser
 from safecode.patch.validator import PatchValidator
+from safecode.trace.events import TraceLogger
 from safecode.utils.time import utc_now_iso
 
 
@@ -65,22 +66,29 @@ class AgentOrchestrator:
         self.context_collector = ContextCollector(project_root, self.config)
         self.llm_client = create_llm_client(self.config)
         self.audit_logger = AuditLogger(project_root, self.config)
+        self.trace_logger = TraceLogger(project_root)
 
     def ask(self, question: str) -> str:
         """Return a read-only answer about the current project."""
+        trace_id = self.trace_logger.new_trace_id()
+        self.trace_logger.write(trace_id, "ask.start", question)
         context = self.context_collector.collect()
         answer = self.llm_client.ask(question, context)
+        self.trace_logger.write(trace_id, "ask.completed", "answered read-only question")
         self.audit_logger.write(
             AuditEvent(
                 type="ask_completed",
                 timestamp=utc_now_iso(),
                 message=question,
+                trace_id=trace_id,
             )
         )
         return answer.content
 
     def edit(self, task: str) -> EditResult:
         """Generate and store a pending patch proposal."""
+        trace_id = self.trace_logger.new_trace_id()
+        self.trace_logger.write(trace_id, "edit.start", task)
         context = self.context_collector.collect()
         patch_response = self.llm_client.propose_patch(task, context)
         proposal = PatchParser().parse(patch_response.patch_text, task=task)
@@ -88,6 +96,7 @@ class AgentOrchestrator:
         PatchValidator(self.project_root).validate(proposal)
         diff_text = build_unified_diff(self.project_root, proposal)
         pending_patch_path = self._save_pending_patch(proposal)
+        self.trace_logger.write(trace_id, "edit.patch_saved", proposal.id)
 
         self.audit_logger.write(
             AuditEvent(
@@ -96,6 +105,7 @@ class AgentOrchestrator:
                 patch_id=proposal.id,
                 files=[block.file_path.as_posix() for block in proposal.blocks],
                 message=task,
+                trace_id=trace_id,
             )
         )
         return EditResult(
@@ -119,11 +129,15 @@ class AgentOrchestrator:
 
     def apply(self, proposal: PatchProposal) -> ApplyResult:
         """Checkpoint and apply a previously previewed pending patch."""
+        trace_id = self.trace_logger.new_trace_id()
+        self.trace_logger.write(trace_id, "apply.start", proposal.id)
         PatchValidator(self.project_root).validate(proposal)
         checkpoint = CheckpointManager(self.project_root).create(proposal)
+        self.trace_logger.write(trace_id, "apply.checkpoint_created", checkpoint.checkpoint_id)
         PatchApplier(self.project_root).apply(proposal)
         hooks = HookRunner(self.project_root, self.config).run_after_apply()
         self._pending_patch_path().unlink(missing_ok=True)
+        self.trace_logger.write(trace_id, "apply.completed", proposal.id)
 
         files = [block.file_path.as_posix() for block in proposal.blocks]
         self.audit_logger.write(
@@ -134,6 +148,7 @@ class AgentOrchestrator:
                 checkpoint_id=checkpoint.checkpoint_id,
                 files=files,
                 message=proposal.task,
+                trace_id=trace_id,
             )
         )
         self.audit_logger.write(
@@ -144,6 +159,7 @@ class AgentOrchestrator:
                 checkpoint_id=checkpoint.checkpoint_id,
                 files=files,
                 message=proposal.task,
+                trace_id=trace_id,
             )
         )
         for hook_result in hooks.results:
@@ -155,14 +171,18 @@ class AgentOrchestrator:
                     command=hook_result.command,
                     exit_code=hook_result.exit_code,
                     message=f"{hooks.hook_name}: {hook_result.risk.level}",
+                    trace_id=trace_id,
                 )
             )
         return ApplyResult(proposal=proposal, checkpoint=checkpoint, files=files, hooks=hooks)
 
     def rollback_last(self) -> RollbackResult:
         """Restore the latest checkpoint and audit the rollback."""
+        trace_id = self.trace_logger.new_trace_id()
+        self.trace_logger.write(trace_id, "rollback.start", "latest")
         checkpoint = CheckpointManager(self.project_root).rollback_last()
         files = [operation.path for operation in checkpoint.file_operations]
+        self.trace_logger.write(trace_id, "rollback.completed", checkpoint.checkpoint_id)
         self.audit_logger.write(
             AuditEvent(
                 type="rollback_completed",
@@ -171,6 +191,7 @@ class AgentOrchestrator:
                 checkpoint_id=checkpoint.checkpoint_id,
                 files=files,
                 message=checkpoint.task,
+                trace_id=trace_id,
             )
         )
         return RollbackResult(checkpoint=checkpoint, files=files)
