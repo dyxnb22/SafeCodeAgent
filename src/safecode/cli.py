@@ -11,6 +11,8 @@ from rich.table import Table
 from safecode.agent.orchestrator import AgentOrchestrator
 from safecode.audit.models import AuditEvent
 from safecode.config import SafeCodeConfig, ensure_config_file
+from safecode.eval.cases import default_cases
+from safecode.eval.runner import EvalRunner
 from safecode.index.files import FileIndexer
 from safecode.index.python_symbols import PythonSymbolIndexer
 from safecode.mcp.discovery import MCPDiscovery
@@ -18,6 +20,7 @@ from safecode.patch.parser import PatchParseError
 from safecode.patch.validator import PatchValidationError
 from safecode.memory.store import MemoryStore
 from safecode.project.rules import ProjectRules
+from safecode.report.render import ReportRenderer
 from safecode.shell.risk import RiskLevel
 from safecode.shell.runner import ShellRunner
 from safecode.skills.loader import SkillLoader
@@ -224,6 +227,24 @@ def memory_set(key: str, value: str) -> None:
     """Remember a low-risk project fact."""
     MemoryStore(Path.cwd()).remember(key, value)
     console.print("[green]Memory updated.[/green]")
+
+
+@app.command("report")
+def report() -> None:
+    """Render a Markdown report from recent audit events."""
+    console.print(ReportRenderer(Path.cwd()).render_markdown())
+
+
+@app.command("eval")
+def eval_demo() -> None:
+    """Run lightweight local eval cases."""
+    results = EvalRunner(Path.cwd()).run(default_cases())
+    table = Table(title="SafeCode Eval")
+    table.add_column("Case")
+    table.add_column("Passed")
+    for result in results:
+        table.add_row(result.name, "yes" if result.passed else "no")
+    console.print(table)
 
 
 @config_app.command("init")

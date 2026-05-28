@@ -16,3 +16,5 @@ class AuditEvent(BaseModel):
     error: str | None = None
     command: str | None = None
     exit_code: int | None = None
+    trace_id: str | None = None
+    metadata: dict[str, str] = Field(default_factory=dict)
