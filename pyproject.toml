@@ -1,6 +1,6 @@
 [project]
 name = "safecode-agent"
-version = "0.1.0"
+version = "1.2.4"
 description = "A safety-first terminal coding agent with diff review, checkpoints, rollback, and audit logs."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -12,6 +12,11 @@ dependencies = [
 
 [project.scripts]
 sac = "safecode.cli:main"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+]
 
 [dependency-groups]
 dev = [

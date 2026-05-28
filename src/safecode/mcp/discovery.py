@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from safecode.mcp.config import MCPConfigStore
+from safecode.sandbox.network import NetworkPolicy
 
 
 @dataclass(frozen=True)
@@ -25,6 +26,7 @@ class MCPDiscovery:
 
     def __init__(self, project_root: Path) -> None:
         self.project_root = project_root
+        self.network_policy = NetworkPolicy()
 
     def list_tools(self) -> list[MCPTool]:
         """Return placeholder tools for enabled servers."""
@@ -33,3 +35,7 @@ class MCPDiscovery:
             if server.enabled:
                 tools.append(MCPTool(server=server.name, name=f"{server.name}.list", risk="low"))
         return tools
+
+    def assert_write_allowed(self) -> None:
+        """Reject external write operations until explicit MCP policy exists."""
+        raise PermissionError("MCP write operations are disabled by SafeCode policy.")

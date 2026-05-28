@@ -6,6 +6,7 @@ from pathlib import Path
 
 from safecode.checkpoint.models import CheckpointFileOperation, CheckpointMetadata
 from safecode.patch.models import PatchProposal
+from safecode.sandbox.filesystem import FilesystemBoundary
 from safecode.utils.time import utc_now_iso
 
 
@@ -15,6 +16,7 @@ class CheckpointManager:
     def __init__(self, project_root: Path) -> None:
         self.project_root = project_root.resolve()
         self.checkpoints_dir = self.project_root / ".sac" / "checkpoints"
+        self.filesystem = FilesystemBoundary(self.project_root)
 
     def create(self, proposal: PatchProposal) -> CheckpointMetadata:
         """Create a checkpoint before applying a patch."""
@@ -24,7 +26,7 @@ class CheckpointManager:
         file_operations: list[CheckpointFileOperation] = []
 
         for block in proposal.blocks:
-            target_path = (self.project_root / block.file_path).resolve()
+            target_path = self.filesystem.validate(self.project_root / block.file_path)
             backup_path: str | None = None
             existed_before = target_path.exists()
 
@@ -66,16 +68,14 @@ class CheckpointManager:
         checkpoint_dir = self.checkpoints_dir / metadata.checkpoint_id
 
         for operation in metadata.file_operations:
-            target_path = (self.project_root / operation.path).resolve()
-            try:
-                target_path.relative_to(self.project_root)
-            except ValueError as exc:
-                raise ValueError(f"Checkpoint path escapes project root: {operation.path}") from exc
+            target_path = self.filesystem.validate(self.project_root / operation.path)
 
             if operation.existed_before:
                 if operation.backup_path is None:
                     raise ValueError(f"Missing backup path for {operation.path}")
                 backup_file = checkpoint_dir / operation.backup_path
+                if not backup_file.exists():
+                    raise FileNotFoundError(f"Missing checkpoint backup file: {backup_file}")
                 target_path.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(backup_file, target_path)
             elif target_path.exists():

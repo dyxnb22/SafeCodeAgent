@@ -3,6 +3,7 @@
 from pathlib import Path
 
 from safecode.patch.models import PatchBlock, PatchProposal
+from safecode.sandbox.filesystem import FilesystemBoundary
 
 
 class PatchValidationError(ValueError):
@@ -14,6 +15,7 @@ class PatchValidator:
 
     def __init__(self, project_root: Path) -> None:
         self.project_root = project_root.resolve()
+        self.filesystem = FilesystemBoundary(self.project_root)
 
     def validate(self, proposal: PatchProposal) -> None:
         """Raise if the patch cannot be safely applied."""
@@ -47,9 +49,7 @@ class PatchValidator:
 
     def _resolve_target(self, file_path: Path) -> Path:
         """Resolve a patch path and ensure it stays inside project_root."""
-        target_path = (self.project_root / file_path).resolve()
         try:
-            target_path.relative_to(self.project_root)
-        except ValueError as exc:
-            raise PatchValidationError(f"Patch path escapes project root: {file_path}") from exc
-        return target_path
+            return self.filesystem.validate(self.project_root / file_path)
+        except PermissionError as exc:
+            raise PatchValidationError(str(exc)) from exc

@@ -45,6 +45,12 @@ MEDIUM_RISK_TOKENS = {
     "pnpm",
     "node",
 }
+LOW_RISK_TOKENS = {
+    "pwd",
+    "ls",
+    "echo",
+    "git",
+}
 SHELL_OPERATORS = {"|", ">", ">>", "<", "&&", "||", ";", "$(", "`"}
 
 
@@ -80,7 +86,10 @@ class ShellRiskClassifier:
         if reasons:
             return ShellRisk(RiskLevel.HIGH, reasons, tokens)
 
+        if first in LOW_RISK_TOKENS and first != "git":
+            return ShellRisk(RiskLevel.LOW, [f"known read-only command {first!r}"], tokens)
+
         if first in MEDIUM_RISK_TOKENS:
             return ShellRisk(RiskLevel.MEDIUM, [f"known developer command {first!r}"], tokens)
 
-        return ShellRisk(RiskLevel.LOW, ["read-only or unknown low-risk command"], tokens)
+        return ShellRisk(RiskLevel.MEDIUM, ["unknown command requires approval"], tokens)

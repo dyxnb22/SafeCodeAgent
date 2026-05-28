@@ -4,6 +4,7 @@ from pathlib import Path
 
 from safecode.patch.models import PatchProposal
 from safecode.patch.validator import PatchValidationError
+from safecode.sandbox.filesystem import FilesystemBoundary
 
 
 class PatchApplier:
@@ -11,6 +12,7 @@ class PatchApplier:
 
     def __init__(self, project_root: Path) -> None:
         self.project_root = project_root.resolve()
+        self.filesystem = FilesystemBoundary(self.project_root)
 
     def apply(self, proposal: PatchProposal) -> None:
         """Apply a validated patch proposal."""
@@ -20,11 +22,10 @@ class PatchApplier:
             if block.search is None or block.replace is None:
                 raise PatchValidationError("Update block requires SEARCH and REPLACE.")
 
-            target_path = (self.project_root / block.file_path).resolve()
             try:
-                target_path.relative_to(self.project_root)
-            except ValueError as exc:
-                raise PatchValidationError(f"Patch path escapes project root: {block.file_path}") from exc
+                target_path = self.filesystem.validate(self.project_root / block.file_path)
+            except PermissionError as exc:
+                raise PatchValidationError(str(exc)) from exc
 
             content = target_path.read_text(encoding="utf-8")
             if content.count(block.search) != 1:
