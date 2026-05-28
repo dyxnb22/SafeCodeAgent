@@ -50,8 +50,12 @@ sac doctor
 - High-risk shell commands are blocked even when `--yes` is passed.
 - Shell commands run through argv execution, not a shell string.
 - Project config cannot lower user-level safety policy.
+- Project hooks do not auto-approve medium-risk commands by default.
+- Context collection skips secret-like filenames such as `.env.local`, `*token*`, `*secret*`, and key files.
 - Network access is disabled by default.
+- Real LLM mode must pass network policy before any request is made.
 - MCP write operations are disabled until an explicit policy exists.
+- Audit events include trace ids for task reconstruction.
 
 ## Real LLM Mode
 
@@ -67,6 +71,8 @@ uv run sac ask "这个项目是什么？"
 ```
 
 Model output is still parsed and validated by SafeCode before any write can happen.
+
+Real LLM mode also requires trusted user-level network policy. A project-local config cannot enable network access by itself.
 
 ## Docker
 
@@ -87,4 +93,3 @@ docker run --rm -it -v "$PWD:/workspace" -w /workspace safecode-agent sac doctor
 ```bash
 PYTHONPATH=src python3 -m pytest -q
 ```
-

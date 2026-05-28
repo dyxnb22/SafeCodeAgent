@@ -25,6 +25,7 @@
 | `v1.0.x` | Stable Local Agent Runtime | 稳定发布版本 | 安装体验、文档、兼容性、安全基线 |
 | `v1.1.x` | Product Extension Layer | 产品扩展层 | 本地 API、导出、任务队列、IDE metadata、发布流程 |
 | `v1.2.x` | Production Hardening | 生产安全加固 | shell hardening、trusted policy、sandbox enforcement、real LLM、deploy、prod eval |
+| `v1.3.x` | Runtime Trust Refinement | 运行时信任边界细化 | context secret filtering、hook trust、LLM network policy、trace/audit integration |
 
 ## Branch 命名约定
 
@@ -413,7 +414,19 @@ v1.1.x 不改变核心安全模型，只提供外部集成和产品化辅助。
 | `v1.2.4` | `v1.2.4-deploy-package` | README、Dockerfile、CI、安装说明 | `uv tool install .` 和 Docker 路径清楚 |
 | `v1.2.5` | `v1.2.5-prod-eval-suite` | 生产安全回归测试 | dangerous shell、path escape、hook injection、checkpoint missing、MCP write 均有测试 |
 
-## v1.3 之后暂不展开
+## v1.3.x: Runtime Trust Refinement
+
+目标：继续收紧 runtime 里容易被忽略的信任边界，让产品更接近安全可用。
+
+| 版本 | 建议分支名 | 功能 | 验收 |
+|---|---|---|---|
+| `v1.3.0` | `v1.3.0-context-secret-hardening` | 上下文收集跳过 secret-like 文件 | `.env.local`、`*token*` 不进入 context |
+| `v1.3.1` | `v1.3.1-hook-policy-hardening` | hooks 默认不自动批准中风险命令 | project hook 不能静默跑 `python -c` |
+| `v1.3.2` | `v1.3.2-llm-network-policy` | 真实 LLM 受网络策略控制 | project config 不能强行启用真实 LLM |
+| `v1.3.3` | `v1.3.3-trace-audit-integration` | audit event 关联 trace id | ask/edit/apply/rollback 可追踪 |
+| `v1.3.4` | `v1.3.4-docs-trust-boundaries` | 文档说明信任边界 | README 和版本矩阵更新 |
+
+## v1.4 之后暂不展开
 
 `v1.1+` 可以考虑：
 
