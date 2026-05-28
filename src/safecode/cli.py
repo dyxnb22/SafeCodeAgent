@@ -22,6 +22,7 @@ from safecode.shell.risk import RiskLevel
 from safecode.shell.runner import ShellRunner
 from safecode.skills.loader import SkillLoader
 from safecode.state.progress import ProgressState, ProgressStore
+from safecode.subagents.task import SubagentTaskStore
 from safecode.tools.registry import ToolRegistry
 from safecode.utils.time import utc_now_iso
 
@@ -36,6 +37,7 @@ tools_app = typer.Typer(help="List internal tools.")
 index_app = typer.Typer(help="Build lightweight project indexes.")
 progress_app = typer.Typer(help="Read and update long-running progress.")
 mcp_app = typer.Typer(help="Inspect configured MCP servers and tools.")
+subagent_app = typer.Typer(help="Create file-backed subagent tasks.")
 console = Console()
 
 
@@ -301,12 +303,20 @@ def mcp_tools() -> None:
     console.print(table if tools else "[yellow]No MCP tools configured.[/yellow]")
 
 
+@subagent_app.command("create")
+def subagent_create(title: str, instructions: str, write: bool = typer.Option(False, "--write")) -> None:
+    """Create a file-backed subagent task."""
+    task = SubagentTaskStore(Path.cwd()).create(title, instructions, readonly=not write)
+    console.print(f"Subagent task created: {task.id}")
+
+
 app.add_typer(config_app, name="config")
 app.add_typer(skills_app, name="skills")
 app.add_typer(tools_app, name="tools")
 app.add_typer(index_app, name="index")
 app.add_typer(progress_app, name="progress")
 app.add_typer(mcp_app, name="mcp")
+app.add_typer(subagent_app, name="subagent")
 
 
 def main() -> None:
