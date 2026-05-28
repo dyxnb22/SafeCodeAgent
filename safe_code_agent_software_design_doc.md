@@ -404,12 +404,18 @@ v1.0.x 的目标是把 SafeCode Agent 从学习型项目收口为一个稳定、
 | `v1.5.8` | Context redaction hardening | symlinked directory、JSON/Bearer/AWS key、file list budget 等边界补齐 |
 | `v1.5.9` | Apply metadata and preimage | apply 保留文件 mode，拒绝 non-UTF-8，写入前重查 preimage |
 | `v1.5.10` | Review follow-up docs | 将生产安全 review 后的整改范围写回路线图 |
+| `v1.5.11` | Hook approval trust | hook approval 移到用户级目录，绑定 user/config/expiry，并且必须启用 `allow_medium_after_apply` |
+| `v1.5.12` | Command policy bypass fixes | 补 git pager/editor/diff command、`node --eval`、`python -`、`npx/pip3/pipx/uv pip` 等绕过 |
+| `v1.5.13` | Audit and context hardening | anchor 缺失失败、anchor 权限收紧、context 不暴露绝对 project root 和敏感路径片段 |
+| `v1.5.14` | Security review docs | 第二轮生产安全 review 后的整改写回路线图 |
 
 #### 生产安全 review 后的结论
 
 在 `v1.5.0` 到 `v1.5.4` 后，项目已经有了基本安全边界，但还不应该进入真实 MCP 执行和 subagent 并发。原因是 command policy 仍存在 allowlisted command 参数绕过，hook 审批缺少持久状态，audit hash chain 缺少用户级信任锚点。
 
 因此 `v1.5.5` 到 `v1.5.9` 被追加为进入 `v1.6` 前的必修整改线。只有这些测试通过后，才允许继续扩展 MCP 真执行、subagent runner 和更高风险的工具生态。
+
+第二轮 review 后继续追加 `v1.5.11` 到 `v1.5.13`。核心结论是：审批不能由项目目录自证，allowlisted command 的危险配置项也必须按参数级别阻止，audit anchor 丢失不能静默降级为成功。
 
 ### 3.12 v1.6：受控 MCP 与 Subagents
 

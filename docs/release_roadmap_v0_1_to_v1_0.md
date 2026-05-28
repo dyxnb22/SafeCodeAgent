@@ -455,6 +455,10 @@ v1.1.x 不改变核心安全模型，只提供外部集成和产品化辅助。
 | `v1.5.8` | `v1.5.8-context-redaction-hardening` | 剪掉 symlinked directory，扩展 JSON/Bearer/AWS key redaction，file list 进入总预算 | context 更难泄漏敏感内容和敏感路径 |
 | `v1.5.9` | `v1.5.9-apply-metadata-preimage` | apply 保留文件 mode、拒绝 non-UTF-8 text patch、写前重查 preimage、记录 rollback failure | 降低 TOCTOU、权限丢失和二进制误改风险 |
 | `v1.5.10` | `v1.5.10-review-followup-docs` | 把生产安全 review 后的整改项写回路线图和矩阵 | 后续进入 v1.6 前有清晰的安全完成线 |
+| `v1.5.11` | `v1.5.11-hook-approval-trust` | hook approval 移到用户级，绑定 user/config/expiry，并要求 `allow_medium_after_apply=true` | 项目不能通过预置 `.sac` approval 自动运行 hook |
+| `v1.5.12` | `v1.5.12-command-policy-bypass-fixes` | 补 `core.pager`、`core.editor`、`pager.*`、`diff.*.command`、`node --eval`、`python -`、`npx/pip3/pipx/uv pip` 等绕过 | allowlisted command 的参数绕过面继续收窄 |
+| `v1.5.13` | `v1.5.13-audit-context-hardening` | anchor 缺失失败、anchor 权限收紧、context 移除绝对 project root、路径片段按敏感规则过滤 | 减少 audit 降级和 context 路径泄漏 |
+| `v1.5.14` | `v1.5.14-security-review-docs` | 把第二轮生产安全 review 后的整改写回文档 | v1.6 前安全门槛保持可追踪 |
 
 暂缓到后续：
 
