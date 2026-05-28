@@ -17,7 +17,9 @@ from safecode.memory.store import MemoryStore
 from safecode.project.rules import ProjectRules
 from safecode.shell.risk import RiskLevel
 from safecode.shell.runner import ShellRunner
+from safecode.skills.loader import SkillLoader
 from safecode.state.progress import ProgressState, ProgressStore
+from safecode.tools.registry import ToolRegistry
 from safecode.utils.time import utc_now_iso
 
 app = typer.Typer(
@@ -26,6 +28,8 @@ app = typer.Typer(
     no_args_is_help=True,
 )
 config_app = typer.Typer(help="Manage SafeCode project config.")
+skills_app = typer.Typer(help="List and inspect skills.")
+tools_app = typer.Typer(help="List internal tools.")
 progress_app = typer.Typer(help="Read and update long-running progress.")
 console = Console()
 
@@ -229,7 +233,40 @@ def config_show() -> None:
     console.print(Syntax(config.to_toml(), "toml", theme="ansi_dark"))
 
 
+@skills_app.command("list")
+def skills_list() -> None:
+    """List local skills."""
+    skills = SkillLoader(Path.cwd()).list()
+    table = Table(title="SafeCode Skills")
+    table.add_column("Name")
+    table.add_column("Path")
+    for skill in skills:
+        table.add_row(skill.name, str(skill.path))
+    console.print(table if skills else "[yellow]No skills found.[/yellow]")
+
+
+@skills_app.command("show")
+def skills_show(name: str) -> None:
+    """Show one skill."""
+    skill = SkillLoader(Path.cwd()).get(name)
+    console.print(Panel(skill.instructions, title=skill.name))
+
+
+@tools_app.command("list")
+def tools_list() -> None:
+    """List built-in tools."""
+    table = Table(title="SafeCode Tools")
+    table.add_column("Name")
+    table.add_column("Risk")
+    table.add_column("Description")
+    for tool in ToolRegistry().list():
+        table.add_row(tool.name, tool.risk, tool.description)
+    console.print(table)
+
+
 app.add_typer(config_app, name="config")
+app.add_typer(skills_app, name="skills")
+app.add_typer(tools_app, name="tools")
 app.add_typer(progress_app, name="progress")
 
 
