@@ -7,6 +7,7 @@ from safecode.agent.orchestrator import AgentOrchestrator
 from safecode.hooks.runner import HookRunner
 from safecode.llm.factory import create_llm_client
 from safecode.llm.mock import MockLLMClient
+from safecode.logs.runtime import RuntimeLogger
 from safecode.mcp.discovery import MCPDiscovery
 from safecode.patch.models import PatchBlock, PatchProposal
 from safecode.patch.validator import PatchValidationError, PatchValidator
@@ -170,3 +171,26 @@ def test_orchestrator_writes_trace_id_to_audit(tmp_path: Path) -> None:
 
     assert event.trace_id
     assert (tmp_path / ".sac" / "logs" / "traces.jsonl").exists()
+
+
+def test_runtime_logger_records_exception_details(tmp_path: Path) -> None:
+    logger = RuntimeLogger(tmp_path)
+
+    try:
+        raise ValueError("bad runtime")
+    except ValueError as exc:
+        logger.error("test", "runtime failed", exc=exc, command="demo")
+
+    event = logger.read_recent(limit=1)[0]
+
+    assert event.level == "error"
+    assert event.error_type == "ValueError"
+    assert "bad runtime" in (event.traceback or "")
+    assert event.details["command"] == "demo"
+
+
+def test_shell_runner_reports_missing_executable(tmp_path: Path) -> None:
+    result = ShellRunner(tmp_path).run("definitely-not-a-safecode-command", approved=True)
+
+    assert result.executed is False
+    assert result.exit_code == 127

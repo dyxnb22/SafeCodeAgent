@@ -39,6 +39,7 @@ sac edit "给 FastAPI 项目添加 /health 接口"
 sac apply
 sac rollback --last
 sac history
+sac logs show --level error
 sac config show
 sac run "git status --short" --yes
 sac doctor
@@ -56,6 +57,18 @@ sac doctor
 - Real LLM mode must pass network policy before any request is made.
 - MCP write operations are disabled until an explicit policy exists.
 - Audit events include trace ids for task reconstruction.
+- Runtime errors are written to `.sac/logs/runtime.jsonl` for debugging.
+
+## Debug Runtime Logs
+
+When a command fails, inspect recent runtime logs:
+
+```bash
+sac logs show --limit 20
+sac logs show --level error --traceback
+```
+
+Runtime logs are structured JSONL events with component, level, message, error type, traceback, and extra details.
 
 ## Real LLM Mode
 

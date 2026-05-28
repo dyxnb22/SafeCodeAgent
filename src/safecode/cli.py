@@ -19,6 +19,7 @@ from safecode.ide.manifest import render_manifest, write_manifest
 from safecode.index.files import FileIndexer
 from safecode.index.python_symbols import PythonSymbolIndexer
 from safecode.mcp.discovery import MCPDiscovery
+from safecode.logs.runtime import RuntimeLogger
 from safecode.memory.store import MemoryStore
 from safecode.patch.parser import PatchParseError
 from safecode.patch.validator import PatchValidationError
@@ -50,7 +51,18 @@ queue_app = typer.Typer(help="Manage a tiny local task queue.")
 export_app = typer.Typer(help="Export SafeCode reports.")
 ide_app = typer.Typer(help="Generate IDE adapter metadata.")
 release_app = typer.Typer(help="Generate release helpers.")
+logs_app = typer.Typer(help="Inspect runtime logs.")
 console = Console()
+
+
+def _runtime_logger() -> RuntimeLogger:
+    """Return the runtime logger for the current project."""
+    return RuntimeLogger(Path.cwd())
+
+
+def _log_cli_error(component: str, message: str, exc: BaseException) -> None:
+    """Persist CLI errors for later debugging."""
+    _runtime_logger().error(component, message, exc=exc)
 
 
 @app.callback()
@@ -62,7 +74,12 @@ def callback() -> None:
 def ask(question: str) -> None:
     """Ask a read-only question about the current project."""
     project_root = Path.cwd()
-    answer = AgentOrchestrator(project_root).ask(question)
+    try:
+        answer = AgentOrchestrator(project_root).ask(question)
+    except Exception as exc:
+        _log_cli_error("cli.ask", "ask command failed", exc)
+        console.print(f"[red]Ask failed:[/red] {exc}")
+        raise typer.Exit(code=1) from exc
     console.print(answer)
 
 
@@ -73,7 +90,12 @@ def edit(task: str) -> None:
     try:
         result = AgentOrchestrator(project_root).edit(task)
     except (PatchParseError, PatchValidationError) as exc:
+        _log_cli_error("cli.edit", "patch proposal failed", exc)
         console.print(f"[red]Patch proposal failed:[/red] {exc}")
+        raise typer.Exit(code=1) from exc
+    except Exception as exc:
+        _log_cli_error("cli.edit", "edit command failed", exc)
+        console.print(f"[red]Edit failed:[/red] {exc}")
         raise typer.Exit(code=1) from exc
 
     console.print(Panel.fit(f"Pending patch saved: {result.pending_patch_path}", title="SafeCode"))
@@ -89,6 +111,7 @@ def apply() -> None:
     try:
         preview = orchestrator.preview_apply()
     except (FileNotFoundError, PatchValidationError) as exc:
+        _log_cli_error("cli.apply", "apply preview failed", exc)
         console.print(f"[red]Apply failed:[/red] {exc}")
         raise typer.Exit(code=1) from exc
 
@@ -101,6 +124,11 @@ def apply() -> None:
     try:
         result = orchestrator.apply(preview.proposal)
     except PatchValidationError as exc:
+        _log_cli_error("cli.apply", "apply command failed", exc)
+        console.print(f"[red]Apply failed:[/red] {exc}")
+        raise typer.Exit(code=1) from exc
+    except Exception as exc:
+        _log_cli_error("cli.apply", "apply command failed", exc)
         console.print(f"[red]Apply failed:[/red] {exc}")
         raise typer.Exit(code=1) from exc
 
@@ -126,6 +154,11 @@ def rollback(last: bool = typer.Option(False, "--last", help="Rollback the lates
     try:
         result = AgentOrchestrator(project_root).rollback_last()
     except FileNotFoundError as exc:
+        _log_cli_error("cli.rollback", "rollback failed", exc)
+        console.print(f"[red]Rollback failed:[/red] {exc}")
+        raise typer.Exit(code=1) from exc
+    except Exception as exc:
+        _log_cli_error("cli.rollback", "rollback failed", exc)
         console.print(f"[red]Rollback failed:[/red] {exc}")
         raise typer.Exit(code=1) from exc
 
@@ -187,6 +220,14 @@ def run_command(command: str, yes: bool = typer.Option(False, "--yes", "-y", hel
         console.print("[red]High-risk command remains blocked even with --yes.[/red]")
 
     result = runner.run(command, approved=approved)
+    _runtime_logger().info(
+        "cli.run",
+        "shell command evaluated",
+        command=command,
+        exit_code=str(result.exit_code),
+        executed=str(result.executed),
+        risk=str(result.risk.level),
+    )
     AgentOrchestrator(project_root).audit_logger.write(
         AuditEvent(
             type="shell_completed" if result.executed else "shell_blocked",
@@ -404,6 +445,40 @@ def doctor() -> None:
     console.print(table)
 
 
+@logs_app.command("show")
+def logs_show(
+    limit: int = typer.Option(20, "--limit", "-n"),
+    level: str | None = typer.Option(None, "--level"),
+    traceback_: bool = typer.Option(False, "--traceback", help="Show traceback text."),
+) -> None:
+    """Show recent structured runtime logs."""
+    events = RuntimeLogger(Path.cwd()).read_recent(limit=limit, level=level)
+    if not events:
+        console.print("[yellow]No runtime logs found.[/yellow]")
+        return
+
+    table = Table(title="SafeCode Runtime Logs")
+    table.add_column("Time")
+    table.add_column("Level")
+    table.add_column("Component")
+    table.add_column("Message")
+    table.add_column("Error")
+    table.add_column("Details")
+    for event in events:
+        details = ", ".join(f"{key}={value}" for key, value in event.details.items())
+        table.add_row(
+            event.timestamp,
+            event.level,
+            event.component,
+            event.message,
+            event.error_type or "",
+            details,
+        )
+        if traceback_ and event.traceback:
+            table.add_row("", "", "", event.traceback, "", "")
+    console.print(table)
+
+
 app.add_typer(config_app, name="config")
 app.add_typer(skills_app, name="skills")
 app.add_typer(tools_app, name="tools")
@@ -415,6 +490,7 @@ app.add_typer(queue_app, name="queue")
 app.add_typer(export_app, name="export")
 app.add_typer(ide_app, name="ide")
 app.add_typer(release_app, name="release")
+app.add_typer(logs_app, name="logs")
 
 
 def main() -> None:

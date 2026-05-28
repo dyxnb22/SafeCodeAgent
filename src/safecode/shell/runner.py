@@ -47,14 +47,21 @@ class ShellRunner:
             return ShellRunResult(command, risk, 125, "", "No executable tokens found.", 0, False)
 
         started = time.perf_counter()
-        completed = subprocess.run(
-            risk.tokens,
-            cwd=self.project_root,
-            text=True,
-            capture_output=True,
-            timeout=self.config.shell.default_timeout_seconds,
-            check=False,
-        )
+        try:
+            completed = subprocess.run(
+                risk.tokens,
+                cwd=self.project_root,
+                text=True,
+                capture_output=True,
+                timeout=self.config.shell.default_timeout_seconds,
+                check=False,
+            )
+        except subprocess.TimeoutExpired as exc:
+            duration_ms = int((time.perf_counter() - started) * 1000)
+            return ShellRunResult(command, risk, 124, exc.stdout or "", exc.stderr or "Command timed out.", duration_ms, True)
+        except FileNotFoundError as exc:
+            duration_ms = int((time.perf_counter() - started) * 1000)
+            return ShellRunResult(command, risk, 127, "", str(exc), duration_ms, False)
         duration_ms = int((time.perf_counter() - started) * 1000)
         return ShellRunResult(
             command=command,

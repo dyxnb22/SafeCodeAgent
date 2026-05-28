@@ -26,6 +26,7 @@
 | `v1.1.x` | Product Extension Layer | 产品扩展层 | 本地 API、导出、任务队列、IDE metadata、发布流程 |
 | `v1.2.x` | Production Hardening | 生产安全加固 | shell hardening、trusted policy、sandbox enforcement、real LLM、deploy、prod eval |
 | `v1.3.x` | Runtime Trust Refinement | 运行时信任边界细化 | context secret filtering、hook trust、LLM network policy、trace/audit integration |
+| `v1.4.x` | Runtime Operations | 运行期可运维性 | runtime logs、debug commands、failure diagnostics |
 
 ## Branch 命名约定
 
@@ -426,7 +427,15 @@ v1.1.x 不改变核心安全模型，只提供外部集成和产品化辅助。
 | `v1.3.3` | `v1.3.3-trace-audit-integration` | audit event 关联 trace id | ask/edit/apply/rollback 可追踪 |
 | `v1.3.4` | `v1.3.4-docs-trust-boundaries` | 文档说明信任边界 | README 和版本矩阵更新 |
 
-## v1.4 之后暂不展开
+## v1.4.x: Runtime Operations
+
+目标：让出错后的定位和修复更容易，补齐面向真实使用的运行日志。
+
+| 版本 | 建议分支名 | 功能 | 验收 |
+|---|---|---|---|
+| `v1.4.0` | `v1.4.0-runtime-logging` | 结构化 runtime log 和 `sac logs show` | CLI 失败会写 `.sac/logs/runtime.jsonl` |
+
+## v1.5 之后暂不展开
 
 `v1.1+` 可以考虑：
 
