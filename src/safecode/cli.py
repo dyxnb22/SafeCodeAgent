@@ -181,8 +181,10 @@ def run_command(command: str, yes: bool = typer.Option(False, "--yes", "-y", hel
     if risk.level == RiskLevel.MEDIUM and not yes:
         approved = typer.confirm("Run this medium-risk command?", default=False)
     if risk.level == RiskLevel.HIGH and not yes:
-        console.print("[red]High-risk command blocked. Re-run with --yes only if you fully understand it.[/red]")
+        console.print("[red]High-risk command blocked by policy.[/red]")
         approved = False
+    elif risk.level == RiskLevel.HIGH and yes:
+        console.print("[red]High-risk command remains blocked even with --yes.[/red]")
 
     result = runner.run(command, approved=approved)
     AgentOrchestrator(project_root).audit_logger.write(

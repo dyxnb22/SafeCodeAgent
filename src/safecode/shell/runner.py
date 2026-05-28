@@ -37,16 +37,17 @@ class ShellRunner:
     def run(self, command: str, approved: bool = False) -> ShellRunResult:
         """Run a command when policy allows it."""
         risk = self.assess(command)
-        if risk.level == RiskLevel.HIGH and self.config.shell.block_high_risk and not approved:
+        if risk.level == RiskLevel.HIGH and self.config.shell.block_high_risk:
             return ShellRunResult(command, risk, 126, "", "Blocked high-risk command.", 0, False)
         if risk.level == RiskLevel.MEDIUM and self.config.shell.require_confirm_for_medium and not approved:
             return ShellRunResult(command, risk, 125, "", "Approval required for medium-risk command.", 0, False)
+        if not risk.tokens:
+            return ShellRunResult(command, risk, 125, "", "No executable tokens found.", 0, False)
 
         started = time.perf_counter()
         completed = subprocess.run(
-            command,
+            risk.tokens,
             cwd=self.project_root,
-            shell=True,
             text=True,
             capture_output=True,
             timeout=self.config.shell.default_timeout_seconds,
