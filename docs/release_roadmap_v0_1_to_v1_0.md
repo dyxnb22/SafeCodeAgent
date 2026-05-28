@@ -23,6 +23,7 @@
 | `v0.8.x` | Subagents | 分工协作 | 任务模型、子任务隔离、结果汇总 |
 | `v0.9.x` | Observability + Evaluation | 可观测和可评估 | Trace、指标、回归样例、报告 |
 | `v1.0.x` | Stable Local Agent Runtime | 稳定发布版本 | 安装体验、文档、兼容性、安全基线 |
+| `v1.1.x` | Product Extension Layer | 产品扩展层 | 本地 API、导出、任务队列、IDE metadata、发布流程 |
 
 ## Branch 命名约定
 
@@ -383,7 +384,22 @@ v0.1 不追求：
 - 能用 5 到 10 分钟演示 SafeCode Agent 的核心价值。
 - 文档能说明它为什么不是简单聊天机器人，而是轻量 Agent Runtime。
 
-## v1.0 之后暂不展开
+## v1.1.x: Product Extension Layer
+
+目标：在不破坏 v1.0 稳定 runtime 的前提下，补齐产品扩展入口。
+
+| 版本 | 建议分支名 | 功能 | 验收 |
+|---|---|---|---|
+| `v1.1.0` | `v1.1.0-local-api-facade` | 本地 Python API facade | 其他程序可调用 `SafeCodeLocalAPI` |
+| `v1.1.1` | `v1.1.1-export-reports` | 报告导出 | `sac export report` 可写 Markdown 文件 |
+| `v1.1.2` | `v1.1.2-local-task-queue` | 本地任务队列 | `sac queue add/list/complete-next` 可用 |
+| `v1.1.3` | `v1.1.3-ide-manifest` | IDE metadata | `sac ide manifest --write` 可生成 manifest |
+| `v1.1.4` | `v1.1.4-release-checklist` | 发布检查清单 | `sac release checklist v1.1.4` 可输出 checklist |
+| `v1.1.5` | `v1.1.5-extension-polish` | 扩展层收口 | 文档、命令、测试完成一轮整理 |
+
+v1.1.x 不改变核心安全模型，只提供外部集成和产品化辅助。
+
+## v1.2 之后暂不展开
 
 `v1.1+` 可以考虑：
 
@@ -393,5 +409,4 @@ v0.1 不追求：
 - 团队协作。
 - 更完整的多 Agent 调度。
 
-但在 `v1.0.x` 之前，这些都不是主线。当前路线要优先保证本地 runtime 的安全、稳定、可解释和可教学。
-
+但在 `v1.1.x` 之前，这些都不是主线。当前路线要优先保证本地 runtime 的安全、稳定、可解释和可教学。

@@ -31,6 +31,7 @@ SafeCode Agent Runtime = nervous system + permission boundary + memory + audit t
 | Subagents | lead agent + scoped subagents | v0.8 | 未开始 |
 | Observability / Evaluation | trace、回归样例、失败分类、任务报告 | v0.9 | 未开始 |
 | Stable Runtime | 安装、文档、安全基线、稳定 API、发布 demo | v1.0.x | 未开始 |
+| Product Extension | 本地 API、报告导出、任务队列、IDE manifest、发布清单 | v1.1.x | 未开始 |
 
 ## 设计原则
 
@@ -235,6 +236,18 @@ v1.0.3 reliability-hardening
 v1.0.4 security-presets
 v1.0.5 release-demo
 ```
+
+### v1.1.x: Product Extension Layer
+
+目标：在 v1.0 稳定 runtime 之上，补齐本地产品扩展入口。
+
+验收标准：
+
+- 有稳定的本地 Python API facade。
+- 报告可以导出到 Markdown 文件。
+- 有轻量本地任务队列。
+- 可以生成 IDE adapter metadata。
+- 可以生成发布检查清单。
 
 ## 当前优先级
 
