@@ -342,11 +342,11 @@ def test_patch_apply_rolls_back_on_atomic_write_failure(tmp_path: Path, monkeypa
     original_atomic_write = applier._atomic_write
     calls = {"count": 0}
 
-    def flaky_atomic_write(target_path: Path, content: str) -> None:
+    def flaky_atomic_write(target_path: Path, content: str, file_mode: int | None = None) -> None:
         calls["count"] += 1
         if calls["count"] == 2:
             raise OSError("disk exploded")
-        original_atomic_write(target_path, content)
+        original_atomic_write(target_path, content, file_mode)
 
     monkeypatch.setattr(applier, "_atomic_write", flaky_atomic_write)
 
@@ -359,6 +359,73 @@ def test_patch_apply_rolls_back_on_atomic_write_failure(tmp_path: Path, monkeypa
 
     assert first.read_text(encoding="utf-8") == "before one"
     assert second.read_text(encoding="utf-8") == "before two"
+
+
+def test_patch_apply_preserves_file_mode(tmp_path: Path) -> None:
+    target = tmp_path / "script.sh"
+    target.write_text("echo before\n", encoding="utf-8")
+    target.chmod(0o755)
+    proposal = PatchProposal(
+        id="patch-mode",
+        task="mode",
+        blocks=[PatchBlock(operation="update", file_path=Path("script.sh"), search="before", replace="after")],
+        created_at="2026-01-01T00:00:00Z",
+        model="test",
+    )
+
+    PatchApplier(tmp_path).apply(proposal)
+
+    assert target.read_text(encoding="utf-8") == "echo after\n"
+    assert target.stat().st_mode & 0o777 == 0o755
+
+
+def test_patch_apply_rejects_non_utf8_file(tmp_path: Path) -> None:
+    target = tmp_path / "binary.bin"
+    target.write_bytes(b"\xff\xfe")
+    proposal = PatchProposal(
+        id="patch-binary",
+        task="binary",
+        blocks=[PatchBlock(operation="update", file_path=Path("binary.bin"), search="a", replace="b")],
+        created_at="2026-01-01T00:00:00Z",
+        model="test",
+    )
+
+    try:
+        PatchApplier(tmp_path).apply(proposal)
+    except PatchValidationError as exc:
+        assert "non-UTF-8" in str(exc)
+    else:
+        raise AssertionError("Non-UTF-8 files should be rejected.")
+
+
+def test_patch_apply_rechecks_preimage_before_write(tmp_path: Path, monkeypatch) -> None:
+    target = tmp_path / "README.md"
+    target.write_text("before", encoding="utf-8")
+    proposal = PatchProposal(
+        id="patch-preimage",
+        task="preimage",
+        blocks=[PatchBlock(operation="update", file_path=Path("README.md"), search="before", replace="after")],
+        created_at="2026-01-01T00:00:00Z",
+        model="test",
+    )
+    applier = PatchApplier(tmp_path)
+    original_prepare = applier._prepare_operations
+
+    def changing_prepare(proposal: PatchProposal):
+        operations = original_prepare(proposal)
+        target.write_text("changed elsewhere", encoding="utf-8")
+        return operations
+
+    monkeypatch.setattr(applier, "_prepare_operations", changing_prepare)
+
+    try:
+        applier.apply(proposal)
+    except PatchValidationError as exc:
+        assert "File changed after validation" in str(exc)
+    else:
+        raise AssertionError("Apply should reject stale preimage.")
+
+    assert target.read_text(encoding="utf-8") == "changed elsewhere"
 
 
 def test_orchestrator_writes_trace_id_to_audit(tmp_path: Path) -> None:
