@@ -303,11 +303,57 @@ def test_command_policy_blocks_dangerous_git_args() -> None:
     assert "destructive" in decision.reason
 
 
+def test_command_policy_blocks_git_alias_shell_escape() -> None:
+    decision = CommandPolicy(SafeCodeConfig()).evaluate("git -c alias.pwn=!sh status", approved=True)
+
+    assert decision.allowed is False
+    assert "arbitrary shell" in decision.reason
+
+
+def test_command_policy_blocks_git_path_overrides() -> None:
+    for command in [
+        "git -C /tmp status",
+        "git --work-tree=/tmp status",
+        "git --git-dir=/tmp/.git status",
+    ]:
+        decision = CommandPolicy(SafeCodeConfig()).evaluate(command, approved=True)
+
+        assert decision.allowed is False
+        assert "outside the project boundary" in decision.reason
+
+
+def test_command_policy_blocks_stateful_git_commands() -> None:
+    for command in [
+        "git clean -fdx",
+        "git checkout -- README.md",
+        "git restore -- README.md",
+        "git switch main",
+        "git push origin main",
+        "git config alias.pwn !sh",
+    ]:
+        decision = CommandPolicy(SafeCodeConfig()).evaluate(command, approved=True)
+
+        assert decision.allowed is False
+
+
 def test_command_policy_blocks_python_inline_code() -> None:
     decision = CommandPolicy(SafeCodeConfig()).evaluate("python -c 'print(1)'", approved=True)
 
     assert decision.allowed is False
     assert "arbitrary code" in decision.reason
+
+
+def test_command_policy_blocks_interpreter_execution_modes() -> None:
+    for command in [
+        "python -m http.server",
+        "node -e 'console.log(1)'",
+        "npm run build",
+        "uv run pytest",
+        "uv tool install ruff",
+    ]:
+        decision = CommandPolicy(SafeCodeConfig()).evaluate(command, approved=True)
+
+        assert decision.allowed is False
 
 
 def test_command_policy_blocks_non_allowlisted_command() -> None:
