@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from safecode.config import SafeCodeConfig
+from safecode.sandbox.filesystem import FilesystemBoundary
 from safecode.shell.risk import RiskLevel, ShellRisk, ShellRiskClassifier
 
 
@@ -29,6 +30,7 @@ class ShellRunner:
         self.project_root = project_root
         self.config = config or SafeCodeConfig.load(project_root)
         self.classifier = ShellRiskClassifier()
+        FilesystemBoundary(project_root, self.config).validate(project_root)
 
     def assess(self, command: str) -> ShellRisk:
         """Classify a command without executing it."""
