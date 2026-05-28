@@ -9,6 +9,7 @@ from rich.syntax import Syntax
 from rich.table import Table
 
 from safecode.agent.orchestrator import AgentOrchestrator
+from safecode.config import SafeCodeConfig, ensure_config_file
 from safecode.patch.parser import PatchParseError
 from safecode.patch.validator import PatchValidationError
 
@@ -17,6 +18,7 @@ app = typer.Typer(
     help="SafeCode Agent: safety-first terminal coding assistant.",
     no_args_is_help=True,
 )
+config_app = typer.Typer(help="Manage SafeCode project config.")
 console = Console()
 
 
@@ -133,6 +135,23 @@ def history() -> None:
         )
 
     console.print(table)
+
+
+@config_app.command("init")
+def config_init() -> None:
+    """Create .sac/config.toml."""
+    path = ensure_config_file(Path.cwd())
+    console.print(f"Config ready: {path}")
+
+
+@config_app.command("show")
+def config_show() -> None:
+    """Show effective SafeCode config."""
+    config = SafeCodeConfig.load(Path.cwd())
+    console.print(Syntax(config.to_toml(), "toml", theme="ansi_dark"))
+
+
+app.add_typer(config_app, name="config")
 
 
 def main() -> None:
