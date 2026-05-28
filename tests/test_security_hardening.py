@@ -4,6 +4,8 @@ from safecode.config import SafeCodeConfig, merge_trusted_config
 from safecode.checkpoint.manager import CheckpointManager
 from safecode.context.collector import ContextCollector
 from safecode.agent.orchestrator import AgentOrchestrator
+from safecode.audit.logger import AuditLogger
+from safecode.audit.models import AuditEvent
 from safecode.hooks.runner import HookRunner
 from safecode.llm.factory import create_llm_client
 from safecode.llm.mock import MockLLMClient
@@ -139,6 +141,23 @@ def test_hook_runner_writes_audit_chain(tmp_path: Path) -> None:
     assert "hook_proposed" in event_types
     assert "hook_completed" in event_types
     assert events[-1].command == "python -c 'print(1)'"
+
+
+def test_audit_log_hash_chain_detects_tampering(tmp_path: Path) -> None:
+    logger = AuditLogger(tmp_path)
+    logger.write(AuditEvent(type="one", timestamp="2026-01-01T00:00:00Z", message="first"))
+    logger.write(AuditEvent(type="two", timestamp="2026-01-01T00:00:01Z", message="second"))
+
+    ok, _ = logger.verify_integrity()
+    assert ok is True
+
+    log_file = tmp_path / ".sac" / "logs" / "events.jsonl"
+    text = log_file.read_text(encoding="utf-8").replace("second", "tampered")
+    log_file.write_text(text, encoding="utf-8")
+
+    ok, message = logger.verify_integrity()
+    assert ok is False
+    assert "mismatch" in message
 
 
 def test_checkpoint_create_rejects_path_escape(tmp_path: Path) -> None:

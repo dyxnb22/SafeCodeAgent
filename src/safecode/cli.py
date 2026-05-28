@@ -9,6 +9,7 @@ from rich.syntax import Syntax
 from rich.table import Table
 
 from safecode.agent.orchestrator import AgentOrchestrator
+from safecode.audit.logger import AuditLogger
 from safecode.audit.models import AuditEvent
 from safecode.config import SafeCodeConfig, ensure_config_file
 from safecode.doctor import Doctor
@@ -52,6 +53,7 @@ export_app = typer.Typer(help="Export SafeCode reports.")
 ide_app = typer.Typer(help="Generate IDE adapter metadata.")
 release_app = typer.Typer(help="Generate release helpers.")
 logs_app = typer.Typer(help="Inspect runtime logs.")
+audit_app = typer.Typer(help="Inspect and verify audit logs.")
 console = Console()
 
 
@@ -479,6 +481,16 @@ def logs_show(
     console.print(table)
 
 
+@audit_app.command("verify")
+def audit_verify() -> None:
+    """Verify audit log hash-chain integrity."""
+    ok, message = AuditLogger(Path.cwd()).verify_integrity()
+    color = "green" if ok else "red"
+    console.print(f"[{color}]{message}[/{color}]")
+    if not ok:
+        raise typer.Exit(code=1)
+
+
 app.add_typer(config_app, name="config")
 app.add_typer(skills_app, name="skills")
 app.add_typer(tools_app, name="tools")
@@ -491,6 +503,7 @@ app.add_typer(export_app, name="export")
 app.add_typer(ide_app, name="ide")
 app.add_typer(release_app, name="release")
 app.add_typer(logs_app, name="logs")
+app.add_typer(audit_app, name="audit")
 
 
 def main() -> None:
