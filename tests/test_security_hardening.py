@@ -10,6 +10,7 @@ from safecode.llm.mock import MockLLMClient
 from safecode.logs.runtime import RuntimeLogger
 from safecode.mcp.discovery import MCPDiscovery
 from safecode.patch.models import PatchBlock, PatchProposal
+from safecode.patch.applier import PatchApplier
 from safecode.patch.validator import PatchValidationError, PatchValidator
 from safecode.shell.risk import RiskLevel, ShellRiskClassifier
 from safecode.shell.runner import ShellRunner
@@ -190,6 +191,44 @@ def test_context_collector_caps_large_files(tmp_path: Path) -> None:
     context = ContextCollector(tmp_path, config).collect()
 
     assert context["readme"] is None
+
+
+def test_patch_apply_rolls_back_on_atomic_write_failure(tmp_path: Path, monkeypatch) -> None:
+    first = tmp_path / "one.txt"
+    second = tmp_path / "two.txt"
+    first.write_text("before one", encoding="utf-8")
+    second.write_text("before two", encoding="utf-8")
+    proposal = PatchProposal(
+        id="patch-transaction",
+        task="transaction",
+        blocks=[
+            PatchBlock(operation="update", file_path=Path("one.txt"), search="before", replace="after"),
+            PatchBlock(operation="update", file_path=Path("two.txt"), search="before", replace="after"),
+        ],
+        created_at="2026-01-01T00:00:00Z",
+        model="test",
+    )
+    applier = PatchApplier(tmp_path)
+    original_atomic_write = applier._atomic_write
+    calls = {"count": 0}
+
+    def flaky_atomic_write(target_path: Path, content: str) -> None:
+        calls["count"] += 1
+        if calls["count"] == 2:
+            raise OSError("disk exploded")
+        original_atomic_write(target_path, content)
+
+    monkeypatch.setattr(applier, "_atomic_write", flaky_atomic_write)
+
+    try:
+        applier.apply(proposal)
+    except PatchValidationError as exc:
+        assert "rolled back" in str(exc)
+    else:
+        raise AssertionError("Apply should fail and rollback.")
+
+    assert first.read_text(encoding="utf-8") == "before one"
+    assert second.read_text(encoding="utf-8") == "before two"
 
 
 def test_orchestrator_writes_trace_id_to_audit(tmp_path: Path) -> None:

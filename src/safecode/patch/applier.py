@@ -1,5 +1,6 @@
-"""Apply validated patch proposals to files."""
+"""Apply validated patch proposals to files transactionally."""
 
+import tempfile
 from pathlib import Path
 
 from safecode.patch.models import PatchProposal
@@ -15,7 +16,23 @@ class PatchApplier:
         self.filesystem = FilesystemBoundary(self.project_root)
 
     def apply(self, proposal: PatchProposal) -> None:
-        """Apply a validated patch proposal."""
+        """Apply a validated patch proposal with rollback on failure."""
+        operations = self._prepare_operations(proposal)
+        originals = {target: target.read_text(encoding="utf-8") for target, _ in operations}
+        replaced: list[Path] = []
+
+        try:
+            for target_path, updated in operations:
+                self._atomic_write(target_path, updated)
+                replaced.append(target_path)
+        except Exception as exc:
+            for target_path in reversed(replaced):
+                self._atomic_write(target_path, originals[target_path])
+            raise PatchValidationError(f"Transactional apply failed and was rolled back: {exc}") from exc
+
+    def _prepare_operations(self, proposal: PatchProposal) -> list[tuple[Path, str]]:
+        """Validate and render all file updates before writing any file."""
+        operations: list[tuple[Path, str]] = []
         for block in proposal.blocks:
             if block.operation != "update":
                 raise PatchValidationError("v0.1.3 can apply update blocks only.")
@@ -34,4 +51,17 @@ class PatchApplier:
                 )
 
             updated = content.replace(block.search, block.replace, 1)
-            target_path.write_text(updated, encoding="utf-8")
+            operations.append((target_path, updated))
+        return operations
+
+    def _atomic_write(self, target_path: Path, content: str) -> None:
+        """Write content through a temp file and atomic replace."""
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.NamedTemporaryFile("w", encoding="utf-8", dir=target_path.parent, delete=False) as file:
+            temp_path = Path(file.name)
+            file.write(content)
+        try:
+            temp_path.replace(target_path)
+        except Exception:
+            temp_path.unlink(missing_ok=True)
+            raise
