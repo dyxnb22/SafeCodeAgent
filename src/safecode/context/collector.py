@@ -1,6 +1,7 @@
 """Collect safe, bounded project context for the agent."""
 
 from fnmatch import fnmatch
+import os
 from pathlib import Path
 
 from safecode.config import SafeCodeConfig
@@ -46,17 +47,30 @@ class ContextCollector:
         """Return a bounded, sorted file list relative to project_root."""
         files: list[str] = []
 
-        for path in sorted(self.project_root.rglob("*")):
-            relative = path.relative_to(self.project_root)
+        for root, dir_names, file_names in os.walk(self.project_root, followlinks=False):
+            root_path = Path(root)
+            dir_names[:] = sorted(
+                dir_name
+                for dir_name in dir_names
+                if not self._should_skip(root_path.joinpath(dir_name).relative_to(self.project_root))
+                and not root_path.joinpath(dir_name).is_symlink()
+            )
 
-            if self._should_skip(relative):
-                continue
+            for file_name in sorted(file_names):
+                path = root_path / file_name
+                relative = path.relative_to(self.project_root)
 
-            if path.is_symlink():
-                continue
+                if len(files) >= self.config.max_tree_files:
+                    break
 
-            if path.is_file():
-                files.append(relative.as_posix())
+                if self._should_skip(relative):
+                    continue
+
+                if path.is_symlink():
+                    continue
+
+                if path.is_file():
+                    files.append(relative.as_posix())
 
             if len(files) >= self.config.max_tree_files:
                 break
@@ -113,6 +127,15 @@ class ContextCollector:
             if isinstance(value, str):
                 capped[key] = value[: max(remaining, 0)]
                 remaining -= len(capped[key])
+            elif isinstance(value, list) and key == "files":
+                capped_files: list[str] = []
+                for item in value:
+                    item_cost = len(item) + 1
+                    if remaining - item_cost < 0:
+                        break
+                    capped_files.append(item)
+                    remaining -= item_cost
+                capped[key] = capped_files
             else:
                 capped[key] = value
         return capped

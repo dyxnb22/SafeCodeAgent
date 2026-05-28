@@ -270,6 +270,17 @@ def test_context_collector_skips_symlinks(tmp_path: Path) -> None:
     assert "linked.txt" not in context["files"]
 
 
+def test_context_collector_skips_symlinked_directories(tmp_path: Path) -> None:
+    outside = tmp_path.parent / "outside-secrets"
+    outside.mkdir(exist_ok=True)
+    (outside / "visible.txt").write_text("SECRET=value", encoding="utf-8")
+    (tmp_path / "linked-dir").symlink_to(outside, target_is_directory=True)
+
+    context = ContextCollector(tmp_path).collect()
+
+    assert "linked-dir/visible.txt" not in context["files"]
+
+
 def test_context_collector_redacts_secret_content(tmp_path: Path) -> None:
     (tmp_path / "README.md").write_text("API_KEY=abc123\nnormal text", encoding="utf-8")
 
@@ -277,6 +288,30 @@ def test_context_collector_redacts_secret_content(tmp_path: Path) -> None:
 
     assert "abc123" not in context["readme"]
     assert "[REDACTED]" in context["readme"]
+
+
+def test_context_collector_redacts_json_bearer_and_aws_keys(tmp_path: Path) -> None:
+    (tmp_path / "README.md").write_text(
+        '"token": "abc123",\nAuthorization: Bearer secret-token\nAKIAABCDEFGHIJKLMNOP\n',
+        encoding="utf-8",
+    )
+
+    context = ContextCollector(tmp_path).collect()
+
+    assert "abc123" not in context["readme"]
+    assert "secret-token" not in context["readme"]
+    assert "AKIAABCDEFGHIJKLMNOP" not in context["readme"]
+
+
+def test_context_collector_caps_file_list_by_total_budget(tmp_path: Path) -> None:
+    config = SafeCodeConfig(max_context_chars=30)
+    (tmp_path / "README.md").write_text("public", encoding="utf-8")
+    for index in range(20):
+        (tmp_path / f"file-{index}.txt").write_text("x", encoding="utf-8")
+
+    context = ContextCollector(tmp_path, config).collect()
+
+    assert len("\n".join(context["files"])) <= config.max_context_chars
 
 
 def test_context_collector_caps_large_files(tmp_path: Path) -> None:
