@@ -46,16 +46,13 @@ class SafeCodeConfig(BaseModel):
 
     @classmethod
     def load(cls, project_root: Path) -> "SafeCodeConfig":
-        """Load config from env and .sac/config.toml, falling back to defaults."""
-        config_path = project_root / ".sac" / "config.toml"
-        data: dict = {}
-        if config_path.exists():
-            data = tomllib.loads(config_path.read_text(encoding="utf-8"))
-
-        config = cls(**data)
+        """Load trusted user config first, then merge project config safely."""
+        user_config = cls(**_read_toml(_user_config_path()))
+        project_config = cls(**_read_toml(project_root / ".sac" / "config.toml"))
+        config = merge_trusted_config(user_config, project_config)
         env_policy = os.getenv("SAFECODE_POLICY")
         if env_policy:
-            config.policy = env_policy
+            config.policy = _stricter_policy(config.policy, env_policy)
         return config
 
     def to_toml(self) -> str:
@@ -90,3 +87,66 @@ def ensure_config_file(project_root: Path) -> Path:
     if not config_path.exists():
         config_path.write_text(SafeCodeConfig().to_toml(), encoding="utf-8")
     return config_path
+
+
+POLICY_ORDER = {"learning": 0, "normal": 1, "strict": 2}
+
+
+def merge_trusted_config(user_config: SafeCodeConfig, project_config: SafeCodeConfig) -> SafeCodeConfig:
+    """Merge configs so project config cannot lower user-level safety."""
+    merged = user_config.model_copy(deep=True)
+    merged.sac_dir = project_config.sac_dir or user_config.sac_dir
+    merged.max_tree_files = min(user_config.max_tree_files, project_config.max_tree_files)
+    merged.max_file_lines = min(user_config.max_file_lines, project_config.max_file_lines)
+    merged.policy = _stricter_policy(user_config.policy, project_config.policy)
+
+    merged.shell.default_timeout_seconds = min(
+        user_config.shell.default_timeout_seconds,
+        project_config.shell.default_timeout_seconds,
+    )
+    merged.shell.allow_readonly_without_confirm = (
+        user_config.shell.allow_readonly_without_confirm and project_config.shell.allow_readonly_without_confirm
+    )
+    merged.shell.require_confirm_for_medium = (
+        user_config.shell.require_confirm_for_medium or project_config.shell.require_confirm_for_medium
+    )
+    merged.shell.block_high_risk = user_config.shell.block_high_risk or project_config.shell.block_high_risk
+
+    merged.sandbox.restrict_to_project_root = (
+        user_config.sandbox.restrict_to_project_root or project_config.sandbox.restrict_to_project_root
+    )
+    merged.sandbox.network_enabled = user_config.sandbox.network_enabled and project_config.sandbox.network_enabled
+    if user_config.sandbox.network_allowlist and project_config.sandbox.network_allowlist:
+        merged.sandbox.network_allowlist = sorted(
+            set(user_config.sandbox.network_allowlist) & set(project_config.sandbox.network_allowlist)
+        )
+    elif user_config.sandbox.network_allowlist:
+        merged.sandbox.network_allowlist = list(user_config.sandbox.network_allowlist)
+    else:
+        merged.sandbox.network_allowlist = list(project_config.sandbox.network_allowlist)
+    merged.sandbox.sensitive_names = sorted(
+        set(user_config.sandbox.sensitive_names) | set(project_config.sandbox.sensitive_names)
+    )
+
+    merged.hooks.after_apply = list(project_config.hooks.after_apply)
+    return merged
+
+
+def _stricter_policy(left: str, right: str) -> str:
+    """Return the stricter policy name."""
+    return left if POLICY_ORDER.get(left, 1) >= POLICY_ORDER.get(right, 1) else right
+
+
+def _user_config_path() -> Path:
+    """Return the trusted user-level config path."""
+    env_path = os.getenv("SAFECODE_USER_CONFIG")
+    if env_path:
+        return Path(env_path).expanduser()
+    return Path.home() / ".safecode" / "config.toml"
+
+
+def _read_toml(path: Path) -> dict:
+    """Read TOML when present."""
+    if path.exists():
+        return tomllib.loads(path.read_text(encoding="utf-8"))
+    return {}
