@@ -2,6 +2,7 @@ from pathlib import Path
 
 from safecode.config import SafeCodeConfig, merge_trusted_config
 from safecode.checkpoint.manager import CheckpointManager
+from safecode.context.collector import ContextCollector
 from safecode.hooks.runner import HookRunner
 from safecode.llm.factory import create_llm_client
 from safecode.llm.mock import MockLLMClient
@@ -114,3 +115,15 @@ def test_rollback_without_checkpoint_has_clear_error(tmp_path: Path) -> None:
         assert "No checkpoints found" in str(exc)
     else:
         raise AssertionError("Rollback without checkpoint should fail clearly.")
+
+
+def test_context_collector_skips_secret_like_files(tmp_path: Path) -> None:
+    (tmp_path / "README.md").write_text("public", encoding="utf-8")
+    (tmp_path / ".env.local").write_text("SECRET=value", encoding="utf-8")
+    (tmp_path / "api_token.txt").write_text("token", encoding="utf-8")
+
+    context = ContextCollector(tmp_path).collect()
+
+    assert "README.md" in context["files"]
+    assert ".env.local" not in context["files"]
+    assert "api_token.txt" not in context["files"]

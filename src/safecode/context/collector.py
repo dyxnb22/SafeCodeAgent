@@ -1,5 +1,6 @@
 """Collect safe, bounded project context for the agent."""
 
+from fnmatch import fnmatch
 from pathlib import Path
 
 from safecode.config import SafeCodeConfig
@@ -8,6 +9,17 @@ from safecode.config import SafeCodeConfig
 SKIP_DIRS = {".git", ".sac", ".venv", "__pycache__", ".pytest_cache"}
 SKIP_FILES = {".DS_Store"}
 SENSITIVE_NAMES = {".env", "id_rsa", "id_dsa", "credentials", "token"}
+SENSITIVE_PATTERNS = {
+    ".env*",
+    "*.pem",
+    "*.key",
+    "*.p12",
+    "id_*",
+    "*credential*",
+    "*token*",
+    "*secret*",
+    "*password*",
+}
 
 
 class ContextCollector:
@@ -15,7 +27,7 @@ class ContextCollector:
 
     def __init__(self, project_root: Path, config: SafeCodeConfig | None = None) -> None:
         self.project_root = project_root
-        self.config = config or SafeCodeConfig()
+        self.config = config or SafeCodeConfig.load(project_root)
 
     def collect(self) -> dict:
         """Return a small context dictionary for v0.1."""
@@ -46,7 +58,11 @@ class ContextCollector:
 
     def _read_limited(self, relative_path: str, max_lines: int) -> str | None:
         """Read at most max_lines from a UTF-8 text file."""
-        path = self.project_root / relative_path
+        relative = Path(relative_path)
+        if self._should_skip(relative):
+            return None
+
+        path = self.project_root / relative
         if not path.exists() or not path.is_file():
             return None
 
@@ -60,13 +76,18 @@ class ContextCollector:
 
     def _should_skip(self, relative_path: Path) -> bool:
         """Skip generated, internal, and sensitive paths."""
-        parts = set(relative_path.parts)
-        name = relative_path.name
+        lowered_parts = {part.lower() for part in relative_path.parts}
+        name = relative_path.name.lower()
+        configured_sensitive = {item.lower() for item in self.config.sandbox.sensitive_names}
 
-        if parts & SKIP_DIRS:
+        if lowered_parts & SKIP_DIRS:
             return True
         if name in SKIP_FILES:
             return True
         if name in SENSITIVE_NAMES:
+            return True
+        if name in configured_sensitive or lowered_parts & configured_sensitive:
+            return True
+        if any(fnmatch(name, pattern) for pattern in SENSITIVE_PATTERNS):
             return True
         return False
