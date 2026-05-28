@@ -153,9 +153,7 @@ def merge_trusted_config(user_config: SafeCodeConfig, project_config: SafeCodeCo
     merged.hooks.allow_medium_after_apply = (
         user_config.hooks.allow_medium_after_apply and project_config.hooks.allow_medium_after_apply
     )
-    merged.llm.provider = project_config.llm.provider if project_config.llm.provider != "mock" else user_config.llm.provider
-    merged.llm.model = project_config.llm.model or user_config.llm.model
-    merged.llm.base_url = project_config.llm.base_url or user_config.llm.base_url
+    merged.llm = user_config.llm.model_copy(deep=True)
     return merged
 
 

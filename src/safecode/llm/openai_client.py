@@ -10,14 +10,17 @@ import urllib.error
 import urllib.request
 
 from safecode.agent.schemas import AgentAnswer, AgentPatchResponse
+from safecode.config import SafeCodeConfig
+from safecode.sandbox.network import NetworkPolicy
 
 
 class OpenAICompatibleLLMClient:
     """Call an OpenAI-compatible chat completions endpoint."""
 
-    def __init__(self, model: str, base_url: str) -> None:
-        self.model = model
-        self.base_url = base_url
+    def __init__(self, config: SafeCodeConfig) -> None:
+        NetworkPolicy(config).assert_allowed(config.llm.base_url)
+        self.model = config.llm.model
+        self.base_url = config.llm.base_url
         self.api_key = os.getenv("OPENAI_API_KEY") or os.getenv("SAFECODE_LLM_API_KEY")
         if not self.api_key:
             raise RuntimeError("OPENAI_API_KEY or SAFECODE_LLM_API_KEY is required for real LLM mode.")

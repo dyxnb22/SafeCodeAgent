@@ -81,6 +81,29 @@ def test_llm_factory_defaults_to_mock() -> None:
     assert isinstance(client, MockLLMClient)
 
 
+def test_project_config_cannot_force_real_llm_provider() -> None:
+    user = SafeCodeConfig()
+    project = SafeCodeConfig()
+    project.llm.provider = "openai"
+
+    merged = merge_trusted_config(user, project)
+
+    assert merged.llm.provider == "mock"
+
+
+def test_real_llm_requires_network_policy(monkeypatch) -> None:
+    config = SafeCodeConfig()
+    config.llm.provider = "openai"
+    monkeypatch.setenv("OPENAI_API_KEY", "test")
+
+    try:
+        create_llm_client(config)
+    except PermissionError as exc:
+        assert "Network access is disabled" in str(exc)
+    else:
+        raise AssertionError("Real LLM should require network policy.")
+
+
 def test_hook_injection_is_blocked_by_shell_policy(tmp_path: Path) -> None:
     config = SafeCodeConfig()
     config.hooks.after_apply = ["rm -rf /tmp/safecode-hook-example"]

@@ -11,5 +11,5 @@ def create_llm_client(config: SafeCodeConfig) -> LLMClient:
     if config.llm.provider == "mock":
         return MockLLMClient()
     if config.llm.provider in {"openai", "openai-compatible"}:
-        return OpenAICompatibleLLMClient(model=config.llm.model, base_url=config.llm.base_url)
+        return OpenAICompatibleLLMClient(config=config)
     raise ValueError(f"Unsupported LLM provider: {config.llm.provider}")
