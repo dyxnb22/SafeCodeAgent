@@ -494,10 +494,15 @@ def audit_verify() -> None:
 
 
 @hooks_app.command("approve")
-def hooks_approve(command: str, hook: str = typer.Option("after_apply", "--hook")) -> None:
+def hooks_approve(
+    command: str,
+    hook: str = typer.Option("after_apply", "--hook"),
+    ttl_hours: int = typer.Option(24, "--ttl-hours", min=1),
+) -> None:
     """Approve one exact hook command."""
-    approval = HookApprovalStore(Path.cwd()).approve(hook, command)
+    approval = HookApprovalStore(Path.cwd()).approve(hook, command, ttl_hours=ttl_hours)
     console.print(f"[green]Hook approved:[/green] {approval.command_hash}")
+    console.print(f"Expires: {approval.expires_at}")
 
 
 @hooks_app.command("list")
@@ -508,9 +513,10 @@ def hooks_list() -> None:
     table.add_column("Hook")
     table.add_column("Command")
     table.add_column("Approved At")
+    table.add_column("Expires At")
     table.add_column("Hash")
     for approval in approvals:
-        table.add_row(approval.hook_name, approval.command, approval.approved_at, approval.command_hash[:12])
+        table.add_row(approval.hook_name, approval.command, approval.approved_at, approval.expires_at, approval.command_hash[:12])
     console.print(table if approvals else "[yellow]No hook approvals found.[/yellow]")
 
 

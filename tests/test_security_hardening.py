@@ -144,7 +144,8 @@ def test_hook_runner_writes_audit_chain(tmp_path: Path) -> None:
     assert events[-1].command == "python -c 'print(1)'"
 
 
-def test_medium_hook_requires_persisted_approval(tmp_path: Path) -> None:
+def test_medium_hook_requires_persisted_approval(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("SAFECODE_APPROVAL_DIR", str(tmp_path / "user-approvals"))
     config = SafeCodeConfig()
     config.hooks.after_apply = ["git status"]
     config.hooks.allow_medium_after_apply = True
@@ -155,9 +156,11 @@ def test_medium_hook_requires_persisted_approval(tmp_path: Path) -> None:
     assert summary.results[0].exit_code == 125
 
 
-def test_approved_hook_uses_persisted_approval(tmp_path: Path) -> None:
+def test_approved_hook_uses_persisted_approval(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("SAFECODE_APPROVAL_DIR", str(tmp_path / "user-approvals"))
     config = SafeCodeConfig()
     config.hooks.after_apply = ["git status"]
+    config.hooks.allow_medium_after_apply = True
     HookApprovalStore(tmp_path, config).approve("after_apply", "git status")
 
     summary = HookRunner(tmp_path, config).run_after_apply()
@@ -166,6 +169,50 @@ def test_approved_hook_uses_persisted_approval(tmp_path: Path) -> None:
 
     assert summary.results[0].executed is True
     assert "hook_approval_used" in event_types
+
+
+def test_project_seeded_hook_approval_is_ignored(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("SAFECODE_APPROVAL_DIR", str(tmp_path / "trusted-user-approvals"))
+    config = SafeCodeConfig()
+    config.hooks.after_apply = ["git status"]
+    config.hooks.allow_medium_after_apply = True
+    project_store = tmp_path / ".sac" / "approvals"
+    project_store.mkdir(parents=True)
+    (project_store / "hooks.jsonl").write_text('{"command":"git status"}\n', encoding="utf-8")
+
+    summary = HookRunner(tmp_path, config).run_after_apply()
+
+    assert summary.results[0].executed is False
+    assert summary.results[0].exit_code == 125
+
+
+def test_hook_approval_requires_allow_medium_switch(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("SAFECODE_APPROVAL_DIR", str(tmp_path / "user-approvals"))
+    config = SafeCodeConfig()
+    config.hooks.after_apply = ["git status"]
+    config.hooks.allow_medium_after_apply = False
+    HookApprovalStore(tmp_path, config).approve("after_apply", "git status")
+
+    summary = HookRunner(tmp_path, config).run_after_apply()
+
+    assert summary.results[0].executed is False
+    assert summary.results[0].exit_code == 125
+
+
+def test_hook_approval_is_bound_to_config(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("SAFECODE_APPROVAL_DIR", str(tmp_path / "user-approvals"))
+    approved_config = SafeCodeConfig()
+    approved_config.hooks.after_apply = ["git status"]
+    approved_config.hooks.allow_medium_after_apply = True
+    HookApprovalStore(tmp_path, approved_config).approve("after_apply", "git status")
+    changed_config = SafeCodeConfig()
+    changed_config.hooks.after_apply = ["git status", "echo changed"]
+    changed_config.hooks.allow_medium_after_apply = True
+
+    summary = HookRunner(tmp_path, changed_config).run_after_apply()
+
+    assert summary.results[0].executed is False
+    assert summary.results[0].exit_code == 125
 
 
 def test_audit_log_hash_chain_detects_tampering(tmp_path: Path, monkeypatch) -> None:
