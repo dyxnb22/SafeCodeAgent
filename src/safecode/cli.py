@@ -11,6 +11,8 @@ from rich.table import Table
 from safecode.agent.orchestrator import AgentOrchestrator
 from safecode.audit.models import AuditEvent
 from safecode.config import SafeCodeConfig, ensure_config_file
+from safecode.index.files import FileIndexer
+from safecode.index.python_symbols import PythonSymbolIndexer
 from safecode.patch.parser import PatchParseError
 from safecode.patch.validator import PatchValidationError
 from safecode.memory.store import MemoryStore
@@ -30,6 +32,7 @@ app = typer.Typer(
 config_app = typer.Typer(help="Manage SafeCode project config.")
 skills_app = typer.Typer(help="List and inspect skills.")
 tools_app = typer.Typer(help="List internal tools.")
+index_app = typer.Typer(help="Build lightweight project indexes.")
 progress_app = typer.Typer(help="Read and update long-running progress.")
 console = Console()
 
@@ -264,9 +267,29 @@ def tools_list() -> None:
     console.print(table)
 
 
+@index_app.command("files")
+def index_files() -> None:
+    """List indexed files."""
+    for item in FileIndexer(Path.cwd()).index():
+        console.print(item.path)
+
+
+@index_app.command("symbols")
+def index_symbols() -> None:
+    """List indexed Python symbols."""
+    table = Table(title="Python Symbols")
+    table.add_column("Kind")
+    table.add_column("Name")
+    table.add_column("Location")
+    for symbol in PythonSymbolIndexer(Path.cwd()).index():
+        table.add_row(symbol.kind, symbol.name, f"{symbol.path}:{symbol.line}")
+    console.print(table)
+
+
 app.add_typer(config_app, name="config")
 app.add_typer(skills_app, name="skills")
 app.add_typer(tools_app, name="tools")
+app.add_typer(index_app, name="index")
 app.add_typer(progress_app, name="progress")
 
 
