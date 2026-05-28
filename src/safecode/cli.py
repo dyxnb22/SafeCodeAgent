@@ -13,8 +13,11 @@ from safecode.audit.models import AuditEvent
 from safecode.config import SafeCodeConfig, ensure_config_file
 from safecode.patch.parser import PatchParseError
 from safecode.patch.validator import PatchValidationError
+from safecode.memory.store import MemoryStore
+from safecode.project.rules import ProjectRules
 from safecode.shell.risk import RiskLevel
 from safecode.shell.runner import ShellRunner
+from safecode.state.progress import ProgressState, ProgressStore
 from safecode.utils.time import utc_now_iso
 
 app = typer.Typer(
@@ -23,6 +26,7 @@ app = typer.Typer(
     no_args_is_help=True,
 )
 config_app = typer.Typer(help="Manage SafeCode project config.")
+progress_app = typer.Typer(help="Read and update long-running progress.")
 console = Console()
 
 
@@ -174,6 +178,43 @@ def run_command(command: str, yes: bool = typer.Option(False, "--yes", "-y", hel
     raise typer.Exit(code=0 if result.exit_code in (0, 125, 126) else result.exit_code)
 
 
+@progress_app.command("init")
+def progress_init() -> None:
+    """Create .sac/progress.md."""
+    path = ProgressStore(Path.cwd()).ensure()
+    console.print(f"Progress ready: {path}")
+
+
+@progress_app.command("show")
+def progress_show() -> None:
+    """Show progress Markdown."""
+    console.print(ProgressStore(Path.cwd()).read_text())
+
+
+@progress_app.command("set")
+def progress_set(goal: str, next_step: str = typer.Option("", "--next")) -> None:
+    """Set a simple progress goal and optional next step."""
+    state = ProgressState(goal=goal, completed=[], next_steps=[next_step] if next_step else [], blockers=[])
+    ProgressStore(Path.cwd()).write(state)
+    console.print("[green]Progress updated.[/green]")
+
+
+@app.command("rules")
+def rules(init: bool = typer.Option(False, "--init")) -> None:
+    """Show or initialize SAC.md project rules."""
+    rules_store = ProjectRules(Path.cwd())
+    if init:
+        rules_store.ensure()
+    console.print(rules_store.read() or "[yellow]No SAC.md found. Run sac rules --init.[/yellow]")
+
+
+@app.command("memory")
+def memory_set(key: str, value: str) -> None:
+    """Remember a low-risk project fact."""
+    MemoryStore(Path.cwd()).remember(key, value)
+    console.print("[green]Memory updated.[/green]")
+
+
 @config_app.command("init")
 def config_init() -> None:
     """Create .sac/config.toml."""
@@ -189,6 +230,7 @@ def config_show() -> None:
 
 
 app.add_typer(config_app, name="config")
+app.add_typer(progress_app, name="progress")
 
 
 def main() -> None:

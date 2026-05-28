@@ -8,7 +8,9 @@ from safecode.audit.logger import AuditLogger
 from safecode.audit.models import AuditEvent
 from safecode.checkpoint.manager import CheckpointManager
 from safecode.checkpoint.models import CheckpointMetadata
+from safecode.config import SafeCodeConfig
 from safecode.context.collector import ContextCollector
+from safecode.hooks.runner import HookRunner, HookRunSummary
 from safecode.llm.mock import MockLLMClient
 from safecode.patch.applier import PatchApplier
 from safecode.patch.diff import build_unified_diff
@@ -43,6 +45,7 @@ class ApplyResult:
     proposal: PatchProposal
     checkpoint: CheckpointMetadata
     files: list[str]
+    hooks: HookRunSummary | None = None
 
 
 @dataclass
@@ -58,9 +61,10 @@ class AgentOrchestrator:
 
     def __init__(self, project_root: Path) -> None:
         self.project_root = project_root
-        self.context_collector = ContextCollector(project_root)
+        self.config = SafeCodeConfig.load(project_root)
+        self.context_collector = ContextCollector(project_root, self.config)
         self.llm_client = MockLLMClient()
-        self.audit_logger = AuditLogger(project_root)
+        self.audit_logger = AuditLogger(project_root, self.config)
 
     def ask(self, question: str) -> str:
         """Return a read-only answer about the current project."""
@@ -118,6 +122,7 @@ class AgentOrchestrator:
         PatchValidator(self.project_root).validate(proposal)
         checkpoint = CheckpointManager(self.project_root).create(proposal)
         PatchApplier(self.project_root).apply(proposal)
+        hooks = HookRunner(self.project_root, self.config).run_after_apply()
         self._pending_patch_path().unlink(missing_ok=True)
 
         files = [block.file_path.as_posix() for block in proposal.blocks]
@@ -141,7 +146,18 @@ class AgentOrchestrator:
                 message=proposal.task,
             )
         )
-        return ApplyResult(proposal=proposal, checkpoint=checkpoint, files=files)
+        for hook_result in hooks.results:
+            self.audit_logger.write(
+                AuditEvent(
+                    type="hook_completed",
+                    timestamp=utc_now_iso(),
+                    status="success" if hook_result.exit_code == 0 else "failed",
+                    command=hook_result.command,
+                    exit_code=hook_result.exit_code,
+                    message=f"{hooks.hook_name}: {hook_result.risk.level}",
+                )
+            )
+        return ApplyResult(proposal=proposal, checkpoint=checkpoint, files=files, hooks=hooks)
 
     def rollback_last(self) -> RollbackResult:
         """Restore the latest checkpoint and audit the rollback."""
