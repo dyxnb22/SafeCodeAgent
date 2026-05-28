@@ -32,6 +32,8 @@ SafeCode Agent Runtime = nervous system + permission boundary + memory + audit t
 | Observability / Evaluation | trace、回归样例、失败分类、任务报告 | v0.9 | 未开始 |
 | Stable Runtime | 安装、文档、安全基线、稳定 API、发布 demo | v1.0.x | 未开始 |
 | Product Extension | 本地 API、报告导出、任务队列、IDE manifest、发布清单 | v1.1.x | 未开始 |
+| Core Security Boundary | symlink/content redaction、transactional apply、command policy、audit integrity | v1.5.x | 规划中 |
+| Controlled Tooling | MCP 真执行、只读 subagent、merge review、OS sandbox adapter | v1.6.x | 规划中 |
 
 ## 设计原则
 
@@ -254,9 +256,11 @@ v1.0.5 release-demo
 当前不要急着做高级能力。最优先完成和巩固：
 
 ```text
-v0.1.0 - v0.1.5 Safe Patch Runtime
-v0.2.0 config-policy
-v0.2.1 shell-risk-classifier
+v1.5.0 context-containment
+v1.5.1 transactional-apply
+v1.5.2 command-policy-engine
+v1.5.3 hook-approval-audit
+v1.5.4 audit-integrity
 ```
 
-详细拆分见 `docs/release_roadmap_v0_1_to_v1_0.md`。后续所有 runtime 能力都应该建立在 v0.1 的安全修改闭环上。
+`MCP 真执行` 和 `subagent 并发` 推迟到 `v1.6.x`。后续所有高级工具能力都应该建立在 `v1.5.x` 的核心安全边界上。

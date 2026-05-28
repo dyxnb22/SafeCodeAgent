@@ -1,6 +1,6 @@
-# SafeCode Agent Release Roadmap: v0.1 to v1.0.x
+# SafeCode Agent Release Roadmap: v0.1 to v1.6.x
 
-这份文档用于把 SafeCode Agent 从当前 `v0.1` 安全 Patch Runtime，规划到 `v1.0.x` 稳定本地 Agent Runtime。
+这份文档用于把 SafeCode Agent 从 `v0.1` 安全 Patch Runtime，规划到 `v1.6.x` 的 Claude Code-like 本地 Agent Runtime。
 
 核心原则：
 
@@ -8,6 +8,7 @@
 - 每个版本只增加一类能力，避免一次性扩大风险面。
 - 所有写操作继续保留 diff、checkpoint、audit、rollback。
 - 高级能力必须建立在权限、状态、日志和回滚之上。
+- 当前路线已经根据生产安全审查调整：`v1.5.x` 优先修核心安全边界，`v1.6.x` 再做 MCP 真执行和 subagent 并发。
 
 ## 版本总览
 
@@ -27,6 +28,8 @@
 | `v1.2.x` | Production Hardening | 生产安全加固 | shell hardening、trusted policy、sandbox enforcement、real LLM、deploy、prod eval |
 | `v1.3.x` | Runtime Trust Refinement | 运行时信任边界细化 | context secret filtering、hook trust、LLM network policy、trace/audit integration |
 | `v1.4.x` | Runtime Operations | 运行期可运维性 | runtime logs、debug commands、failure diagnostics |
+| `v1.5.x` | Core Security Boundary | 核心安全边界整改 | context containment、transactional apply、command policy、hook approval、audit integrity |
+| `v1.6.x` | Controlled Tooling and Subagents | 受控工具生态与子任务 | real MCP execution、scoped subagents、merge review、OS-level sandbox |
 
 ## Branch 命名约定
 
@@ -185,14 +188,14 @@ v0.1 不追求：
 
 ## v0.6.x: MCP Integration
 
-目标：接入外部工具生态，但所有外部写操作仍然需要单独审批和审计。
+目标：建立 MCP 配置和发现的接口。注意：此阶段不做真实外部工具执行，真实 MCP 执行推迟到 `v1.6.x`，等 `v1.5.x` 的安全边界完成后再做。
 
 | 版本 | 建议分支名 | 功能 | 验收 |
 |---|---|---|---|
 | `v0.6.0` | `v0.6.0-mcp-config` | MCP server 配置 | 可读取启用的 MCP servers |
 | `v0.6.1` | `v0.6.1-mcp-tool-discovery` | 工具发现 | 能列出外部工具，但不一次性塞进 prompt |
 | `v0.6.2` | `v0.6.2-mcp-audit-permission` | MCP 权限和审计 | 外部写操作必须确认并写日志 |
-| `v0.6.3` | `v0.6.3-mcp-demo-tool` | 示例工具 | 跑通一个只读 MCP demo |
+| `v0.6.3` | `v0.6.3-mcp-demo-tool` | 只读 demo / placeholder | 明确 MCP 写操作默认拒绝 |
 
 核心文件方向：
 
@@ -235,7 +238,7 @@ v0.1 不追求：
 
 ## v0.8.x: Subagents
 
-目标：支持复杂任务分工，但默认限制写入冲突。
+目标：建立 subagent 任务模型。注意：此阶段不做真正并发和真实子 agent 执行，真实并发 subagent 推迟到 `v1.6.x`。
 
 | 版本 | 建议分支名 | 功能 | 验收 |
 |---|---|---|---|
@@ -435,7 +438,38 @@ v1.1.x 不改变核心安全模型，只提供外部集成和产品化辅助。
 |---|---|---|---|
 | `v1.4.0` | `v1.4.0-runtime-logging` | 结构化 runtime log 和 `sac logs show` | CLI 失败会写 `.sac/logs/runtime.jsonl` |
 
-## v1.5 之后暂不展开
+## v1.5.x: Core Security Boundary
+
+目标：按照生产安全审查结果，优先整改核心安全边界。这个阶段不扩 MCP 真执行、不扩 subagent 并发，避免在基础安全没稳时扩大风险面。
+
+| 版本 | 建议分支名 | 功能 | 验收 |
+|---|---|---|---|
+| `v1.5.0` | `v1.5.0-context-containment` | context symlink 拒绝、内容 redaction、文件大小和总上下文上限 | symlink 指向 project root 外或 secret 内容不会进入 LLM context |
+| `v1.5.1` | `v1.5.1-transactional-apply` | temp write + atomic replace；apply 失败自动 rollback | 多文件 apply 中途失败不会留下半写入状态 |
+| `v1.5.2` | `v1.5.2-command-policy-engine` | shell/hooks 统一 command policy；allowlist；arg-level 风险判断 | `git reset --hard`、`python -c`、`pip install` 等按策略阻止或审批 |
+| `v1.5.3` | `v1.5.3-hook-approval-audit` | hook proposal / approval / result 全进 audit；hook 默认不静默执行 | hook 执行前有审批状态，结果可审计 |
+| `v1.5.4` | `v1.5.4-audit-integrity` | audit hash chain 和 `sac audit verify` | 篡改 JSONL 后 verify 能发现 |
+
+暂缓到后续：
+
+- MCP 真实工具执行。
+- subagent 并发执行。
+- OS-level sandbox。
+
+## v1.6.x: Controlled Tooling and Subagents
+
+目标：在 `v1.5.x` 核心安全边界完成后，再扩展真实 MCP 和 subagent 能力。
+
+| 版本 | 建议分支名 | 功能 | 验收 |
+|---|---|---|---|
+| `v1.6.0` | `v1.6.0-mcp-runner-readonly` | 真实 MCP client runner，只允许只读工具 | MCP read-only 调用有 audit 和 runtime log |
+| `v1.6.1` | `v1.6.1-mcp-write-approval` | MCP 写操作审批和权限策略 | 外部写操作必须 proposal + approval + audit |
+| `v1.6.2` | `v1.6.2-subagent-readonly-runner` | 只读 subagent runner，独立上下文和结果文件 | 子任务只能读，结果写 `.sac/subagents/` |
+| `v1.6.3` | `v1.6.3-subagent-merge-review` | Lead agent 汇总结果后生成单一 patch | 子任务不直接写业务文件 |
+| `v1.6.4` | `v1.6.4-os-sandbox-research` | macOS/Linux sandbox 调研和可选 adapter | 文档说明不同系统上的 sandbox 能力和限制 |
+| `v1.6.5` | `v1.6.5-tooling-security-evals` | MCP/subagent 安全回归测试 | 工具调用、权限拒绝、冲突场景有测试 |
+
+## v1.7 之后暂不展开
 
 `v1.1+` 可以考虑：
 

@@ -1,11 +1,13 @@
 # SafeCode Agent Version Implementation Matrix
 
-这份文档说明从 `v0.1.0` 到 `v1.1.5` 的分支、代码入口和验收命令。
+这份文档说明从 `v0.1.0` 到当前最新规划版本的分支、代码入口和验收命令。
 
 说明：
 
 - `v0.1.x` 是已经拆过的学习阶段。
-- `v0.2.x` 到 `v1.1.x` 当前以一个完整 runtime 实现补齐，后续可以再按分支做更细的教学拆分。
+- `v0.2.x` 到 `v1.4.x` 已经以逐阶段分支推进。
+- `v1.5.x` 优先做核心安全边界整改。
+- `v1.6.x` 再做 MCP 真执行和 subagent 并发。
 - 所有分支名都不使用 `codex/` 前缀。
 
 ## v0.1.x
@@ -140,3 +142,24 @@
 | 版本 | 分支 | 主要入口 | 验收命令 |
 |---|---|---|---|
 | `v1.4.0` | `v1.4.0-runtime-logging` | `src/safecode/logs/runtime.py`、`src/safecode/cli.py` | `uv run sac logs show --level error --traceback` |
+
+## v1.5.x: Core Security Boundary
+
+| 版本 | 分支 | 主要入口 | 验收命令 |
+|---|---|---|---|
+| `v1.5.0` | `v1.5.0-context-containment` | `src/safecode/context/collector.py`、`src/safecode/sandbox/filesystem.py` | symlink escape / secret content 不进入 context |
+| `v1.5.1` | `v1.5.1-transactional-apply` | `src/safecode/patch/applier.py`、`src/safecode/checkpoint/manager.py` | apply 失败自动 rollback，无半写入 |
+| `v1.5.2` | `v1.5.2-command-policy-engine` | `src/safecode/shell/*`、`src/safecode/hooks/runner.py` | arg-level 风险判断测试通过 |
+| `v1.5.3` | `v1.5.3-hook-approval-audit` | `src/safecode/hooks/*`、`src/safecode/audit/*` | hook proposal/approval/result 可审计 |
+| `v1.5.4` | `v1.5.4-audit-integrity` | `src/safecode/audit/logger.py` | `sac audit verify` 能发现日志篡改 |
+
+## v1.6.x: Controlled Tooling and Subagents
+
+| 版本 | 分支 | 主要入口 | 验收命令 |
+|---|---|---|---|
+| `v1.6.0` | `v1.6.0-mcp-runner-readonly` | `src/safecode/mcp/*` | MCP 只读工具调用有 audit/runtime log |
+| `v1.6.1` | `v1.6.1-mcp-write-approval` | `src/safecode/mcp/*`、`src/safecode/policy/*` | MCP 写操作必须审批 |
+| `v1.6.2` | `v1.6.2-subagent-readonly-runner` | `src/safecode/subagents/*` | 子任务只读执行并写结果文件 |
+| `v1.6.3` | `v1.6.3-subagent-merge-review` | `src/safecode/subagents/*`、`src/safecode/patch/*` | Lead agent 合并后生成单一 patch |
+| `v1.6.4` | `v1.6.4-os-sandbox-research` | `docs/*`、`src/safecode/sandbox/*` | sandbox adapter 能力和限制写清楚 |
+| `v1.6.5` | `v1.6.5-tooling-security-evals` | `tests/*` | MCP/subagent 权限和冲突测试通过 |

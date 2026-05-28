@@ -377,14 +377,48 @@ v1.0.x 的目标是把 SafeCode Agent 从学习型项目收口为一个稳定、
 3. 写简历/作品集描述。
 4. 整理一套可复现 demo 流程。
 
-### 3.11 v1.0 之后暂不作为主线
+### 3.11 v1.5：核心安全边界整改
+
+经过生产级安全审查后，v1.5 被调整为当前最高优先级。这个阶段不继续扩展 MCP 真执行和 subagent 并发，而是先修核心安全边界。
+
+#### 目标
+
+1. context 收集拒绝 symlink escape，并对 secret-like 内容做 redaction。
+2. patch apply 改成事务式流程，失败时不能留下半写入状态。
+3. shell 和 hooks 统一走 command policy engine。
+4. hooks 必须有 proposal / approval / result 审计链。
+5. audit log 增加 hash chain 和 verify 能力，能发现日志被篡改。
+
+#### v1.5 实施拆分
+
+| 子版本 | 目标 | 验收重点 |
+|---|---|---|
+| `v1.5.0` | Context containment | symlink escape 和 secret 内容不会进入 LLM context |
+| `v1.5.1` | Transactional apply | apply 失败自动 rollback，无半写入 |
+| `v1.5.2` | Command policy engine | `git reset --hard`、`python -c`、`pip install` 等能被精细分类 |
+| `v1.5.3` | Hook approval audit | hook 执行前后都有审批和审计 |
+| `v1.5.4` | Audit integrity | `sac audit verify` 能发现日志篡改 |
+
+### 3.12 v1.6：受控 MCP 与 Subagents
+
+v1.6 只有在 v1.5 的核心安全边界完成后才开始。原因是 MCP 真执行和 subagent 并发会显著扩大权限面，如果提前做，会放大安全风险。
+
+#### 目标
+
+1. 实现只读 MCP runner，并记录 audit/runtime log。
+2. MCP 写操作必须走 proposal / approval / audit。
+3. subagent runner 默认只读，独立上下文和结果文件。
+4. Lead agent 汇总结果后生成单一 patch，子 agent 不直接写业务文件。
+5. 调研并接入可选 OS-level sandbox adapter。
+
+### 3.13 更后续能力
 
 - Textual TUI。
 - VSCode / JetBrains 插件。
 - 云端任务队列。
 - 团队协作和 PR 工作流。
 
-这些可以作为 v1.1+ 的方向，但在 v1.0.x 之前不作为主线。当前主线应该优先保证本地 runtime 的安全、稳定、可解释和可教学。
+这些可以作为 v1.7+ 的方向。当前主线应该优先完成 v1.5 的核心安全边界，再进入 v1.6 的受控工具生态。
 
 ---
 
@@ -607,7 +641,7 @@ v0.1 至少支持：
 9. Patch 路径必须限制在 project root 内，不能通过 `../` 越界。
 10. apply 前必须创建 checkpoint。
 11. apply 后必须写 audit log。
-12. apply 中途失败时必须记录 error 事件；后续版本再实现事务式自动回滚。
+12. apply 中途失败时必须记录 error 事件；`v1.5.1` 实现事务式自动回滚。
 
 ### 7.4 审批流程
 
