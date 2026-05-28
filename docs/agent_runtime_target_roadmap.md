@@ -261,6 +261,11 @@ v1.5.1 transactional-apply
 v1.5.2 command-policy-engine
 v1.5.3 hook-approval-audit
 v1.5.4 audit-integrity
+v1.5.5 command-policy-hardening
+v1.5.6 hook-approval-state
+v1.5.7 audit-anchoring
+v1.5.8 context-redaction-hardening
+v1.5.9 apply-metadata-preimage
 ```
 
 `MCP 真执行` 和 `subagent 并发` 推迟到 `v1.6.x`。后续所有高级工具能力都应该建立在 `v1.5.x` 的核心安全边界上。

@@ -398,6 +398,18 @@ v1.0.x 的目标是把 SafeCode Agent 从学习型项目收口为一个稳定、
 | `v1.5.2` | Command policy engine | `git reset --hard`、`python -c`、`pip install` 等能被精细分类 |
 | `v1.5.3` | Hook approval audit | hook 执行前后都有审批和审计 |
 | `v1.5.4` | Audit integrity | `sac audit verify` 能发现日志篡改 |
+| `v1.5.5` | Command policy hardening | 阻止 `git -c alias.*=!`、`git -C`、`--work-tree`、`git clean`、`python -m`、`node -e`、`npm run`、`uv run/tool` 等绕过 |
+| `v1.5.6` | Hook approval state | hook 审批必须持久化到 `.sac/approvals/hooks.jsonl`，apply 审批不再隐式批准 hook |
+| `v1.5.7` | Audit anchoring | hash chain 增加用户级 anchor，降低整份日志重写后无法发现的问题 |
+| `v1.5.8` | Context redaction hardening | symlinked directory、JSON/Bearer/AWS key、file list budget 等边界补齐 |
+| `v1.5.9` | Apply metadata and preimage | apply 保留文件 mode，拒绝 non-UTF-8，写入前重查 preimage |
+| `v1.5.10` | Review follow-up docs | 将生产安全 review 后的整改范围写回路线图 |
+
+#### 生产安全 review 后的结论
+
+在 `v1.5.0` 到 `v1.5.4` 后，项目已经有了基本安全边界，但还不应该进入真实 MCP 执行和 subagent 并发。原因是 command policy 仍存在 allowlisted command 参数绕过，hook 审批缺少持久状态，audit hash chain 缺少用户级信任锚点。
+
+因此 `v1.5.5` 到 `v1.5.9` 被追加为进入 `v1.6` 前的必修整改线。只有这些测试通过后，才允许继续扩展 MCP 真执行、subagent runner 和更高风险的工具生态。
 
 ### 3.12 v1.6：受控 MCP 与 Subagents
 

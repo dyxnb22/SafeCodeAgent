@@ -449,6 +449,12 @@ v1.1.x 不改变核心安全模型，只提供外部集成和产品化辅助。
 | `v1.5.2` | `v1.5.2-command-policy-engine` | shell/hooks 统一 command policy；allowlist；arg-level 风险判断 | `git reset --hard`、`python -c`、`pip install` 等按策略阻止或审批 |
 | `v1.5.3` | `v1.5.3-hook-approval-audit` | hook proposal / approval / result 全进 audit；hook 默认不静默执行 | hook 执行前有审批状态，结果可审计 |
 | `v1.5.4` | `v1.5.4-audit-integrity` | audit hash chain 和 `sac audit verify` | 篡改 JSONL 后 verify 能发现 |
+| `v1.5.5` | `v1.5.5-command-policy-hardening` | 阻止 `git -c alias.*=!`、`git -C`、`--work-tree`、`git clean`、`python -m`、`node -e`、`npm run`、`uv run/tool` 等绕过 | allowlisted command 不能通过危险参数逃出安全边界 |
+| `v1.5.6` | `v1.5.6-hook-approval-state` | hook 审批写入 `.sac/approvals/hooks.jsonl`，运行时按命令 hash 匹配 | apply 审批不再隐式代表 hook 审批 |
+| `v1.5.7` | `v1.5.7-audit-anchoring` | audit hash chain 增加用户级 external anchor | 整份项目日志被重写后 `sac audit verify` 能发现 anchor mismatch |
+| `v1.5.8` | `v1.5.8-context-redaction-hardening` | 剪掉 symlinked directory，扩展 JSON/Bearer/AWS key redaction，file list 进入总预算 | context 更难泄漏敏感内容和敏感路径 |
+| `v1.5.9` | `v1.5.9-apply-metadata-preimage` | apply 保留文件 mode、拒绝 non-UTF-8 text patch、写前重查 preimage、记录 rollback failure | 降低 TOCTOU、权限丢失和二进制误改风险 |
+| `v1.5.10` | `v1.5.10-review-followup-docs` | 把生产安全 review 后的整改项写回路线图和矩阵 | 后续进入 v1.6 前有清晰的安全完成线 |
 
 暂缓到后续：
 
