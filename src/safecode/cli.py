@@ -14,20 +14,24 @@ from safecode.config import SafeCodeConfig, ensure_config_file
 from safecode.doctor import Doctor
 from safecode.eval.cases import default_cases
 from safecode.eval.runner import EvalRunner
+from safecode.export.bundle import Exporter
+from safecode.ide.manifest import render_manifest, write_manifest
 from safecode.index.files import FileIndexer
 from safecode.index.python_symbols import PythonSymbolIndexer
 from safecode.mcp.discovery import MCPDiscovery
+from safecode.memory.store import MemoryStore
 from safecode.patch.parser import PatchParseError
 from safecode.patch.validator import PatchValidationError
-from safecode.memory.store import MemoryStore
 from safecode.project.rules import ProjectRules
 from safecode.report.render import ReportRenderer
+from safecode.release.checklist import render_release_checklist
 from safecode.shell.risk import RiskLevel
 from safecode.shell.runner import ShellRunner
 from safecode.skills.loader import SkillLoader
 from safecode.state.progress import ProgressState, ProgressStore
 from safecode.subagents.task import SubagentTaskStore
 from safecode.tools.registry import ToolRegistry
+from safecode.queue.store import QueueStore
 from safecode.utils.time import utc_now_iso
 
 app = typer.Typer(
@@ -42,6 +46,10 @@ index_app = typer.Typer(help="Build lightweight project indexes.")
 progress_app = typer.Typer(help="Read and update long-running progress.")
 mcp_app = typer.Typer(help="Inspect configured MCP servers and tools.")
 subagent_app = typer.Typer(help="Create file-backed subagent tasks.")
+queue_app = typer.Typer(help="Manage a tiny local task queue.")
+export_app = typer.Typer(help="Export SafeCode reports.")
+ide_app = typer.Typer(help="Generate IDE adapter metadata.")
+release_app = typer.Typer(help="Generate release helpers.")
 console = Console()
 
 
@@ -100,6 +108,7 @@ def apply() -> None:
         Panel.fit(
             f"Applied patch {result.proposal.id}\n"
             f"Checkpoint: {result.checkpoint.checkpoint_id}\n"
+            f"Hooks: {len(result.hooks.results) if result.hooks else 0}\n"
             f"Files: {', '.join(result.files)}",
             title="SafeCode",
         )
@@ -193,73 +202,6 @@ def run_command(command: str, yes: bool = typer.Option(False, "--yes", "-y", hel
     raise typer.Exit(code=0 if result.exit_code in (0, 125, 126) else result.exit_code)
 
 
-@progress_app.command("init")
-def progress_init() -> None:
-    """Create .sac/progress.md."""
-    path = ProgressStore(Path.cwd()).ensure()
-    console.print(f"Progress ready: {path}")
-
-
-@progress_app.command("show")
-def progress_show() -> None:
-    """Show progress Markdown."""
-    console.print(ProgressStore(Path.cwd()).read_text())
-
-
-@progress_app.command("set")
-def progress_set(goal: str, next_step: str = typer.Option("", "--next")) -> None:
-    """Set a simple progress goal and optional next step."""
-    state = ProgressState(goal=goal, completed=[], next_steps=[next_step] if next_step else [], blockers=[])
-    ProgressStore(Path.cwd()).write(state)
-    console.print("[green]Progress updated.[/green]")
-
-
-@app.command("rules")
-def rules(init: bool = typer.Option(False, "--init")) -> None:
-    """Show or initialize SAC.md project rules."""
-    rules_store = ProjectRules(Path.cwd())
-    if init:
-        rules_store.ensure()
-    console.print(rules_store.read() or "[yellow]No SAC.md found. Run sac rules --init.[/yellow]")
-
-
-@app.command("memory")
-def memory_set(key: str, value: str) -> None:
-    """Remember a low-risk project fact."""
-    MemoryStore(Path.cwd()).remember(key, value)
-    console.print("[green]Memory updated.[/green]")
-
-
-@app.command("report")
-def report() -> None:
-    """Render a Markdown report from recent audit events."""
-    console.print(ReportRenderer(Path.cwd()).render_markdown())
-
-
-@app.command("eval")
-def eval_demo() -> None:
-    """Run lightweight local eval cases."""
-    results = EvalRunner(Path.cwd()).run(default_cases())
-    table = Table(title="SafeCode Eval")
-    table.add_column("Case")
-    table.add_column("Passed")
-    for result in results:
-        table.add_row(result.name, "yes" if result.passed else "no")
-    console.print(table)
-
-
-@app.command("doctor")
-def doctor() -> None:
-    """Check local install and project environment."""
-    table = Table(title="SafeCode Doctor")
-    table.add_column("Check")
-    table.add_column("Passed")
-    table.add_column("Detail")
-    for check in Doctor(Path.cwd()).run():
-        table.add_row(check.name, "yes" if check.passed else "no", check.detail)
-    console.print(table)
-
-
 @config_app.command("init")
 def config_init() -> None:
     """Create .sac/config.toml."""
@@ -324,6 +266,27 @@ def index_symbols() -> None:
     console.print(table)
 
 
+@progress_app.command("init")
+def progress_init() -> None:
+    """Create .sac/progress.md."""
+    path = ProgressStore(Path.cwd()).ensure()
+    console.print(f"Progress ready: {path}")
+
+
+@progress_app.command("show")
+def progress_show() -> None:
+    """Show progress Markdown."""
+    console.print(ProgressStore(Path.cwd()).read_text())
+
+
+@progress_app.command("set")
+def progress_set(goal: str, next_step: str = typer.Option("", "--next")) -> None:
+    """Set a simple progress goal and optional next step."""
+    state = ProgressState(goal=goal, completed=[], next_steps=[next_step] if next_step else [], blockers=[])
+    ProgressStore(Path.cwd()).write(state)
+    console.print("[green]Progress updated.[/green]")
+
+
 @mcp_app.command("tools")
 def mcp_tools() -> None:
     """List configured MCP tools."""
@@ -344,6 +307,101 @@ def subagent_create(title: str, instructions: str, write: bool = typer.Option(Fa
     console.print(f"Subagent task created: {task.id}")
 
 
+@app.command("rules")
+def rules(init: bool = typer.Option(False, "--init")) -> None:
+    """Show or initialize SAC.md project rules."""
+    rules_store = ProjectRules(Path.cwd())
+    if init:
+        rules_store.ensure()
+    console.print(rules_store.read() or "[yellow]No SAC.md found. Run sac rules --init.[/yellow]")
+
+
+@app.command("memory")
+def memory_set(key: str, value: str) -> None:
+    """Remember a low-risk project fact."""
+    MemoryStore(Path.cwd()).remember(key, value)
+    console.print("[green]Memory updated.[/green]")
+
+
+@app.command("report")
+def report() -> None:
+    """Render a Markdown report from recent audit events."""
+    console.print(ReportRenderer(Path.cwd()).render_markdown())
+
+
+@export_app.command("report")
+def export_report(output: Path = typer.Option(Path(".sac/reports/latest.md"), "--output", "-o")) -> None:
+    """Export a Markdown report to a file."""
+    path = Exporter(Path.cwd()).report(output)
+    console.print(f"Report exported: {path}")
+
+
+@app.command("eval")
+def eval_demo() -> None:
+    """Run lightweight local eval cases."""
+    results = EvalRunner(Path.cwd()).run(default_cases())
+    table = Table(title="SafeCode Eval")
+    table.add_column("Case")
+    table.add_column("Passed")
+    for result in results:
+        table.add_row(result.name, "yes" if result.passed else "no")
+    console.print(table)
+
+
+@queue_app.command("add")
+def queue_add(title: str) -> None:
+    """Add a pending task to the local queue."""
+    task = QueueStore(Path.cwd()).add(title)
+    console.print(f"Queued task: {task.id}")
+
+
+@queue_app.command("list")
+def queue_list() -> None:
+    """List queued tasks."""
+    table = Table(title="SafeCode Queue")
+    table.add_column("ID")
+    table.add_column("Status")
+    table.add_column("Title")
+    for task in QueueStore(Path.cwd()).list():
+        table.add_row(task.id, task.status, task.title)
+    console.print(table)
+
+
+@queue_app.command("complete-next")
+def queue_complete_next() -> None:
+    """Mark the next pending task as completed."""
+    task = QueueStore(Path.cwd()).complete_next()
+    console.print(f"Completed task: {task.id}" if task else "[yellow]No pending tasks.[/yellow]")
+
+
+@ide_app.command("manifest")
+def ide_manifest(write: bool = typer.Option(False, "--write")) -> None:
+    """Show or write an IDE command manifest."""
+    if write:
+        path = write_manifest(Path.cwd())
+        console.print(f"IDE manifest written: {path}")
+    else:
+        console.print(Syntax(render_manifest(), "json", theme="ansi_dark"))
+
+
+@release_app.command("checklist")
+def release_checklist(version: str) -> None:
+    """Render a release checklist."""
+    console.print(render_release_checklist(version))
+
+
+@app.command("doctor")
+def doctor() -> None:
+    """Check local install and project environment."""
+    table = Table(title="SafeCode Doctor")
+    table.add_column("Check")
+    table.add_column("Passed")
+    table.add_column("Detail")
+    for check in Doctor(Path.cwd()).run():
+        table.add_row(check.name, "yes" if check.passed else "no", check.detail)
+    console.print(table)
+
+
 app.add_typer(config_app, name="config")
 app.add_typer(skills_app, name="skills")
 app.add_typer(tools_app, name="tools")
@@ -351,6 +409,10 @@ app.add_typer(index_app, name="index")
 app.add_typer(progress_app, name="progress")
 app.add_typer(mcp_app, name="mcp")
 app.add_typer(subagent_app, name="subagent")
+app.add_typer(queue_app, name="queue")
+app.add_typer(export_app, name="export")
+app.add_typer(ide_app, name="ide")
+app.add_typer(release_app, name="release")
 
 
 def main() -> None:
