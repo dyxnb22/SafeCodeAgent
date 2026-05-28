@@ -14,3 +14,5 @@ class AuditEvent(BaseModel):
     files: list[str] = Field(default_factory=list)
     message: str | None = None
     error: str | None = None
+    command: str | None = None
+    exit_code: int | None = None

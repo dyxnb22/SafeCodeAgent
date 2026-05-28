@@ -9,9 +9,13 @@ from rich.syntax import Syntax
 from rich.table import Table
 
 from safecode.agent.orchestrator import AgentOrchestrator
+from safecode.audit.models import AuditEvent
 from safecode.config import SafeCodeConfig, ensure_config_file
 from safecode.patch.parser import PatchParseError
 from safecode.patch.validator import PatchValidationError
+from safecode.shell.risk import RiskLevel
+from safecode.shell.runner import ShellRunner
+from safecode.utils.time import utc_now_iso
 
 app = typer.Typer(
     name="sac",
@@ -135,6 +139,39 @@ def history() -> None:
         )
 
     console.print(table)
+
+
+@app.command("run")
+def run_command(command: str, yes: bool = typer.Option(False, "--yes", "-y", help="Approve medium/high risk commands.")) -> None:
+    """Run a shell command through SafeCode risk checks."""
+    project_root = Path.cwd()
+    runner = ShellRunner(project_root)
+    risk = runner.assess(command)
+    console.print(Panel.fit("\n".join([f"Risk: {risk.level}", *risk.reasons]), title="Shell Risk"))
+
+    approved = yes
+    if risk.level == RiskLevel.MEDIUM and not yes:
+        approved = typer.confirm("Run this medium-risk command?", default=False)
+    if risk.level == RiskLevel.HIGH and not yes:
+        console.print("[red]High-risk command blocked. Re-run with --yes only if you fully understand it.[/red]")
+        approved = False
+
+    result = runner.run(command, approved=approved)
+    AgentOrchestrator(project_root).audit_logger.write(
+        AuditEvent(
+            type="shell_completed" if result.executed else "shell_blocked",
+            timestamp=utc_now_iso(),
+            status="success" if result.exit_code == 0 else "failed",
+            command=command,
+            exit_code=result.exit_code,
+            message=f"risk={result.risk.level}; duration_ms={result.duration_ms}",
+        )
+    )
+    if result.stdout:
+        console.print(result.stdout)
+    if result.stderr:
+        console.print(f"[red]{result.stderr}[/red]")
+    raise typer.Exit(code=0 if result.exit_code in (0, 125, 126) else result.exit_code)
 
 
 @config_app.command("init")
