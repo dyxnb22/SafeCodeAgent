@@ -29,6 +29,9 @@ SafeCode Agent Runtime = nervous system + permission boundary + memory + audit t
 | MCP / Tools | 外部工具按需发现、按策略调用 | v0.6 | 未开始 |
 | Sandbox | 文件系统、网络、Shell 的 containment | v0.7 | 未开始 |
 | Subagents | lead agent + scoped subagents | v0.8 | 未开始 |
+| Observability / Evaluation | trace、回归样例、失败分类、任务报告 | v0.9 | 未开始 |
+| Stable Runtime | 安装、文档、安全基线、稳定 API、发布 demo | v1.0.x | 未开始 |
+| Product Extension | 本地 API、报告导出、任务队列、IDE manifest、发布清单 | v1.1.x | 未开始 |
 
 ## 设计原则
 
@@ -199,13 +202,61 @@ sac history
 - 子任务通过文件化结果回传。
 - 默认避免多个 agent 同时写同一文件。
 
-## 当前优先级
+### v0.9: Observability + Evaluation
 
-当前不要急着做高级能力。最优先完成：
+目标：让 SafeCode Agent 的行为可以复盘、比较和回归测试。
+
+验收标准：
+
+- 每次 ask/edit/apply/run 有 trace id。
+- audit event 和 trace event 可以串起一次任务。
+- 有固定 demo case 可以做回归评估。
+- 能生成一次任务的 markdown/html 报告。
+- 失败能分类为 parse、validation、permission、test failure 等。
+
+### v1.0.x: Stable Local Agent Runtime
+
+目标：把前面能力收口成一个稳定、可安装、可演示、可继续扩展的本地 Agent Runtime。
+
+验收标准：
+
+- 新 clone 后可以按 README 安装和运行。
+- `sac ask/edit/apply/rollback/history/run/config/skills/index` 基本稳定。
+- 默认安全策略不会静默修改 project root 外文件。
+- checkpoint、audit、trace 数据结构稳定。
+- 有教程、demo、错误处理和安全策略说明。
+
+`v1.0.x` 拆分：
 
 ```text
-v0.1.4 rollback --last + history
-v0.1.5 FastAPI demo
+v1.0.0 stable-local-runtime
+v1.0.1 install-packaging
+v1.0.2 docs-tutorials
+v1.0.3 reliability-hardening
+v1.0.4 security-presets
+v1.0.5 release-demo
 ```
 
-这两个完成后，SafeCode Agent 才有完整的安全修改闭环。后续所有 runtime 能力都应该建立在这个闭环上。
+### v1.1.x: Product Extension Layer
+
+目标：在 v1.0 稳定 runtime 之上，补齐本地产品扩展入口。
+
+验收标准：
+
+- 有稳定的本地 Python API facade。
+- 报告可以导出到 Markdown 文件。
+- 有轻量本地任务队列。
+- 可以生成 IDE adapter metadata。
+- 可以生成发布检查清单。
+
+## 当前优先级
+
+当前不要急着做高级能力。最优先完成和巩固：
+
+```text
+v0.1.0 - v0.1.5 Safe Patch Runtime
+v0.2.0 config-policy
+v0.2.1 shell-risk-classifier
+```
+
+详细拆分见 `docs/release_roadmap_v0_1_to_v1_0.md`。后续所有 runtime 能力都应该建立在 v0.1 的安全修改闭环上。

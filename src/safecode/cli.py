@@ -11,6 +11,7 @@ from rich.table import Table
 from safecode.agent.orchestrator import AgentOrchestrator
 from safecode.audit.models import AuditEvent
 from safecode.config import SafeCodeConfig, ensure_config_file
+from safecode.doctor import Doctor
 from safecode.eval.cases import default_cases
 from safecode.eval.runner import EvalRunner
 from safecode.index.files import FileIndexer
@@ -244,6 +245,18 @@ def eval_demo() -> None:
     table.add_column("Passed")
     for result in results:
         table.add_row(result.name, "yes" if result.passed else "no")
+    console.print(table)
+
+
+@app.command("doctor")
+def doctor() -> None:
+    """Check local install and project environment."""
+    table = Table(title="SafeCode Doctor")
+    table.add_column("Check")
+    table.add_column("Passed")
+    table.add_column("Detail")
+    for check in Doctor(Path.cwd()).run():
+        table.add_row(check.name, "yes" if check.passed else "no", check.detail)
     console.print(table)
 
 
