@@ -629,6 +629,18 @@ v1.7 在 v1.6.x 的逻辑边界和调研基础上，建立统一的 OS-level san
 
 **关键声明**：v1.7.7 不新增任何执行能力。v1.7.x 系列现已有 417 项通过测试。
 
+#### v1.7.8 sandbox execution preflight
+
+`v1.7.8` 实现了统一的 preflight 检查层，集中判断 pending proposal 是否满足所有执行前置条件：
+
+- `SandboxPreflightCheckResult` 数据类：allowed、proposal_id、backend、command_head、approval_valid、command_policy_ok、network_policy_ok、backend_available、backend_supports_execution、proposal_integrity_ok、preview_hash_ok、filesystem_boundary_ok、reasons、warnings。
+- `SandboxExecutionPreflight.run()` 检查：proposal 存在性、proposal command hash 完整性、审批有效性（通过 `SandboxExecutionApprovalStore`）、command policy（通过 `CommandPolicy`）、network policy（核查 config 与 proposal 一致性）、backend 可用性（通过 `SandboxCapabilityDetector`）、adapter `supports_execution()`（当前所有 adapter 返回 False）、preview hash、filesystem boundary（通过 `FilesystemBoundary`）。
+- 任一检查失败 → allowed=False。当前版本因所有 adapter `supports_execution()=False`，正常情况下 allowed 始终为 False。
+- CLI：`sac sandbox preflight` 以 Rich Table 展示所有检查项结果、reasons 和 warnings。
+- Audit：`sandbox_preflight_checked`（allowed=False 时 status=blocked）。
+
+**关键声明**：v1.7.8 不执行任何外部命令。preflight 是统一的决策层，为未来 v1.8 真实执行做准备。
+
 #### v1.6 guardrails
 
 - MCP 写操作默认禁用。

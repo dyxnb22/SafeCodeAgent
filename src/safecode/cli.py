@@ -34,6 +34,7 @@ from safecode.release.checklist import render_release_checklist
 from safecode.sandbox.approvals import SandboxExecutionApprovalStore
 from safecode.sandbox.execution import SandboxExecutionGate, SandboxExecutionProposalStore
 from safecode.sandbox.factory import SandboxAdapterFactory
+from safecode.sandbox.preflight import SandboxExecutionPreflight
 from safecode.sandbox.planner import SandboxPlanner
 from safecode.shell.risk import RiskLevel
 from safecode.shell.runner import ShellRunner
@@ -961,6 +962,40 @@ def sandbox_revoke() -> None:
         console.print(f"[green]Approval revoked for proposal {approval.proposal_id}.[/green]")
     else:
         console.print("[yellow]No approval to revoke for current pending proposal.[/yellow]")
+
+
+@sandbox_app.command("preflight")
+def sandbox_preflight() -> None:
+    """Run sandbox execution preflight checks. Does NOT execute."""
+    project_root = Path.cwd()
+    result = SandboxExecutionPreflight(project_root).run()
+
+    table = Table(title="Sandbox Execution Preflight")
+    table.add_column("Check")
+    table.add_column("Result")
+    table.add_row("Proposal ID", result.proposal_id or "[red]none[/red]")
+    table.add_row("Backend", result.backend)
+    table.add_row("Command Head", result.command_head or "(none)")
+    table.add_row("Approval Valid", "[green]yes[/green]" if result.approval_valid else "[red]no[/red]")
+    table.add_row("Command Policy", "[green]ok[/green]" if result.command_policy_ok else "[red]blocked[/red]")
+    table.add_row("Network Policy", "[green]ok[/green]" if result.network_policy_ok else "[red]conflict[/red]")
+    table.add_row("Backend Available", "[green]yes[/green]" if result.backend_available else "[red]no[/red]")
+    table.add_row("Supports Execution", "[green]yes[/green]" if result.backend_supports_execution else "[red]no[/red]")
+    table.add_row("Proposal Integrity", "[green]ok[/green]" if result.proposal_integrity_ok else "[red]mismatch[/red]")
+    table.add_row("Preview Hash", "[green]ok[/green]" if result.preview_hash_ok else "[red]mismatch[/red]")
+    table.add_row("Filesystem Boundary", "[green]ok[/green]" if result.filesystem_boundary_ok else "[red]escape[/red]")
+    table.add_row("Final Allowed", "[bold green]YES[/bold green]" if result.allowed else "[bold red]NO[/bold red]")
+    console.print(table)
+
+    if result.reasons:
+        reason_lines = [f"- {r}" for r in result.reasons]
+        console.print(Panel("\n".join(reason_lines), title="[yellow]Reasons[/yellow]"))
+
+    if result.warnings:
+        warn_lines = [f"- {w}" for w in result.warnings]
+        console.print(Panel("\n".join(warn_lines), title="[dim]Warnings[/dim]"))
+
+    console.print("[yellow]No command was executed.[/yellow]")
 
 
 @app.command("rules")

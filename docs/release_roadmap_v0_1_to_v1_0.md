@@ -527,6 +527,7 @@ v1.1.x 不改变核心安全模型，只提供外部集成和产品化辅助。
 | `v1.7.5` | `v1.7.5-sandbox-execution-gate` | Sandbox execution gate：SandboxExecutionProposal/Result 模型、SandboxExecutionProposalStore、SandboxExecutionGate；CLI `propose`/`pending`/`discard`/`execute`；execute 永远拒绝真实执行 | 建立真实执行前的审批门；proposal 持久化到 `.sac/pending_sandbox_execution.json`；audit `sandbox_execution_proposed`/`discarded`/`blocked`/`dry_run_blocked` |
 | `v1.7.6` | `v1.7.6-sandbox-approval-state` | Sandbox execution approval：SandboxExecutionApproval/Store（user-level 存储，绑定 proposal/command/preview/backend/project/policy）；CLI `approve`/`approvals`/`revoke`；execute 区分 unapproved/approved-but-disabled | 用户级审批记录，项目不可自带 approval；TTL 过期、hash 不匹配自动 fail-closed；execute 仍不真实执行 |
 | `v1.7.7` | `v1.7.7-sandbox-approval-security-evals` | 审批安全评测：新增 `tests/test_sandbox_approval_security_evals.py`，覆盖 storage trust、binding integrity、gate behavior、CLI behavior、audit semantics | 40 项安全测试系统化验证 v1.7.5-v1.7.6 审批系统；不新增执行能力 |
+| `v1.7.8` | `v1.7.8-sandbox-execution-preflight` | Sandbox preflight 检查层：SandboxPreflightCheckResult 统一决策对象，集中检查 proposal 完整性、approval、command/network/backend/filesystem；CLI `sac sandbox preflight`；audit `sandbox_preflight_checked` | 所有 adapter supports_execution()=False 所以正常 allowed=False；不执行外部命令 |
 
 ## v1.8 之后暂不展开
 
