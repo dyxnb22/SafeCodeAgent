@@ -31,6 +31,7 @@ from safecode.patch.validator import PatchValidationError
 from safecode.project.rules import ProjectRules
 from safecode.report.render import ReportRenderer
 from safecode.release.checklist import render_release_checklist
+from safecode.sandbox.execution import SandboxExecutionGate, SandboxExecutionProposalStore
 from safecode.sandbox.factory import SandboxAdapterFactory
 from safecode.sandbox.planner import SandboxPlanner
 from safecode.shell.risk import RiskLevel
@@ -768,6 +769,111 @@ def sandbox_plan(
             "v1.7.x generates sandbox execution plans and backend previews only.\n"
             "Actual OS-level sandbox execution is deferred to a future version.",
             title="Dry Run",
+        )
+    )
+
+
+@sandbox_app.command("propose")
+def sandbox_propose(
+    command: list[str] = typer.Argument(..., help="Command to propose for sandbox execution."),
+    purpose: str = typer.Option("shell", "--purpose"),
+    allow_network: bool = typer.Option(False, "--allow-network"),
+    readonly_fs: bool = typer.Option(True, "--readonly-fs / --no-readonly-fs"),
+    timeout: int = typer.Option(30, "--timeout"),
+) -> None:
+    """Create a pending sandbox execution proposal. Does NOT execute."""
+    project_root = Path.cwd()
+    config = SafeCodeConfig.load(project_root)
+
+    try:
+        plan = SandboxAdapterFactory(project_root, config).create_plan(
+            command=command,
+            purpose=purpose,
+            allow_network=allow_network,
+            readonly_filesystem=readonly_fs,
+            timeout_seconds=timeout,
+        )
+    except PermissionError as exc:
+        console.print(f"[red]Sandbox proposal blocked:[/red] {exc}")
+        raise typer.Exit(code=1) from exc
+
+    gate = SandboxExecutionGate(project_root, config)
+    try:
+        proposal = gate.propose(plan, purpose)
+    except FileExistsError as exc:
+        console.print(f"[red]Proposal blocked:[/red] {exc}")
+        raise typer.Exit(code=1) from exc
+
+    console.print(
+        Panel.fit(
+            f"Proposal ID: {proposal.proposal_id}\n"
+            f"Backend: {proposal.backend}\n"
+            f"Command: {' '.join(proposal.command)}\n"
+            f"Preview Kind: {proposal.preview_kind}\n"
+            f"Pending path: .sac/pending_sandbox_execution.json",
+            title="Sandbox Execution Proposal",
+        )
+    )
+    console.print("[yellow]No command was executed.[/yellow]")
+
+
+@sandbox_app.command("pending")
+def sandbox_pending() -> None:
+    """Show the pending sandbox execution proposal."""
+    project_root = Path.cwd()
+    gate = SandboxExecutionGate(project_root)
+    proposal = gate.load_pending()
+
+    if proposal is None:
+        console.print("[yellow]No pending sandbox execution proposal.[/yellow]")
+        return
+
+    table = Table(title="Pending Sandbox Execution Proposal")
+    table.add_column("Field")
+    table.add_column("Value")
+    table.add_row("Proposal ID", proposal.proposal_id)
+    table.add_row("Backend", proposal.backend)
+    table.add_row("Command", " ".join(proposal.command))
+    table.add_row("Purpose", proposal.purpose)
+    table.add_row("CWD", proposal.cwd)
+    table.add_row("Network", "[green]enabled[/green]" if proposal.network_enabled else "[red]disabled[/red]")
+    table.add_row("Readonly FS", "[green]yes[/green]" if proposal.readonly_filesystem else "[yellow]no[/yellow]")
+    table.add_row("Env Keys", ", ".join(proposal.env_keys) if proposal.env_keys else "(none)")
+    table.add_row("Preview Kind", proposal.preview_kind)
+    table.add_row("Status", proposal.status)
+    table.add_row("Created", proposal.created_at)
+    console.print(table)
+
+
+@sandbox_app.command("discard")
+def sandbox_discard() -> None:
+    """Discard the pending sandbox execution proposal."""
+    project_root = Path.cwd()
+    gate = SandboxExecutionGate(project_root)
+
+    if not gate.pending_path.exists():
+        console.print("[yellow]No pending sandbox execution proposal to discard.[/yellow]")
+        return
+
+    gate.discard()
+    console.print("[green]Pending sandbox execution proposal discarded.[/green]")
+
+
+@sandbox_app.command("execute")
+def sandbox_execute() -> None:
+    """Attempt sandbox execution. Refused in v1.7.5."""
+    project_root = Path.cwd()
+    gate = SandboxExecutionGate(project_root)
+    result = gate.execute_pending()
+
+    console.print(
+        Panel.fit(
+            f"Proposal ID: {result.proposal_id}\n"
+            f"Backend: {result.backend}\n"
+            f"Executed: [bold red]no[/bold red]\n"
+            f"Dry Run: [bold yellow]true[/bold yellow]\n\n"
+            f"{result.message}",
+            title="Sandbox Execution Result",
         )
     )
 

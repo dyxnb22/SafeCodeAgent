@@ -524,6 +524,7 @@ v1.1.x 不改变核心安全模型，只提供外部集成和产品化辅助。
 | `v1.7.2` | `v1.7.2-linux-bubblewrap-args-plan` | Linux Bubblewrap argv 生成：BubblewrapArgsBuilder 生成保守 bwrap 参数；LinuxBubblewrapAdapter 填充 args_preview；CLI 以 Rich Table 展示 argv | 生成可审查的 bwrap 参数；不绑定 /home、/tmp 等敏感根目录；bwrap 未被调用 |
 | `v1.7.3` | `v1.7.3-docker-container-plan` | Docker container plan：DockerContainerPlanBuilder 生成保守 docker run 参数；DockerSandboxAdapter 填充 container_preview；CLI 以 Rich Table 展示 argv | 生成可审查的 docker run 参数；docker 未被调用 |
 | `v1.7.4` | `v1.7.4-sandbox-plan-security-evals` | 跨 backend 安全评测：新增 `tests/test_sandbox_plan_security_evals.py`，覆盖不执行、network policy、filesystem boundary、sensitive path、command policy/audit、backend isolation | 43 项跨 backend 测试系统化验证 v1.7.0-v1.7.3 安全边界；不新增执行能力 |
+| `v1.7.5` | `v1.7.5-sandbox-execution-gate` | Sandbox execution gate：SandboxExecutionProposal/Result 模型、SandboxExecutionProposalStore、SandboxExecutionGate；CLI `propose`/`pending`/`discard`/`execute`；execute 永远拒绝真实执行 | 建立真实执行前的审批门；proposal 持久化到 `.sac/pending_sandbox_execution.json`；audit `sandbox_execution_proposed`/`discarded`/`blocked`/`dry_run_blocked` |
 
 ## v1.8 之后暂不展开
 

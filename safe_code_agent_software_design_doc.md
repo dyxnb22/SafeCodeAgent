@@ -586,7 +586,20 @@ v1.7 在 v1.6.x 的逻辑边界和调研基础上，建立统一的 OS-level san
   5. **Command policy and audit**（7 项）：高风险命令 blocked 写 audit、非 allowlisted blocked、低风险 allowed、`git status` 可生成 dry-run plan、blocked metadata 不含完整危险参数、created metadata 不含 env value、dry_run metadata 为 "true"。
   6. **Backend isolation**（5 项）：每个 backend 只填自己的 preview 字段，其他为空；所有 adapter supports_execution() 仍为 False。
 
-**关键声明**：v1.7.4 不新增任何执行能力。v1.7.x 系列现已有 329 项通过测试，覆盖从 detection 到 plan generation 再到 security evals 的完整 sandbox 验证链。
+**关键声明**：v1.7.4 不新增任何执行能力。v1.7.x 系列现已有 352 项通过测试，覆盖从 detection 到 plan generation 再到 security evals 再到 execution gate 的完整 sandbox 验证链。
+
+#### v1.7.5 sandbox execution gate
+
+`v1.7.5` 建立了真实 sandbox 执行前必须经过的审批门，但仍然不执行任何外部命令：
+
+- `SandboxExecutionProposal` 模型：proposal_id、created_at、backend、command、command_hash、purpose、cwd、network_enabled、readonly_filesystem、writable_paths、env_keys、preview_kind、preview_hash、status、risk_reason。
+- `SandboxExecutionResult` 模型：proposal_id、executed、exit_code、stdout、stderr、backend、dry_run、message。
+- `SandboxExecutionProposalStore`：持久化单个 pending proposal 到 `.sac/pending_sandbox_execution.json`；支持 create/load/discard；重复或损坏 JSON 时 fail-closed。
+- `SandboxExecutionGate`：propose（从 plan 创建 proposal 并写 audit）、discard（删除并写 audit）、block（写 audit blocking）、execute_pending（永远拒绝，返回 `executed=False`，写 audit dry_run_blocked）。
+- CLI：`sac sandbox propose COMMAND...`、`sac sandbox pending`、`sac sandbox discard`、`sac sandbox execute`。
+- 安全：command 经过 CommandPolicy，network 遵守 config，writable_paths 经过 FilesystemBoundary，env value 不出现在 proposal/audit/CLI 中。
+
+**关键声明**：v1.7.5 中 executed 永远为 False。真实 sandbox 执行留待后续版本。
 
 #### v1.6 guardrails
 
