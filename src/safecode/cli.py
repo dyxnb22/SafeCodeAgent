@@ -36,6 +36,7 @@ from safecode.shell.runner import ShellRunner
 from safecode.skills.loader import SkillLoader
 from safecode.state.progress import ProgressState, ProgressStore
 from safecode.subagents.task import SubagentTaskStore
+from safecode.subagents.runner import ReadonlySubagentRunner
 from safecode.tools.registry import ToolRegistry
 from safecode.queue.store import QueueStore
 from safecode.utils.time import utc_now_iso
@@ -488,6 +489,95 @@ def subagent_create(title: str, instructions: str, write: bool = typer.Option(Fa
     """Create a file-backed subagent task."""
     task = SubagentTaskStore(Path.cwd()).create(title, instructions, readonly=not write)
     console.print(f"Subagent task created: {task.id}")
+
+
+@subagent_app.command("run-readonly")
+def subagent_run_readonly(
+    title: str,
+    instructions: str,
+) -> None:
+    """Run a read-only subagent task that writes only a result file."""
+    project_root = Path.cwd()
+    try:
+        result = ReadonlySubagentRunner(project_root).run(title, instructions)
+    except Exception as exc:
+        _log_cli_error("cli.subagent.run_readonly", "subagent run failed", exc)
+        console.print(f"[red]Subagent run failed:[/red] {exc}")
+        raise typer.Exit(code=1) from exc
+
+    console.print(
+        Panel.fit(
+            f"Task ID: {result.task.id}\n"
+            f"Status: {result.task.status}\n"
+            f"Result: {result.result_path}",
+            title="Subagent Read-only Run",
+        )
+    )
+
+
+@subagent_app.command("list")
+def subagent_list() -> None:
+    """List subagent tasks."""
+    project_root = Path.cwd()
+    tasks = SubagentTaskStore(project_root).list_tasks()
+
+    if not tasks:
+        console.print("[yellow]No subagent tasks found.[/yellow]")
+        return
+
+    table = Table(title="Subagent Tasks")
+    table.add_column("ID")
+    table.add_column("Title")
+    table.add_column("Status")
+    table.add_column("Readonly")
+    table.add_column("Created")
+    for task in tasks:
+        table.add_row(
+            task.id,
+            task.title[:60],
+            task.status,
+            "yes" if task.readonly else "no",
+            task.created_at[:19],
+        )
+    console.print(table)
+
+
+@subagent_app.command("show")
+def subagent_show(task_id: str) -> None:
+    """Show a subagent task and its result."""
+    project_root = Path.cwd()
+    store = SubagentTaskStore(project_root)
+    task = store.get_task(task_id)
+
+    if task is None:
+        console.print(f"[red]Subagent task not found: {task_id}[/red]")
+        raise typer.Exit(code=1)
+
+    table = Table(title=f"Subagent Task: {task.id}")
+    table.add_column("Field")
+    table.add_column("Value")
+    table.add_row("ID", task.id)
+    table.add_row("Title", task.title)
+    table.add_row("Instructions", task.instructions[:120])
+    table.add_row("Readonly", "yes" if task.readonly else "no")
+    table.add_row("Status", task.status)
+    table.add_row("Created", task.created_at)
+    if task.started_at:
+        table.add_row("Started", task.started_at)
+    if task.completed_at:
+        table.add_row("Completed", task.completed_at)
+    if task.result_path:
+        table.add_row("Result Path", task.result_path)
+    if task.error:
+        table.add_row("Error", task.error)
+    console.print(table)
+
+    result_path = store.result_path_for(task.id)
+    if result_path.exists():
+        console.print(f"\n[bold]Result file:[/bold] {result_path}")
+        console.print(result_path.read_text(encoding="utf-8")[:500])
+    else:
+        console.print("\n[yellow]No result file yet.[/yellow]")
 
 
 @app.command("rules")

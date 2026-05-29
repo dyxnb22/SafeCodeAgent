@@ -20,6 +20,8 @@ from safecode.logs.runtime import RuntimeLogger
 from safecode.mcp.discovery import MCPDiscovery
 from safecode.mcp.runner import MCPReadOnlyRunner
 from safecode.mcp.proposal import MCPWriteProposalStore
+from safecode.subagents.task import SubagentTask, SubagentTaskStore, validate_task_id
+from safecode.subagents.runner import ReadonlySubagentRunner
 from safecode.patch.models import PatchBlock, PatchProposal
 from safecode.patch.applier import PatchApplier
 from safecode.policy.commands import CommandPolicy
@@ -1542,3 +1544,217 @@ def test_mcp_existing_readonly_tests_still_work(tmp_path: Path, monkeypatch) -> 
     event_types = [event.type for event in events]
     assert "mcp_call_proposed" in event_types
     assert "mcp_call_completed" in event_types
+
+
+# --- v1.6.2 read-only subagent runner tests ---
+
+
+def test_subagent_run_readonly_creates_result_file(tmp_path: Path, monkeypatch) -> None:
+    anchor_dir = tmp_path.parent / f"anchors-{tmp_path.name}"
+    monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor_dir))
+    (tmp_path / "README.md").write_text("# Test Project\n", encoding="utf-8")
+
+    result = ReadonlySubagentRunner(tmp_path).run("inspect", "read the project structure")
+
+    assert result.executed is True
+    assert result.result_path is not None
+    assert result.result_path.exists()
+    assert ".sac" in str(result.result_path)
+    assert "subagents" in str(result.result_path)
+
+
+def test_subagent_result_file_contains_expected_content(tmp_path: Path, monkeypatch) -> None:
+    anchor_dir = tmp_path.parent / f"anchors-{tmp_path.name}"
+    monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor_dir))
+    (tmp_path / "README.md").write_text("# Test Project\n", encoding="utf-8")
+
+    result = ReadonlySubagentRunner(tmp_path).run("inspect", "read project structure")
+
+    content = result.result_path.read_text(encoding="utf-8")
+    assert "inspect" in content
+    assert "read project structure" in content
+    assert "Readonly: yes" in content or "readonly" in content.lower()
+    assert "No files were modified" in content
+    assert "read-only execution" in content.lower()
+
+
+def test_subagent_result_does_not_include_secrets(tmp_path: Path, monkeypatch) -> None:
+    anchor_dir = tmp_path.parent / f"anchors-{tmp_path.name}"
+    monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor_dir))
+    (tmp_path / "README.md").write_text("API_KEY=sk-abc123secret\ntoken=ghp_secret123\n", encoding="utf-8")
+
+    result = ReadonlySubagentRunner(tmp_path).run("inspect", "read context")
+
+    content = result.result_path.read_text(encoding="utf-8")
+    assert "sk-abc123secret" not in content
+    assert "ghp_secret123" not in content
+
+
+def test_subagent_non_readonly_task_is_blocked(tmp_path: Path, monkeypatch) -> None:
+    anchor_dir = tmp_path.parent / f"anchors-{tmp_path.name}"
+    monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor_dir))
+
+    store = SubagentTaskStore(tmp_path)
+    task = SubagentTask(
+        id="abc123def456",
+        title="write task",
+        instructions="write a file",
+        readonly=False,
+    )
+    store._write_task(task)
+
+    try:
+        ReadonlySubagentRunner(tmp_path).run_existing("abc123def456")
+    except PermissionError as exc:
+        assert "read-only" in str(exc).lower()
+    else:
+        raise AssertionError("Non-readonly subagent task should be blocked.")
+
+
+def test_subagent_malformed_task_file_fails_safely(tmp_path: Path) -> None:
+    task_dir = tmp_path / ".sac" / "subagents" / "abc123"
+    task_dir.mkdir(parents=True)
+    (task_dir / "task.json").write_text("{not valid json", encoding="utf-8")
+
+    task = SubagentTaskStore(tmp_path).load("abc123")
+    assert task is None
+
+
+def test_subagent_existing_result_blocks_rerun(tmp_path: Path, monkeypatch) -> None:
+    anchor_dir = tmp_path.parent / f"anchors-{tmp_path.name}"
+    monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor_dir))
+    (tmp_path / "README.md").write_text("# Test\n", encoding="utf-8")
+
+    result = ReadonlySubagentRunner(tmp_path).run("inspect", "first run")
+    assert result.executed is True
+
+    try:
+        ReadonlySubagentRunner(tmp_path).run_existing(result.task.id)
+    except FileExistsError as exc:
+        assert "already exists" in str(exc)
+    else:
+        raise AssertionError("Rerunning a task with existing result should be blocked.")
+
+
+def test_subagent_writes_audit_events(tmp_path: Path, monkeypatch) -> None:
+    anchor_dir = tmp_path.parent / f"anchors-{tmp_path.name}"
+    monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor_dir))
+    (tmp_path / "README.md").write_text("# Test\n", encoding="utf-8")
+
+    ReadonlySubagentRunner(tmp_path).run("inspect", "read project")
+
+    events = AuditLogger(tmp_path).read_recent(limit=10)
+    event_types = [event.type for event in events]
+    assert "subagent_created" in event_types
+    assert "subagent_started" in event_types
+    assert "subagent_completed" in event_types
+
+
+def test_subagent_blocked_run_writes_blocked_audit_event(tmp_path: Path, monkeypatch) -> None:
+    anchor_dir = tmp_path.parent / f"anchors-{tmp_path.name}"
+    monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor_dir))
+
+    store = SubagentTaskStore(tmp_path)
+    task = SubagentTask(
+        id="abc123def456",
+        title="write task",
+        instructions="write a file",
+        readonly=False,
+    )
+    store._write_task(task)
+
+    try:
+        ReadonlySubagentRunner(tmp_path).run_existing("abc123def456")
+    except PermissionError:
+        pass
+
+    events = AuditLogger(tmp_path).read_recent(limit=5)
+    event_types = [event.type for event in events]
+    assert "subagent_blocked" in event_types
+
+
+def test_subagent_runtime_error_writes_runtime_log(tmp_path: Path, monkeypatch) -> None:
+    anchor_dir = tmp_path.parent / f"anchors-{tmp_path.name}"
+    monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor_dir))
+
+    runner = ReadonlySubagentRunner(tmp_path)
+
+    def broken_collect():
+        raise RuntimeError("context exploded")
+
+    monkeypatch.setattr("safecode.subagents.runner.ContextCollector.collect", lambda self: broken_collect())
+
+    result = runner.run("inspect", "read the project")
+    logs = RuntimeLogger(tmp_path).read_recent(limit=5, level="error")
+
+    assert result.executed is False
+    assert result.error == "context exploded"
+    assert any(event.component == "subagent.runner" for event in logs)
+
+
+def test_subagent_result_path_must_stay_under_subagents_dir(tmp_path: Path, monkeypatch) -> None:
+    anchor_dir = tmp_path.parent / f"anchors-{tmp_path.name}"
+    monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor_dir))
+    runner = ReadonlySubagentRunner(tmp_path)
+    task = SubagentTask(id="abc123", title="escape", instructions="escape", readonly=True)
+
+    monkeypatch.setattr(runner.store, "result_path_for", lambda task_id: tmp_path / "outside.md")
+
+    result = runner._execute(task)
+
+    assert result.executed is False
+    assert "Subagent result path" in (result.error or "")
+    assert not (tmp_path / "outside.md").exists()
+
+
+def test_subagent_cannot_write_business_file(tmp_path: Path, monkeypatch) -> None:
+    anchor_dir = tmp_path.parent / f"anchors-{tmp_path.name}"
+    monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor_dir))
+    (tmp_path / "README.md").write_text("# Test\n", encoding="utf-8")
+
+    result = ReadonlySubagentRunner(tmp_path).run("inspect", "modify README.md and add evil code")
+
+    content = result.result_path.read_text(encoding="utf-8")
+    assert "No files were modified" in content
+    assert not (tmp_path / "evil.py").exists()
+
+
+def test_subagent_task_id_is_safe_for_file_paths() -> None:
+    validate_task_id("abc123def456")
+
+    try:
+        validate_task_id("../outside")
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("Path traversal task ID should be rejected.")
+
+    try:
+        validate_task_id("task/with/slashes")
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("Task ID with slashes should be rejected.")
+
+
+def test_subagent_existing_mcp_tests_still_pass(tmp_path: Path, monkeypatch) -> None:
+    """Verify v1.6.0/v1.6.1 MCP behavior still works after v1.6.2 changes."""
+    anchor_dir = tmp_path.parent / f"anchors-{tmp_path.name}"
+    monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor_dir))
+    server_path = write_mock_mcp_server(tmp_path)
+    command = shlex.join([sys.executable, str(server_path)])
+    write_mcp_config(tmp_path, command)
+
+    config = SafeCodeConfig()
+    config.shell.allowed_commands = [sys.executable]
+    config.shell.require_confirm_for_medium = False
+    config.sandbox.network_enabled = True
+
+    result = MCPReadOnlyRunner(tmp_path, config).call_readonly("mock", "mock.list", {"query": "hello"})
+
+    assert result.blocked is False
+    assert result.exit_code == 0
+
+    proposal = MCPReadOnlyRunner(tmp_path, config).propose_write("mock", "mock.write", {"key": "val"})
+    assert proposal.classification == "write"
+    assert proposal.status == "pending"
