@@ -741,6 +741,27 @@ def sandbox_plan(
             aw_lines = [f"- {w}" for w in exec_plan.args_warnings]
             console.print(Panel("\n".join(aw_lines), title="[yellow]Args Warnings[/yellow]"))
 
+    if exec_plan.container_preview:
+        console.print(
+            Panel.fit(
+                "[bold]Docker args generated for preview only.[/bold]\n"
+                "docker was NOT executed.",
+                title="Docker Container Preview",
+            )
+        )
+        c_table = Table(title="docker run argv")
+        c_table.add_column("Index")
+        c_table.add_column("Argument")
+        for i, arg in enumerate(exec_plan.container_preview):
+            c_table.add_row(str(i), arg)
+        console.print(c_table)
+        if exec_plan.container_warnings:
+            cw_lines = [f"- {w}" for w in exec_plan.container_warnings]
+            console.print(Panel("\n".join(cw_lines), title="[yellow]Container Warnings[/yellow]"))
+        if exec_plan.container_limitations:
+            cl_lines = [f"- {lim}" for lim in exec_plan.container_limitations]
+            console.print(Panel("\n".join(cl_lines), title="[dim]Container Limitations[/dim]"))
+
     console.print(
         Panel.fit(
             "[bold yellow]This command was NOT executed.[/bold yellow]\n"

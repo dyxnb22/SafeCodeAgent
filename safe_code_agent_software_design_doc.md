@@ -559,6 +559,20 @@ v1.7 在 v1.6.x 的逻辑边界和调研基础上，建立统一的 OS-level san
 
 **关键声明**：v1.7.2 只生成 bwrap argv preview，不调用 bwrap。真实 Linux bubblewrap 执行留待后续版本。
 
+#### v1.7.3 Docker container plan
+
+`v1.7.3` 为 Docker 后端补上了容器计划生成能力，但仍然不执行 docker：
+
+- `DockerContainerPlanBuilder` 根据 `SandboxExecutionRequest` 和项目安全策略生成保守的 `docker run` argv。
+- argv 规则：`docker run --rm --init --workdir <project_root>`、`--read-only`（只读时）、`--network none`（无网络时）、`--mount type=bind,src=<path>,dst=<path>,readonly`（project_root）、writable paths 通过 `FilesystemBoundary` 后用 writable bind mount、`--tmpfs /tmp:rw,noexec,nosuid,nodev`。
+- 默认镜像 `python:3.12-slim`（v1.7.3 不可配置）。
+- 不挂载整个 `/home`、`/tmp`、`/var`、`/private`、`/root`；敏感路径不出现在 writable mounts 中。
+- `DockerSandboxAdapter.build_plan()` 填充 `container_preview`、`container_backend`、`container_warnings`、`container_limitations`。
+- CLI：`sac sandbox plan` 以 Rich Table 展示 docker run argv preview。
+- 其他 adapter（Noop/MacOS/Linux）不填充 container_preview。
+
+**关键声明**：v1.7.3 只生成 docker run argv preview，不调用 docker。真实 Docker 容器执行留待后续版本。
+
 #### v1.6 guardrails
 
 - MCP 写操作默认禁用。

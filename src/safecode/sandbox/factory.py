@@ -120,7 +120,7 @@ class SandboxAdapterFactory:
         if backend == SandboxBackend.DOCKER:
             cap = by_backend.get(SandboxBackend.DOCKER)
             if cap and cap.available:
-                return DockerSandboxAdapter(cap)
+                return DockerSandboxAdapter(cap, project_root=self.project_root, config=self.config)
 
         return NoopSandboxAdapter()
 

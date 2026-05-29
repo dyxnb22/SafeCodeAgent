@@ -49,6 +49,10 @@ class SandboxExecutionPlan:
     args_preview: list[str] = field(default_factory=list)
     args_backend: str | None = None
     args_warnings: list[str] = field(default_factory=list)
+    container_preview: list[str] = field(default_factory=list)
+    container_backend: str | None = None
+    container_warnings: list[str] = field(default_factory=list)
+    container_limitations: list[str] = field(default_factory=list)
 
 
 class SandboxAdapter(Protocol):
@@ -216,33 +220,61 @@ class LinuxBubblewrapAdapter:
 
 
 class DockerSandboxAdapter:
-    """Adapter for Docker. Dry-run only in v1.7.0."""
+    """Adapter for Docker. Dry-run only — generates container argv preview."""
 
-    def __init__(self, capability: SandboxCapability) -> None:
+    def __init__(self, capability: SandboxCapability, project_root: Path | None = None, config=None) -> None:
         self._capability = capability
+        self._project_root = project_root
+        self._config = config
 
     backend = SandboxBackend.DOCKER
 
     def build_plan(self, request: SandboxExecutionRequest) -> SandboxExecutionPlan:
-        warnings = list(self._capability.limitations) if self._capability.limitations else []
+        from safecode.sandbox.docker import DockerContainerPlanBuilder
+        from safecode.config import SafeCodeConfig
+
+        adapter_warnings = list(self._capability.limitations) if self._capability.limitations else []
+        cfg = self._config if self._config else SafeCodeConfig()
+        effective_request = request
+        if request.allow_network and not cfg.sandbox.network_enabled:
+            effective_request = replace(request, allow_network=False)
+            adapter_warnings.append("Network access was requested but disabled by SafeCodeConfig.")
         writable = [str(p) for p in request.writable_paths]
+
+        container_preview: list[str] = []
+        container_backend = None
+        container_warnings: list[str] = []
+        container_limitations: list[str] = []
+
+        if self._project_root is not None:
+            docker_plan = DockerContainerPlanBuilder(self._project_root, cfg).build(effective_request)
+            container_preview = list(docker_plan.argv)
+            container_backend = "docker"
+            container_warnings = list(docker_plan.warnings)
+            container_limitations = list(docker_plan.limitations)
+            writable = list(docker_plan.writable_mounts)
+
         return SandboxExecutionPlan(
             backend=SandboxBackend.DOCKER,
-            command=list(request.command),
-            cwd=str(request.cwd),
-            network_enabled=request.allow_network,
-            readonly_filesystem=request.readonly_filesystem,
+            command=list(effective_request.command),
+            cwd=str(effective_request.cwd),
+            network_enabled=effective_request.allow_network,
+            readonly_filesystem=effective_request.readonly_filesystem,
             writable_paths=writable,
-            env_keys=sorted(request.env.keys()),
-            timeout_seconds=request.timeout_seconds,
-            warnings=warnings + [
+            env_keys=sorted(effective_request.env.keys()),
+            timeout_seconds=effective_request.timeout_seconds,
+            warnings=adapter_warnings + [
                 "Docker daemon must be running for actual execution.",
-                "v1.7.0 does not execute docker.",
+                "v1.7.3 generates docker args for preview only.",
             ],
             limitations=[
-                "v1.7.0 does not execute Docker containers.",
-                "Container image selection and volume mounting are deferred.",
+                "v1.7.3 does not execute Docker containers.",
+                "Args are for review purposes only.",
             ],
+            container_preview=container_preview,
+            container_backend=container_backend,
+            container_warnings=container_warnings,
+            container_limitations=container_limitations,
         )
 
     def supports_execution(self) -> bool:

@@ -522,6 +522,7 @@ v1.1.x 不改变核心安全模型，只提供外部集成和产品化辅助。
 | `v1.7.0` | `v1.7.0-sandbox-adapter-contract` | Sandbox adapter 抽象（Noop/MacOS/Linux/Docker）、SandboxAdapterFactory、CLI `sac sandbox plan`、audit `sandbox_plan_created`/`sandbox_plan_blocked` | 所有 adapter 只生成 dry-run plan，不执行命令；CommandPolicy 集成；222 项测试通过 |
 | `v1.7.1` | `v1.7.1-macos-seatbelt-profile-plan` | macOS Seatbelt profile 文本生成：SeatbeltProfileBuilder 生成保守 .sb profile；MacOSSeatbeltAdapter 填充 profile_preview；CLI 以 Rich Syntax 展示 profile | 生成可审查的 macOS sandbox profile；默认 deny、只读 project_root、敏感路径拒绝；sandbox-exec 未被调用 |
 | `v1.7.2` | `v1.7.2-linux-bubblewrap-args-plan` | Linux Bubblewrap argv 生成：BubblewrapArgsBuilder 生成保守 bwrap 参数；LinuxBubblewrapAdapter 填充 args_preview；CLI 以 Rich Table 展示 argv | 生成可审查的 bwrap 参数；不绑定 /home、/tmp 等敏感根目录；bwrap 未被调用 |
+| `v1.7.3` | `v1.7.3-docker-container-plan` | Docker container plan：DockerContainerPlanBuilder 生成保守 docker run 参数；DockerSandboxAdapter 填充 container_preview；CLI 以 Rich Table 展示 argv | 生成可审查的 docker run 参数；docker 未被调用 |
 
 ## v1.8 之后暂不展开
 
