@@ -502,7 +502,7 @@ v1.1.x 不改变核心安全模型，只提供外部集成和产品化辅助。
 | `v1.6.2` | `v1.6.2-subagent-readonly-runner` | 只读 subagent runner，收集 bounded/redacted context 后写入 `.sac/subagents/<id>/result.md`；不修改业务文件；不执行 shell；不执行 MCP 写；CLI `run-readonly`/`list`/`show`；audit `subagent_created`/`subagent_started`/`subagent_completed`/`subagent_blocked` | subagent 只能读取上下文并写结果文件；非 readonly task 被阻止；重复运行被阻止；merge/review 留待 v1.6.3 |
 | `v1.6.3` | `v1.6.3-subagent-merge-review` | 合并已完成的只读 subagent 结果，生成 pending patch proposal（基于 `<!-- SAFECODE:SUBAGENT_REVIEW -->` marker 的 SEARCH/REPLACE）；走 PatchValidator 和 diff preview；不自动 apply；CLI `merge-review`；audit `subagent_merge_proposed`/`subagent_merge_blocked` | 多个 subagent 结果可汇总为单个 pending patch；用户仍需 `sac apply` 确认；无 LLM 自主合并；无并发编排 |
 | `v1.6.4` | `v1.6.4-os-sandbox-research` | OS sandbox adapter 调研层：检测 macOS Seatbelt / Linux Bubblewrap / Docker 是否可用；推荐最佳 backend；CLI `sac sandbox status`；audit `sandbox_status_checked` | 只做检测和计划，不强制接管 shell/MCP/hooks 执行；真正 OS 级 containment 留待 v1.7+ |
-| `v1.6.5` | `v1.6.5-tooling-security-evals` | MCP/subagent 安全回归测试 | 工具调用、权限拒绝、冲突场景有测试 |
+| `v1.6.5` | `v1.6.5-tooling-security-evals` | 工具安全评测套件：新增 `tests/test_tooling_security_evals.py`，覆盖 MCP 网络边界、proposal 安全、subagent 隔离、merge-review 安全、sandbox 规划回归、跨模块安全边界、secret redaction 一致性 | 37 项新增测试系统化验证 v1.6.0-v1.6.4 安全边界；不新增高风险执行能力 |
 
 ## v1.7 之后暂不展开
 
