@@ -31,6 +31,7 @@ from safecode.patch.validator import PatchValidationError
 from safecode.project.rules import ProjectRules
 from safecode.report.render import ReportRenderer
 from safecode.release.checklist import render_release_checklist
+from safecode.sandbox.planner import SandboxPlanner
 from safecode.shell.risk import RiskLevel
 from safecode.shell.runner import ShellRunner
 from safecode.skills.loader import SkillLoader
@@ -61,6 +62,7 @@ release_app = typer.Typer(help="Generate release helpers.")
 logs_app = typer.Typer(help="Inspect runtime logs.")
 audit_app = typer.Typer(help="Inspect and verify audit logs.")
 hooks_app = typer.Typer(help="Approve and inspect project hooks.")
+sandbox_app = typer.Typer(help="Check OS sandbox capabilities and recommendations.")
 console = Console()
 
 
@@ -613,6 +615,54 @@ def subagent_merge_review(
     console.print("[green]Review the diff above. Run 'sac apply' to apply the merge.[/green]")
 
 
+@sandbox_app.command("status")
+def sandbox_status() -> None:
+    """Show available sandbox backends and recommendations."""
+    project_root = Path.cwd()
+    plan = SandboxPlanner(project_root).plan()
+
+    cap_table = Table(title="Sandbox Backend Status")
+    cap_table.add_column("Backend")
+    cap_table.add_column("Available")
+    cap_table.add_column("Platforms")
+    cap_table.add_column("Recommended For")
+    for cap in plan.capabilities:
+        cap_table.add_row(
+            cap.backend.value,
+            "[green]yes[/green]" if cap.available else "[red]no[/red]",
+            ", ".join(cap.supported_platforms),
+            cap.recommended_for or "-",
+        )
+    console.print(cap_table)
+
+    console.print(
+        Panel.fit(
+            f"Platform: {plan.platform}\n"
+            f"Recommended: [bold]{plan.recommended_backend.value}[/bold]",
+            title="Recommendation",
+        )
+    )
+
+    info = []
+    for cap in plan.capabilities:
+        if cap.backend == plan.recommended_backend:
+            info.append(f"[bold]Recommended: {cap.backend.value}[/bold]")
+            info.append(f"  {cap.reason}")
+            if cap.limitations:
+                info.append("  Limitations:")
+                for limit in cap.limitations:
+                    info.append(f"    - {limit}")
+
+    if info:
+        console.print(Panel("\n".join(info), title="Recommended Backend Details"))
+
+    notes_lines = plan.notes + [
+        "",
+        "Active logical boundaries: " + ", ".join(plan.active_logical_boundaries),
+    ]
+    console.print(Panel("\n".join(notes_lines), title="Notes"))
+
+
 @app.command("rules")
 def rules(init: bool = typer.Option(False, "--init")) -> None:
     """Show or initialize SAC.md project rules."""
@@ -793,6 +843,7 @@ app.add_typer(release_app, name="release")
 app.add_typer(logs_app, name="logs")
 app.add_typer(audit_app, name="audit")
 app.add_typer(hooks_app, name="hooks")
+app.add_typer(sandbox_app, name="sandbox")
 
 
 def main() -> None:

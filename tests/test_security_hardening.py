@@ -23,6 +23,8 @@ from safecode.mcp.proposal import MCPWriteProposalStore
 from safecode.subagents.task import SubagentTask, SubagentTaskStore, validate_task_id
 from safecode.subagents.runner import ReadonlySubagentRunner
 from safecode.subagents.merge import MERGE_MARKER, SubagentMergeReviewer
+from safecode.sandbox.capabilities import SandboxBackend, SandboxCapabilityDetector
+from safecode.sandbox.planner import SandboxPlanner
 from safecode.patch.models import PatchBlock, PatchProposal
 from safecode.patch.applier import PatchApplier
 from safecode.policy.commands import CommandPolicy
@@ -2059,3 +2061,147 @@ def test_merge_review_existing_mcp_tests_still_pass(tmp_path: Path, monkeypatch)
     proposal = MCPReadOnlyRunner(tmp_path, config).propose_write("mock", "mock.write", {"key": "val"})
     assert proposal.classification == "write"
     assert proposal.status == "pending"
+
+
+# --- v1.6.4 OS sandbox research tests ---
+
+
+def test_sandbox_detector_none_always_available() -> None:
+    caps = SandboxCapabilityDetector().detect_all()
+    none_cap = next(c for c in caps if c.backend == SandboxBackend.NONE)
+    assert none_cap.available is True
+    assert "all" in none_cap.supported_platforms
+
+
+def test_sandbox_detector_macos_seatbelt_available(monkeypatch) -> None:
+    monkeypatch.setattr("platform.system", lambda: "Darwin")
+    monkeypatch.setattr("shutil.which", lambda cmd: "/usr/bin/sandbox-exec" if cmd in ("sandbox-exec", "sandbox-exec") else None)
+
+    detector = SandboxCapabilityDetector()
+    cap = detector._detect_macos_seatbelt()
+
+    assert cap.backend == SandboxBackend.MACOS_SEATBELT
+    assert cap.available is True
+    assert cap.filesystem_isolation_supported is True
+    assert cap.network_isolation_supported is True
+
+
+def test_sandbox_detector_macos_not_available_on_linux(monkeypatch) -> None:
+    monkeypatch.setattr("platform.system", lambda: "Linux")
+
+    cap = SandboxCapabilityDetector()._detect_macos_seatbelt()
+    assert cap.available is False
+
+
+def test_sandbox_detector_linux_bubblewrap_available(monkeypatch) -> None:
+    monkeypatch.setattr("platform.system", lambda: "Linux")
+    monkeypatch.setattr("shutil.which", lambda cmd: "/usr/bin/bwrap" if cmd == "bwrap" else None)
+
+    cap = SandboxCapabilityDetector()._detect_linux_bubblewrap()
+    assert cap.backend == SandboxBackend.LINUX_BUBBLEWRAP
+    assert cap.available is True
+    assert cap.process_isolation_supported is True
+
+
+def test_sandbox_detector_linux_not_available_on_macos(monkeypatch) -> None:
+    monkeypatch.setattr("platform.system", lambda: "Darwin")
+
+    cap = SandboxCapabilityDetector()._detect_linux_bubblewrap()
+    assert cap.available is False
+
+
+def test_sandbox_detector_docker_available(monkeypatch) -> None:
+    monkeypatch.setattr("shutil.which", lambda cmd: "/usr/local/bin/docker" if cmd == "docker" else None)
+
+    cap = SandboxCapabilityDetector()._detect_docker()
+    assert cap.backend == SandboxBackend.DOCKER
+    assert cap.available is True
+    assert cap.filesystem_isolation_supported is True
+
+
+def test_sandbox_detector_docker_not_available(monkeypatch) -> None:
+    monkeypatch.setattr("shutil.which", lambda cmd: None)
+
+    cap = SandboxCapabilityDetector()._detect_docker()
+    assert cap.available is False
+
+
+def test_sandbox_planner_falls_back_to_none(monkeypatch, tmp_path) -> None:
+    monkeypatch.setattr("shutil.which", lambda cmd: None)
+    monkeypatch.setattr("platform.system", lambda: "FreeBSD")
+
+    plan = SandboxPlanner(tmp_path).plan()
+    assert plan.recommended_backend == SandboxBackend.NONE
+
+
+def test_sandbox_planner_prefers_bubblewrap_on_linux(monkeypatch, tmp_path) -> None:
+    monkeypatch.setattr("platform.system", lambda: "Linux")
+    monkeypatch.setattr("shutil.which", lambda cmd: "/usr/bin/bwrap" if cmd == "bwrap" else "/usr/bin/docker" if cmd == "docker" else None)
+
+    plan = SandboxPlanner(tmp_path).plan()
+    assert plan.recommended_backend == SandboxBackend.LINUX_BUBBLEWRAP
+
+
+def test_sandbox_planner_falls_back_to_docker(monkeypatch, tmp_path) -> None:
+    monkeypatch.setattr("platform.system", lambda: "Linux")
+    monkeypatch.setattr("shutil.which", lambda cmd: "/usr/local/bin/docker" if cmd == "docker" else None)
+
+    plan = SandboxPlanner(tmp_path).plan()
+    assert plan.recommended_backend == SandboxBackend.DOCKER
+
+
+def test_sandbox_status_writes_audit_event(tmp_path: Path, monkeypatch) -> None:
+    anchor_dir = tmp_path.parent / f"anchors-{tmp_path.name}"
+    monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor_dir))
+
+    SandboxPlanner(tmp_path).plan()
+
+    events = AuditLogger(tmp_path).read_recent(limit=5)
+    event_types = [event.type for event in events]
+    assert "sandbox_status_checked" in event_types
+
+
+def test_sandbox_detector_no_subprocess_calls(monkeypatch) -> None:
+    """Verify sandbox detection does not launch any processes or containers."""
+    def fail_run(*args, **kwargs):
+        raise AssertionError("Sandbox detection must not call subprocess.run.")
+
+    monkeypatch.setattr(subprocess, "run", fail_run)
+
+    detector = SandboxCapabilityDetector()
+    caps = detector.detect_all()
+
+    assert len(caps) == 4
+    assert all(isinstance(cap.backend, SandboxBackend) for cap in caps)
+    assert all(isinstance(cap.available, bool) for cap in caps)
+    assert not any(cap.available and "starting" in cap.reason.lower() for cap in caps)
+
+
+def test_sandbox_existing_mcp_tests_still_pass(tmp_path: Path, monkeypatch) -> None:
+    """Verify v1.6.1 MCP proposal still works after v1.6.4 changes."""
+    anchor_dir = tmp_path.parent / f"anchors-{tmp_path.name}"
+    monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor_dir))
+    server_path = write_mock_mcp_server(tmp_path)
+    command = shlex.join([sys.executable, str(server_path)])
+    write_mcp_config(tmp_path, command)
+
+    config = SafeCodeConfig()
+    config.shell.allowed_commands = [sys.executable]
+    config.shell.require_confirm_for_medium = False
+    config.sandbox.network_enabled = True
+
+    proposal = MCPReadOnlyRunner(tmp_path, config).propose_write("mock", "mock.write", {"key": "val"})
+    assert proposal.classification == "write"
+    assert proposal.status == "pending"
+
+
+def test_sandbox_existing_subagent_tests_still_pass(tmp_path: Path, monkeypatch) -> None:
+    """Verify v1.6.2 subagent runner still works after v1.6.4 changes."""
+    anchor_dir = tmp_path.parent / f"anchors-{tmp_path.name}"
+    monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor_dir))
+    (tmp_path / "README.md").write_text("# Test Project\n", encoding="utf-8")
+
+    result = ReadonlySubagentRunner(tmp_path).run("inspect", "read project")
+
+    assert result.executed is True
+    assert result.result_path is not None
