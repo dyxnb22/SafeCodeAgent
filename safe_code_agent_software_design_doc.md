@@ -641,6 +641,21 @@ v1.7 在 v1.6.x 的逻辑边界和调研基础上，建立统一的 OS-level san
 
 **关键声明**：v1.7.8 不执行任何外部命令。preflight 是统一的决策层，为未来 v1.8 真实执行做准备。
 
+#### v1.7.9 sandbox execution preflight security evals
+
+`v1.7.9` 是纯安全评测版本，系统化验证 v1.7.8 preflight 决策层：
+
+- 新增 `tests/test_sandbox_preflight_security_evals.py`，包含 30 项安全评测。
+- 六个评测类别：
+  1. **Proposal integrity**（4 项）：command 被篡改但 hash 保留 → proposal_integrity_ok False；command_hash 被篡改 → approval_valid False（因审批绑定旧 hash）；backend 被篡改 → approval_valid False；malformed pending 显示 "Malformed" 而非 "No pending"。
+  2. **Approval + execution state**（6 项）：no pending/unapproved/expired/revoked → allowed False；approval from other project → allowed False；approved + supports_execution=False → allowed False。
+  3. **Command / network / filesystem**（4 项）：non-allowlisted command → command_policy_ok False；dangerous command → command_policy_ok False；network disabled but proposal enabled → network_policy_ok False；writable path outside → filesystem_boundary_ok False。
+  4. **Backend behavior**（4 项）：unknown backend → backend_available False；unavailable backend → blocked；preflight checks proposal backend（not recommended）；monkeypatch supports_execution=True 时所有条件满足 → allowed=True（验证决策层逻辑正确）。
+  5. **Audit / CLI privacy**（7 项）：audit event exists；status=blocked when not allowed；no full command args in audit；no env values in audit；CLI shows "No command was executed"；CLI shows "Proposal Integrity"；CLI no env values。
+  6. **Regression**（5 项）：preflight normal flow；approve/execute still refuses；approval security evals pass；MCP readonly；sandbox plan。
+
+**关键声明**：v1.7.9 不新增任何执行能力。v1.7.x 系列现已有 464 项通过测试。
+
 #### v1.6 guardrails
 
 - MCP 写操作默认禁用。

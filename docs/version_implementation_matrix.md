@@ -197,3 +197,4 @@
 | `v1.7.6` | `v1.7.6-sandbox-approval-state` | `src/safecode/sandbox/approvals.py`、`src/safecode/sandbox/execution.py::SandboxExecutionGate` | 用户级审批：`sac sandbox approve`/`approvals`/`revoke` 可用；execute 区分 unapproved/approved-but-disabled |
 | `v1.7.7` | `v1.7.7-sandbox-approval-security-evals` | `tests/test_sandbox_approval_security_evals.py` | 40 项审批安全评测覆盖 storage/binding/gate/CLI/audit/regression |
 | `v1.7.8` | `v1.7.8-sandbox-execution-preflight` | `src/safecode/sandbox/preflight.py`、`src/safecode/cli.py::sandbox_preflight` | 统一 preflight 检查：`sac sandbox preflight` 显示所有检查项结果 |
+| `v1.7.9` | `v1.7.9-sandbox-execution-preflight-evals` | `tests/test_sandbox_preflight_security_evals.py` | 30 项 preflight 安全评测覆盖 integrity/approval/cmd/network/filesystem/backend/audit/CLI |
