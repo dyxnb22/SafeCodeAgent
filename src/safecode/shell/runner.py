@@ -9,6 +9,7 @@ from pathlib import Path
 from safecode.config import SafeCodeConfig
 from safecode.policy.commands import CommandPolicy
 from safecode.sandbox.filesystem import FilesystemBoundary
+from safecode.sandbox.network import NetworkPolicy
 from safecode.shell.risk import ShellRisk, ShellRiskClassifier
 
 
@@ -47,6 +48,10 @@ class ShellRunner:
             exit_code = 125 if decision.requires_approval else 126
             return ShellRunResult(command, risk, exit_code, "", decision.reason, 0, False)
 
+        network_block = self._network_block_reason(risk.tokens)
+        if network_block:
+            return ShellRunResult(command, risk, 126, "", network_block, 0, False)
+
         started = time.perf_counter()
         env = self._sanitized_env()
         try:
@@ -80,6 +85,7 @@ class ShellRunner:
         """Return environment variables with Git override injection removed."""
         env = dict(os.environ)
         blocked_keys = {
+            "GIT_ASKPASS",
             "GIT_CONFIG_PARAMETERS",
             "GIT_CONFIG_COUNT",
             "GIT_CONFIG_GLOBAL",
@@ -87,6 +93,14 @@ class ShellRunner:
             "GIT_CONFIG_NOSYSTEM",
             "GIT_DIR",
             "GIT_WORK_TREE",
+            "GIT_EDITOR",
+            "GIT_PAGER",
+            "GIT_SEQUENCE_EDITOR",
+            "GIT_SSH",
+            "GIT_SSH_COMMAND",
+            "LESS",
+            "PAGER",
+            "SSH_ASKPASS",
         }
         for key in blocked_keys:
             env.pop(key, None)
@@ -94,3 +108,82 @@ class ShellRunner:
             if key.startswith("GIT_CONFIG_KEY_") or key.startswith("GIT_CONFIG_VALUE_"):
                 env.pop(key, None)
         return env
+
+    def _network_block_reason(self, tokens: list[str]) -> str | None:
+        """Return a policy error when network access is not permitted."""
+        if not tokens:
+            return None
+        command = tokens[0].lower()
+        policy = NetworkPolicy(self.config)
+        if command == "git":
+            subcommand, index = self._git_subcommand(tokens)
+            if not subcommand:
+                return None
+            lowered_subcommand = subcommand.lower()
+            if lowered_subcommand in {"fetch", "pull", "push", "clone", "remote", "submodule"}:
+                target = self._extract_network_target(tokens[index + 1 :])
+                return self._check_network_policy(policy, target, f"git {lowered_subcommand}")
+            return None
+        if command in {"curl", "wget", "ssh", "scp", "rsync"}:
+            target = self._extract_network_target(tokens[1:])
+            return self._check_network_policy(policy, target, command)
+        if command in {"npm", "pnpm", "npx"}:
+            return self._check_network_policy(policy, None, command)
+        if command in {"pip", "pip3", "pipx"} and "install" in [token.lower() for token in tokens[1:]]:
+            return self._check_network_policy(policy, None, command)
+        if command == "uv":
+            lowered_args = [token.lower() for token in tokens[1:]]
+            if any(token in {"pip", "tool", "run"} for token in lowered_args):
+                return self._check_network_policy(policy, None, command)
+        return None
+
+    def _check_network_policy(self, policy: NetworkPolicy, target: str | None, label: str) -> str | None:
+        if not self.config.sandbox.network_enabled:
+            return "Network access is disabled by policy."
+        if self.config.sandbox.network_allowlist:
+            if not target:
+                return f"Network access requires an allowlisted host for {label}."
+            try:
+                policy.assert_allowed(target)
+            except PermissionError as exc:
+                return str(exc)
+        return None
+
+    def _extract_network_target(self, args: list[str]) -> str | None:
+        for token in args:
+            if token.startswith("-"):
+                continue
+            return self._normalize_network_target(token)
+        return None
+
+    def _normalize_network_target(self, token: str) -> str | None:
+        if token.startswith(("/", "./", "../")):
+            return None
+        if "://" in token:
+            return token
+        if "@" in token and ":" in token:
+            user_host, path = token.split(":", 1)
+            return f"ssh://{user_host}/{path}"
+        return f"ssh://{token}" if token else None
+
+    def _git_subcommand(self, tokens: list[str]) -> tuple[str | None, int]:
+        index = 1
+        while index < len(tokens):
+            token = tokens[index]
+            if token in {"-c", "-C"}:
+                index += 2
+                continue
+            if token in {"--work-tree", "--git-dir"}:
+                index += 2
+                continue
+            if token.startswith("-c") or token.startswith("-C"):
+                index += 1
+                continue
+            if token.startswith("--work-tree") or token.startswith("--git-dir"):
+                index += 1
+                continue
+            if token.startswith("-"):
+                index += 1
+                continue
+            return token, index
+        return None, -1

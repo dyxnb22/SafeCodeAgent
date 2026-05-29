@@ -148,7 +148,11 @@ class HookApprovalStore:
         """Return trusted user-level approval directory."""
         env_path = os.getenv("SAFECODE_APPROVAL_DIR")
         if env_path:
-            return Path(env_path).expanduser()
+            candidate = Path(env_path).expanduser()
+            resolved = candidate.resolve()
+            if self._inside_project(resolved):
+                raise PermissionError("Approval directory must be outside the project root.")
+            return candidate
         return Path.home() / ".safecode" / "approvals" / "hooks"
 
     def _project_key(self) -> str:
@@ -170,3 +174,10 @@ class HookApprovalStore:
     def _policy_version(self) -> str:
         """Return the approval policy version for binding."""
         return APPROVAL_POLICY_VERSION
+
+    def _inside_project(self, path: Path) -> bool:
+        try:
+            path.relative_to(self.project_root.resolve())
+            return True
+        except ValueError:
+            return False

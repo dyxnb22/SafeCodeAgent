@@ -465,6 +465,10 @@ v1.1.x 不改变核心安全模型，只提供外部集成和产品化辅助。
 | `v1.5.18` | `v1.5.18-context-redaction-extension` | GitHub/JWT/Bearer/base64 secret redaction 扩展 | context 更难泄漏高风险 token |
 | `v1.5.19` | `v1.5.19-patch-apply-symlink-race-guard` | apply 前重验边界、拒绝 symlink swap、记录 inode/device | 降低 TOCTOU（xattr/ownership 仍是已知限制） |
 | `v1.5.20` | `v1.5.20-security-review-docs` | 补 v1.5.15-1.5.19 文档，明确 v1.6 guardrails | v1.6 前置条件清晰可追踪 |
+| `v1.5.21` | `v1.5.21-git-policy-env-hardening` | git config/ENV 扩展封堵，补阻 git 远程/状态子命令 | Git 旁路与远程执行面继续收敛 |
+| `v1.5.22` | `v1.5.22-shell-network-policy` | shell 执行前强制 network policy | network disabled 时明显网络命令被阻止 |
+| `v1.5.23` | `v1.5.23-approval-store-trust-boundary` | approval dir 禁止落在 project root | 项目无法自证 approval |
+| `v1.5.24` | `v1.5.24-security-docs-before-v1.6` | 补 v1.5.21-1.5.23 文档 + guardrails 更新 | v1.6 前置条件再次明确 |
 
 暂缓到后续：
 
@@ -474,16 +478,22 @@ v1.1.x 不改变核心安全模型，只提供外部集成和产品化辅助。
 
 ## v1.6.x: Controlled Tooling and Subagents
 
-目标：在 `v1.5.x` 核心安全边界完成后，再扩展真实 MCP 和 subagent 能力。只有 `v1.5.15` 到 `v1.5.19` 的测试全部通过，才允许开始 v1.6 相关工作。
+目标：在 `v1.5.x` 核心安全边界完成后，再扩展真实 MCP 和 subagent 能力。只有 `v1.5.21` 到 `v1.5.23` 的测试全部通过，才允许开始 v1.6 相关工作。
 
 ### v1.6 guardrails
 
 - MCP 写操作默认禁用。
-- 所有工具执行必须走 command policy。
-- 项目目录不能提供审批或提权。
-- audit anchor 必须存在且可验证。
+- Shell/MCP/hooks 必须走 command policy。
+- Network policy 必须覆盖 shell 与 MCP。
+- approval store 与 audit anchor 必须在 project root 之外。
 - context 收集保持 bounded + redacted。
 - subagent 初期必须只读。
+
+### 已知限制（v1.6 前）
+
+- audit anchors 尚未做签名或 keychain 绑定。
+- filesystem hardlink/bind-mount 风险未完全解决。
+- patch apply 不保留 xattrs/ownership。
 
 | 版本 | 建议分支名 | 功能 | 验收 |
 |---|---|---|---|

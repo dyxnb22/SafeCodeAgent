@@ -28,6 +28,10 @@ def future_timestamp() -> str:
     return (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat().replace("+00:00", "Z")
 
 
+def external_approval_dir(tmp_path: Path) -> Path:
+    return tmp_path.parent / f"approvals-{tmp_path.name}"
+
+
 def test_high_risk_command_is_blocked_even_when_approved(tmp_path: Path) -> None:
     result = ShellRunner(tmp_path).run("rm -rf /tmp/safecode-example", approved=True)
 
@@ -59,6 +63,15 @@ def test_shell_runner_sanitizes_git_env_vars(tmp_path: Path, monkeypatch) -> Non
     monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
     monkeypatch.setenv("GIT_DIR", "/tmp/.git")
     monkeypatch.setenv("GIT_WORK_TREE", "/tmp/work")
+    monkeypatch.setenv("GIT_SSH_COMMAND", "ssh -oProxyCommand=evil")
+    monkeypatch.setenv("GIT_ASKPASS", "/tmp/askpass")
+    monkeypatch.setenv("SSH_ASKPASS", "/tmp/ssh-askpass")
+    monkeypatch.setenv("GIT_PAGER", "less")
+    monkeypatch.setenv("GIT_EDITOR", "vi")
+    monkeypatch.setenv("GIT_SEQUENCE_EDITOR", "vi")
+    monkeypatch.setenv("GIT_SSH", "/tmp/ssh")
+    monkeypatch.setenv("PAGER", "less")
+    monkeypatch.setenv("LESS", "-R")
 
     def fake_run(args, cwd, text, capture_output, env, timeout, check):
         assert "GIT_CONFIG_PARAMETERS" not in env
@@ -68,6 +81,15 @@ def test_shell_runner_sanitizes_git_env_vars(tmp_path: Path, monkeypatch) -> Non
         assert "GIT_CONFIG_NOSYSTEM" not in env
         assert "GIT_DIR" not in env
         assert "GIT_WORK_TREE" not in env
+        assert "GIT_SSH_COMMAND" not in env
+        assert "GIT_ASKPASS" not in env
+        assert "SSH_ASKPASS" not in env
+        assert "GIT_PAGER" not in env
+        assert "GIT_EDITOR" not in env
+        assert "GIT_SEQUENCE_EDITOR" not in env
+        assert "GIT_SSH" not in env
+        assert "PAGER" not in env
+        assert "LESS" not in env
         assert not any(key.startswith("GIT_CONFIG_KEY_") for key in env)
         assert not any(key.startswith("GIT_CONFIG_VALUE_") for key in env)
         return subprocess.CompletedProcess(args, 0, stdout="ok\n", stderr="")
@@ -78,6 +100,49 @@ def test_shell_runner_sanitizes_git_env_vars(tmp_path: Path, monkeypatch) -> Non
 
     assert result.executed is True
     assert result.stdout.strip() == "ok"
+
+
+def test_shell_runner_blocks_network_commands_when_disabled(tmp_path: Path) -> None:
+    config = SafeCodeConfig()
+    config.shell.allowed_commands = ["git", "curl", "npm", "pip", "npx"]
+    runner = ShellRunner(tmp_path, config)
+
+    for command in [
+        "git fetch",
+        "git clone https://example.com/repo.git",
+        "curl https://example.com",
+        "npm install lodash",
+        "pip install requests",
+        "npx cowsay",
+    ]:
+        result = runner.run(command, approved=True)
+        assert result.executed is False
+        assert result.exit_code == 126
+
+    assert "Network access is disabled" in runner.run("curl https://example.com", approved=True).stderr
+    assert "Network access is disabled" in runner.run("npm install lodash", approved=True).stderr
+
+
+def test_shell_runner_enforces_network_allowlist(tmp_path: Path, monkeypatch) -> None:
+    config = SafeCodeConfig()
+    config.sandbox.network_enabled = True
+    config.sandbox.network_allowlist = ["example.com"]
+    config.shell.allowed_commands = ["curl"]
+
+    def fake_run(args, cwd, text, capture_output, env, timeout, check):
+        return subprocess.CompletedProcess(args, 0, stdout="ok\n", stderr="")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    runner = ShellRunner(tmp_path, config)
+    result = runner.run("curl https://example.com", approved=True)
+
+    assert result.executed is True
+    assert result.stdout.strip() == "ok"
+
+    blocked = runner.run("curl https://bad.com", approved=True)
+    assert blocked.executed is False
+    assert "not allowlisted" in blocked.stderr
 
 
 def test_project_config_cannot_lower_user_security() -> None:
@@ -184,7 +249,7 @@ def test_hook_runner_writes_audit_chain(tmp_path: Path) -> None:
 
 
 def test_medium_hook_requires_persisted_approval(tmp_path: Path, monkeypatch) -> None:
-    monkeypatch.setenv("SAFECODE_APPROVAL_DIR", str(tmp_path / "user-approvals"))
+    monkeypatch.setenv("SAFECODE_APPROVAL_DIR", str(external_approval_dir(tmp_path)))
     config = SafeCodeConfig()
     config.hooks.after_apply = ["git status"]
     config.hooks.allow_medium_after_apply = True
@@ -196,7 +261,7 @@ def test_medium_hook_requires_persisted_approval(tmp_path: Path, monkeypatch) ->
 
 
 def test_approved_hook_uses_persisted_approval(tmp_path: Path, monkeypatch) -> None:
-    monkeypatch.setenv("SAFECODE_APPROVAL_DIR", str(tmp_path / "user-approvals"))
+    monkeypatch.setenv("SAFECODE_APPROVAL_DIR", str(external_approval_dir(tmp_path)))
     config = SafeCodeConfig()
     config.hooks.after_apply = ["git status"]
     config.hooks.allow_medium_after_apply = True
@@ -211,7 +276,7 @@ def test_approved_hook_uses_persisted_approval(tmp_path: Path, monkeypatch) -> N
 
 
 def test_project_seeded_hook_approval_is_ignored(tmp_path: Path, monkeypatch) -> None:
-    monkeypatch.setenv("SAFECODE_APPROVAL_DIR", str(tmp_path / "trusted-user-approvals"))
+    monkeypatch.setenv("SAFECODE_APPROVAL_DIR", str(external_approval_dir(tmp_path)))
     config = SafeCodeConfig()
     config.hooks.after_apply = ["git status"]
     config.hooks.allow_medium_after_apply = True
@@ -225,8 +290,27 @@ def test_project_seeded_hook_approval_is_ignored(tmp_path: Path, monkeypatch) ->
     assert summary.results[0].exit_code == 125
 
 
+def test_hook_approval_dir_rejects_project_root(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("SAFECODE_APPROVAL_DIR", str(tmp_path / ".sac" / "approvals"))
+    try:
+        HookApprovalStore(tmp_path, SafeCodeConfig())
+    except PermissionError as exc:
+        assert "outside the project root" in str(exc)
+    else:
+        raise AssertionError("Project-local approval dir should be rejected.")
+
+
+def test_hook_approval_dir_allows_external(tmp_path: Path, monkeypatch) -> None:
+    approval_dir = tmp_path.parent / f"approvals-{tmp_path.name}"
+    monkeypatch.setenv("SAFECODE_APPROVAL_DIR", str(approval_dir))
+    store = HookApprovalStore(tmp_path, SafeCodeConfig())
+    store.approve("after_apply", "git status")
+
+    assert any(approval_dir.glob("*.jsonl"))
+
+
 def test_hook_approval_requires_allow_medium_switch(tmp_path: Path, monkeypatch) -> None:
-    monkeypatch.setenv("SAFECODE_APPROVAL_DIR", str(tmp_path / "user-approvals"))
+    monkeypatch.setenv("SAFECODE_APPROVAL_DIR", str(external_approval_dir(tmp_path)))
     config = SafeCodeConfig()
     config.hooks.after_apply = ["git status"]
     config.hooks.allow_medium_after_apply = False
@@ -239,7 +323,7 @@ def test_hook_approval_requires_allow_medium_switch(tmp_path: Path, monkeypatch)
 
 
 def test_hook_approval_parsing_skips_malformed_json(tmp_path: Path, monkeypatch) -> None:
-    monkeypatch.setenv("SAFECODE_APPROVAL_DIR", str(tmp_path / "user-approvals"))
+    monkeypatch.setenv("SAFECODE_APPROVAL_DIR", str(external_approval_dir(tmp_path)))
     store = HookApprovalStore(tmp_path, SafeCodeConfig())
     store.path.parent.mkdir(parents=True, exist_ok=True)
     store.path.write_text("{broken json\n", encoding="utf-8")
@@ -248,7 +332,7 @@ def test_hook_approval_parsing_skips_malformed_json(tmp_path: Path, monkeypatch)
 
 
 def test_hook_approval_parsing_skips_missing_fields(tmp_path: Path, monkeypatch) -> None:
-    monkeypatch.setenv("SAFECODE_APPROVAL_DIR", str(tmp_path / "user-approvals"))
+    monkeypatch.setenv("SAFECODE_APPROVAL_DIR", str(external_approval_dir(tmp_path)))
     store = HookApprovalStore(tmp_path, SafeCodeConfig())
     store.path.parent.mkdir(parents=True, exist_ok=True)
     store.path.write_text('{"hook_name":"after_apply"}\n', encoding="utf-8")
@@ -257,7 +341,7 @@ def test_hook_approval_parsing_skips_missing_fields(tmp_path: Path, monkeypatch)
 
 
 def test_hook_approval_parsing_invalid_expires_at(tmp_path: Path, monkeypatch) -> None:
-    monkeypatch.setenv("SAFECODE_APPROVAL_DIR", str(tmp_path / "user-approvals"))
+    monkeypatch.setenv("SAFECODE_APPROVAL_DIR", str(external_approval_dir(tmp_path)))
     store = HookApprovalStore(tmp_path, SafeCodeConfig())
     payload = {
         "hook_name": "after_apply",
@@ -276,7 +360,7 @@ def test_hook_approval_parsing_invalid_expires_at(tmp_path: Path, monkeypatch) -
 
 
 def test_hook_approval_user_mismatch(tmp_path: Path, monkeypatch) -> None:
-    monkeypatch.setenv("SAFECODE_APPROVAL_DIR", str(tmp_path / "user-approvals"))
+    monkeypatch.setenv("SAFECODE_APPROVAL_DIR", str(external_approval_dir(tmp_path)))
     store = HookApprovalStore(tmp_path, SafeCodeConfig())
     payload = {
         "hook_name": "after_apply",
@@ -295,7 +379,7 @@ def test_hook_approval_user_mismatch(tmp_path: Path, monkeypatch) -> None:
 
 
 def test_hook_approval_config_hash_mismatch(tmp_path: Path, monkeypatch) -> None:
-    monkeypatch.setenv("SAFECODE_APPROVAL_DIR", str(tmp_path / "user-approvals"))
+    monkeypatch.setenv("SAFECODE_APPROVAL_DIR", str(external_approval_dir(tmp_path)))
     store = HookApprovalStore(tmp_path, SafeCodeConfig())
     payload = {
         "hook_name": "after_apply",
@@ -314,7 +398,7 @@ def test_hook_approval_config_hash_mismatch(tmp_path: Path, monkeypatch) -> None
 
 
 def test_hook_approval_policy_version_mismatch(tmp_path: Path, monkeypatch) -> None:
-    monkeypatch.setenv("SAFECODE_APPROVAL_DIR", str(tmp_path / "user-approvals"))
+    monkeypatch.setenv("SAFECODE_APPROVAL_DIR", str(external_approval_dir(tmp_path)))
     config = SafeCodeConfig()
     config.hooks.allow_medium_after_apply = True
     monkeypatch.setattr(approvals, "APPROVAL_POLICY_VERSION", "v1")
@@ -326,7 +410,7 @@ def test_hook_approval_policy_version_mismatch(tmp_path: Path, monkeypatch) -> N
 
 
 def test_hook_approval_is_bound_to_config(tmp_path: Path, monkeypatch) -> None:
-    monkeypatch.setenv("SAFECODE_APPROVAL_DIR", str(tmp_path / "user-approvals"))
+    monkeypatch.setenv("SAFECODE_APPROVAL_DIR", str(external_approval_dir(tmp_path)))
     approved_config = SafeCodeConfig()
     approved_config.hooks.after_apply = ["git status"]
     approved_config.hooks.allow_medium_after_apply = True
@@ -824,12 +908,20 @@ def test_command_policy_blocks_stateful_git_commands() -> None:
         "git clean -d",
         "git -c clean.requireForce=0 clean -d",
         "git clean -fdx",
+        "git commit -m test",
+        "git merge main",
+        "git rebase main",
+        "git pull",
+        "git fetch",
+        "git clone https://example.com/repo.git",
         "git checkout -- README.md",
         "git checkout README.md",
         "git restore -- README.md",
         "git restore README.md",
         "git switch main",
         "git push origin main",
+        "git remote add origin https://example.com/repo.git",
+        "git submodule add https://example.com/repo.git",
         "git config alias.pwn !sh",
     ]:
         decision = CommandPolicy(SafeCodeConfig()).evaluate(command, approved=True)
@@ -839,13 +931,17 @@ def test_command_policy_blocks_stateful_git_commands() -> None:
 
 def test_command_policy_blocks_git_config_execution_hooks() -> None:
     for command in [
+        "git -c credential.helper=!sh status",
         "git -c core.pager=!sh status",
         "git -c core.editor=sh status",
+        "git -c core.fsmonitor=sh status",
+        "git -c core.askpass=sh status",
         "git -c core.hooksPath=/tmp/hooks status",
         "git -c core.sshCommand=ssh status",
         "git -c pager.log=!sh log",
         "git -c sequence.editor=sh rebase",
         "git -c diff.safe.command=sh diff",
+        "git config credential.helper !sh",
         "git config core.pager !sh",
         "git config core.hooksPath /tmp/hooks",
         "git config core.sshCommand ssh",

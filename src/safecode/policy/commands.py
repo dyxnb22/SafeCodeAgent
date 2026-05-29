@@ -103,8 +103,10 @@ class CommandPolicy:
             return "git clean can delete untracked files."
         if lowered_subcommand in {"checkout", "restore"}:
             return f"git {lowered_subcommand} -- can overwrite working tree files."
-        if lowered_subcommand in {"switch", "push"}:
+        if lowered_subcommand in {"switch", "commit", "merge", "rebase"}:
             return f"git {lowered_subcommand} changes repository state outside the safe patch flow."
+        if lowered_subcommand in {"pull", "fetch", "clone", "push", "remote", "submodule"}:
+            return f"git {lowered_subcommand} can modify repository state or access remote data."
         return None
 
     def _git_config_is_dangerous(self, token: str) -> bool:
@@ -119,6 +121,9 @@ class CommandPolicy:
             or (key.startswith("includeif.") and key.endswith(".path"))
             or key
             in {
+                "credential.helper",
+                "core.askpass",
+                "core.fsmonitor",
                 "core.hookspath",
                 "core.sshcommand",
                 "core.pager",

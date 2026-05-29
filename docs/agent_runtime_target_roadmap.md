@@ -274,15 +274,18 @@ v1.5.16 approval-parsing-hardening
 v1.5.17 audit-anchor-trust-boundary
 v1.5.18 context-redaction-extension
 v1.5.19 patch-apply-symlink-race-guard
+v1.5.21 git-policy-env-hardening
+v1.5.22 shell-network-policy
+v1.5.23 approval-store-trust-boundary
 ```
 
-`MCP 真执行` 和 `subagent 并发` 推迟到 `v1.6.x`。只有上述 `v1.5.15` 到 `v1.5.19` 的测试全部通过后，才允许开始 v1.6。
+`MCP 真执行` 和 `subagent 并发` 推迟到 `v1.6.x`。只有上述 `v1.5.21` 到 `v1.5.23` 的测试全部通过后，才允许开始 v1.6。
 
 ### v1.6 guardrails
 
 - MCP 写操作默认禁用。
-- 所有工具执行必须走 command policy。
-- 项目目录不能提供审批或提权。
-- audit anchor 必须存在且可验证。
+- Shell/MCP/hooks 必须走 command policy。
+- Network policy 必须覆盖 shell 与 MCP。
+- approval store 与 audit anchor 必须在 project root 之外。
 - context 收集保持 bounded + redacted。
 - subagent 初期必须只读。

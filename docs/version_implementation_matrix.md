@@ -168,6 +168,10 @@
 | `v1.5.18` | `v1.5.18-context-redaction-extension` | `src/safecode/context/redactor.py`、`src/safecode/context/collector.py` | GitHub/JWT/Bearer/base64 secret redaction 扩展 |
 | `v1.5.19` | `v1.5.19-patch-apply-symlink-race-guard` | `src/safecode/patch/applier.py`、`src/safecode/sandbox/filesystem.py` | apply 前重验边界与 inode，拒绝 symlink swap |
 | `v1.5.20` | `v1.5.20-security-review-docs` | `docs/*`、`safe_code_agent_software_design_doc.md` | v1.5.15-1.5.19 补充 + v1.6 guardrails |
+| `v1.5.21` | `v1.5.21-git-policy-env-hardening` | `src/safecode/policy/commands.py`、`src/safecode/shell/runner.py` | git config/ENV 旁路收敛，补 git 远程/状态子命令 |
+| `v1.5.22` | `v1.5.22-shell-network-policy` | `src/safecode/shell/runner.py`、`src/safecode/sandbox/network.py` | shell 执行前强制 network policy |
+| `v1.5.23` | `v1.5.23-approval-store-trust-boundary` | `src/safecode/hooks/approvals.py` | approval dir 禁止落在 project root |
+| `v1.5.24` | `v1.5.24-security-docs-before-v1.6` | `docs/*`、`README.md`、`safe_code_agent_software_design_doc.md` | v1.5.21-1.5.23 文档 + guardrails 更新 |
 
 ## v1.6.x: Controlled Tooling and Subagents
 
