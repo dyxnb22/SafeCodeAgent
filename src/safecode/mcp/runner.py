@@ -16,6 +16,7 @@ from safecode.config import SafeCodeConfig
 from safecode.context.redactor import redact_secrets
 from safecode.logs.runtime import RuntimeLogger
 from safecode.mcp.config import MCPConfigStore, MCPServerConfig
+from safecode.mcp.proposal import MCPWriteProposal, MCPWriteProposalStore
 from safecode.policy.commands import CommandDecision, CommandPolicy
 from safecode.sandbox.filesystem import FilesystemBoundary
 from safecode.sandbox.network import NetworkPolicy
@@ -222,6 +223,121 @@ class MCPReadOnlyRunner:
                 stderr=stderr,
             )
         return MCPRunResult(server, tool, classification, output, stderr, exit_code, duration_ms, True, False)
+
+    def propose_write(
+        self,
+        server: str,
+        tool: str,
+        input_data: dict[str, Any] | None = None,
+        trace_id: str | None = None,
+    ) -> MCPWriteProposal:
+        """Create a pending MCP write proposal instead of executing the tool."""
+        classification = classify_mcp_tool(tool)
+        payload = input_data or {}
+
+        if classification == "read":
+            self._audit(
+                "mcp_write_blocked",
+                server,
+                tool,
+                classification,
+                "blocked",
+                "Tool is read-only. Use 'sac mcp call-readonly' instead.",
+                trace_id=trace_id,
+            )
+            raise ValueError(
+                f"Tool '{tool}' is classified as read-only. Use 'sac mcp call-readonly' to invoke it."
+            )
+
+        if classification == "unknown":
+            self._audit(
+                "mcp_write_blocked",
+                server,
+                tool,
+                classification,
+                "blocked",
+                "Unknown tool classification is blocked for write proposal.",
+                trace_id=trace_id,
+            )
+            raise PermissionError(
+                f"Tool '{tool}' has unknown classification and cannot be proposed as a write operation."
+            )
+
+        server_config = self._get_server(server)
+        if not server_config:
+            self._audit(
+                "mcp_write_blocked",
+                server,
+                tool,
+                classification,
+                "blocked",
+                "MCP server is not configured.",
+                trace_id=trace_id,
+            )
+            raise PermissionError(f"MCP server is not configured: {server}")
+        if not server_config.enabled:
+            self._audit(
+                "mcp_write_blocked",
+                server,
+                tool,
+                classification,
+                "blocked",
+                "MCP server is disabled by config.",
+                trace_id=trace_id,
+            )
+            raise PermissionError(f"MCP server is disabled by config: {server}")
+        if not server_config.command:
+            self._audit(
+                "mcp_write_blocked",
+                server,
+                tool,
+                classification,
+                "blocked",
+                "MCP server command is empty.",
+                trace_id=trace_id,
+            )
+            raise PermissionError(f"MCP server command is empty: {server}")
+
+        decision = self._check_command_policy(server_config)
+        if not decision.allowed:
+            self._audit(
+                "mcp_write_blocked",
+                server,
+                tool,
+                classification,
+                "blocked",
+                decision.reason,
+                trace_id=trace_id,
+            )
+            raise PermissionError(decision.reason)
+
+        store = MCPWriteProposalStore(self.project_root, self.config)
+        reason = f"MCP write tool '{tool}' on server '{server}' classified as '{classification}'."
+
+        try:
+            proposal = store.create(server, tool, payload, classification, reason)
+        except (FileExistsError, PermissionError) as exc:
+            self._audit(
+                "mcp_write_blocked",
+                server,
+                tool,
+                classification,
+                "blocked",
+                str(exc),
+                trace_id=trace_id,
+            )
+            raise
+
+        self._audit(
+            "mcp_write_proposed",
+            server,
+            tool,
+            classification,
+            "pending",
+            f"Write proposal created: {proposal.proposal_id}",
+            trace_id=trace_id,
+        )
+        return proposal
 
     def _get_server(self, name: str) -> MCPServerConfig | None:
         for server in MCPConfigStore(self.project_root).list_servers():

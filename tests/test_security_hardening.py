@@ -19,6 +19,7 @@ from safecode.llm.mock import MockLLMClient
 from safecode.logs.runtime import RuntimeLogger
 from safecode.mcp.discovery import MCPDiscovery
 from safecode.mcp.runner import MCPReadOnlyRunner
+from safecode.mcp.proposal import MCPWriteProposalStore
 from safecode.patch.models import PatchBlock, PatchProposal
 from safecode.patch.applier import PatchApplier
 from safecode.policy.commands import CommandPolicy
@@ -1176,3 +1177,368 @@ def test_command_policy_blocks_non_allowlisted_command() -> None:
 
     assert decision.allowed is False
     assert "not allowlisted" in decision.reason
+
+
+# --- v1.6.1 MCP write proposal tests ---
+
+
+def test_mcp_write_tool_creates_pending_proposal(tmp_path: Path, monkeypatch) -> None:
+    anchor_dir = tmp_path.parent / f"anchors-{tmp_path.name}"
+    monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor_dir))
+    server_path = write_mock_mcp_server(tmp_path)
+    command = shlex.join([sys.executable, str(server_path)])
+    write_mcp_config(tmp_path, command)
+
+    config = SafeCodeConfig()
+    config.shell.allowed_commands = [sys.executable]
+    config.shell.require_confirm_for_medium = False
+    config.sandbox.network_enabled = True
+
+    runner = MCPReadOnlyRunner(tmp_path, config)
+    proposal = runner.propose_write("mock", "mock.write", {"key": "value"})
+
+    assert proposal.server == "mock"
+    assert proposal.tool == "mock.write"
+    assert proposal.classification == "write"
+    assert proposal.status == "pending"
+    assert (tmp_path / ".sac" / "pending_mcp_call.json").exists()
+
+
+def test_mcp_write_proposal_requires_configured_server(tmp_path: Path, monkeypatch) -> None:
+    anchor_dir = tmp_path.parent / f"anchors-{tmp_path.name}"
+    monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor_dir))
+    config = SafeCodeConfig()
+    config.sandbox.network_enabled = True
+
+    try:
+        MCPReadOnlyRunner(tmp_path, config).propose_write("missing", "mock.write", {})
+    except PermissionError as exc:
+        assert "not configured" in str(exc)
+    else:
+        raise AssertionError("Write proposals should require a configured MCP server.")
+
+
+def test_mcp_write_proposal_rejects_disabled_server(tmp_path: Path, monkeypatch) -> None:
+    anchor_dir = tmp_path.parent / f"anchors-{tmp_path.name}"
+    monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor_dir))
+    (tmp_path / ".sac").mkdir(parents=True, exist_ok=True)
+    (tmp_path / ".sac" / "mcp.toml").write_text(
+        '[servers.mock]\ncommand = "echo ok"\nenabled = false\n',
+        encoding="utf-8",
+    )
+    config = SafeCodeConfig()
+    config.sandbox.network_enabled = True
+
+    try:
+        MCPReadOnlyRunner(tmp_path, config).propose_write("mock", "mock.write", {})
+    except PermissionError as exc:
+        assert "disabled" in str(exc)
+    else:
+        raise AssertionError("Write proposals should reject disabled MCP servers.")
+
+
+def test_mcp_write_proposal_rejects_disallowed_server_command(tmp_path: Path, monkeypatch) -> None:
+    anchor_dir = tmp_path.parent / f"anchors-{tmp_path.name}"
+    monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor_dir))
+    write_mcp_config(tmp_path, "curl https://example.com")
+    config = SafeCodeConfig()
+    config.sandbox.network_enabled = True
+
+    try:
+        MCPReadOnlyRunner(tmp_path, config).propose_write("mock", "mock.write", {})
+    except PermissionError as exc:
+        assert "not allowlisted" in str(exc)
+    else:
+        raise AssertionError("Write proposals should reject disallowed MCP server commands.")
+
+
+def test_mcp_write_proposal_includes_required_fields(tmp_path: Path, monkeypatch) -> None:
+    anchor_dir = tmp_path.parent / f"anchors-{tmp_path.name}"
+    monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor_dir))
+    server_path = write_mock_mcp_server(tmp_path)
+    command = shlex.join([sys.executable, str(server_path)])
+    write_mcp_config(tmp_path, command)
+
+    config = SafeCodeConfig()
+    config.shell.allowed_commands = [sys.executable]
+    config.shell.require_confirm_for_medium = False
+    config.sandbox.network_enabled = True
+
+    runner = MCPReadOnlyRunner(tmp_path, config)
+    proposal = runner.propose_write("mock", "mock.create", {"name": "test"})
+
+    assert proposal.proposal_id
+    assert proposal.server == "mock"
+    assert proposal.tool == "mock.create"
+    assert proposal.input_hash
+    assert len(proposal.input_hash) == 64
+    assert proposal.status == "pending"
+    assert proposal.risk_level == "high"
+    assert proposal.reason
+    assert proposal.created_at
+
+
+def test_mcp_write_proposal_does_not_execute_server(tmp_path: Path, monkeypatch) -> None:
+    anchor_dir = tmp_path.parent / f"anchors-{tmp_path.name}"
+    monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor_dir))
+    server_path = write_mock_mcp_server(tmp_path)
+    command = shlex.join([sys.executable, str(server_path)])
+    write_mcp_config(tmp_path, command)
+
+    config = SafeCodeConfig()
+    config.shell.allowed_commands = [sys.executable]
+    config.shell.require_confirm_for_medium = False
+    config.sandbox.network_enabled = True
+
+    run_called = []
+
+    def fake_run(*args, **kwargs):
+        run_called.append(True)
+        return subprocess.CompletedProcess([], 0, stdout="{}", stderr="")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    runner = MCPReadOnlyRunner(tmp_path, config)
+    runner.propose_write("mock", "mock.write", {"key": "value"})
+
+    assert len(run_called) == 0
+
+
+def test_mcp_write_proposal_redacts_secrets_in_input(tmp_path: Path, monkeypatch) -> None:
+    anchor_dir = tmp_path.parent / f"anchors-{tmp_path.name}"
+    monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor_dir))
+    server_path = write_mock_mcp_server(tmp_path)
+    command = shlex.join([sys.executable, str(server_path)])
+    write_mcp_config(tmp_path, command)
+
+    config = SafeCodeConfig()
+    config.shell.allowed_commands = [sys.executable]
+    config.shell.require_confirm_for_medium = False
+    config.sandbox.network_enabled = True
+
+    runner = MCPReadOnlyRunner(tmp_path, config)
+    proposal = runner.propose_write("mock", "mock.write", {"api_key": "sk-abc123secret"})
+
+    raw_json = (tmp_path / ".sac" / "pending_mcp_call.json").read_text(encoding="utf-8")
+    assert "sk-abc123secret" not in raw_json
+    assert "[REDACTED]" in raw_json
+
+
+def test_mcp_second_write_proposal_blocked_when_pending(tmp_path: Path, monkeypatch) -> None:
+    anchor_dir = tmp_path.parent / f"anchors-{tmp_path.name}"
+    monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor_dir))
+    server_path = write_mock_mcp_server(tmp_path)
+    command = shlex.join([sys.executable, str(server_path)])
+    write_mcp_config(tmp_path, command)
+
+    config = SafeCodeConfig()
+    config.shell.allowed_commands = [sys.executable]
+    config.shell.require_confirm_for_medium = False
+    config.sandbox.network_enabled = True
+
+    runner = MCPReadOnlyRunner(tmp_path, config)
+    runner.propose_write("mock", "mock.write", {"first": True})
+
+    try:
+        runner.propose_write("mock", "mock.create", {"second": True})
+    except FileExistsError as exc:
+        assert "already exists" in str(exc)
+    else:
+        raise AssertionError("Second proposal should be blocked when one is pending.")
+
+
+def test_mcp_corrupt_pending_blocks_new_proposal(tmp_path: Path, monkeypatch) -> None:
+    anchor_dir = tmp_path.parent / f"anchors-{tmp_path.name}"
+    monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor_dir))
+    server_path = write_mock_mcp_server(tmp_path)
+    command = shlex.join([sys.executable, str(server_path)])
+    write_mcp_config(tmp_path, command)
+    pending_path = tmp_path / ".sac" / "pending_mcp_call.json"
+    pending_path.write_text("{broken json", encoding="utf-8")
+    config = SafeCodeConfig()
+    config.shell.allowed_commands = [sys.executable]
+    config.shell.require_confirm_for_medium = False
+    config.sandbox.network_enabled = True
+
+    try:
+        MCPReadOnlyRunner(tmp_path, config).propose_write("mock", "mock.write", {"key": "value"})
+    except FileExistsError as exc:
+        assert "cannot be parsed" in str(exc)
+    else:
+        raise AssertionError("Corrupt pending proposal should block new proposals.")
+
+
+def test_mcp_write_proposal_rejects_oversized_input(tmp_path: Path, monkeypatch) -> None:
+    anchor_dir = tmp_path.parent / f"anchors-{tmp_path.name}"
+    monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor_dir))
+    server_path = write_mock_mcp_server(tmp_path)
+    command = shlex.join([sys.executable, str(server_path)])
+    write_mcp_config(tmp_path, command)
+    config = SafeCodeConfig(max_context_chars=30)
+    config.shell.allowed_commands = [sys.executable]
+    config.shell.require_confirm_for_medium = False
+    config.sandbox.network_enabled = True
+
+    try:
+        MCPReadOnlyRunner(tmp_path, config).propose_write("mock", "mock.write", {"payload": "x" * 200})
+    except PermissionError as exc:
+        assert "size limits" in str(exc)
+    else:
+        raise AssertionError("Oversized MCP write proposal input should be rejected.")
+
+
+def test_mcp_discard_removes_pending_proposal(tmp_path: Path, monkeypatch) -> None:
+    anchor_dir = tmp_path.parent / f"anchors-{tmp_path.name}"
+    monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor_dir))
+    server_path = write_mock_mcp_server(tmp_path)
+    command = shlex.join([sys.executable, str(server_path)])
+    write_mcp_config(tmp_path, command)
+
+    config = SafeCodeConfig()
+    config.shell.allowed_commands = [sys.executable]
+    config.shell.require_confirm_for_medium = False
+    config.sandbox.network_enabled = True
+
+    runner = MCPReadOnlyRunner(tmp_path, config)
+    runner.propose_write("mock", "mock.write", {"key": "value"})
+
+    pending_path = tmp_path / ".sac" / "pending_mcp_call.json"
+    assert pending_path.exists()
+
+    store = MCPWriteProposalStore(tmp_path, config)
+    removed = store.discard_pending()
+
+    assert removed is True
+    assert not pending_path.exists()
+
+
+def test_mcp_discard_writes_audit_event(tmp_path: Path, monkeypatch) -> None:
+    anchor_dir = tmp_path.parent / f"anchors-{tmp_path.name}"
+    monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor_dir))
+    server_path = write_mock_mcp_server(tmp_path)
+    command = shlex.join([sys.executable, str(server_path)])
+    write_mcp_config(tmp_path, command)
+
+    config = SafeCodeConfig()
+    config.shell.allowed_commands = [sys.executable]
+    config.shell.require_confirm_for_medium = False
+    config.sandbox.network_enabled = True
+
+    runner = MCPReadOnlyRunner(tmp_path, config)
+    runner.propose_write("mock", "mock.write", {"key": "value"})
+
+    from safecode.cli import mcp_discard
+
+    monkeypatch.chdir(tmp_path)
+    mcp_discard()
+
+    events = AuditLogger(tmp_path, config).read_recent(limit=10)
+    event_types = [event.type for event in events]
+    assert "mcp_write_discarded" in event_types
+    discard_event = next(event for event in events if event.type == "mcp_write_discarded")
+    assert discard_event.metadata["server"] == "mock"
+    assert discard_event.metadata["tool"] == "mock.write"
+
+
+def test_mcp_unknown_tool_is_blocked_for_write_proposal(tmp_path: Path, monkeypatch) -> None:
+    anchor_dir = tmp_path.parent / f"anchors-{tmp_path.name}"
+    monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor_dir))
+    server_path = write_mock_mcp_server(tmp_path)
+    command = shlex.join([sys.executable, str(server_path)])
+    write_mcp_config(tmp_path, command)
+
+    config = SafeCodeConfig()
+    config.shell.allowed_commands = [sys.executable]
+    config.shell.require_confirm_for_medium = False
+    config.sandbox.network_enabled = True
+
+    runner = MCPReadOnlyRunner(tmp_path, config)
+
+    try:
+        runner.propose_write("mock", "mock.xyzzy", {})
+    except PermissionError as exc:
+        assert "unknown classification" in str(exc).lower()
+    else:
+        raise AssertionError("Unknown tool should be blocked for write proposal.")
+
+
+def test_mcp_readonly_tool_rejected_by_propose_write(tmp_path: Path, monkeypatch) -> None:
+    anchor_dir = tmp_path.parent / f"anchors-{tmp_path.name}"
+    monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor_dir))
+    server_path = write_mock_mcp_server(tmp_path)
+    command = shlex.join([sys.executable, str(server_path)])
+    write_mcp_config(tmp_path, command)
+
+    config = SafeCodeConfig()
+    config.shell.allowed_commands = [sys.executable]
+    config.shell.require_confirm_for_medium = False
+    config.sandbox.network_enabled = True
+
+    runner = MCPReadOnlyRunner(tmp_path, config)
+
+    try:
+        runner.propose_write("mock", "mock.list", {"query": "test"})
+    except ValueError as exc:
+        assert "read-only" in str(exc).lower()
+    else:
+        raise AssertionError("Read-only tool should be rejected by propose_write.")
+
+
+def test_mcp_propose_write_writes_audit_event(tmp_path: Path, monkeypatch) -> None:
+    anchor_dir = tmp_path.parent / f"anchors-{tmp_path.name}"
+    monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor_dir))
+    server_path = write_mock_mcp_server(tmp_path)
+    command = shlex.join([sys.executable, str(server_path)])
+    write_mcp_config(tmp_path, command)
+
+    config = SafeCodeConfig()
+    config.shell.allowed_commands = [sys.executable]
+    config.shell.require_confirm_for_medium = False
+    config.sandbox.network_enabled = True
+
+    runner = MCPReadOnlyRunner(tmp_path, config)
+    runner.propose_write("mock", "mock.write", {"key": "value"})
+
+    events = AuditLogger(tmp_path, config).read_recent(limit=10)
+    event_types = [event.type for event in events]
+    assert "mcp_write_proposed" in event_types
+
+
+def test_mcp_discard_when_none_pending_is_safe(tmp_path: Path) -> None:
+    store = MCPWriteProposalStore(tmp_path)
+    removed = store.discard_pending()
+
+    assert removed is False
+
+
+def test_mcp_load_pending_returns_none_when_no_file(tmp_path: Path) -> None:
+    store = MCPWriteProposalStore(tmp_path)
+    proposal = store.load_pending()
+
+    assert proposal is None
+
+
+def test_mcp_existing_readonly_tests_still_work(tmp_path: Path, monkeypatch) -> None:
+    """Verify v1.6.0 read-only MCP behavior still works after v1.6.1 changes."""
+    anchor_dir = tmp_path.parent / f"anchors-{tmp_path.name}"
+    monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor_dir))
+    server_path = write_mock_mcp_server(tmp_path)
+    command = shlex.join([sys.executable, str(server_path)])
+    write_mcp_config(tmp_path, command)
+
+    config = SafeCodeConfig()
+    config.shell.allowed_commands = [sys.executable]
+    config.shell.require_confirm_for_medium = False
+    config.sandbox.network_enabled = True
+
+    runner = MCPReadOnlyRunner(tmp_path, config)
+    result = runner.call_readonly("mock", "mock.list", {"query": "hello"})
+
+    assert result.blocked is False
+    assert result.exit_code == 0
+    assert "ok" in result.output
+
+    events = AuditLogger(tmp_path, config).read_recent(limit=10)
+    event_types = [event.type for event in events]
+    assert "mcp_call_proposed" in event_types
+    assert "mcp_call_completed" in event_types

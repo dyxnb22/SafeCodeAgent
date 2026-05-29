@@ -178,7 +178,7 @@
 | 版本 | 分支 | 主要入口 | 验收命令 |
 |---|---|---|---|
 | `v1.6.0` | `v1.6.0-mcp-runner-readonly` | `src/safecode/mcp/runner.py`、`src/safecode/cli.py::mcp_call_readonly` | MCP 只读工具调用有 audit/runtime log；写工具、network disabled、过大输出被阻止 |
-| `v1.6.1` | `v1.6.1-mcp-write-approval` | `src/safecode/mcp/*`、`src/safecode/policy/*` | MCP 写操作必须审批 |
+| `v1.6.1` | `v1.6.1-mcp-write-proposal-only` | `src/safecode/mcp/proposal.py`、`src/safecode/mcp/runner.py::propose_write`、`src/safecode/cli.py::mcp_propose_write` | MCP 写工具创建 `.sac/pending_mcp_call.json` proposal（不执行）；`sac mcp propose-write`/`sac mcp pending`/`sac mcp discard` 可用 |
 | `v1.6.2` | `v1.6.2-subagent-readonly-runner` | `src/safecode/subagents/*` | 子任务只读执行并写结果文件 |
 | `v1.6.3` | `v1.6.3-subagent-merge-review` | `src/safecode/subagents/*`、`src/safecode/patch/*` | Lead agent 合并后生成单一 patch |
 | `v1.6.4` | `v1.6.4-os-sandbox-research` | `docs/*`、`src/safecode/sandbox/*` | sandbox adapter 能力和限制写清楚 |
