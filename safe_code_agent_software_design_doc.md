@@ -614,6 +614,21 @@ v1.7 在 v1.6.x 的逻辑边界和调研基础上，建立统一的 OS-level san
 
 **关键声明**：v1.7.6 中即使 proposal 被 approved，execute 仍然拒绝真实执行。真实 sandbox 执行留待后续版本。
 
+#### v1.7.7 sandbox approval security evals
+
+`v1.7.7` 是纯安全评测版本，系统化验证 v1.7.5-v1.7.6 的 sandbox proposal + approval 安全边界：
+
+- 新增 `tests/test_sandbox_approval_security_evals.py`，包含 40 项安全评测。
+- 六个评测类别：
+  1. **Approval storage trust**（8 项）：env dir 在 project 内被拒绝、默认 dir 在 project 外、项目内文件不自动批准、path traversal/slashes/absolute path 被 sanitize。
+  2. **Approval binding integrity**（10 项）：proposal_id/backend/command_hash/preview_hash/project_key/policy_version 任一不匹配即 False；expired TTL、非法 expires_at、malformed JSON、missing field 均 fail-closed。
+  3. **Execution gate behavior**（9 项）：no pending/unapproved/approved 三种状态 execute 均 returned executed=False；approve/revoke/execute 不调用 subprocess；revoke 后回到 unapproved；duplicate/corrupt proposal 仍 fail-closed。
+  4. **CLI behavior**（4 项）：approve without pending 安全返回；expired 显示 Approved no；execute 永不真实执行；CLI 输出不泄露 env value。
+  5. **Audit semantics**（6 项）：approved/revoked status 为 success；unapproved_blocked/approved_but_disabled status 为 blocked；audit 不包含 env value 或完整危险命令参数。
+  6. **Regression**（4 项）：proposal lifecycle、approval lifecycle、MCP readonly、sandbox plan。
+
+**关键声明**：v1.7.7 不新增任何执行能力。v1.7.x 系列现已有 417 项通过测试。
+
 #### v1.6 guardrails
 
 - MCP 写操作默认禁用。
