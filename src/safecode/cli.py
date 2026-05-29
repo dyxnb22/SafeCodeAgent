@@ -31,6 +31,7 @@ from safecode.patch.validator import PatchValidationError
 from safecode.project.rules import ProjectRules
 from safecode.report.render import ReportRenderer
 from safecode.release.checklist import render_release_checklist
+from safecode.sandbox.factory import SandboxAdapterFactory
 from safecode.sandbox.planner import SandboxPlanner
 from safecode.shell.risk import RiskLevel
 from safecode.shell.runner import ShellRunner
@@ -661,6 +662,62 @@ def sandbox_status() -> None:
         "Active logical boundaries: " + ", ".join(plan.active_logical_boundaries),
     ]
     console.print(Panel("\n".join(notes_lines), title="Notes"))
+
+
+@sandbox_app.command("plan")
+def sandbox_plan(
+    command: list[str] = typer.Argument(..., help="Command to plan sandbox execution for."),
+    purpose: str = typer.Option("shell", "--purpose", help="Purpose: shell, mcp, or hook."),
+    allow_network: bool = typer.Option(False, "--allow-network", help="Request network access."),
+    readonly_fs: bool = typer.Option(True, "--readonly-fs / --no-readonly-fs", help="Read-only filesystem."),
+    timeout: int = typer.Option(30, "--timeout", help="Timeout in seconds."),
+) -> None:
+    """Generate a sandbox execution plan without executing the command."""
+    project_root = Path.cwd()
+    config = SafeCodeConfig.load(project_root)
+
+    try:
+        exec_plan = SandboxAdapterFactory(project_root, config).create_plan(
+            command=command,
+            purpose=purpose,
+            allow_network=allow_network,
+            readonly_filesystem=readonly_fs,
+            timeout_seconds=timeout,
+        )
+    except PermissionError as exc:
+        console.print(f"[red]Sandbox plan blocked:[/red] {exc}")
+        raise typer.Exit(code=1) from exc
+
+    table = Table(title="Sandbox Execution Plan")
+    table.add_column("Field")
+    table.add_column("Value")
+    table.add_row("Backend", exec_plan.backend.value)
+    table.add_row("Command", " ".join(exec_plan.command))
+    table.add_row("CWD", exec_plan.cwd)
+    table.add_row("Network", "[green]enabled[/green]" if exec_plan.network_enabled else "[red]disabled[/red]")
+    table.add_row("Readonly FS", "[green]yes[/green]" if exec_plan.readonly_filesystem else "[yellow]no[/yellow]")
+    table.add_row("Writable Paths", ", ".join(exec_plan.writable_paths) if exec_plan.writable_paths else "(none)")
+    table.add_row("Env Keys", ", ".join(exec_plan.env_keys) if exec_plan.env_keys else "(none)")
+    table.add_row("Timeout", f"{exec_plan.timeout_seconds}s")
+    table.add_row("Dry Run", "[bold yellow]true[/bold yellow]")
+    console.print(table)
+
+    if exec_plan.warnings:
+        warn_lines = [f"- {w}" for w in exec_plan.warnings]
+        console.print(Panel("\n".join(warn_lines), title="[yellow]Warnings[/yellow]"))
+
+    if exec_plan.limitations:
+        limit_lines = [f"- {lim}" for lim in exec_plan.limitations]
+        console.print(Panel("\n".join(limit_lines), title="[dim]Limitations[/dim]"))
+
+    console.print(
+        Panel.fit(
+            "[bold yellow]This command was NOT executed.[/bold yellow]\n"
+            "v1.7.0 generates sandbox execution plans only.\n"
+            "Actual OS-level sandbox execution is deferred to v1.7.1+.",
+            title="Dry Run",
+        )
+    )
 
 
 @app.command("rules")

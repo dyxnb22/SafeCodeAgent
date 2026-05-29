@@ -183,3 +183,9 @@
 | `v1.6.3` | `v1.6.3-subagent-merge-review` | `src/safecode/subagents/merge.py`、`src/safecode/cli.py::subagent_merge_review` | 合并 subagent 结果为 pending patch；`sac subagent merge-review ID... --target SUBAGENT_REVIEW.md` 可用 |
 | `v1.6.4` | `v1.6.4-os-sandbox-research` | `src/safecode/sandbox/capabilities.py`、`src/safecode/sandbox/planner.py`、`src/safecode/cli.py::sandbox_status` | 检测 macOS/Linux/Docker sandbox 可用性；`sac sandbox status` 可用 |
 | `v1.6.5` | `v1.6.5-tooling-security-evals` | `tests/test_tooling_security_evals.py` | 37 项安全评测覆盖 MCP/subagent/sandbox/跨模块边界 |
+
+## v1.7.x: OS-Level Sandbox Containment
+
+| 版本 | 分支 | 主要入口 | 验收命令 |
+|---|---|---|---|
+| `v1.7.0` | `v1.7.0-sandbox-adapter-contract` | `src/safecode/sandbox/adapter.py`、`src/safecode/sandbox/factory.py`、`src/safecode/cli.py::sandbox_plan` | 生成 sandbox dry-run plan；`sac sandbox plan pwd` 显示计划不执行 |

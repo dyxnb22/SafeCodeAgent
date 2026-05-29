@@ -1,4 +1,4 @@
-# SafeCode Agent Release Roadmap: v0.1 to v1.6.x
+# SafeCode Agent Release Roadmap: v0.1 to v1.7.x
 
 这份文档用于把 SafeCode Agent 从 `v0.1` 安全 Patch Runtime，规划到 `v1.6.x` 的 Claude Code-like 本地 Agent Runtime。
 
@@ -504,7 +504,24 @@ v1.1.x 不改变核心安全模型，只提供外部集成和产品化辅助。
 | `v1.6.4` | `v1.6.4-os-sandbox-research` | OS sandbox adapter 调研层：检测 macOS Seatbelt / Linux Bubblewrap / Docker 是否可用；推荐最佳 backend；CLI `sac sandbox status`；audit `sandbox_status_checked` | 只做检测和计划，不强制接管 shell/MCP/hooks 执行；真正 OS 级 containment 留待 v1.7+ |
 | `v1.6.5` | `v1.6.5-tooling-security-evals` | 工具安全评测套件：新增 `tests/test_tooling_security_evals.py`，覆盖 MCP 网络边界、proposal 安全、subagent 隔离、merge-review 安全、sandbox 规划回归、跨模块安全边界、secret redaction 一致性 | 37 项新增测试系统化验证 v1.6.0-v1.6.4 安全边界；不新增高风险执行能力 |
 
-## v1.7 之后暂不展开
+## v1.7.x: OS-Level Sandbox Containment
+
+目标：在 v1.6.x 的逻辑边界和调研基础上，建立统一的 OS-level sandbox adapter 抽象，并逐步实现真实沙盒执行。
+
+### v1.7 guardrails
+
+- 所有 adapter 在 v1.7.0 中仅支持 dry-run plan，不执行外部进程。
+- Command 必须是 argv/list 形式，不允许 shell=True。
+- 所有 command 必须经过 CommandPolicy 检查。
+- network_enabled 必须遵守 SafeCodeConfig.sandbox.network_enabled。
+- writable_paths 必须经过 FilesystemBoundary。
+- env value 不可写入 audit 或 CLI 输出，只可出现 env key。
+
+| 版本 | 建议分支名 | 功能 | 验收 |
+|---|---|---|---|
+| `v1.7.0` | `v1.7.0-sandbox-adapter-contract` | Sandbox adapter 抽象（Noop/MacOS/Linux/Docker）、SandboxAdapterFactory、CLI `sac sandbox plan`、audit `sandbox_plan_created`/`sandbox_plan_blocked` | 所有 adapter 只生成 dry-run plan，不执行命令；CommandPolicy 集成；222 项测试通过 |
+
+## v1.8 之后暂不展开
 
 `v1.1+` 可以考虑：
 
