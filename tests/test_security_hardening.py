@@ -22,6 +22,7 @@ from safecode.mcp.runner import MCPReadOnlyRunner
 from safecode.mcp.proposal import MCPWriteProposalStore
 from safecode.subagents.task import SubagentTask, SubagentTaskStore, validate_task_id
 from safecode.subagents.runner import ReadonlySubagentRunner
+from safecode.subagents.merge import MERGE_MARKER, SubagentMergeReviewer
 from safecode.patch.models import PatchBlock, PatchProposal
 from safecode.patch.applier import PatchApplier
 from safecode.policy.commands import CommandPolicy
@@ -1754,6 +1755,306 @@ def test_subagent_existing_mcp_tests_still_pass(tmp_path: Path, monkeypatch) -> 
 
     assert result.blocked is False
     assert result.exit_code == 0
+
+    proposal = MCPReadOnlyRunner(tmp_path, config).propose_write("mock", "mock.write", {"key": "val"})
+    assert proposal.classification == "write"
+    assert proposal.status == "pending"
+
+
+# --- v1.6.3 subagent merge review tests ---
+
+
+def test_merge_review_creates_pending_patch(tmp_path: Path, monkeypatch) -> None:
+    anchor_dir = tmp_path.parent / f"anchors-{tmp_path.name}"
+    monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor_dir))
+    (tmp_path / "README.md").write_text("# Test\n", encoding="utf-8")
+    target = tmp_path / "SUBAGENT_REVIEW.md"
+    target.write_text(f"# Review\n\n{MERGE_MARKER}\n", encoding="utf-8")
+
+    runner = ReadonlySubagentRunner(tmp_path)
+    result = runner.run("inspect", "read project files")
+    assert result.executed is True
+
+    merge_result = SubagentMergeReviewer(tmp_path).propose([result.task.id], "SUBAGENT_REVIEW.md")
+
+    assert merge_result.proposal is not None
+    assert merge_result.diff_text
+    pending = tmp_path / ".sac" / "pending_patch.json"
+    assert pending.exists()
+
+
+def test_merge_review_targets_correct_file(tmp_path: Path, monkeypatch) -> None:
+    anchor_dir = tmp_path.parent / f"anchors-{tmp_path.name}"
+    monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor_dir))
+    (tmp_path / "README.md").write_text("# Test\n", encoding="utf-8")
+    target = tmp_path / "SUBAGENT_REVIEW.md"
+    target.write_text(f"# Review\n\n{MERGE_MARKER}\n", encoding="utf-8")
+
+    runner = ReadonlySubagentRunner(tmp_path)
+    result = runner.run("inspect", "read project files")
+
+    merge_result = SubagentMergeReviewer(tmp_path).propose([result.task.id], "SUBAGENT_REVIEW.md")
+    blocks = merge_result.proposal.blocks
+
+    assert len(blocks) == 1
+    assert blocks[0].file_path == Path("SUBAGENT_REVIEW.md")
+    assert blocks[0].operation == "update"
+
+
+def test_merge_review_does_not_apply_patch(tmp_path: Path, monkeypatch) -> None:
+    anchor_dir = tmp_path.parent / f"anchors-{tmp_path.name}"
+    monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor_dir))
+    (tmp_path / "README.md").write_text("# Test\n", encoding="utf-8")
+    target = tmp_path / "SUBAGENT_REVIEW.md"
+    original = f"# Review\n\n{MERGE_MARKER}\n"
+    target.write_text(original, encoding="utf-8")
+
+    runner = ReadonlySubagentRunner(tmp_path)
+    result = runner.run("inspect", "read project files")
+
+    SubagentMergeReviewer(tmp_path).propose([result.task.id], "SUBAGENT_REVIEW.md")
+
+    assert target.read_text(encoding="utf-8") == original
+
+
+def test_merge_review_generates_diff_preview(tmp_path: Path, monkeypatch) -> None:
+    anchor_dir = tmp_path.parent / f"anchors-{tmp_path.name}"
+    monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor_dir))
+    (tmp_path / "README.md").write_text("# Test\n", encoding="utf-8")
+    target = tmp_path / "SUBAGENT_REVIEW.md"
+    target.write_text(f"# Review\n\n{MERGE_MARKER}\n", encoding="utf-8")
+
+    runner = ReadonlySubagentRunner(tmp_path)
+    result = runner.run("inspect", "read project files")
+
+    merge_result = SubagentMergeReviewer(tmp_path).propose([result.task.id], "SUBAGENT_REVIEW.md")
+
+    assert merge_result.diff_text
+    assert "+++" in merge_result.diff_text
+
+
+def test_merge_review_rejects_non_completed_task(tmp_path: Path, monkeypatch) -> None:
+    anchor_dir = tmp_path.parent / f"anchors-{tmp_path.name}"
+    monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor_dir))
+    target = tmp_path / "SUBAGENT_REVIEW.md"
+    target.write_text(f"# Review\n\n{MERGE_MARKER}\n", encoding="utf-8")
+
+    store = SubagentTaskStore(tmp_path)
+    task = SubagentTask(
+        id="abc123def456",
+        title="pending task",
+        instructions="inspect",
+        readonly=True,
+        status="pending",
+    )
+    store._write_task(task)
+
+    try:
+        SubagentMergeReviewer(tmp_path).propose(["abc123def456"], "SUBAGENT_REVIEW.md")
+    except ValueError as exc:
+        assert "not completed" in str(exc)
+    else:
+        raise AssertionError("Non-completed task should be rejected.")
+
+
+def test_merge_review_rejects_non_readonly_task(tmp_path: Path, monkeypatch) -> None:
+    anchor_dir = tmp_path.parent / f"anchors-{tmp_path.name}"
+    monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor_dir))
+    target = tmp_path / "SUBAGENT_REVIEW.md"
+    target.write_text(f"# Review\n\n{MERGE_MARKER}\n", encoding="utf-8")
+
+    store = SubagentTaskStore(tmp_path)
+    task = SubagentTask(
+        id="abc123def456",
+        title="write task",
+        instructions="write files",
+        readonly=False,
+        status="completed",
+        result_path=str(tmp_path / ".sac" / "subagents" / "abc123def456" / "result.md"),
+    )
+    store._write_task(task)
+
+    try:
+        SubagentMergeReviewer(tmp_path).propose(["abc123def456"], "SUBAGENT_REVIEW.md")
+    except PermissionError as exc:
+        assert "not read-only" in str(exc)
+    else:
+        raise AssertionError("Non-readonly task should be rejected.")
+
+
+def test_merge_review_rejects_missing_result_file(tmp_path: Path, monkeypatch) -> None:
+    anchor_dir = tmp_path.parent / f"anchors-{tmp_path.name}"
+    monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor_dir))
+    target = tmp_path / "SUBAGENT_REVIEW.md"
+    target.write_text(f"# Review\n\n{MERGE_MARKER}\n", encoding="utf-8")
+
+    store = SubagentTaskStore(tmp_path)
+    task = SubagentTask(
+        id="abc123def456",
+        title="no result task",
+        instructions="inspect",
+        readonly=True,
+        status="completed",
+        result_path=str(tmp_path / ".sac" / "subagents" / "abc123def456" / "result.md"),
+    )
+    store._write_task(task)
+
+    try:
+        SubagentMergeReviewer(tmp_path).propose(["abc123def456"], "SUBAGENT_REVIEW.md")
+    except FileNotFoundError as exc:
+        assert "missing" in str(exc).lower() or "does not exist" in str(exc).lower()
+    else:
+        raise AssertionError("Missing result file should be rejected.")
+
+
+def test_merge_review_rejects_result_outside_subagents_dir(tmp_path: Path, monkeypatch) -> None:
+    anchor_dir = tmp_path.parent / f"anchors-{tmp_path.name}"
+    monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor_dir))
+    target = tmp_path / "SUBAGENT_REVIEW.md"
+    target.write_text(f"# Review\n\n{MERGE_MARKER}\n", encoding="utf-8")
+
+    outside_result = tmp_path / "outside_result.md"
+    outside_result.write_text("# Outside\n", encoding="utf-8")
+
+    store = SubagentTaskStore(tmp_path)
+    task = SubagentTask(
+        id="abc123def456",
+        title="outside result task",
+        instructions="inspect",
+        readonly=True,
+        status="completed",
+        result_path=str(outside_result),
+    )
+    store._write_task(task)
+
+    try:
+        SubagentMergeReviewer(tmp_path).propose(["abc123def456"], "SUBAGENT_REVIEW.md")
+    except PermissionError as exc:
+        assert "outside" in str(exc).lower()
+    else:
+        raise AssertionError("Result file outside .sac/subagents/ should be rejected.")
+
+
+def test_merge_review_rejects_existing_pending_patch(tmp_path: Path, monkeypatch) -> None:
+    anchor_dir = tmp_path.parent / f"anchors-{tmp_path.name}"
+    monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor_dir))
+    (tmp_path / "README.md").write_text("# Test\n", encoding="utf-8")
+    target = tmp_path / "SUBAGENT_REVIEW.md"
+    target.write_text(f"# Review\n\n{MERGE_MARKER}\n", encoding="utf-8")
+
+    pending = tmp_path / ".sac" / "pending_patch.json"
+    pending.parent.mkdir(parents=True)
+    pending.write_text('{"id":"existing"}', encoding="utf-8")
+
+    runner = ReadonlySubagentRunner(tmp_path)
+    result = runner.run("inspect", "read project files")
+
+    try:
+        SubagentMergeReviewer(tmp_path).propose([result.task.id], "SUBAGENT_REVIEW.md")
+    except FileExistsError as exc:
+        assert "already exists" in str(exc)
+    else:
+        raise AssertionError("Existing pending patch should block merge review.")
+
+
+def test_merge_review_rejects_target_outside_project(tmp_path: Path) -> None:
+    target = tmp_path / "SUBAGENT_REVIEW.md"
+    target.write_text(f"# Review\n\n{MERGE_MARKER}\n", encoding="utf-8")
+
+    try:
+        SubagentMergeReviewer(tmp_path).propose(["abc123def456"], "../outside_review.md")
+    except PermissionError as exc:
+        assert "project root" in str(exc).lower() or "escapes" in str(exc).lower()
+    else:
+        raise AssertionError("Target outside project root should be rejected.")
+
+
+def test_merge_review_redacts_secrets_in_result(tmp_path: Path, monkeypatch) -> None:
+    anchor_dir = tmp_path.parent / f"anchors-{tmp_path.name}"
+    monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor_dir))
+    (tmp_path / "README.md").write_text("API_KEY=sk-abc123secret\n", encoding="utf-8")
+    target = tmp_path / "SUBAGENT_REVIEW.md"
+    target.write_text(f"# Review\n\n{MERGE_MARKER}\n", encoding="utf-8")
+
+    runner = ReadonlySubagentRunner(tmp_path)
+    result = runner.run("inspect", "read project with secrets")
+
+    merge_result = SubagentMergeReviewer(tmp_path).propose([result.task.id], "SUBAGENT_REVIEW.md")
+
+    pending = tmp_path / ".sac" / "pending_patch.json"
+    content = pending.read_text(encoding="utf-8")
+    assert "sk-abc123secret" not in content
+
+
+def test_merge_review_writes_audit_event(tmp_path: Path, monkeypatch) -> None:
+    anchor_dir = tmp_path.parent / f"anchors-{tmp_path.name}"
+    monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor_dir))
+    (tmp_path / "README.md").write_text("# Test\n", encoding="utf-8")
+    target = tmp_path / "SUBAGENT_REVIEW.md"
+    target.write_text(f"# Review\n\n{MERGE_MARKER}\n", encoding="utf-8")
+
+    runner = ReadonlySubagentRunner(tmp_path)
+    result = runner.run("inspect", "read project files")
+    SubagentMergeReviewer(tmp_path).propose([result.task.id], "SUBAGENT_REVIEW.md")
+
+    events = AuditLogger(tmp_path).read_recent(limit=10)
+    event_types = [event.type for event in events]
+    assert "subagent_merge_proposed" in event_types
+
+
+def test_merge_review_blocked_writes_audit_event(tmp_path: Path, monkeypatch) -> None:
+    anchor_dir = tmp_path.parent / f"anchors-{tmp_path.name}"
+    monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor_dir))
+    target = tmp_path / "SUBAGENT_REVIEW.md"
+    target.write_text(f"# Review\n\n{MERGE_MARKER}\n", encoding="utf-8")
+
+    store = SubagentTaskStore(tmp_path)
+    task = SubagentTask(
+        id="abc123def456",
+        title="pending task",
+        instructions="inspect",
+        readonly=True,
+        status="pending",
+    )
+    store._write_task(task)
+
+    try:
+        SubagentMergeReviewer(tmp_path).propose(["abc123def456"], "SUBAGENT_REVIEW.md")
+    except ValueError:
+        pass
+
+    events = AuditLogger(tmp_path).read_recent(limit=5)
+    event_types = [event.type for event in events]
+    assert "subagent_merge_blocked" in event_types
+
+
+def test_merge_review_existing_subagent_tests_still_pass(tmp_path: Path, monkeypatch) -> None:
+    """Verify v1.6.2 subagent readonly runner still works after v1.6.3 changes."""
+    anchor_dir = tmp_path.parent / f"anchors-{tmp_path.name}"
+    monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor_dir))
+    (tmp_path / "README.md").write_text("# Test Project\n", encoding="utf-8")
+
+    result = ReadonlySubagentRunner(tmp_path).run("inspect", "read the project structure")
+
+    assert result.executed is True
+    assert result.result_path is not None
+    assert result.result_path.exists()
+    content = result.result_path.read_text(encoding="utf-8")
+    assert "No files were modified" in content
+
+
+def test_merge_review_existing_mcp_tests_still_pass(tmp_path: Path, monkeypatch) -> None:
+    """Verify v1.6.1 MCP proposal still works after v1.6.3 changes."""
+    anchor_dir = tmp_path.parent / f"anchors-{tmp_path.name}"
+    monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor_dir))
+    server_path = write_mock_mcp_server(tmp_path)
+    command = shlex.join([sys.executable, str(server_path)])
+    write_mcp_config(tmp_path, command)
+
+    config = SafeCodeConfig()
+    config.shell.allowed_commands = [sys.executable]
+    config.shell.require_confirm_for_medium = False
+    config.sandbox.network_enabled = True
 
     proposal = MCPReadOnlyRunner(tmp_path, config).propose_write("mock", "mock.write", {"key": "val"})
     assert proposal.classification == "write"

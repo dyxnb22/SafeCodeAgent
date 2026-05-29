@@ -500,7 +500,7 @@ v1.1.x 不改变核心安全模型，只提供外部集成和产品化辅助。
 | `v1.6.0` | `v1.6.0-mcp-runner-readonly` | 真实 MCP client runner，只允许只读工具；命令策略、network policy、audit/runtime log、输出 redaction 和大小限制 | MCP read-only 调用有 audit 和 runtime log，写工具被阻止 |
 | `v1.6.1` | `v1.6.1-mcp-write-proposal-only` | MCP 写操作创建 pending proposal 但不执行；输入 redaction、size-limit、hash；CLI `propose-write`/`pending`/`discard`；audit `mcp_write_proposed`/`mcp_write_blocked`/`mcp_write_discarded` | MCP 写工具创建 `.sac/pending_mcp_call.json` proposal，不执行外部命令；read-only 路径继续可用；unknown tool 被阻止；重复 proposal 被拒绝 |
 | `v1.6.2` | `v1.6.2-subagent-readonly-runner` | 只读 subagent runner，收集 bounded/redacted context 后写入 `.sac/subagents/<id>/result.md`；不修改业务文件；不执行 shell；不执行 MCP 写；CLI `run-readonly`/`list`/`show`；audit `subagent_created`/`subagent_started`/`subagent_completed`/`subagent_blocked` | subagent 只能读取上下文并写结果文件；非 readonly task 被阻止；重复运行被阻止；merge/review 留待 v1.6.3 |
-| `v1.6.3` | `v1.6.3-subagent-merge-review` | Lead agent 汇总结果后生成单一 patch | 子任务不直接写业务文件 |
+| `v1.6.3` | `v1.6.3-subagent-merge-review` | 合并已完成的只读 subagent 结果，生成 pending patch proposal（基于 `<!-- SAFECODE:SUBAGENT_REVIEW -->` marker 的 SEARCH/REPLACE）；走 PatchValidator 和 diff preview；不自动 apply；CLI `merge-review`；audit `subagent_merge_proposed`/`subagent_merge_blocked` | 多个 subagent 结果可汇总为单个 pending patch；用户仍需 `sac apply` 确认；无 LLM 自主合并；无并发编排 |
 | `v1.6.4` | `v1.6.4-os-sandbox-research` | macOS/Linux sandbox 调研和可选 adapter | 文档说明不同系统上的 sandbox 能力和限制 |
 | `v1.6.5` | `v1.6.5-tooling-security-evals` | MCP/subagent 安全回归测试 | 工具调用、权限拒绝、冲突场景有测试 |
 

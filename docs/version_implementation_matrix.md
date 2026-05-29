@@ -180,6 +180,6 @@
 | `v1.6.0` | `v1.6.0-mcp-runner-readonly` | `src/safecode/mcp/runner.py`、`src/safecode/cli.py::mcp_call_readonly` | MCP 只读工具调用有 audit/runtime log；写工具、network disabled、过大输出被阻止 |
 | `v1.6.1` | `v1.6.1-mcp-write-proposal-only` | `src/safecode/mcp/proposal.py`、`src/safecode/mcp/runner.py::propose_write`、`src/safecode/cli.py::mcp_propose_write` | MCP 写工具创建 `.sac/pending_mcp_call.json` proposal（不执行）；`sac mcp propose-write`/`sac mcp pending`/`sac mcp discard` 可用 |
 | `v1.6.2` | `v1.6.2-subagent-readonly-runner` | `src/safecode/subagents/task.py`、`src/safecode/subagents/runner.py`、`src/safecode/cli.py::subagent_run_readonly` | 只读 subagent 写 `.sac/subagents/<id>/result.md`；`sac subagent run-readonly`/`sac subagent list`/`sac subagent show` 可用 |
-| `v1.6.3` | `v1.6.3-subagent-merge-review` | `src/safecode/subagents/*`、`src/safecode/patch/*` | Lead agent 合并后生成单一 patch |
+| `v1.6.3` | `v1.6.3-subagent-merge-review` | `src/safecode/subagents/merge.py`、`src/safecode/cli.py::subagent_merge_review` | 合并 subagent 结果为 pending patch；`sac subagent merge-review ID... --target SUBAGENT_REVIEW.md` 可用 |
 | `v1.6.4` | `v1.6.4-os-sandbox-research` | `docs/*`、`src/safecode/sandbox/*` | sandbox adapter 能力和限制写清楚 |
 | `v1.6.5` | `v1.6.5-tooling-security-evals` | `tests/*` | MCP/subagent 权限和冲突测试通过 |

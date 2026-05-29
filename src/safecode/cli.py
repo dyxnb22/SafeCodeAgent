@@ -37,6 +37,7 @@ from safecode.skills.loader import SkillLoader
 from safecode.state.progress import ProgressState, ProgressStore
 from safecode.subagents.task import SubagentTaskStore
 from safecode.subagents.runner import ReadonlySubagentRunner
+from safecode.subagents.merge import SubagentMergeReviewer
 from safecode.tools.registry import ToolRegistry
 from safecode.queue.store import QueueStore
 from safecode.utils.time import utc_now_iso
@@ -578,6 +579,38 @@ def subagent_show(task_id: str) -> None:
         console.print(result_path.read_text(encoding="utf-8")[:500])
     else:
         console.print("\n[yellow]No result file yet.[/yellow]")
+
+
+@subagent_app.command("merge-review")
+def subagent_merge_review(
+    task_ids: list[str] = typer.Argument(..., help="Completed subagent task IDs to merge."),
+    target: str = typer.Option("SUBAGENT_REVIEW.md", "--target", "-t", help="Target markdown file with merge marker."),
+) -> None:
+    """Create a pending patch proposal from completed subagent results."""
+    project_root = Path.cwd()
+
+    try:
+        result = SubagentMergeReviewer(project_root).propose(task_ids, target)
+    except (FileNotFoundError, ValueError, PermissionError, FileExistsError) as exc:
+        _log_cli_error("cli.subagent.merge_review", "merge review blocked", exc)
+        console.print(f"[red]Merge review blocked:[/red] {exc}")
+        raise typer.Exit(code=1) from exc
+    except Exception as exc:
+        _log_cli_error("cli.subagent.merge_review", "merge review failed", exc)
+        console.print(f"[red]Merge review failed:[/red] {exc}")
+        raise typer.Exit(code=1) from exc
+
+    console.print(
+        Panel.fit(
+            f"Patch ID: {result.proposal.id}\n"
+            f"Tasks merged: {len(task_ids)}\n"
+            f"Target: {target}\n"
+            f"Pending patch: {result.pending_path}",
+            title="Subagent Merge Review",
+        )
+    )
+    console.print(Syntax(result.diff_text, "diff", theme="ansi_dark"))
+    console.print("[green]Review the diff above. Run 'sac apply' to apply the merge.[/green]")
 
 
 @app.command("rules")
