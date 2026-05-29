@@ -573,6 +573,21 @@ v1.7 在 v1.6.x 的逻辑边界和调研基础上，建立统一的 OS-level san
 
 **关键声明**：v1.7.3 只生成 docker run argv preview，不调用 docker。真实 Docker 容器执行留待后续版本。
 
+#### v1.7.4 sandbox plan security evals
+
+`v1.7.4` 是纯安全评测版本，新增跨 backend 系统化测试，不修改任何运行时代码：
+
+- 新增 `tests/test_sandbox_plan_security_evals.py`，包含 43 项安全评测。
+- 六个评测类别：
+  1. **No execution guarantee**（8 项）：所有 builder/adapter/factory/CLI plan 不调用 subprocess。
+  2. **Network policy consistency**（5 项）：三个 backend 在 config 禁用网络时均强制关闭，启用时带 warning。
+  3. **Filesystem boundary consistency**（7 项）：外部路径和 symlink escape 被拒绝，factory 抛 PermissionError，project_root 只读存在于所有 preview 中。
+  4. **Sensitive path consistency**（7 项）：`.env`、`secret.pem`、`credentials.json` 不进入任何 backend write allow/bind/mount，env value 不出现在任何 backend 输出或 plan 字符串中。
+  5. **Command policy and audit**（7 项）：高风险命令 blocked 写 audit、非 allowlisted blocked、低风险 allowed、`git status` 可生成 dry-run plan、blocked metadata 不含完整危险参数、created metadata 不含 env value、dry_run metadata 为 "true"。
+  6. **Backend isolation**（5 项）：每个 backend 只填自己的 preview 字段，其他为空；所有 adapter supports_execution() 仍为 False。
+
+**关键声明**：v1.7.4 不新增任何执行能力。v1.7.x 系列现已有 329 项通过测试，覆盖从 detection 到 plan generation 再到 security evals 的完整 sandbox 验证链。
+
 #### v1.6 guardrails
 
 - MCP 写操作默认禁用。
