@@ -115,7 +115,7 @@ class SandboxAdapterFactory:
         if backend == SandboxBackend.MACOS_SEATBELT:
             cap = by_backend.get(SandboxBackend.MACOS_SEATBELT)
             if cap and cap.available:
-                return MacOSSeatbeltAdapter(cap)
+                return MacOSSeatbeltAdapter(cap, project_root=self.project_root, config=self.config)
 
         if backend == SandboxBackend.DOCKER:
             cap = by_backend.get(SandboxBackend.DOCKER)

@@ -214,6 +214,7 @@ class TestWritablePathsValidation:
         factory = SandboxAdapterFactory(tmp_path)
         plan = factory.create_plan(
             ["echo", "hello"],
+            readonly_filesystem=False,
             writable_paths=[tmp_path / "data"],
         )
         assert str(tmp_path / "data") in plan.writable_paths

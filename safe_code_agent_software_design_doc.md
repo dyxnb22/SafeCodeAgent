@@ -530,7 +530,21 @@ v1.7 在 v1.6.x 的逻辑边界和调研基础上，建立统一的 OS-level san
 - 通过的 plan 写入 `sandbox_plan_created` audit event。
 - env value 不出现在 plan/audit/CLI 输出中，只显示 env keys。
 
-**关键声明**：v1.7.0 不执行任何外部进程。所有 adapter 仅生成 sandbox execution plan。实际 OS-level sandbox 执行（生成 .sb profile、构造 bwrap args、启动 Docker 容器）留待 v1.7.1+。
+**关键声明**：v1.7.0 不执行任何外部进程。所有 adapter 仅生成 sandbox execution plan。后续版本会先补齐 profile/argument/container plan，真实 OS-level sandbox 执行留待更后续版本。
+
+#### v1.7.1 macOS Seatbelt profile plan
+
+`v1.7.1` 为 macOS 后端补上了 Seatbelt profile 文本生成能力，但仍然不执行 sandbox-exec：
+
+- `SeatbeltProfileBuilder` 根据 `SandboxExecutionRequest` 和项目安全策略生成保守的 `.sb` profile 文本。
+- Profile 规则：默认 deny、允许基础进程操作（process-exec/fork/signal/sysctl-read）、允许读取 project_root 和系统路径、`readonly_filesystem=True` 时不生成写权限、敏感路径（`.env`, `.ssh`, `.aws`, `credentials`, `token` 等）被显式 deny。
+- `network_enabled=False` 时 profile 不含网络允许规则。
+- env value 不出现在 profile、warnings 或 plan 字符串中。
+- `MacOSSeatbeltAdapter.build_plan()` 填充 `profile_preview`、`profile_backend`、`profile_warnings` 字段。
+- CLI：`sac sandbox plan` 在 macOS backend 下以 Rich Syntax 展示 profile preview，附带 profile warnings 和"sandbox-exec was NOT executed"提示。
+- 其他 adapter（Noop/Linux/Docker）不填充 profile_preview。
+
+**关键声明**：v1.7.1 只生成 profile preview，不调用 sandbox-exec。真实 macOS sandbox 执行留待后续版本。
 
 #### v1.6 guardrails
 

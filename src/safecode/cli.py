@@ -710,11 +710,24 @@ def sandbox_plan(
         limit_lines = [f"- {lim}" for lim in exec_plan.limitations]
         console.print(Panel("\n".join(limit_lines), title="[dim]Limitations[/dim]"))
 
+    if exec_plan.profile_preview:
+        console.print(
+            Panel.fit(
+                "[bold]Profile generated for preview only.[/bold]\n"
+                "sandbox-exec was NOT executed.",
+                title="Profile Preview",
+            )
+        )
+        console.print(Syntax(exec_plan.profile_preview, "scheme", theme="ansi_dark", line_numbers=False))
+        if exec_plan.profile_warnings:
+            pw_lines = [f"- {w}" for w in exec_plan.profile_warnings]
+            console.print(Panel("\n".join(pw_lines), title="[yellow]Profile Warnings[/yellow]"))
+
     console.print(
         Panel.fit(
             "[bold yellow]This command was NOT executed.[/bold yellow]\n"
-            "v1.7.0 generates sandbox execution plans only.\n"
-            "Actual OS-level sandbox execution is deferred to v1.7.1+.",
+            "v1.7.1 generates sandbox execution plans with profile preview only.\n"
+            "Actual OS-level sandbox execution is deferred to a future version.",
             title="Dry Run",
         )
     )

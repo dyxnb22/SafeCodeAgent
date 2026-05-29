@@ -7,7 +7,7 @@ launch external processes.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Protocol
 
@@ -43,6 +43,9 @@ class SandboxExecutionPlan:
     dry_run: bool = True
     warnings: list[str] = field(default_factory=list)
     limitations: list[str] = field(default_factory=list)
+    profile_preview: str | None = None
+    profile_backend: str | None = None
+    profile_warnings: list[str] = field(default_factory=list)
 
 
 class SandboxAdapter(Protocol):
@@ -93,32 +96,57 @@ class NoopSandboxAdapter:
 
 
 class MacOSSeatbeltAdapter:
-    """Adapter for macOS sandbox-exec. Dry-run only in v1.7.0."""
+    """Adapter for macOS sandbox-exec. Dry-run only — generates profile preview."""
 
-    def __init__(self, capability: SandboxCapability) -> None:
+    def __init__(self, capability: SandboxCapability, project_root: Path | None = None, config=None) -> None:
         self._capability = capability
+        self._project_root = project_root
+        self._config = config
 
     backend = SandboxBackend.MACOS_SEATBELT
 
     def build_plan(self, request: SandboxExecutionRequest) -> SandboxExecutionPlan:
-        warnings = list(self._capability.limitations) if self._capability.limitations else []
+        from safecode.sandbox.seatbelt import SeatbeltProfileBuilder
+        from safecode.config import SafeCodeConfig
+
+        adapter_warnings = list(self._capability.limitations) if self._capability.limitations else []
+        cfg = self._config if self._config else SafeCodeConfig()
+        effective_request = request
+        if request.allow_network and not cfg.sandbox.network_enabled:
+            effective_request = replace(request, allow_network=False)
+            adapter_warnings.append("Network access was requested but disabled by SafeCodeConfig.")
         writable = [str(p) for p in request.writable_paths]
+
+        profile_preview = None
+        profile_backend = None
+        profile_warnings: list[str] = []
+
+        if self._project_root is not None:
+            profile_plan = SeatbeltProfileBuilder(self._project_root, cfg).build(effective_request)
+            profile_preview = profile_plan.profile_text
+            profile_backend = "macos_seatbelt"
+            profile_warnings = list(profile_plan.warnings)
+            writable = list(profile_plan.allowed_write_paths)
+
         return SandboxExecutionPlan(
             backend=SandboxBackend.MACOS_SEATBELT,
-            command=list(request.command),
-            cwd=str(request.cwd),
-            network_enabled=request.allow_network,
-            readonly_filesystem=request.readonly_filesystem,
+            command=list(effective_request.command),
+            cwd=str(effective_request.cwd),
+            network_enabled=effective_request.allow_network,
+            readonly_filesystem=effective_request.readonly_filesystem,
             writable_paths=writable,
-            env_keys=sorted(request.env.keys()),
-            timeout_seconds=request.timeout_seconds,
-            warnings=warnings + [
-                "macOS sandbox-exec requires a .sb profile that is not generated in v1.7.0.",
+            env_keys=sorted(effective_request.env.keys()),
+            timeout_seconds=effective_request.timeout_seconds,
+            warnings=adapter_warnings + [
+                "macOS sandbox-exec profile is generated for preview only.",
             ],
             limitations=[
-                "v1.7.0 does not execute sandbox-exec.",
-                "Sandbox profile generation is deferred to a future version.",
+                "v1.7.1 does not execute sandbox-exec.",
+                "Profile is for review purposes only.",
             ],
+            profile_preview=profile_preview,
+            profile_backend=profile_backend,
+            profile_warnings=profile_warnings,
         )
 
     def supports_execution(self) -> bool:
