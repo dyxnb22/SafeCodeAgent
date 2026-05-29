@@ -497,7 +497,7 @@ v1.1.x 不改变核心安全模型，只提供外部集成和产品化辅助。
 
 | 版本 | 建议分支名 | 功能 | 验收 |
 |---|---|---|---|
-| `v1.6.0` | `v1.6.0-mcp-runner-readonly` | 真实 MCP client runner，只允许只读工具 | MCP read-only 调用有 audit 和 runtime log |
+| `v1.6.0` | `v1.6.0-mcp-runner-readonly` | 真实 MCP client runner，只允许只读工具；命令策略、network policy、audit/runtime log、输出 redaction 和大小限制 | MCP read-only 调用有 audit 和 runtime log，写工具被阻止 |
 | `v1.6.1` | `v1.6.1-mcp-write-approval` | MCP 写操作审批和权限策略 | 外部写操作必须 proposal + approval + audit |
 | `v1.6.2` | `v1.6.2-subagent-readonly-runner` | 只读 subagent runner，独立上下文和结果文件 | 子任务只能读，结果写 `.sac/subagents/` |
 | `v1.6.3` | `v1.6.3-subagent-merge-review` | Lead agent 汇总结果后生成单一 patch | 子任务不直接写业务文件 |

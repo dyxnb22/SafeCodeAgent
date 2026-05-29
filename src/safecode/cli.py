@@ -1,5 +1,6 @@
 """Command line entrypoint for SafeCode Agent."""
 
+import json
 from pathlib import Path
 
 import typer
@@ -21,6 +22,7 @@ from safecode.ide.manifest import render_manifest, write_manifest
 from safecode.index.files import FileIndexer
 from safecode.index.python_symbols import PythonSymbolIndexer
 from safecode.mcp.discovery import MCPDiscovery
+from safecode.mcp.runner import MCPReadOnlyRunner
 from safecode.logs.runtime import RuntimeLogger
 from safecode.memory.store import MemoryStore
 from safecode.patch.parser import PatchParseError
@@ -345,6 +347,33 @@ def mcp_tools() -> None:
     for tool in tools:
         table.add_row(tool.server, tool.name, tool.risk)
     console.print(table if tools else "[yellow]No MCP tools configured.[/yellow]")
+
+
+@mcp_app.command("call-readonly")
+def mcp_call_readonly(
+    server: str,
+    tool: str,
+    input_json: str = typer.Option("{}", "--input", help="JSON input for the MCP tool."),
+) -> None:
+    """Invoke a read-only MCP tool."""
+    project_root = Path.cwd()
+    try:
+        payload = json.loads(input_json) if input_json else {}
+    except json.JSONDecodeError as exc:
+        _log_cli_error("cli.mcp.call_readonly", "invalid MCP input JSON", exc)
+        console.print(f"[red]Invalid JSON input:[/red] {exc}")
+        raise typer.Exit(code=1) from exc
+    if payload is None:
+        payload = {}
+    if not isinstance(payload, dict):
+        console.print("[red]MCP input must be a JSON object.[/red]")
+        raise typer.Exit(code=1)
+    result = MCPReadOnlyRunner(project_root).call_readonly(server, tool, payload)
+    if result.output:
+        console.print(result.output)
+    if result.error:
+        console.print(f"[red]{result.error}[/red]")
+    raise typer.Exit(code=0 if result.exit_code == 0 else result.exit_code)
 
 
 @subagent_app.command("create")

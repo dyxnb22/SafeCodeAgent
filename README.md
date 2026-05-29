@@ -50,14 +50,14 @@ sac doctor
 - File writes go through patch parsing, validation, diff preview, checkpoint, and audit log.
 - High-risk shell commands are blocked even when `--yes` is passed.
 - Shell commands run through argv execution, not a shell string.
-- Shell and hooks go through command policy checks; MCP execution must use the same policy before it is enabled.
+- Shell, hooks, and read-only MCP execution go through command policy checks.
 - Project config cannot lower user-level safety policy.
 - Project hooks do not auto-approve medium-risk commands by default.
 - Context collection skips secret-like filenames such as `.env.local`, `*token*`, `*secret*`, and key files.
 - Network access is disabled by default.
-- Network policy applies to shell commands and must apply to MCP before MCP execution is enabled.
+- Network policy applies to shell commands and read-only MCP execution.
 - Real LLM mode must pass network policy before any request is made.
-- MCP write operations are disabled until an explicit policy exists.
+- MCP write operations are disabled until an explicit proposal/approval policy exists.
 - Approval stores and audit anchors live outside the project root.
 - Audit events include trace ids for task reconstruction.
 - Runtime errors are written to `.sac/logs/runtime.jsonl` for debugging.

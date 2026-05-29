@@ -1,6 +1,9 @@
 from pathlib import Path
 import json
+import shlex
 import subprocess
+import sys
+import textwrap
 from datetime import datetime, timedelta, timezone
 
 from safecode.config import SafeCodeConfig, merge_trusted_config
@@ -15,6 +18,7 @@ from safecode.llm.factory import create_llm_client
 from safecode.llm.mock import MockLLMClient
 from safecode.logs.runtime import RuntimeLogger
 from safecode.mcp.discovery import MCPDiscovery
+from safecode.mcp.runner import MCPReadOnlyRunner
 from safecode.patch.models import PatchBlock, PatchProposal
 from safecode.patch.applier import PatchApplier
 from safecode.policy.commands import CommandPolicy
@@ -30,6 +34,53 @@ def future_timestamp() -> str:
 
 def external_approval_dir(tmp_path: Path) -> Path:
     return tmp_path.parent / f"approvals-{tmp_path.name}"
+
+
+def write_mock_mcp_server(tmp_path: Path) -> Path:
+    path = tmp_path / "mock_mcp_server.py"
+    path.write_text(
+        textwrap.dedent(
+            """
+            import json
+            import sys
+
+            payload = json.loads(sys.stdin.read() or "{}")
+            tool = payload.get("tool", "")
+            input_data = payload.get("input", {})
+
+            if tool.endswith("secret"):
+                output = "API_KEY=abc123"
+            elif tool.endswith("large"):
+                size = 0
+                if isinstance(input_data, dict):
+                    size = int(input_data.get("size", 0))
+                output = "A" * size
+            else:
+                output = {"ok": True, "input": input_data}
+
+            print(json.dumps({"output": output}))
+            """
+        ).strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    return path
+
+
+def write_mcp_config(tmp_path: Path, command: str) -> None:
+    sac_dir = tmp_path / ".sac"
+    sac_dir.mkdir(parents=True, exist_ok=True)
+    (sac_dir / "mcp.toml").write_text(
+        textwrap.dedent(
+            f"""
+            [servers.mock]
+            command = "{command}"
+            enabled = true
+            """
+        ).strip()
+        + "\n",
+        encoding="utf-8",
+    )
 
 
 def test_high_risk_command_is_blocked_even_when_approved(tmp_path: Path) -> None:
@@ -184,6 +235,136 @@ def test_mcp_write_operations_are_disabled(tmp_path: Path) -> None:
         assert "disabled" in str(exc)
     else:
         raise AssertionError("MCP writes should be rejected by default.")
+
+
+def test_mcp_readonly_call_succeeds_and_audited(tmp_path: Path, monkeypatch) -> None:
+    anchor_dir = tmp_path.parent / f"anchors-{tmp_path.name}"
+    monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor_dir))
+    server_path = write_mock_mcp_server(tmp_path)
+    command = shlex.join([sys.executable, str(server_path)])
+    write_mcp_config(tmp_path, command)
+
+    config = SafeCodeConfig()
+    config.shell.allowed_commands = [sys.executable]
+    config.shell.require_confirm_for_medium = False
+    config.sandbox.network_enabled = True
+
+    runner = MCPReadOnlyRunner(tmp_path, config)
+    result = runner.call_readonly("mock", "mock.list", {"query": "hello"})
+
+    assert result.blocked is False
+    assert result.exit_code == 0
+    assert "ok" in result.output
+
+    events = AuditLogger(tmp_path, config).read_recent(limit=10)
+    event_types = [event.type for event in events]
+    assert "mcp_call_proposed" in event_types
+    assert "mcp_call_started" in event_types
+    assert "mcp_call_completed" in event_types
+
+
+def test_mcp_write_tool_is_blocked(tmp_path: Path, monkeypatch) -> None:
+    anchor_dir = tmp_path.parent / f"anchors-{tmp_path.name}"
+    monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor_dir))
+    server_path = write_mock_mcp_server(tmp_path)
+    command = shlex.join([sys.executable, str(server_path)])
+    write_mcp_config(tmp_path, command)
+
+    config = SafeCodeConfig()
+    config.shell.allowed_commands = [sys.executable]
+    config.shell.require_confirm_for_medium = False
+    config.sandbox.network_enabled = True
+
+    result = MCPReadOnlyRunner(tmp_path, config).call_readonly("mock", "mock.write", {})
+
+    assert result.blocked is True
+    assert result.executed is False
+    assert result.exit_code == 126
+
+    events = AuditLogger(tmp_path, config).read_recent(limit=5)
+    assert any(event.type == "mcp_call_blocked" for event in events)
+
+
+def test_mcp_network_disabled_blocks_call(tmp_path: Path, monkeypatch) -> None:
+    anchor_dir = tmp_path.parent / f"anchors-{tmp_path.name}"
+    monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor_dir))
+    server_path = write_mock_mcp_server(tmp_path)
+    command = shlex.join([sys.executable, str(server_path)])
+    write_mcp_config(tmp_path, command)
+
+    config = SafeCodeConfig()
+    config.shell.allowed_commands = [sys.executable]
+    config.shell.require_confirm_for_medium = False
+    config.sandbox.network_enabled = False
+
+    result = MCPReadOnlyRunner(tmp_path, config).call_readonly("mock", "mock.list", {})
+
+    assert result.blocked is True
+    assert "Network access is disabled" in result.error
+
+
+def test_mcp_output_redaction_applies(tmp_path: Path, monkeypatch) -> None:
+    anchor_dir = tmp_path.parent / f"anchors-{tmp_path.name}"
+    monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor_dir))
+    server_path = write_mock_mcp_server(tmp_path)
+    command = shlex.join([sys.executable, str(server_path)])
+    write_mcp_config(tmp_path, command)
+
+    config = SafeCodeConfig()
+    config.shell.allowed_commands = [sys.executable]
+    config.shell.require_confirm_for_medium = False
+    config.sandbox.network_enabled = True
+
+    result = MCPReadOnlyRunner(tmp_path, config).call_readonly("mock", "mock.get_secret", {})
+
+    assert result.blocked is False
+    assert "abc123" not in result.output
+    assert "[REDACTED]" in result.output
+
+
+def test_mcp_output_size_limit_is_enforced(tmp_path: Path, monkeypatch) -> None:
+    anchor_dir = tmp_path.parent / f"anchors-{tmp_path.name}"
+    monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor_dir))
+    server_path = write_mock_mcp_server(tmp_path)
+    command = shlex.join([sys.executable, str(server_path)])
+    write_mcp_config(tmp_path, command)
+
+    config = SafeCodeConfig()
+    config.max_context_chars = 50
+    config.shell.allowed_commands = [sys.executable]
+    config.shell.require_confirm_for_medium = False
+    config.sandbox.network_enabled = True
+
+    result = MCPReadOnlyRunner(tmp_path, config).call_readonly("mock", "mock.get_large", {"size": 200})
+
+    assert result.blocked is True
+    assert "size limits" in result.error
+
+
+def test_mcp_runner_sanitizes_git_env_vars(tmp_path: Path, monkeypatch) -> None:
+    anchor_dir = tmp_path.parent / f"anchors-{tmp_path.name}"
+    monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor_dir))
+    monkeypatch.setenv("GIT_SSH_COMMAND", "ssh -oProxyCommand=evil")
+    monkeypatch.setenv("GIT_ASKPASS", "/tmp/askpass")
+    monkeypatch.setenv("SSH_ASKPASS", "/tmp/ssh-askpass")
+    monkeypatch.setenv("GIT_CONFIG_PARAMETERS", "alias.pwn=!sh")
+    write_mcp_config(tmp_path, "echo ok")
+    config = SafeCodeConfig()
+    config.sandbox.network_enabled = True
+
+    def fake_run(args, cwd, text, input, capture_output, env, timeout, check):
+        assert "GIT_SSH_COMMAND" not in env
+        assert "GIT_ASKPASS" not in env
+        assert "SSH_ASKPASS" not in env
+        assert "GIT_CONFIG_PARAMETERS" not in env
+        return subprocess.CompletedProcess(args, 0, stdout='{"output":"ok"}\n', stderr="")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    result = MCPReadOnlyRunner(tmp_path, config).call_readonly("mock", "mock.list", {})
+
+    assert result.executed is True
+    assert result.output == "ok"
 
 
 def test_llm_factory_defaults_to_mock() -> None:
