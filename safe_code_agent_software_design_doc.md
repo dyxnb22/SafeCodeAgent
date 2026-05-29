@@ -601,6 +601,19 @@ v1.7 在 v1.6.x 的逻辑边界和调研基础上，建立统一的 OS-level san
 
 **关键声明**：v1.7.5 中 executed 永远为 False。真实 sandbox 执行留待后续版本。
 
+#### v1.7.6 sandbox approval state
+
+`v1.7.6` 实现了 sandbox execution 的用户级审批系统：
+
+- `SandboxExecutionApproval` 模型：proposal_id、approved_at、expires_at、project_root、project_key、backend、command_hash、preview_hash、approved_by、policy_version。
+- `SandboxExecutionApprovalStore`：user-level 存储（默认 `~/.safecode/sandbox_approvals/`），通过 `SAFECODE_SANDBOX_APPROVAL_DIR` 覆盖但拒绝 project_root 内路径。支持 approve（TTL 默认 30 分钟）、is_approved（绑定 proposal/command/preview/backend/project/policy 全部匹配且未过期）、revoke、load。
+- Malformed/expired/mismatched approval 严格 fail-closed 返回 False。
+- `SandboxExecutionGate` 新增 approve/revoke/load_approval 方法；execute_pending 区分三种状态：no pending proposal、pending unapproved（`sandbox_execution_unapproved_blocked`）、pending approved（`sandbox_execution_approved_but_disabled`）。
+- CLI：`sac sandbox approve [--ttl-minutes 30]`、`sac sandbox approvals`、`sac sandbox revoke`。`sac sandbox execute` 根据审批状态显示不同消息。
+- Audit：`sandbox_execution_approved`、`sandbox_execution_approval_revoked`、`sandbox_execution_unapproved_blocked`、`sandbox_execution_approved_but_disabled`。
+
+**关键声明**：v1.7.6 中即使 proposal 被 approved，execute 仍然拒绝真实执行。真实 sandbox 执行留待后续版本。
+
 #### v1.6 guardrails
 
 - MCP 写操作默认禁用。

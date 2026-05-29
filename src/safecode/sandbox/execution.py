@@ -17,6 +17,7 @@ from safecode.audit.logger import AuditLogger
 from safecode.audit.models import AuditEvent
 from safecode.config import SafeCodeConfig
 from safecode.sandbox.adapter import SandboxExecutionPlan
+from safecode.sandbox.approvals import SandboxExecutionApproval, SandboxExecutionApprovalStore
 from safecode.utils.time import utc_now_iso
 
 
@@ -200,19 +201,90 @@ class SandboxExecutionGate:
             message=reason,
         )
 
+    def approve(self, ttl_minutes: int = 30) -> SandboxExecutionApproval | None:
+        """Approve the pending proposal. Returns None if no proposal."""
+        proposal = self.store.load_pending()
+        if proposal is None:
+            return None
+        approval_store = SandboxExecutionApprovalStore(self.project_root)
+        approval = approval_store.approve(
+            proposal_id=proposal.proposal_id,
+            backend=proposal.backend,
+            command_hash=proposal.command_hash,
+            preview_hash=proposal.preview_hash,
+            ttl_minutes=ttl_minutes,
+        )
+        self._audit(
+            "sandbox_execution_approved",
+            proposal.proposal_id,
+            proposal.backend,
+            proposal.purpose,
+            proposal.command[0] if proposal.command else "",
+            proposal.command_hash,
+            f"Approved by {approval.approved_by}. Expires: {approval.expires_at}.",
+        )
+        return approval
+
+    def revoke(self) -> SandboxExecutionApproval | None:
+        """Revoke approval for pending proposal. Returns None if no proposal."""
+        proposal = self.store.load_pending()
+        if proposal is None:
+            return None
+        approval_store = SandboxExecutionApprovalStore(self.project_root)
+        approval = approval_store.load_approval(proposal.proposal_id)
+        removed = approval_store.revoke(proposal.proposal_id)
+        if removed:
+            self._audit(
+                "sandbox_execution_approval_revoked",
+                proposal.proposal_id,
+                proposal.backend,
+                proposal.purpose,
+                proposal.command[0] if proposal.command else "",
+                proposal.command_hash,
+                "Approval revoked.",
+            )
+        return approval
+
+    def load_approval(self) -> SandboxExecutionApproval | None:
+        """Load approval for pending proposal."""
+        proposal = self.store.load_pending()
+        if proposal is None:
+            return None
+        return SandboxExecutionApprovalStore(self.project_root).load_approval(proposal.proposal_id)
+
     def execute_pending(self) -> SandboxExecutionResult:
-        """Always refused in v1.7.5 — real execution is not enabled."""
+        """Refused in v1.7.6. Checks approval status for richer error reporting."""
         proposal = self.store.load_pending()
         proposal_id = proposal.proposal_id if proposal else "unknown"
         backend = proposal.backend if proposal else "none"
-        msg = "Real sandbox execution is not enabled in v1.7.5."
+        command_head = proposal.command[0] if proposal and proposal.command else ""
+        command_hash = proposal.command_hash if proposal else ""
+
+        if proposal is None:
+            msg = "No pending sandbox execution proposal."
+            event = "sandbox_execution_dry_run_blocked"
+        else:
+            approval_store = SandboxExecutionApprovalStore(self.project_root)
+            is_approved = approval_store.is_approved(
+                proposal_id=proposal_id,
+                backend=backend,
+                command_hash=command_hash,
+                preview_hash=proposal.preview_hash,
+            )
+            if not is_approved:
+                msg = "Sandbox execution proposal is NOT approved. Use 'sac sandbox approve' first."
+                event = "sandbox_execution_unapproved_blocked"
+            else:
+                msg = "Proposal is approved, but real sandbox execution is NOT enabled in v1.7.6."
+                event = "sandbox_execution_approved_but_disabled"
+
         self._audit(
-            "sandbox_execution_dry_run_blocked",
+            event,
             proposal_id,
             backend,
             proposal.purpose if proposal else "",
-            proposal.command[0] if proposal and proposal.command else "",
-            proposal.command_hash if proposal else "",
+            command_head,
+            command_hash,
             msg,
         )
         return SandboxExecutionResult(
@@ -267,11 +339,17 @@ class SandboxExecutionGate:
         command_hash: str,
         extra: str = "",
     ) -> None:
+        success_events = {
+            "sandbox_execution_proposed",
+            "sandbox_execution_discarded",
+            "sandbox_execution_approved",
+            "sandbox_execution_approval_revoked",
+        }
         self.audit_logger.write(
             AuditEvent(
                 type=event_type,
                 timestamp=utc_now_iso(),
-                status="success" if "proposed" in event_type or "discarded" in event_type else "blocked",
+                status="success" if event_type in success_events else "blocked",
                 message=extra or f"Sandbox execution {event_type.replace('sandbox_execution_', '')}.",
                 metadata={
                     "proposal_id": proposal_id,

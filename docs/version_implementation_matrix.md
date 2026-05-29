@@ -194,3 +194,4 @@
 | `v1.7.3` | `v1.7.3-docker-container-plan` | `src/safecode/sandbox/docker.py`、`src/safecode/sandbox/adapter.py::DockerSandboxAdapter` | 生成 docker run argv preview；`sac sandbox plan pwd` 在 Docker backend 下显示 docker 参数 |
 | `v1.7.4` | `v1.7.4-sandbox-plan-security-evals` | `tests/test_sandbox_plan_security_evals.py` | 43 项跨 backend 安全评测覆盖 no-execution/network/filesystem/sensitive/audit/isolation |
 | `v1.7.5` | `v1.7.5-sandbox-execution-gate` | `src/safecode/sandbox/execution.py`、`src/safecode/cli.py::sandbox_propose` | 审批门：`sac sandbox propose`/`pending`/`discard`/`execute` 可用；execute 拒绝真实执行 |
+| `v1.7.6` | `v1.7.6-sandbox-approval-state` | `src/safecode/sandbox/approvals.py`、`src/safecode/sandbox/execution.py::SandboxExecutionGate` | 用户级审批：`sac sandbox approve`/`approvals`/`revoke` 可用；execute 区分 unapproved/approved-but-disabled |

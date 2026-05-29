@@ -152,7 +152,7 @@ class TestExecutionGate:
         result = gate.execute_pending()
         assert result.executed is False
         assert result.dry_run is True
-        assert "not enabled" in result.message
+        assert "NOT approved" in result.message
 
     def test_execute_pending_no_subprocess(self, tmp_path, monkeypatch):
         anchor = tmp_path.parent / f"anchors-{tmp_path.name}"
@@ -174,7 +174,7 @@ class TestExecutionGate:
         gate.execute_pending()
         events = AuditLogger(tmp_path).read_recent(limit=5)
         types = [e.type for e in events]
-        assert "sandbox_execution_dry_run_blocked" in types
+        assert "sandbox_execution_unapproved_blocked" in types
 
     def test_disallowed_command_plan_rejected(self, tmp_path):
         with pytest.raises(PermissionError):
@@ -254,7 +254,7 @@ class TestSandboxExecutionCli:
         result = runner.invoke(app, ["sandbox", "execute"])
 
         assert result.exit_code == 0
-        assert "Real sandbox execution is not enabled in v1.7.5" in result.output
+        assert "NOT approved" in result.output
         assert "Executed:" in result.output
         assert len(called) == 0
 

@@ -31,6 +31,7 @@ from safecode.patch.validator import PatchValidationError
 from safecode.project.rules import ProjectRules
 from safecode.report.render import ReportRenderer
 from safecode.release.checklist import render_release_checklist
+from safecode.sandbox.approvals import SandboxExecutionApprovalStore
 from safecode.sandbox.execution import SandboxExecutionGate, SandboxExecutionProposalStore
 from safecode.sandbox.factory import SandboxAdapterFactory
 from safecode.sandbox.planner import SandboxPlanner
@@ -861,10 +862,16 @@ def sandbox_discard() -> None:
 
 @sandbox_app.command("execute")
 def sandbox_execute() -> None:
-    """Attempt sandbox execution. Refused in v1.7.5."""
+    """Attempt sandbox execution. Refused in v1.7.6."""
     project_root = Path.cwd()
     gate = SandboxExecutionGate(project_root)
     result = gate.execute_pending()
+
+    color = "yellow"
+    if "NOT approved" in result.message:
+        color = "red"
+    elif "approved" in result.message:
+        color = "yellow"
 
     console.print(
         Panel.fit(
@@ -872,10 +879,88 @@ def sandbox_execute() -> None:
             f"Backend: {result.backend}\n"
             f"Executed: [bold red]no[/bold red]\n"
             f"Dry Run: [bold yellow]true[/bold yellow]\n\n"
-            f"{result.message}",
+            f"[{color}]{result.message}[/{color}]",
             title="Sandbox Execution Result",
         )
     )
+
+
+@sandbox_app.command("approve")
+def sandbox_approve(
+    ttl_minutes: int = typer.Option(30, "--ttl-minutes", min=1, help="Approval TTL in minutes."),
+) -> None:
+    """Approve the pending sandbox execution proposal. Does NOT execute."""
+    project_root = Path.cwd()
+    gate = SandboxExecutionGate(project_root)
+    approval = gate.approve(ttl_minutes=ttl_minutes)
+
+    if approval is None:
+        console.print("[yellow]No pending sandbox execution proposal to approve.[/yellow]")
+        console.print("[yellow]Run 'sac sandbox propose' first.[/yellow]")
+        return
+
+    approval_store = SandboxExecutionApprovalStore(project_root)
+    console.print(
+        Panel.fit(
+            f"Proposal ID: {approval.proposal_id}\n"
+            f"Backend: {approval.backend}\n"
+            f"Approved By: {approval.approved_by}\n"
+            f"Approved At: {approval.approved_at[:19]}\n"
+            f"Expires At: {approval.expires_at[:19]}\n"
+            f"Policy: {approval.policy_version}\n\n"
+            f"Approval path: {approval_store.approval_path_for(approval.proposal_id)}",
+            title="Sandbox Execution Approved",
+        )
+    )
+    console.print("[yellow]This approval does NOT enable execution in v1.7.6.[/yellow]")
+
+
+@sandbox_app.command("approvals")
+def sandbox_approvals() -> None:
+    """Show approval status for the pending sandbox execution proposal."""
+    project_root = Path.cwd()
+    gate = SandboxExecutionGate(project_root)
+    proposal = gate.load_pending()
+
+    if proposal is None:
+        console.print("[yellow]No pending sandbox execution proposal.[/yellow]")
+        return
+
+    approval_store = SandboxExecutionApprovalStore(project_root)
+    approval = approval_store.load_approval(proposal.proposal_id)
+    approved = approval_store.is_approved(
+        proposal_id=proposal.proposal_id,
+        backend=proposal.backend,
+        command_hash=proposal.command_hash,
+        preview_hash=proposal.preview_hash,
+    )
+
+    table = Table(title="Sandbox Execution Approval Status")
+    table.add_column("Field")
+    table.add_column("Value")
+    table.add_row("Proposal ID", proposal.proposal_id)
+    table.add_row("Backend", proposal.backend)
+    table.add_row("Command", " ".join(proposal.command))
+    table.add_row("Approved", "[green]yes[/green]" if approved else "[red]no[/red]")
+    if approval:
+        table.add_row("Approved By", approval.approved_by)
+        table.add_row("Approved At", approval.approved_at[:19])
+        table.add_row("Expires At", approval.expires_at[:19])
+        table.add_row("Policy", approval.policy_version)
+    console.print(table)
+
+
+@sandbox_app.command("revoke")
+def sandbox_revoke() -> None:
+    """Revoke approval for the pending sandbox execution proposal."""
+    project_root = Path.cwd()
+    gate = SandboxExecutionGate(project_root)
+    approval = gate.revoke()
+
+    if approval:
+        console.print(f"[green]Approval revoked for proposal {approval.proposal_id}.[/green]")
+    else:
+        console.print("[yellow]No approval to revoke for current pending proposal.[/yellow]")
 
 
 @app.command("rules")
