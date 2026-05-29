@@ -190,3 +190,4 @@
 |---|---|---|---|
 | `v1.7.0` | `v1.7.0-sandbox-adapter-contract` | `src/safecode/sandbox/adapter.py`、`src/safecode/sandbox/factory.py`、`src/safecode/cli.py::sandbox_plan` | 生成 sandbox dry-run plan；`sac sandbox plan pwd` 显示计划不执行 |
 | `v1.7.1` | `v1.7.1-macos-seatbelt-profile-plan` | `src/safecode/sandbox/seatbelt.py`、`src/safecode/sandbox/adapter.py::MacOSSeatbeltAdapter` | 生成 macOS .sb profile preview；`sac sandbox plan pwd` 显示 profile |
+| `v1.7.2` | `v1.7.2-linux-bubblewrap-args-plan` | `src/safecode/sandbox/bubblewrap.py`、`src/safecode/sandbox/adapter.py::LinuxBubblewrapAdapter` | 生成 bwrap argv preview；`sac sandbox plan pwd` 在 Linux backend 下显示 bwrap 参数 |

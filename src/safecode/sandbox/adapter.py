@@ -46,6 +46,9 @@ class SandboxExecutionPlan:
     profile_preview: str | None = None
     profile_backend: str | None = None
     profile_warnings: list[str] = field(default_factory=list)
+    args_preview: list[str] = field(default_factory=list)
+    args_backend: str | None = None
+    args_warnings: list[str] = field(default_factory=list)
 
 
 class SandboxAdapter(Protocol):
@@ -154,33 +157,58 @@ class MacOSSeatbeltAdapter:
 
 
 class LinuxBubblewrapAdapter:
-    """Adapter for Linux bubblewrap. Dry-run only in v1.7.0."""
+    """Adapter for Linux bubblewrap. Dry-run only — generates argv preview."""
 
-    def __init__(self, capability: SandboxCapability) -> None:
+    def __init__(self, capability: SandboxCapability, project_root: Path | None = None, config=None) -> None:
         self._capability = capability
+        self._project_root = project_root
+        self._config = config
 
     backend = SandboxBackend.LINUX_BUBBLEWRAP
 
     def build_plan(self, request: SandboxExecutionRequest) -> SandboxExecutionPlan:
-        warnings = list(self._capability.limitations) if self._capability.limitations else []
+        from safecode.sandbox.bubblewrap import BubblewrapArgsBuilder
+        from safecode.config import SafeCodeConfig
+
+        adapter_warnings = list(self._capability.limitations) if self._capability.limitations else []
+        cfg = self._config if self._config else SafeCodeConfig()
+        effective_request = request
+        if request.allow_network and not cfg.sandbox.network_enabled:
+            effective_request = replace(request, allow_network=False)
+            adapter_warnings.append("Network access was requested but disabled by SafeCodeConfig.")
         writable = [str(p) for p in request.writable_paths]
+
+        args_preview: list[str] = []
+        args_backend = None
+        args_warnings: list[str] = []
+
+        if self._project_root is not None:
+            bwrap_plan = BubblewrapArgsBuilder(self._project_root, cfg).build(effective_request)
+            args_preview = list(bwrap_plan.argv)
+            args_backend = "linux_bubblewrap"
+            args_warnings = list(bwrap_plan.warnings)
+            writable = list(bwrap_plan.bind_writable_paths)
+
         return SandboxExecutionPlan(
             backend=SandboxBackend.LINUX_BUBBLEWRAP,
-            command=list(request.command),
-            cwd=str(request.cwd),
-            network_enabled=request.allow_network,
-            readonly_filesystem=request.readonly_filesystem,
+            command=list(effective_request.command),
+            cwd=str(effective_request.cwd),
+            network_enabled=effective_request.allow_network,
+            readonly_filesystem=effective_request.readonly_filesystem,
             writable_paths=writable,
-            env_keys=sorted(request.env.keys()),
-            timeout_seconds=request.timeout_seconds,
-            warnings=warnings + [
+            env_keys=sorted(effective_request.env.keys()),
+            timeout_seconds=effective_request.timeout_seconds,
+            warnings=adapter_warnings + [
                 "bwrap requires user namespace support in the kernel.",
-                "v1.7.0 does not execute bwrap.",
+                "v1.7.2 generates bwrap args for preview only.",
             ],
             limitations=[
-                "v1.7.0 does not execute bubblewrap.",
-                "Actual bwrap argument construction is deferred to a future version.",
+                "v1.7.2 does not execute bubblewrap.",
+                "Args are for review purposes only.",
             ],
+            args_preview=args_preview,
+            args_backend=args_backend,
+            args_warnings=args_warnings,
         )
 
     def supports_execution(self) -> bool:

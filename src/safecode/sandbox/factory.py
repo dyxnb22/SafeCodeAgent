@@ -110,7 +110,7 @@ class SandboxAdapterFactory:
         if backend == SandboxBackend.LINUX_BUBBLEWRAP:
             cap = by_backend.get(SandboxBackend.LINUX_BUBBLEWRAP)
             if cap and cap.available:
-                return LinuxBubblewrapAdapter(cap)
+                return LinuxBubblewrapAdapter(cap, project_root=self.project_root, config=self.config)
 
         if backend == SandboxBackend.MACOS_SEATBELT:
             cap = by_backend.get(SandboxBackend.MACOS_SEATBELT)

@@ -723,10 +723,28 @@ def sandbox_plan(
             pw_lines = [f"- {w}" for w in exec_plan.profile_warnings]
             console.print(Panel("\n".join(pw_lines), title="[yellow]Profile Warnings[/yellow]"))
 
+    if exec_plan.args_preview:
+        console.print(
+            Panel.fit(
+                "[bold]Args generated for preview only.[/bold]\n"
+                "bwrap was NOT executed.",
+                title="Bwrap Args Preview",
+            )
+        )
+        arg_table = Table(title="bwrap argv")
+        arg_table.add_column("Index")
+        arg_table.add_column("Argument")
+        for i, arg in enumerate(exec_plan.args_preview):
+            arg_table.add_row(str(i), arg)
+        console.print(arg_table)
+        if exec_plan.args_warnings:
+            aw_lines = [f"- {w}" for w in exec_plan.args_warnings]
+            console.print(Panel("\n".join(aw_lines), title="[yellow]Args Warnings[/yellow]"))
+
     console.print(
         Panel.fit(
             "[bold yellow]This command was NOT executed.[/bold yellow]\n"
-            "v1.7.1 generates sandbox execution plans with profile preview only.\n"
+            "v1.7.x generates sandbox execution plans and backend previews only.\n"
             "Actual OS-level sandbox execution is deferred to a future version.",
             title="Dry Run",
         )

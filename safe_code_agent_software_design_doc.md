@@ -546,6 +546,19 @@ v1.7 在 v1.6.x 的逻辑边界和调研基础上，建立统一的 OS-level san
 
 **关键声明**：v1.7.1 只生成 profile preview，不调用 sandbox-exec。真实 macOS sandbox 执行留待后续版本。
 
+#### v1.7.2 Linux Bubblewrap args plan
+
+`v1.7.2` 为 Linux 后端补上了 Bubblewrap 参数生成能力，但仍然不执行 bwrap：
+
+- `BubblewrapArgsBuilder` 根据 `SandboxExecutionRequest` 和项目安全策略生成保守的 bwrap argv。
+- argv 规则：`bwrap --die-with-parent --new-session`、`--unshare-pid/ipc/uts`、network disabled 时 `--unshare-net`、`--ro-bind <project_root>` 和系统路径、`--tmpfs /tmp`、writable paths 通过 `FilesystemBoundary` 后用 `--bind` 绑定。
+- 不绑定整个 `/home`、`/tmp`、`/var`、`/private`、`/root`；敏感路径不出现在 writable bind 中。
+- `LinuxBubblewrapAdapter.build_plan()` 填充 `args_preview`、`args_backend`、`args_warnings` 字段。
+- CLI：`sac sandbox plan` 以 Rich Table 展示 bwrap argv preview。
+- 其他 adapter（Noop/MacOS/Docker）不填充 args_preview。
+
+**关键声明**：v1.7.2 只生成 bwrap argv preview，不调用 bwrap。真实 Linux bubblewrap 执行留待后续版本。
+
 #### v1.6 guardrails
 
 - MCP 写操作默认禁用。
