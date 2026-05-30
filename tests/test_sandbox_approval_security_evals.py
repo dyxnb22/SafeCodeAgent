@@ -120,6 +120,39 @@ class TestApprovalStorageTrust:
         p = store.approval_path_for("/etc/passwd")
         assert str(p.parent) == str(ad)
 
+    def test_approve_replaces_existing_symlink_without_following(self, tmp_path, monkeypatch):
+        ad = _approval_dir(tmp_path)
+        monkeypatch.setenv("SAFECODE_SANDBOX_APPROVAL_DIR", str(ad))
+        store = SandboxExecutionApprovalStore(tmp_path)
+        path = store.approval_path_for("p1")
+        path.parent.mkdir(parents=True, exist_ok=True)
+        outside_target = tmp_path.parent / f"outside-approval-{tmp_path.name}.json"
+        outside_target.write_text("outside must not change", encoding="utf-8")
+        path.symlink_to(outside_target)
+
+        store.approve("p1", "none", "abc", None)
+
+        assert outside_target.read_text(encoding="utf-8") == "outside must not change"
+        assert path.exists()
+        assert not path.is_symlink()
+        assert store.is_approved("p1", "none", "abc", None) is True
+
+    def test_approval_atomic_write_cleans_temp_on_replace_failure(self, tmp_path, monkeypatch):
+        ad = _approval_dir(tmp_path)
+        monkeypatch.setenv("SAFECODE_SANDBOX_APPROVAL_DIR", str(ad))
+        store = SandboxExecutionApprovalStore(tmp_path)
+
+        def fail_replace(_src, _dst):
+            raise OSError("replace failed")
+
+        monkeypatch.setattr("safecode.sandbox.approvals.os.replace", fail_replace)
+
+        with pytest.raises(OSError, match="replace failed"):
+            store.approve("p1", "none", "abc", None)
+
+        assert list(ad.glob("*.tmp")) == []
+        assert store.load_approval("p1") is None
+
 
 # ── B. Approval binding integrity ─────────────────────────────────────
 

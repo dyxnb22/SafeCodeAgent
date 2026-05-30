@@ -1,7 +1,7 @@
 {
   "project": "SafeCode Agent",
   "current_implemented_tag": "v1.8.6",
-  "current_local_version": "v1.8.9",
+  "current_local_version": "v1.8.10",
   "current_baseline": ".claude/skills/current/SKILL.md",
   "runtime_summary": ".claude/skills/shared/core-runtime.md",
   "version_index": "docs/version_implementation_matrix.md",
@@ -121,7 +121,7 @@
       "range": "v1.8.x",
       "name": "Local Policy-Gated Sandbox Execution",
       "depends_on": "v1.7.x",
-      "notes": "Noop adapter executes commands through SafeCode logical boundaries when all preflight checks pass. macOS/Linux/Docker backends remain dry-run. Result maintenance includes stats, safe prune, confirmed-prune audit, atomic result record save, and atomic pending proposal save."
+      "notes": "Noop adapter executes commands through SafeCode logical boundaries when all preflight checks pass. macOS/Linux/Docker backends remain dry-run. Result maintenance includes stats, safe prune, confirmed-prune audit, atomic result record save, atomic pending proposal save, and atomic approval save."
     }
   ],
   "latest_tags": [
@@ -141,6 +141,7 @@
   "local_versions": [
     "v1.8.7",
     "v1.8.8",
-    "v1.8.9"
+    "v1.8.9",
+    "v1.8.10"
   ]
 }

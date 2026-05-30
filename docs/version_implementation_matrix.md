@@ -213,3 +213,4 @@
 | `v1.8.7` | `v1.8.7-sandbox-execution-maintenance-audit` | `src/safecode/cli.py::sandbox_executions_prune` | confirmed prune 写入 `sandbox_execution_results_pruned` audit event；dry-run 不写 destructive event；元数据只含计数、过滤条件和截断 proposal ids；2 项新安全评测 |
 | `v1.8.8` | `v1.8.8-sandbox-result-atomic-save` | `src/safecode/sandbox/execution.py::SandboxExecutionResultStore.save` | result record 使用同目录临时文件 + `os.replace` 原子写入；已有同名 symlink 被替换而不被跟随；replace 失败清理临时文件；2 项新安全评测 |
 | `v1.8.9` | `v1.8.9-sandbox-proposal-atomic-save` | `src/safecode/sandbox/execution.py::SandboxExecutionProposalStore._write` | pending sandbox proposal 使用同目录临时文件 + `os.replace` 原子写入；broken symlink 被替换而不被跟随；replace 失败清理临时文件；2 项新安全评测 |
+| `v1.8.10` | `v1.8.10-sandbox-approval-atomic-save` | `src/safecode/sandbox/approvals.py::SandboxExecutionApprovalStore._atomic_write_json` | approval approve/consume/claim 统一使用同目录随机临时文件 + `os.replace`；同名 symlink 被替换而不被跟随；replace 失败清理临时文件；2 项新安全评测 |

@@ -13,6 +13,7 @@ import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from uuid import uuid4
 
 from safecode import __version__ as SAFECODE_VERSION
 
@@ -80,8 +81,6 @@ class SandboxExecutionApprovalStore:
             approved_by=self._current_user(),
             policy_version=SANDBOX_APPROVAL_POLICY_VERSION,
         )
-        path = self._approval_path_for(proposal_id)
-        path.parent.mkdir(parents=True, exist_ok=True)
         payload = {
             "proposal_id": approval.proposal_id,
             "approved_at": approval.approved_at,
@@ -95,7 +94,7 @@ class SandboxExecutionApprovalStore:
             "policy_version": approval.policy_version,
             "consumed": False,
         }
-        path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        self._atomic_write_json(self._approval_path_for(proposal_id), payload)
         return approval
 
     def is_approved(
@@ -142,7 +141,7 @@ class SandboxExecutionApprovalStore:
         except (json.JSONDecodeError, OSError):
             return False
         data["consumed"] = True
-        path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        self._atomic_write_json(path, data)
         return True
 
     def claim_for_execution(
@@ -216,12 +215,7 @@ class SandboxExecutionApprovalStore:
             except (json.JSONDecodeError, OSError):
                 return False
             data["consumed"] = True
-            tmp_path = path.with_suffix(".tmp")
-            tmp_path.write_text(
-                json.dumps(data, ensure_ascii=False, indent=2) + "\n",
-                encoding="utf-8",
-            )
-            os.replace(tmp_path, path)
+            self._atomic_write_json(path, data)
             return True
         finally:
             try:
@@ -264,6 +258,23 @@ class SandboxExecutionApprovalStore:
     def _approval_path_for(self, proposal_id: str) -> Path:
         safe_id = hashlib.sha256(proposal_id.encode("utf-8")).hexdigest()
         return self._approval_root / f"{safe_id}.json"
+
+    @staticmethod
+    def _atomic_write_json(path: Path, payload: dict) -> None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp_path = path.with_name(f".{path.name}.{uuid4().hex}.tmp")
+        try:
+            tmp_path.write_text(
+                json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
+                encoding="utf-8",
+            )
+            os.replace(tmp_path, path)
+        finally:
+            if tmp_path.exists():
+                try:
+                    tmp_path.unlink()
+                except OSError:
+                    pass
 
     def _project_key(self) -> str:
         return hashlib.sha256(self.project_root.as_posix().encode("utf-8")).hexdigest()
