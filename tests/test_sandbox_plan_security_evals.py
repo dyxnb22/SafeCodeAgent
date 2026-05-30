@@ -429,14 +429,16 @@ class TestBackendIsolation:
         assert len(plan.args_preview) == 0
         assert len(plan.container_preview) == 0
 
-    def test_all_adapters_supports_execution_false(self):
+    def test_os_adapters_supports_execution_false(self):
+        # v1.8.0: Noop adapter now supports execution (local policy-gated).
+        # macOS/Linux/Docker backends remain dry-run only.
         for adapter in [
-            NoopSandboxAdapter(),
             MacOSSeatbeltAdapter(_cap(SandboxBackend.MACOS_SEATBELT)),
             LinuxBubblewrapAdapter(_cap(SandboxBackend.LINUX_BUBBLEWRAP)),
             DockerSandboxAdapter(_cap(SandboxBackend.DOCKER)),
         ]:
             assert adapter.supports_execution() is False
+        assert NoopSandboxAdapter().supports_execution() is True
 
 
 # ── regression ────────────────────────────────────────────────────────

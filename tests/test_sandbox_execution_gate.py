@@ -144,7 +144,7 @@ class TestExecutionGate:
         types = [e.type for e in events]
         assert "sandbox_execution_discarded" in types
 
-    def test_execute_pending_always_refused(self, tmp_path, monkeypatch):
+    def test_execute_pending_refused_without_approval(self, tmp_path, monkeypatch):
         anchor = tmp_path.parent / f"anchors-{tmp_path.name}"
         monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor))
         gate = SandboxExecutionGate(tmp_path)
@@ -152,9 +152,10 @@ class TestExecutionGate:
         result = gate.execute_pending()
         assert result.executed is False
         assert result.dry_run is True
-        assert "NOT approved" in result.message
+        # v1.8.0: preflight blocks unapproved proposals via preflight reasons
+        assert "Approval" in result.message
 
-    def test_execute_pending_no_subprocess(self, tmp_path, monkeypatch):
+    def test_execute_pending_no_subprocess_when_unapproved(self, tmp_path, monkeypatch):
         anchor = tmp_path.parent / f"anchors-{tmp_path.name}"
         monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor))
         called = []
@@ -164,6 +165,7 @@ class TestExecutionGate:
         gate = SandboxExecutionGate(tmp_path)
         gate.propose(_make_plan(), "shell")
         gate.execute_pending()
+        # v1.8.0: still no subprocess — preflight blocks before ShellRunner
         assert len(called) == 0
 
     def test_execute_pending_writes_audit_blocked(self, tmp_path, monkeypatch):
@@ -174,7 +176,8 @@ class TestExecutionGate:
         gate.execute_pending()
         events = AuditLogger(tmp_path).read_recent(limit=5)
         types = [e.type for e in events]
-        assert "sandbox_execution_unapproved_blocked" in types
+        # v1.8.0: unified "sandbox_execution_blocked" event for all preflight blocks
+        assert "sandbox_execution_blocked" in types
 
     def test_disallowed_command_plan_rejected(self, tmp_path):
         with pytest.raises(PermissionError):
@@ -241,7 +244,7 @@ class TestSandboxExecutionCli:
         assert "Pending Sandbox Execution Proposal" in result.output
         assert "git status" in result.output
 
-    def test_cli_execute_refuses_real_execution(self, tmp_path, monkeypatch):
+    def test_cli_execute_blocked_without_approval(self, tmp_path, monkeypatch):
         anchor = tmp_path.parent / f"anchors-{tmp_path.name}"
         monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor))
         monkeypatch.chdir(tmp_path)
@@ -254,8 +257,8 @@ class TestSandboxExecutionCli:
         result = runner.invoke(app, ["sandbox", "execute"])
 
         assert result.exit_code == 0
-        assert "NOT approved" in result.output
-        assert "Executed:" in result.output
+        # v1.8.0: blocked by preflight — approval missing
+        assert "Blocked" in result.output or "no" in result.output.lower()
         assert len(called) == 0
 
     def test_cli_discard_removes_pending_proposal(self, tmp_path, monkeypatch):

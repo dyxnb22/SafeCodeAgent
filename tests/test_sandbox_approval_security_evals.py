@@ -233,20 +233,29 @@ class TestExecutionGateBehavior:
         result = gate.execute_pending()
         assert result.executed is False
         events = AuditLogger(tmp_path).read_recent(limit=5)
-        assert any(e.type == "sandbox_execution_unapproved_blocked" for e in events)
+        # v1.8.0: unified "sandbox_execution_blocked" for all preflight blocks
+        assert any(e.type == "sandbox_execution_blocked" for e in events)
 
-    def test_approved_execute_still_false(self, tmp_path, monkeypatch):
+    def test_approved_execute_still_false_unsupported_backend(self, tmp_path, monkeypatch):
         ad = _approval_dir(tmp_path)
         monkeypatch.setenv("SAFECODE_SANDBOX_APPROVAL_DIR", str(ad))
         anchor = tmp_path.parent / f"anchors-{tmp_path.name}"
         monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor))
         gate = SandboxExecutionGate(tmp_path)
-        gate.propose(_make_plan(), "shell")
+        # v1.8.0: use macOS backend which still returns supports_execution=False
+        gate.propose(
+            _make_plan(
+                backend=SandboxBackend.MACOS_SEATBELT,
+                profile_preview="(deny default)",
+                profile_backend="macos_seatbelt",
+            ),
+            "shell",
+        )
         gate.approve()
         result = gate.execute_pending()
         assert result.executed is False
         events = AuditLogger(tmp_path).read_recent(limit=5)
-        assert any(e.type == "sandbox_execution_approved_but_disabled" for e in events)
+        assert any(e.type == "sandbox_execution_blocked" for e in events)
 
     def test_approve_no_subprocess(self, tmp_path, monkeypatch):
         ad = _approval_dir(tmp_path)
@@ -269,11 +278,19 @@ class TestExecutionGateBehavior:
         gate.revoke()
         assert len(called) == 0
 
-    def test_execute_no_subprocess(self, tmp_path, monkeypatch):
+    def test_execute_no_subprocess_unsupported_backend(self, tmp_path, monkeypatch):
         ad = _approval_dir(tmp_path)
         monkeypatch.setenv("SAFECODE_SANDBOX_APPROVAL_DIR", str(ad))
         gate = SandboxExecutionGate(tmp_path)
-        gate.propose(_make_plan(), "shell")
+        # v1.8.0: macOS backend still blocks, so subprocess never called
+        gate.propose(
+            _make_plan(
+                backend=SandboxBackend.MACOS_SEATBELT,
+                profile_preview="(deny default)",
+                profile_backend="macos_seatbelt",
+            ),
+            "shell",
+        )
         gate.approve()
         called = []
         monkeypatch.setattr(subprocess, "run", lambda *a, **kw: called.append(1))
@@ -291,7 +308,8 @@ class TestExecutionGateBehavior:
         gate.revoke()
         gate.execute_pending()
         events = AuditLogger(tmp_path).read_recent(limit=5)
-        assert any(e.type == "sandbox_execution_unapproved_blocked" for e in events)
+        # v1.8.0: unified "sandbox_execution_blocked" for all preflight blocks
+        assert any(e.type == "sandbox_execution_blocked" for e in events)
 
     def test_duplicate_proposal_still_blocked(self, tmp_path, monkeypatch):
         ad = _approval_dir(tmp_path)
@@ -407,20 +425,29 @@ class TestAuditSemantics:
         gate.propose(_make_plan(), "shell")
         gate.execute_pending()
         events = AuditLogger(tmp_path).read_recent(limit=5)
-        ev = [e for e in events if e.type == "sandbox_execution_unapproved_blocked"][0]
+        # v1.8.0: unified "sandbox_execution_blocked" for all preflight blocks
+        ev = [e for e in events if e.type == "sandbox_execution_blocked"][0]
         assert ev.status == "blocked"
 
-    def test_approved_but_disabled_status_is_blocked(self, tmp_path, monkeypatch):
+    def test_approved_but_disabled_status_is_blocked_unsupported_backend(self, tmp_path, monkeypatch):
         ad = _approval_dir(tmp_path)
         monkeypatch.setenv("SAFECODE_SANDBOX_APPROVAL_DIR", str(ad))
         anchor = tmp_path.parent / f"anchors-{tmp_path.name}"
         monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor))
         gate = SandboxExecutionGate(tmp_path)
-        gate.propose(_make_plan(), "shell")
+        # v1.8.0: use macOS backend which still blocks execution
+        gate.propose(
+            _make_plan(
+                backend=SandboxBackend.MACOS_SEATBELT,
+                profile_preview="(deny default)",
+                profile_backend="macos_seatbelt",
+            ),
+            "shell",
+        )
         gate.approve()
         gate.execute_pending()
         events = AuditLogger(tmp_path).read_recent(limit=5)
-        ev = [e for e in events if e.type == "sandbox_execution_approved_but_disabled"][0]
+        ev = [e for e in events if e.type == "sandbox_execution_blocked"][0]
         assert ev.status == "blocked"
 
     def test_audit_no_env_values(self, tmp_path, monkeypatch):

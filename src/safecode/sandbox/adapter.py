@@ -73,7 +73,12 @@ class SandboxAdapter(Protocol):
 
 
 class NoopSandboxAdapter:
-    """Adapter that always produces a dry-run plan with no OS sandbox."""
+    """Local policy-gated execution — SafeCode logical boundaries, no OS sandbox.
+
+    This adapter does NOT provide kernel-enforced isolation. It runs commands
+    through SafeCode's own CommandPolicy, NetworkPolicy, and FilesystemBoundary
+    checks. It is the only adapter in v1.8.0 that supports execution.
+    """
 
     backend = SandboxBackend.NONE
 
@@ -99,7 +104,7 @@ class NoopSandboxAdapter:
         )
 
     def supports_execution(self) -> bool:
-        return False
+        return True
 
 
 class MacOSSeatbeltAdapter:

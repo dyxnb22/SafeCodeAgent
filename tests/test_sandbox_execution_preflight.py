@@ -81,7 +81,15 @@ class TestApprovalChecks:
         ad = _approval_dir(tmp_path)
         monkeypatch.setenv("SAFECODE_SANDBOX_APPROVAL_DIR", str(ad))
         gate = _setup_gate(tmp_path, monkeypatch)
-        gate.propose(_make_plan(), "shell")
+        # v1.8.0: macOS backend still returns supports_execution=False
+        gate.propose(
+            _make_plan(
+                backend=SandboxBackend.MACOS_SEATBELT,
+                profile_preview="(deny default)",
+                profile_backend="macos_seatbelt",
+            ),
+            "shell",
+        )
         gate.approve()
         result = SandboxExecutionPreflight(tmp_path).run()
         assert result.approval_valid is True
@@ -262,7 +270,15 @@ class TestRegression:
         anchor = tmp_path.parent / f"anchors-{tmp_path.name}"
         monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor))
         gate = _setup_gate(tmp_path, monkeypatch)
-        gate.propose(_make_plan(), "shell")
+        # v1.8.0: macOS backend still blocks execution (supports_execution=False)
+        gate.propose(
+            _make_plan(
+                backend=SandboxBackend.MACOS_SEATBELT,
+                profile_preview="(deny default)",
+                profile_backend="macos_seatbelt",
+            ),
+            "shell",
+        )
         a = gate.approve()
         assert a is not None
         r = gate.execute_pending()

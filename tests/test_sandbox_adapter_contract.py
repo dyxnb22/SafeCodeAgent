@@ -53,8 +53,9 @@ class TestNoopAdapter:
         assert plan.dry_run is True
         assert plan.backend == SandboxBackend.NONE
 
-    def test_supports_execution_is_false(self):
-        assert NoopSandboxAdapter().supports_execution() is False
+    def test_supports_execution_for_noop(self):
+        # v1.8.0: Noop adapter supports local policy-gated execution.
+        assert NoopSandboxAdapter().supports_execution() is True
 
     def test_env_values_not_in_plan(self):
         plan = NoopSandboxAdapter().build_plan(

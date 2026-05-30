@@ -1,14 +1,15 @@
-"""Sandbox execution gate for v1.7.5.
+"""Sandbox execution gate for v1.7.5+.  Real execution added in v1.8.0.
 
-Provides proposal models, persistence, and gate logic for pending sandbox
-execution requests. All operations are dry-run only — no external commands
-are ever launched.
+v1.7.5: proposal models, persistence, dry-run rejection only.
+v1.8.0: Noop adapter executes commands through SafeCode logical boundaries
+when all preflight checks pass. macOS/Linux/Docker backends remain dry-run.
 """
 
 from __future__ import annotations
 
 import hashlib
 import json
+import shlex
 from dataclasses import dataclass, field
 from pathlib import Path
 from uuid import uuid4
@@ -18,6 +19,7 @@ from safecode.audit.models import AuditEvent
 from safecode.config import SafeCodeConfig
 from safecode.sandbox.adapter import SandboxExecutionPlan
 from safecode.sandbox.approvals import SandboxExecutionApproval, SandboxExecutionApprovalStore
+from safecode.shell.runner import ShellRunner
 from safecode.utils.time import utc_now_iso
 
 
@@ -253,49 +255,84 @@ class SandboxExecutionGate:
         return SandboxExecutionApprovalStore(self.project_root).load_approval(proposal.proposal_id)
 
     def execute_pending(self) -> SandboxExecutionResult:
-        """Refused in v1.7.6. Checks approval status for richer error reporting."""
-        proposal = self.store.load_pending()
-        proposal_id = proposal.proposal_id if proposal else "unknown"
-        backend = proposal.backend if proposal else "none"
-        command_head = proposal.command[0] if proposal and proposal.command else ""
-        command_hash = proposal.command_hash if proposal else ""
+        """Execute the pending proposal when all preflight checks pass.
 
+        v1.8.0: Only the Noop adapter supports execution. The command is
+        run through SafeCode's ShellRunner (command policy + network policy
+        + filesystem boundary). macOS/Linux/Docker backends remain dry-run.
+        """
+        proposal = self.store.load_pending()
         if proposal is None:
             msg = "No pending sandbox execution proposal."
-            event = "sandbox_execution_dry_run_blocked"
-        else:
-            approval_store = SandboxExecutionApprovalStore(self.project_root)
-            is_approved = approval_store.is_approved(
-                proposal_id=proposal_id,
-                backend=backend,
-                command_hash=command_hash,
-                preview_hash=proposal.preview_hash,
+            self._audit(
+                "sandbox_execution_blocked",
+                "unknown",
+                "none",
+                "",
+                "",
+                "",
+                msg,
             )
-            if not is_approved:
-                msg = "Sandbox execution proposal is NOT approved. Use 'sac sandbox approve' first."
-                event = "sandbox_execution_unapproved_blocked"
-            else:
-                msg = "Proposal is approved, but real sandbox execution is NOT enabled in v1.7.6."
-                event = "sandbox_execution_approved_but_disabled"
+            return SandboxExecutionResult(
+                proposal_id="unknown",
+                executed=False,
+                exit_code=None,
+                stdout="",
+                stderr=msg,
+                backend="none",
+                dry_run=True,
+                message=msg,
+            )
+
+        from safecode.sandbox.preflight import SandboxExecutionPreflight  # lazy to avoid circular import
+
+        preflight = SandboxExecutionPreflight(self.project_root, self.config)
+        check = preflight.run()
+
+        if not check.allowed:
+            reasons = "; ".join(check.reasons) if check.reasons else "Preflight check failed."
+            self._audit(
+                "sandbox_execution_blocked",
+                proposal.proposal_id,
+                proposal.backend,
+                proposal.purpose,
+                proposal.command[0] if proposal.command else "",
+                proposal.command_hash,
+                reasons,
+            )
+            return SandboxExecutionResult(
+                proposal_id=proposal.proposal_id,
+                executed=False,
+                exit_code=None,
+                stdout="",
+                stderr=reasons,
+                backend=proposal.backend,
+                dry_run=True,
+                message=reasons,
+            )
+
+        cmd_text = shlex.join(proposal.command)
+        runner = ShellRunner(self.project_root, self.config)
+        result = runner.run(cmd_text, approved=True)
 
         self._audit(
-            event,
-            proposal_id,
-            backend,
-            proposal.purpose if proposal else "",
-            command_head,
-            command_hash,
-            msg,
+            "sandbox_execution_completed",
+            proposal.proposal_id,
+            proposal.backend,
+            proposal.purpose,
+            proposal.command[0] if proposal.command else "",
+            proposal.command_hash,
+            f"exit_code={result.exit_code} duration_ms={result.duration_ms}",
         )
         return SandboxExecutionResult(
-            proposal_id=proposal_id,
-            executed=False,
-            exit_code=None,
-            stdout="",
-            stderr=msg,
-            backend=backend,
-            dry_run=True,
-            message=msg,
+            proposal_id=proposal.proposal_id,
+            executed=result.executed,
+            exit_code=result.exit_code,
+            stdout=result.stdout,
+            stderr=result.stderr,
+            backend=proposal.backend,
+            dry_run=False,
+            message=f"Command executed via {proposal.backend} backend. Exit code: {result.exit_code}.",
         )
 
     @property
@@ -344,6 +381,7 @@ class SandboxExecutionGate:
             "sandbox_execution_discarded",
             "sandbox_execution_approved",
             "sandbox_execution_approval_revoked",
+            "sandbox_execution_completed",
         }
         self.audit_logger.write(
             AuditEvent(
@@ -355,7 +393,7 @@ class SandboxExecutionGate:
                     "proposal_id": proposal_id,
                     "backend": backend,
                     "purpose": purpose,
-                    "dry_run": "true",
+                    "dry_run": "false" if event_type == "sandbox_execution_completed" else "true",
                     "command_head": command_head,
                     "command_hash": command_hash[:16],
                 },

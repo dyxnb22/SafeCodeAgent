@@ -2,6 +2,7 @@
 
 import json
 from pathlib import Path
+from typing import Optional
 
 import typer
 from rich.console import Console
@@ -863,27 +864,42 @@ def sandbox_discard() -> None:
 
 @sandbox_app.command("execute")
 def sandbox_execute() -> None:
-    """Attempt sandbox execution. Refused in v1.7.6."""
+    """Execute the pending sandbox proposal when all checks pass.
+
+    v1.8.0: Only the Noop backend supports execution (local policy-gated).
+    macOS/Linux/Docker backends remain dry-run only.
+    """
     project_root = Path.cwd()
     gate = SandboxExecutionGate(project_root)
     result = gate.execute_pending()
 
-    color = "yellow"
-    if "NOT approved" in result.message:
-        color = "red"
-    elif "approved" in result.message:
-        color = "yellow"
-
-    console.print(
-        Panel.fit(
-            f"Proposal ID: {result.proposal_id}\n"
-            f"Backend: {result.backend}\n"
-            f"Executed: [bold red]no[/bold red]\n"
-            f"Dry Run: [bold yellow]true[/bold yellow]\n\n"
-            f"[{color}]{result.message}[/{color}]",
-            title="Sandbox Execution Result",
+    if result.executed:
+        exit_color = "green" if result.exit_code == 0 else "red"
+        console.print(
+            Panel.fit(
+                f"Proposal ID: {result.proposal_id}\n"
+                f"Backend: {result.backend}\n"
+                f"Executed: [bold green]yes[/bold green]\n"
+                f"Dry Run: [bold]false[/bold]\n"
+                f"Exit Code: [{exit_color}]{result.exit_code}[/{exit_color}]",
+                title="Sandbox Execution Result",
+            )
         )
-    )
+        if result.stdout:
+            console.print(Panel(result.stdout.rstrip(), title="stdout", border_style="dim"))
+        if result.stderr:
+            console.print(Panel(result.stderr.rstrip(), title="stderr", border_style="dim"))
+    else:
+        console.print(
+            Panel.fit(
+                f"Proposal ID: {result.proposal_id}\n"
+                f"Backend: {result.backend}\n"
+                f"Executed: [bold red]no[/bold red]\n"
+                f"Dry Run: [bold yellow]true[/bold yellow]\n\n"
+                f"[red]{result.message}[/red]",
+                title="Sandbox Execution Blocked",
+            )
+        )
 
 
 @sandbox_app.command("approve")
@@ -1096,7 +1112,7 @@ def doctor() -> None:
 @logs_app.command("show")
 def logs_show(
     limit: int = typer.Option(20, "--limit", "-n"),
-    level: str | None = typer.Option(None, "--level"),
+    level: Optional[str] = typer.Option(None, "--level"),
     traceback_: bool = typer.Option(False, "--traceback", help="Show traceback text."),
 ) -> None:
     """Show recent structured runtime logs."""
