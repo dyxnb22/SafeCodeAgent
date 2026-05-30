@@ -205,3 +205,4 @@
 |---|---|---|---|
 | `v1.8.0` | `v1.8.0-sandbox-execution-mvp` | `src/safecode/sandbox/execution.py::execute_pending`、`src/safecode/sandbox/adapter.py::NoopSandboxAdapter`、`src/safecode/cli.py::sandbox_execute` | Noop adapter 在 preflight 全通过时执行 ShellRunner；macOS/Linux/Docker 保持 dry-run；30 项安全评测 |
 | `v1.8.1` | `v1.8.1-single-use-sandbox-approval` | `src/safecode/sandbox/approvals.py::SandboxExecutionApprovalStore.consume`、`src/safecode/sandbox/execution.py::execute_pending` | approval 单次消费；执行成功后不可重用；blocked preflight 不消费；7 项新安全评测 |
+| `v1.8.2` | `v1.8.2-atomic-sandbox-approval-consumption` | `src/safecode/sandbox/approvals.py::claim_for_execution`、`src/safecode/sandbox/execution.py::execute_pending` | 原子 claim 关闭 TOCTOU 并发窗口；lock file + os.replace；stale lock 检测；13 项新安全评测 |

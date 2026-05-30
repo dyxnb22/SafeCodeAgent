@@ -9,6 +9,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -143,6 +144,90 @@ class SandboxExecutionApprovalStore:
         data["consumed"] = True
         path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         return True
+
+    def claim_for_execution(
+        self,
+        proposal_id: str,
+        backend: str,
+        command_hash: str,
+        preview_hash: str | None,
+    ) -> bool:
+        """Atomically claim an approval for execution.
+
+        Validates all binding fields match and the approval is still valid,
+        then atomically marks ``consumed=True`` so no concurrent caller can
+        claim the same approval. Returns True if claimed successfully.
+
+        Uses a lock file + atomic ``os.replace`` to prevent two processes
+        from simultaneously claiming the same approval.
+        """
+        path = self._approval_path_for(proposal_id)
+        lock_path = path.with_suffix(".lock")
+
+        # ── acquire lock ──────────────────────────────────────────────
+        try:
+            fd = os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+            os.close(fd)
+        except (FileExistsError, OSError):
+            # Check for stale lock (> 60 s)
+            try:
+                if lock_path.exists():
+                    mtime = lock_path.stat().st_mtime
+                    if time.time() - mtime > 60:
+                        lock_path.unlink(missing_ok=True)
+                        fd = os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+                        os.close(fd)
+                    else:
+                        return False
+                else:
+                    return False
+            except (FileExistsError, OSError):
+                return False
+
+        try:
+            # ── validate ──────────────────────────────────────────────
+            approval = self._load(proposal_id)
+            if approval is None:
+                return False
+            if approval.proposal_id != proposal_id:
+                return False
+            if approval.backend != backend:
+                return False
+            if approval.command_hash != command_hash:
+                return False
+            if approval.preview_hash != preview_hash:
+                return False
+            if approval.project_key != self._project_key():
+                return False
+            if approval.policy_version != SANDBOX_APPROVAL_POLICY_VERSION:
+                return False
+            try:
+                expires = datetime.fromisoformat(approval.expires_at)
+                if datetime.now(timezone.utc) >= expires:
+                    return False
+            except (ValueError, TypeError):
+                return False
+            if approval.consumed:
+                return False
+
+            # ── atomically write consumed=True ────────────────────────
+            try:
+                data = json.loads(path.read_text(encoding="utf-8"))
+            except (json.JSONDecodeError, OSError):
+                return False
+            data["consumed"] = True
+            tmp_path = path.with_suffix(".tmp")
+            tmp_path.write_text(
+                json.dumps(data, ensure_ascii=False, indent=2) + "\n",
+                encoding="utf-8",
+            )
+            os.replace(tmp_path, path)
+            return True
+        finally:
+            try:
+                lock_path.unlink(missing_ok=True)
+            except OSError:
+                pass
 
     def revoke(self, proposal_id: str) -> bool:
         path = self._approval_path_for(proposal_id)

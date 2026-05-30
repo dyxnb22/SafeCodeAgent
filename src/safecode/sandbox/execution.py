@@ -260,6 +260,8 @@ class SandboxExecutionGate:
         v1.8.0: Only the Noop adapter supports execution.
         v1.8.1: Approval is single-use — consumed after first successful
         execution so it cannot be reused within its TTL.
+        v1.8.2: Approval is atomically claimed BEFORE ShellRunner.run()
+        to close the TOCTOU race between preflight and execution.
         """
         proposal = self.store.load_pending()
         if proposal is None:
@@ -311,23 +313,50 @@ class SandboxExecutionGate:
                 message=reasons,
             )
 
-        cmd_text = shlex.join(proposal.command)
-        runner = ShellRunner(self.project_root, self.config)
-        result = runner.run(cmd_text, approved=True)
-
-        # v1.8.1: single-use approval — mark as consumed.
+        # v1.8.2: atomically claim approval BEFORE execution to close
+        # the TOCTOU window between preflight and ShellRunner.run().
         approval_store = SandboxExecutionApprovalStore(self.project_root)
-        consumed = approval_store.consume(proposal.proposal_id)
-        if consumed:
+        claimed = approval_store.claim_for_execution(
+            proposal_id=proposal.proposal_id,
+            backend=proposal.backend,
+            command_hash=proposal.command_hash,
+            preview_hash=proposal.preview_hash,
+        )
+        if not claimed:
+            reason = "Approval claim failed: already consumed, expired, or mismatched."
             self._audit(
-                "sandbox_execution_approval_consumed",
+                "sandbox_execution_blocked",
                 proposal.proposal_id,
                 proposal.backend,
                 proposal.purpose,
                 proposal.command[0] if proposal.command else "",
                 proposal.command_hash,
-                "Approval consumed (single-use).",
+                reason,
             )
+            return SandboxExecutionResult(
+                proposal_id=proposal.proposal_id,
+                executed=False,
+                exit_code=None,
+                stdout="",
+                stderr=reason,
+                backend=proposal.backend,
+                dry_run=True,
+                message=reason,
+            )
+
+        self._audit(
+            "sandbox_execution_approval_claimed",
+            proposal.proposal_id,
+            proposal.backend,
+            proposal.purpose,
+            proposal.command[0] if proposal.command else "",
+            proposal.command_hash,
+            "Approval claimed for execution (atomic).",
+        )
+
+        cmd_text = shlex.join(proposal.command)
+        runner = ShellRunner(self.project_root, self.config)
+        result = runner.run(cmd_text, approved=True)
 
         self._audit(
             "sandbox_execution_completed",
@@ -397,6 +426,7 @@ class SandboxExecutionGate:
             "sandbox_execution_approval_revoked",
             "sandbox_execution_completed",
             "sandbox_execution_approval_consumed",
+            "sandbox_execution_approval_claimed",
         }
         self.audit_logger.write(
             AuditEvent(

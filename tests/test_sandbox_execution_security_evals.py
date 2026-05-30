@@ -380,15 +380,15 @@ class TestSingleUseApproval:
         ) is True
 
     def test_consumption_audit_event(self, tmp_path, monkeypatch):
-        """Successful execution writes sandbox_execution_approval_consumed."""
+        """Successful execution writes sandbox_execution_approval_claimed."""
         gate = _setup_gate(tmp_path, monkeypatch)
         gate.propose(_make_plan(), "shell")
         gate.approve()
         gate.execute_pending()
         events = AuditLogger(tmp_path).read_recent(limit=5)
-        consumed = [e for e in events if e.type == "sandbox_execution_approval_consumed"]
-        assert len(consumed) >= 1
-        assert consumed[0].status == "success"
+        claimed = [e for e in events if e.type == "sandbox_execution_approval_claimed"]
+        assert len(claimed) >= 1
+        assert claimed[0].status == "success"
 
     def test_consumed_approval_fails_is_approved(self, tmp_path, monkeypatch):
         """After consumption, is_approved() returns False for same approval."""
@@ -423,8 +423,8 @@ class TestSingleUseApproval:
             proposal.command_hash, proposal.preview_hash,
         ) is True
 
-    def test_no_env_value_in_consumed_audit(self, tmp_path, monkeypatch):
-        """Consumption audit must not leak env values."""
+    def test_no_env_value_in_claimed_audit(self, tmp_path, monkeypatch):
+        """Claim audit must not leak env values."""
         gate = _setup_gate(tmp_path, monkeypatch)
         monkeypatch.setenv("SECRET_TOKEN", "secret-value-123")
         gate.propose(_make_plan(env_keys=["SECRET_TOKEN"]), "shell")
@@ -435,8 +435,8 @@ class TestSingleUseApproval:
             combined = str(e.message) + str(e.metadata)
             assert "secret-value-123" not in combined
 
-    def test_unsupported_backend_no_consumed_audit(self, tmp_path, monkeypatch):
-        """macOS backend blocked by preflight — no consumption audit event."""
+    def test_unsupported_backend_no_claimed_audit(self, tmp_path, monkeypatch):
+        """macOS backend blocked by preflight — no claim audit event written."""
         gate = _setup_gate(tmp_path, monkeypatch)
         gate.propose(
             _make_plan(
@@ -450,8 +450,198 @@ class TestSingleUseApproval:
         r = gate.execute_pending()
         assert r.executed is False
         events = AuditLogger(tmp_path).read_recent(limit=5)
-        consumed = [e for e in events if e.type == "sandbox_execution_approval_consumed"]
-        assert len(consumed) == 0
+        claimed = [e for e in events if e.type == "sandbox_execution_approval_claimed"]
+        assert len(claimed) == 0
+
+
+# ── D++. Atomic Approval Claim (v1.8.2) ───────────────────────────────────
+
+
+class TestAtomicApprovalClaim:
+    """v1.8.2: approval is atomically claimed before execution to close
+    the TOCTOU window between preflight and ShellRunner.run()."""
+
+    def test_concurrent_claim_only_one_succeeds(self, tmp_path, monkeypatch):
+        """Two claim_for_execution calls on the same approval: only one wins."""
+        ad = tmp_path.parent / f"approvals-{tmp_path.name}"
+        monkeypatch.setenv("SAFECODE_SANDBOX_APPROVAL_DIR", str(ad))
+        store = SandboxExecutionApprovalStore(tmp_path)
+        store.approve("p1", "none", "abc", None)
+        assert store.is_approved("p1", "none", "abc", None) is True
+        c1 = store.claim_for_execution("p1", "none", "abc", None)
+        c2 = store.claim_for_execution("p1", "none", "abc", None)
+        assert c1 is True
+        assert c2 is False
+
+    def test_claim_fails_after_successful_execution(self, tmp_path, monkeypatch):
+        """After a full execute_pending cycle, claim on same approval fails."""
+        gate = _setup_gate(tmp_path, monkeypatch)
+        gate.propose(_make_plan(), "shell")
+        gate.approve()
+        r1 = gate.execute_pending()
+        assert r1.executed is True
+        # Direct claim on the same approval must fail
+        approval_store = SandboxExecutionApprovalStore(tmp_path)
+        proposal = gate.load_pending()
+        c2 = approval_store.claim_for_execution(
+            proposal.proposal_id,
+            proposal.backend,
+            proposal.command_hash,
+            proposal.preview_hash,
+        )
+        assert c2 is False
+
+    def test_claim_failure_does_not_call_shell_runner(self, tmp_path, monkeypatch):
+        """When claim_for_execution returns False, subprocess.run is never called."""
+        gate = _setup_gate(tmp_path, monkeypatch)
+        gate.propose(_make_plan(), "shell")
+        gate.approve()
+        # Pre-consume the approval so claim_for_execution inside execute_pending fails
+        approval_store = SandboxExecutionApprovalStore(tmp_path)
+        proposal = gate.load_pending()
+        approval_store.consume(proposal.proposal_id)
+        called = []
+        monkeypatch.setattr(subprocess, "run", lambda *a, **kw: called.append(1))
+        result = gate.execute_pending()
+        assert result.executed is False
+        assert len(called) == 0
+
+    def test_blocked_preflight_does_not_call_claim(self, tmp_path, monkeypatch):
+        """Blocked preflight returns before claim_for_execution is reached."""
+        gate = _setup_gate(tmp_path, monkeypatch)
+        gate.propose(
+            _make_plan(
+                backend=SandboxBackend.MACOS_SEATBELT,
+                profile_preview="(deny default)",
+                profile_backend="macos_seatbelt",
+            ),
+            "shell",
+        )
+        gate.approve()
+        r = gate.execute_pending()
+        assert r.executed is False
+        # Approval should still be unclaimed (not consumed)
+        approval_store = SandboxExecutionApprovalStore(tmp_path)
+        proposal = gate.load_pending()
+        assert approval_store.is_approved(
+            proposal.proposal_id,
+            proposal.backend,
+            proposal.command_hash,
+            proposal.preview_hash,
+        ) is True
+
+    def test_non_zero_exit_still_consumed(self, tmp_path, monkeypatch):
+        """Even when the command exits non-zero, the approval is consumed."""
+        from safecode.config import SafeCodeConfig
+
+        gate = _setup_gate(tmp_path, monkeypatch)
+        cfg = SafeCodeConfig()
+        cfg.shell.allowed_commands = [sys.executable]
+        cfg.shell.require_confirm_for_medium = False
+        gate.config = cfg
+        # python running a non-existent script exits non-zero
+        gate.propose(
+            _make_plan(command=[sys.executable, "/tmp/nonexistent_script.py"]),
+            "shell",
+        )
+        gate.approve()
+        result = gate.execute_pending()
+        assert result.executed is True
+        assert result.exit_code != 0
+        # Approval is consumed — second execution blocked
+        r2 = gate.execute_pending()
+        assert r2.executed is False
+
+    def test_legacy_approval_without_consumed_claimable(self, tmp_path, monkeypatch):
+        """Approval file lacking 'consumed' field can be claimed exactly once."""
+        ad = tmp_path.parent / f"approvals-{tmp_path.name}"
+        monkeypatch.setenv("SAFECODE_SANDBOX_APPROVAL_DIR", str(ad))
+        store = SandboxExecutionApprovalStore(tmp_path)
+        store.approve("p1", "none", "abc", None)
+        # Strip 'consumed' field
+        p = store.approval_path_for("p1")
+        data = json.loads(p.read_text(encoding="utf-8"))
+        del data["consumed"]
+        p.write_text(json.dumps(data), encoding="utf-8")
+        # First claim succeeds
+        assert store.claim_for_execution("p1", "none", "abc", None) is True
+        # Second claim fails
+        assert store.claim_for_execution("p1", "none", "abc", None) is False
+
+    def test_malformed_approval_claim_fails(self, tmp_path, monkeypatch):
+        """Corrupt approval JSON causes claim to fail closed."""
+        ad = tmp_path.parent / f"approvals-{tmp_path.name}"
+        monkeypatch.setenv("SAFECODE_SANDBOX_APPROVAL_DIR", str(ad))
+        store = SandboxExecutionApprovalStore(tmp_path)
+        store.approve("p1", "none", "abc", None)
+        p = store.approval_path_for("p1")
+        p.write_text("not valid json", encoding="utf-8")
+        assert store.claim_for_execution("p1", "none", "abc", None) is False
+
+    def test_expired_approval_claim_fails(self, tmp_path, monkeypatch):
+        """Expired approval cannot be claimed."""
+        ad = tmp_path.parent / f"approvals-{tmp_path.name}"
+        monkeypatch.setenv("SAFECODE_SANDBOX_APPROVAL_DIR", str(ad))
+        store = SandboxExecutionApprovalStore(tmp_path)
+        store.approve("p1", "none", "abc", None, ttl_minutes=0)
+        assert store.claim_for_execution("p1", "none", "abc", None) is False
+
+    def test_mismatched_backend_claim_fails(self, tmp_path, monkeypatch):
+        """Claim with wrong backend fails closed."""
+        ad = tmp_path.parent / f"approvals-{tmp_path.name}"
+        monkeypatch.setenv("SAFECODE_SANDBOX_APPROVAL_DIR", str(ad))
+        store = SandboxExecutionApprovalStore(tmp_path)
+        store.approve("p1", "none", "abc", None)
+        assert store.claim_for_execution("p1", "docker", "abc", None) is False
+
+    def test_mismatched_command_hash_claim_fails(self, tmp_path, monkeypatch):
+        """Claim with wrong command_hash fails closed."""
+        ad = tmp_path.parent / f"approvals-{tmp_path.name}"
+        monkeypatch.setenv("SAFECODE_SANDBOX_APPROVAL_DIR", str(ad))
+        store = SandboxExecutionApprovalStore(tmp_path)
+        store.approve("p1", "none", "abc", None)
+        assert store.claim_for_execution("p1", "none", "wrong", None) is False
+
+    def test_claim_audit_event_written(self, tmp_path, monkeypatch):
+        """Successful claim writes sandbox_execution_approval_claimed audit event."""
+        gate = _setup_gate(tmp_path, monkeypatch)
+        gate.propose(_make_plan(), "shell")
+        gate.approve()
+        gate.execute_pending()
+        events = AuditLogger(tmp_path).read_recent(limit=5)
+        claimed = [e for e in events if e.type == "sandbox_execution_approval_claimed"]
+        assert len(claimed) >= 1
+        assert claimed[0].status == "success"
+        assert "claimed" in claimed[0].message.lower()
+
+    def test_no_env_leak_in_claimed_audit(self, tmp_path, monkeypatch):
+        """Claim audit event must not leak env values or full command."""
+        gate = _setup_gate(tmp_path, monkeypatch)
+        monkeypatch.setenv("SECRET_TOKEN", "secret-value-123")
+        gate.propose(_make_plan(env_keys=["SECRET_TOKEN"]), "shell")
+        gate.approve()
+        gate.execute_pending()
+        events = AuditLogger(tmp_path).read_recent(limit=5)
+        for e in events:
+            combined = str(e.message) + str(e.metadata)
+            assert "secret-value-123" not in combined
+
+    def test_claim_failure_audit_is_blocked(self, tmp_path, monkeypatch):
+        """When claim fails inside execute_pending, audit event has status=blocked."""
+        gate = _setup_gate(tmp_path, monkeypatch)
+        gate.propose(_make_plan(), "shell")
+        gate.approve()
+        # Force claim_for_execution to fail while approval is still valid
+        monkeypatch.setattr(
+            SandboxExecutionApprovalStore,
+            "claim_for_execution",
+            lambda *a, **kw: False,
+        )
+        gate.execute_pending()
+        events = AuditLogger(tmp_path).read_recent(limit=5)
+        blocked = [e for e in events if e.type == "sandbox_execution_blocked"]
+        claim_blocked = [e for e in blocked if "claim" in e.message.lower()]
+        assert len(claim_blocked) >= 1
 
 
 # ── E. Regression ───────────────────────────────────────────────────────
