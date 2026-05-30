@@ -38,6 +38,7 @@ from safecode.sandbox.approvals import SandboxExecutionApprovalStore
 from safecode.sandbox.capabilities import SandboxCapability
 from safecode.sandbox.execution import (
     SandboxExecutionGate,
+    SandboxExecutionResultRecord,
     SandboxExecutionResultStore,
 )
 
@@ -69,6 +70,25 @@ def _make_plan(**kwargs):
     }
     d.update(kwargs)
     return SandboxExecutionPlan(**d)
+
+
+def _make_result_record(proposal_id: str = "record-1", attempted_at: str = "2026-01-01T00:00:00Z"):
+    return SandboxExecutionResultRecord(
+        proposal_id=proposal_id,
+        attempted_at=attempted_at,
+        backend="none",
+        executed=True,
+        exit_code=0,
+        duration_ms=1,
+        status="completed",
+        message="ok",
+        command_hash_prefix="abc1234567890000",
+        command_head="echo",
+        stdout_preview="",
+        stderr_preview="",
+        stdout_length=0,
+        stderr_length=0,
+    )
 
 
 # ── A. Execution Gate ───────────────────────────────────────────────────
@@ -1471,6 +1491,51 @@ class TestExecutionResultMaintenance:
         assert result.exit_code == 0
         events = AuditLogger(tmp_path).read_recent(limit=10)
         assert not any(e.type == "sandbox_execution_results_pruned" for e in events)
+
+
+# ── D+++++++. Execution Result Atomic Save (v1.8.8) ───────────────────────
+
+
+class TestExecutionResultAtomicSave:
+    """v1.8.8: result records are saved atomically and do not follow symlinks."""
+
+    def test_save_replaces_existing_symlink_without_following(self, tmp_path, monkeypatch):
+        """Saving a record replaces a same-name symlink instead of writing through it."""
+        _setup_gate(tmp_path, monkeypatch)
+        store = SandboxExecutionResultStore(tmp_path)
+        store._dir.mkdir(parents=True, exist_ok=True)
+        outside_target = tmp_path.parent / f"outside-{tmp_path.name}.json"
+        outside_target.write_text("outside must not change", encoding="utf-8")
+
+        record = _make_result_record(proposal_id="record-symlink")
+        record_path = store._path_for(record.proposal_id)
+        record_path.symlink_to(outside_target)
+
+        store.save(record)
+
+        assert outside_target.read_text(encoding="utf-8") == "outside must not change"
+        assert record_path.exists()
+        assert not record_path.is_symlink()
+        loaded = store.load(record.proposal_id)
+        assert loaded is not None
+        assert loaded.proposal_id == record.proposal_id
+
+    def test_save_cleans_temp_file_when_replace_fails(self, tmp_path, monkeypatch):
+        """A failed atomic replace does not leave temp result files behind."""
+        _setup_gate(tmp_path, monkeypatch)
+        store = SandboxExecutionResultStore(tmp_path)
+
+        def fail_replace(_src, _dst):
+            raise OSError("replace failed")
+
+        monkeypatch.setattr("safecode.sandbox.execution.os.replace", fail_replace)
+
+        with pytest.raises(OSError, match="replace failed"):
+            store.save(_make_result_record(proposal_id="replace-fails"))
+
+        assert store._dir.exists()
+        assert list(store._dir.glob("*.tmp")) == []
+        assert store.load("replace-fails") is None
 
 
 # ── E. Regression ───────────────────────────────────────────────────────

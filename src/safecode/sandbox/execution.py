@@ -7,12 +7,14 @@ v1.8.3: sandbox execution result lifecycle — result records with redacted/trun
 output stored per attempt; pending proposal cleared on execution or claim failure.
 v1.8.5: filter_by() supports limit + sort_order; sac sandbox execution show for detail.
 v1.8.6: stats() + plan_prune() + prune() for safe result record maintenance.
+v1.8.8: result records are written through same-dir temp files and os.replace().
 """
 
 from __future__ import annotations
 
 import hashlib
 import json
+import os
 import shlex
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -160,9 +162,20 @@ class SandboxExecutionResultStore:
             "stdout_length": record.stdout_length,
             "stderr_length": record.stderr_length,
         }
-        self._path_for(record.proposal_id).write_text(
-            json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
-        )
+        target = self._path_for(record.proposal_id)
+        temp_path = target.with_name(f".{target.name}.{uuid4().hex}.tmp")
+        try:
+            temp_path.write_text(
+                json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
+                encoding="utf-8",
+            )
+            os.replace(temp_path, target)
+        finally:
+            if temp_path.exists():
+                try:
+                    temp_path.unlink()
+                except OSError:
+                    pass
         return record
 
     def load(self, proposal_id: str) -> SandboxExecutionResultRecord | None:
