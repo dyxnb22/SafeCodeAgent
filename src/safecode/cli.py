@@ -11,6 +11,7 @@ from rich.syntax import Syntax
 from rich.table import Table
 
 from safecode.agent.orchestrator import AgentOrchestrator
+from safecode.agent.loop import AgentLoop
 from safecode.agent.session import AgentSessionStore
 from safecode.audit.logger import AuditLogger
 from safecode.audit.models import AuditEvent
@@ -320,6 +321,27 @@ def agent_clear() -> None:
         console.print("[green]Agent session cleared.[/green]")
     else:
         console.print("[yellow]No agent session found.[/yellow]")
+
+
+@agent_app.command("step")
+def agent_step(goal: str = typer.Argument("", help="Goal to start or replace the session with.")) -> None:
+    """Advance exactly one safe interactive agent step."""
+    try:
+        result = AgentLoop(Path.cwd()).step(goal or None)
+    except FileNotFoundError as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(code=1) from exc
+
+    console.print(
+        Panel.fit(
+            f"Session ID: {result.state.session_id}\n"
+            f"Goal: {result.state.goal}\n"
+            f"Status: {result.state.status}\n"
+            f"Current Step: {result.state.current_step}/{len(result.state.plan)}\n"
+            f"Observation: {result.observation}",
+            title="SafeCode Agent Step",
+        )
+    )
 
 
 @config_app.command("init")

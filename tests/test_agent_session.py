@@ -6,6 +6,7 @@ import json
 
 from typer.testing import CliRunner
 
+from safecode.agent.loop import AgentLoop
 from safecode.agent.session import AgentSessionStore
 from safecode.cli import app
 
@@ -72,3 +73,33 @@ class TestAgentSessionCLI:
         clear = runner.invoke(app, ["agent", "clear"])
         assert clear.exit_code == 0
         assert not (tmp_path / ".sac" / "session.json").exists()
+
+
+class TestAgentStep:
+    def test_step_with_goal_creates_session_and_advances_once(self, tmp_path):
+        result = AgentLoop(tmp_path).step("fix one bug")
+
+        assert result.state.goal == "fix one bug"
+        assert result.state.current_step == 1
+        assert len(result.state.plan) == 3
+        assert result.state.pending_action is not None
+        assert result.state.pending_action["type"] == "read"
+
+    def test_step_without_session_and_goal_fails_closed(self, tmp_path):
+        try:
+            AgentLoop(tmp_path).step()
+        except FileNotFoundError as exc:
+            assert "No agent session" in str(exc)
+        else:
+            raise AssertionError("step without session or goal should fail")
+
+    def test_step_cli_advances_existing_session_once(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        runner.invoke(app, ["agent", "start", "ship"])
+
+        result = runner.invoke(app, ["agent", "step"])
+
+        assert result.exit_code == 0
+        data = json.loads((tmp_path / ".sac" / "session.json").read_text(encoding="utf-8"))
+        assert data["current_step"] == 1
+        assert data["pending_action"]["type"] == "read"
