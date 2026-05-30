@@ -32,7 +32,7 @@ REQUIRED_APPROVAL_FIELDS = {
 
 @dataclass(frozen=True)
 class SandboxExecutionApproval:
-    """User-level approval for one sandbox execution proposal."""
+    """User-level, single-use approval for one sandbox execution proposal."""
 
     proposal_id: str
     approved_at: str
@@ -44,6 +44,7 @@ class SandboxExecutionApproval:
     preview_hash: str | None
     approved_by: str
     policy_version: str
+    consumed: bool = False
 
 
 class SandboxExecutionApprovalStore:
@@ -91,6 +92,7 @@ class SandboxExecutionApprovalStore:
             "preview_hash": approval.preview_hash,
             "approved_by": approval.approved_by,
             "policy_version": approval.policy_version,
+            "consumed": False,
         }
         path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         return approval
@@ -123,6 +125,23 @@ class SandboxExecutionApprovalStore:
                 return False
         except (ValueError, TypeError):
             return False
+        if approval.consumed:
+            return False
+        return True
+
+    def consume(self, proposal_id: str) -> bool:
+        """Mark an approval as consumed (single-use). Returns False if missing or
+        already consumed."""
+        approval = self._load(proposal_id)
+        if approval is None or approval.consumed:
+            return False
+        path = self._approval_path_for(proposal_id)
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            return False
+        data["consumed"] = True
+        path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         return True
 
     def revoke(self, proposal_id: str) -> bool:
@@ -151,7 +170,9 @@ class SandboxExecutionApprovalStore:
         if not REQUIRED_APPROVAL_FIELDS.issubset(data.keys()):
             return None
         try:
-            return SandboxExecutionApproval(**{k: data[k] for k in REQUIRED_APPROVAL_FIELDS})
+            approval_data = {k: data[k] for k in REQUIRED_APPROVAL_FIELDS}
+            approval_data["consumed"] = data.get("consumed", False)
+            return SandboxExecutionApproval(**approval_data)
         except (TypeError, ValueError):
             return None
 

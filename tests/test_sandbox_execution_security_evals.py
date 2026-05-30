@@ -337,6 +337,123 @@ class TestExecutionResultSemantics:
         assert "roundtrip-ok" in result.stdout
 
 
+# ── D+. Single-Use Approval (v1.8.1) ──────────────────────────────────────
+
+
+class TestSingleUseApproval:
+    """v1.8.1: approval is consumed after first successful execution."""
+
+    def test_second_execution_blocked_after_first(self, tmp_path, monkeypatch):
+        """Execute once successfully, then second attempt is blocked."""
+        gate = _setup_gate(tmp_path, monkeypatch)
+        gate.propose(_make_plan(), "shell")
+        gate.approve()
+        r1 = gate.execute_pending()
+        assert r1.executed is True
+        # Second execution blocked — approval already consumed
+        r2 = gate.execute_pending()
+        assert r2.executed is False
+        assert "Approval" in r2.message
+
+    def test_blocked_preflight_does_not_consume(self, tmp_path, monkeypatch):
+        """Blocked execution (unsupported backend) does NOT consume approval."""
+        gate = _setup_gate(tmp_path, monkeypatch)
+        gate.propose(
+            _make_plan(
+                backend=SandboxBackend.MACOS_SEATBELT,
+                profile_preview="(deny default)",
+                profile_backend="macos_seatbelt",
+            ),
+            "shell",
+        )
+        gate.approve()
+        r1 = gate.execute_pending()
+        assert r1.executed is False
+        # Approval still valid — not consumed by blocked preflight
+        approval_store = SandboxExecutionApprovalStore(tmp_path)
+        proposal = gate.load_pending()
+        assert approval_store.is_approved(
+            proposal.proposal_id,
+            proposal.backend,
+            proposal.command_hash,
+            proposal.preview_hash,
+        ) is True
+
+    def test_consumption_audit_event(self, tmp_path, monkeypatch):
+        """Successful execution writes sandbox_execution_approval_consumed."""
+        gate = _setup_gate(tmp_path, monkeypatch)
+        gate.propose(_make_plan(), "shell")
+        gate.approve()
+        gate.execute_pending()
+        events = AuditLogger(tmp_path).read_recent(limit=5)
+        consumed = [e for e in events if e.type == "sandbox_execution_approval_consumed"]
+        assert len(consumed) >= 1
+        assert consumed[0].status == "success"
+
+    def test_consumed_approval_fails_is_approved(self, tmp_path, monkeypatch):
+        """After consumption, is_approved() returns False for same approval."""
+        gate = _setup_gate(tmp_path, monkeypatch)
+        gate.propose(_make_plan(), "shell")
+        gate.approve()
+        gate.execute_pending()
+        approval_store = SandboxExecutionApprovalStore(tmp_path)
+        proposal = gate.load_pending()
+        assert approval_store.is_approved(
+            proposal.proposal_id,
+            proposal.backend,
+            proposal.command_hash,
+            proposal.preview_hash,
+        ) is False
+
+    def test_legacy_approval_without_consumed_field(self, tmp_path, monkeypatch):
+        """Approval file lacking 'consumed' field treated as not-consumed."""
+        gate = _setup_gate(tmp_path, monkeypatch)
+        gate.propose(_make_plan(), "shell")
+        gate.approve()
+        # Strip 'consumed' field to simulate pre-v1.8.1 approval file
+        approval_store = SandboxExecutionApprovalStore(tmp_path)
+        p = approval_store.approval_path_for(gate.load_pending().proposal_id)
+        data = json.loads(p.read_text(encoding="utf-8"))
+        del data["consumed"]
+        p.write_text(json.dumps(data), encoding="utf-8")
+        # Still seen as approved (backward compat)
+        proposal = gate.load_pending()
+        assert approval_store.is_approved(
+            proposal.proposal_id, proposal.backend,
+            proposal.command_hash, proposal.preview_hash,
+        ) is True
+
+    def test_no_env_value_in_consumed_audit(self, tmp_path, monkeypatch):
+        """Consumption audit must not leak env values."""
+        gate = _setup_gate(tmp_path, monkeypatch)
+        monkeypatch.setenv("SECRET_TOKEN", "secret-value-123")
+        gate.propose(_make_plan(env_keys=["SECRET_TOKEN"]), "shell")
+        gate.approve()
+        gate.execute_pending()
+        events = AuditLogger(tmp_path).read_recent(limit=5)
+        for e in events:
+            combined = str(e.message) + str(e.metadata)
+            assert "secret-value-123" not in combined
+
+    def test_unsupported_backend_no_consumed_audit(self, tmp_path, monkeypatch):
+        """macOS backend blocked by preflight — no consumption audit event."""
+        gate = _setup_gate(tmp_path, monkeypatch)
+        gate.propose(
+            _make_plan(
+                backend=SandboxBackend.MACOS_SEATBELT,
+                profile_preview="(deny default)",
+                profile_backend="macos_seatbelt",
+            ),
+            "shell",
+        )
+        gate.approve()
+        r = gate.execute_pending()
+        assert r.executed is False
+        events = AuditLogger(tmp_path).read_recent(limit=5)
+        consumed = [e for e in events if e.type == "sandbox_execution_approval_consumed"]
+        assert len(consumed) == 0
+
+
 # ── E. Regression ───────────────────────────────────────────────────────
 
 

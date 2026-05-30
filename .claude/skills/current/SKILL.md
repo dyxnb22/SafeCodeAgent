@@ -5,10 +5,10 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v1.8.0
+# Current Baseline - v1.8.1
 
 ## Status
-Implemented and tagged as `v1.8.0`.
+Implemented and tagged as `v1.8.1`.
 
 ## Stage
 `v1.8.x` Local Policy-Gated Sandbox Execution.
@@ -22,7 +22,7 @@ Implemented and tagged as `v1.8.0`.
 ## Current Capability
 SafeCode Agent has a safety-first local runtime centered on controlled file edits, command policy, audit, rollback, and sandbox planning.
 
-The current baseline extends `v1.7.9` by enabling real sandbox execution through the **Noop adapter** (local policy-gated execution). Commands run via SafeCode's own `ShellRunner` (CommandPolicy + NetworkPolicy + FilesystemBoundary) when all preflight checks pass (proposal integrity, approval, command policy, network policy, filesystem boundary, backend capability). macOS Seatbelt, Linux Bubblewrap, and Docker adapters remain dry-run only. No OS sandbox binary is ever invoked.
+The current baseline extends `v1.7.9` by enabling real sandbox execution through the **Noop adapter** (local policy-gated execution). Commands run via SafeCode's own `ShellRunner` (CommandPolicy + NetworkPolicy + FilesystemBoundary) when all preflight checks pass (proposal integrity, approval, command policy, network policy, filesystem boundary, backend capability). Sandbox execution approvals are **single-use**: each approval is consumed after the first successful execution and cannot be reused. Blocked preflight does not consume the approval. macOS Seatbelt, Linux Bubblewrap, and Docker adapters remain dry-run only. No OS sandbox binary is ever invoked.
 
 ## Important Entry Points
 - `src/safecode/cli.py`
@@ -39,6 +39,7 @@ The current baseline extends `v1.7.9` by enabling real sandbox execution through
 ```bash
 PYTHONPATH=src python3 -m pytest tests/test_sandbox_execution_security_evals.py -q
 PYTHONPATH=src python3 -m pytest -q
+uv run sac --help
 ```
 
 ## Compatibility Requirements

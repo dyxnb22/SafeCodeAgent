@@ -257,9 +257,9 @@ class SandboxExecutionGate:
     def execute_pending(self) -> SandboxExecutionResult:
         """Execute the pending proposal when all preflight checks pass.
 
-        v1.8.0: Only the Noop adapter supports execution. The command is
-        run through SafeCode's ShellRunner (command policy + network policy
-        + filesystem boundary). macOS/Linux/Docker backends remain dry-run.
+        v1.8.0: Only the Noop adapter supports execution.
+        v1.8.1: Approval is single-use — consumed after first successful
+        execution so it cannot be reused within its TTL.
         """
         proposal = self.store.load_pending()
         if proposal is None:
@@ -314,6 +314,20 @@ class SandboxExecutionGate:
         cmd_text = shlex.join(proposal.command)
         runner = ShellRunner(self.project_root, self.config)
         result = runner.run(cmd_text, approved=True)
+
+        # v1.8.1: single-use approval — mark as consumed.
+        approval_store = SandboxExecutionApprovalStore(self.project_root)
+        consumed = approval_store.consume(proposal.proposal_id)
+        if consumed:
+            self._audit(
+                "sandbox_execution_approval_consumed",
+                proposal.proposal_id,
+                proposal.backend,
+                proposal.purpose,
+                proposal.command[0] if proposal.command else "",
+                proposal.command_hash,
+                "Approval consumed (single-use).",
+            )
 
         self._audit(
             "sandbox_execution_completed",
@@ -382,6 +396,7 @@ class SandboxExecutionGate:
             "sandbox_execution_approved",
             "sandbox_execution_approval_revoked",
             "sandbox_execution_completed",
+            "sandbox_execution_approval_consumed",
         }
         self.audit_logger.write(
             AuditEvent(
