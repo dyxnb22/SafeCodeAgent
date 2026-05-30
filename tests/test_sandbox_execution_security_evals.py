@@ -922,6 +922,161 @@ class TestExecutionResultLifecycle:
         assert store.load(proposal_id) is None
 
 
+# ── D++++. Execution Result Robustness (v1.8.4) ──────────────────────────
+
+
+class TestExecutionResultRobustness:
+    """v1.8.4: result records include schema version, tolerate extra fields,
+    and support filtering by backend/status/proposal_id."""
+
+    def test_saved_record_has_schema_version(self, tmp_path, monkeypatch):
+        """Result record JSON includes _schema_version field."""
+        gate = _setup_gate(tmp_path, monkeypatch)
+        gate.propose(_make_plan(), "shell")
+        gate.approve()
+        result = gate.execute_pending()
+        store = SandboxExecutionResultStore(tmp_path)
+        path = store._path_for(result.proposal_id)
+        data = json.loads(path.read_text(encoding="utf-8"))
+        assert data["_schema_version"] == "v1"
+
+    def test_old_record_without_schema_version_loads(self, tmp_path, monkeypatch):
+        """Record missing _schema_version still loads successfully."""
+        gate = _setup_gate(tmp_path, monkeypatch)
+        gate.propose(_make_plan(), "shell")
+        gate.approve()
+        result = gate.execute_pending()
+        store = SandboxExecutionResultStore(tmp_path)
+        path = store._path_for(result.proposal_id)
+        data = json.loads(path.read_text(encoding="utf-8"))
+        del data["_schema_version"]
+        path.write_text(json.dumps(data), encoding="utf-8")
+        record = store.load(result.proposal_id)
+        assert record is not None
+        assert record.proposal_id == result.proposal_id
+
+    def test_extra_unknown_fields_tolerated(self, tmp_path, monkeypatch):
+        """Record with extra unknown JSON keys still loads successfully."""
+        gate = _setup_gate(tmp_path, monkeypatch)
+        gate.propose(_make_plan(), "shell")
+        gate.approve()
+        result = gate.execute_pending()
+        store = SandboxExecutionResultStore(tmp_path)
+        path = store._path_for(result.proposal_id)
+        data = json.loads(path.read_text(encoding="utf-8"))
+        data["_future_field_v99"] = "some unknown value"
+        data["_another_extension"] = 42
+        path.write_text(json.dumps(data), encoding="utf-8")
+        record = store.load(result.proposal_id)
+        assert record is not None
+        assert record.proposal_id == result.proposal_id
+        assert record.exit_code == 0
+
+    def test_corrupt_json_returns_none(self, tmp_path, monkeypatch):
+        """Corrupt JSON in result file returns None on load."""
+        gate = _setup_gate(tmp_path, monkeypatch)
+        gate.propose(_make_plan(), "shell")
+        gate.approve()
+        result = gate.execute_pending()
+        store = SandboxExecutionResultStore(tmp_path)
+        path = store._path_for(result.proposal_id)
+        path.write_text("not valid json{{{", encoding="utf-8")
+        assert store.load(result.proposal_id) is None
+
+    def test_missing_required_fields_returns_none(self, tmp_path, monkeypatch):
+        """Record missing required fields returns None on load."""
+        gate = _setup_gate(tmp_path, monkeypatch)
+        gate.propose(_make_plan(), "shell")
+        gate.approve()
+        result = gate.execute_pending()
+        store = SandboxExecutionResultStore(tmp_path)
+        path = store._path_for(result.proposal_id)
+        data = json.loads(path.read_text(encoding="utf-8"))
+        del data["command_hash_prefix"]
+        path.write_text(json.dumps(data), encoding="utf-8")
+        assert store.load(result.proposal_id) is None
+
+    def test_filter_by_backend(self, tmp_path, monkeypatch):
+        """filter_by() correctly filters by backend."""
+        gate = _setup_gate(tmp_path, monkeypatch)
+        gate.propose(_make_plan(command=["echo", "one"]), "shell")
+        gate.approve()
+        gate.execute_pending()
+
+        store = SandboxExecutionResultStore(tmp_path)
+        results = store.filter_by(backend="none")
+        assert len(results) >= 1
+        for r in results:
+            assert r.backend == "none"
+
+        empty = store.filter_by(backend="docker")
+        assert len(empty) == 0
+
+    def test_filter_by_status(self, tmp_path, monkeypatch):
+        """filter_by() correctly filters by status."""
+        gate = _setup_gate(tmp_path, monkeypatch)
+        gate.propose(_make_plan(command=["echo", "status-test"]), "shell")
+        gate.approve()
+        gate.execute_pending()
+
+        store = SandboxExecutionResultStore(tmp_path)
+        completed = store.filter_by(status="completed")
+        assert len(completed) >= 1
+        for r in completed:
+            assert r.status == "completed"
+
+        blocked = store.filter_by(status="blocked_claim")
+        assert len(blocked) == 0
+
+    def test_filter_by_proposal_id_substr(self, tmp_path, monkeypatch):
+        """filter_by() correctly filters by proposal_id substring."""
+        gate = _setup_gate(tmp_path, monkeypatch)
+        gate.propose(_make_plan(command=["echo", "substr-test"]), "shell")
+        gate.approve()
+        result = gate.execute_pending()
+
+        store = SandboxExecutionResultStore(tmp_path)
+        # Match by first 6 chars
+        results = store.filter_by(proposal_id_substr=result.proposal_id[:6])
+        assert len(results) >= 1
+        assert results[0].proposal_id == result.proposal_id
+
+        empty = store.filter_by(proposal_id_substr="zzz-nonexistent")
+        assert len(empty) == 0
+
+    def test_list_all_and_filter_by_same_ordering(self, tmp_path, monkeypatch):
+        """filter_by() with no filters returns same results as list_all()."""
+        gate = _setup_gate(tmp_path, monkeypatch)
+        gate.propose(_make_plan(command=["echo", "a"]), "shell")
+        gate.approve()
+        gate.execute_pending()
+        gate.propose(_make_plan(command=["echo", "b"]), "shell")
+        gate.approve()
+        gate.execute_pending()
+
+        store = SandboxExecutionResultStore(tmp_path)
+        all_records = store.list_all()
+        filtered = store.filter_by()
+        assert len(filtered) == len(all_records)
+        assert [r.proposal_id for r in filtered] == [r.proposal_id for r in all_records]
+
+    def test_list_all_skips_corrupt_files(self, tmp_path, monkeypatch):
+        """list_all() skips individual corrupt files without failing."""
+        gate = _setup_gate(tmp_path, monkeypatch)
+        gate.propose(_make_plan(command=["echo", "good"]), "shell")
+        gate.approve()
+        gate.execute_pending()
+
+        store = SandboxExecutionResultStore(tmp_path)
+        corrupt_path = store._dir / "corrupt.json"
+        corrupt_path.write_text("{ not json }", encoding="utf-8")
+
+        records = store.list_all()
+        assert len(records) >= 1
+        proposal_ids = [r.proposal_id for r in records]
+        assert len(proposal_ids) > 0
+
+
 # ── E. Regression ───────────────────────────────────────────────────────
 
 

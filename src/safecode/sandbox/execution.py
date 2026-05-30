@@ -61,6 +61,26 @@ class SandboxExecutionResult:
 
 
 MAX_RESULT_PREVIEW_LENGTH = 2000
+RECORD_SCHEMA_VERSION = "v1"
+
+_RECORD_FIELDS = frozenset(
+    {
+        "proposal_id",
+        "attempted_at",
+        "backend",
+        "executed",
+        "exit_code",
+        "duration_ms",
+        "status",
+        "message",
+        "command_hash_prefix",
+        "command_head",
+        "stdout_preview",
+        "stderr_preview",
+        "stdout_length",
+        "stderr_length",
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -104,6 +124,7 @@ class SandboxExecutionResultStore:
     def save(self, record: SandboxExecutionResultRecord) -> SandboxExecutionResultRecord:
         self._dir.mkdir(parents=True, exist_ok=True)
         payload = {
+            "_schema_version": RECORD_SCHEMA_VERSION,
             "proposal_id": record.proposal_id,
             "attempted_at": record.attempted_at,
             "backend": record.backend,
@@ -130,7 +151,10 @@ class SandboxExecutionResultStore:
             return None
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
-            return SandboxExecutionResultRecord(**data)
+            filtered = self._filter_record_data(data)
+            if not filtered:
+                return None
+            return SandboxExecutionResultRecord(**filtered)
         except (json.JSONDecodeError, TypeError):
             return None
 
@@ -143,15 +167,55 @@ class SandboxExecutionResultStore:
                 continue
             try:
                 data = json.loads(p.read_text(encoding="utf-8"))
-                records.append(SandboxExecutionResultRecord(**data))
+                filtered = self._filter_record_data(data)
+                if not filtered:
+                    continue
+                records.append(SandboxExecutionResultRecord(**filtered))
             except (json.JSONDecodeError, TypeError):
                 continue
         records.sort(key=lambda r: r.attempted_at, reverse=True)
         return records
 
+    def filter_by(
+        self,
+        backend: str | None = None,
+        status: str | None = None,
+        proposal_id_substr: str | None = None,
+    ) -> list[SandboxExecutionResultRecord]:
+        records = self.list_all()
+        if backend:
+            records = [r for r in records if r.backend == backend]
+        if status:
+            records = [r for r in records if r.status == status]
+        if proposal_id_substr:
+            records = [r for r in records if proposal_id_substr in r.proposal_id]
+        return records
+
     def latest(self) -> SandboxExecutionResultRecord | None:
         all_records = self.list_all()
         return all_records[0] if all_records else None
+
+    @staticmethod
+    def _filter_record_data(data: dict) -> dict | None:
+        """Keep only known fields, discarding unknown keys.
+
+        Returns a filtered dict or None when required keys are missing.
+        """
+        required = {
+            "proposal_id",
+            "attempted_at",
+            "backend",
+            "executed",
+            "status",
+            "message",
+            "command_hash_prefix",
+            "command_head",
+            "stdout_length",
+            "stderr_length",
+        }
+        if not required.issubset(data.keys()):
+            return None
+        return {k: v for k, v in data.items() if k in _RECORD_FIELDS}
 
     def _path_for(self, proposal_id: str) -> Path:
         safe = proposal_id.replace("/", "_").replace("..", "_")

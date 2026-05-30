@@ -671,6 +671,22 @@ def sandbox_status() -> None:
     ]
     console.print(Panel("\n".join(notes_lines), title="Notes"))
 
+    # v1.8.4: execution result summary
+    result_store = SandboxExecutionResultStore(project_root)
+    all_results = result_store.list_all()
+    if all_results:
+        completed = sum(1 for r in all_results if r.status == "completed")
+        blocked_claim = sum(1 for r in all_results if r.status == "blocked_claim")
+        latest = all_results[0]
+        exit_str = str(latest.exit_code) if latest.exit_code is not None else "-"
+        summary_lines = [
+            f"Total: {len(all_results)}",
+            f"Completed: {completed}",
+            f"Blocked claims: {blocked_claim}",
+            f"Latest: {latest.proposal_id[:12]}... [{latest.status}] exit={exit_str} ({latest.attempted_at[:19]})",
+        ]
+        console.print(Panel("\n".join(summary_lines), title="Execution Results"))
+
 
 @sandbox_app.command("plan")
 def sandbox_plan(
@@ -1019,14 +1035,27 @@ def sandbox_preflight() -> None:
 
 
 @sandbox_app.command("executions")
-def sandbox_executions() -> None:
-    """List all sandbox execution result records."""
+def sandbox_executions(
+    status: str = typer.Option("", "--status", help="Filter by status: completed, blocked_claim."),
+    backend: str = typer.Option("", "--backend", help="Filter by backend: none, macos_seatbelt, linux_bubblewrap, docker."),
+    proposal_id: str = typer.Option("", "--proposal-id", help="Filter by proposal ID (substring match)."),
+) -> None:
+    """List all sandbox execution result records.
+
+    Use --status, --backend, and --proposal-id to filter results.
+    """
     project_root = Path.cwd()
     store = SandboxExecutionResultStore(project_root)
-    records = store.list_all()
+    records = store.filter_by(
+        backend=backend if backend else None,
+        status=status if status else None,
+        proposal_id_substr=proposal_id if proposal_id else None,
+    )
 
     if not records:
         console.print("[yellow]No sandbox execution result records found.[/yellow]")
+        if status or backend or proposal_id:
+            console.print("[dim]Try removing filters to see all records.[/dim]")
         return
 
     table = Table(title="Sandbox Execution Results")
@@ -1040,7 +1069,6 @@ def sandbox_executions() -> None:
     for r in records:
         status_color = "green" if r.status == "completed" else "red"
         exit_str = str(r.exit_code) if r.exit_code is not None else "-"
-        exit_color = "green" if r.exit_code == 0 else ("red" if r.exit_code != 0 else "")
         table.add_row(
             r.attempted_at[:19],
             r.proposal_id[:12] + "...",
