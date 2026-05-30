@@ -344,6 +344,35 @@ def agent_step(goal: str = typer.Argument("", help="Goal to start or replace the
     )
 
 
+@agent_app.command("run")
+def agent_run(
+    goal: str = typer.Argument("", help="Goal to start or replace the session with."),
+    max_steps: int = typer.Option(5, "--max-steps", min=1, help="Maximum steps to advance."),
+) -> None:
+    """Advance a bounded interactive agent loop."""
+    try:
+        result = AgentLoop(Path.cwd()).run(goal or None, max_steps=max_steps)
+    except (FileNotFoundError, ValueError) as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(code=1) from exc
+
+    table = Table(title="SafeCode Agent Run")
+    table.add_column("Step")
+    table.add_column("Observation")
+    for index, step in enumerate(result.steps, start=1):
+        table.add_row(str(index), step.observation)
+    console.print(table)
+    console.print(
+        Panel.fit(
+            f"Session ID: {result.state.session_id}\n"
+            f"Status: {result.state.status}\n"
+            f"Current Step: {result.state.current_step}/{len(result.state.plan)}\n"
+            f"Stopped Reason: {result.stopped_reason}",
+            title="Agent Run Summary",
+        )
+    )
+
+
 @config_app.command("init")
 def config_init() -> None:
     """Create .sac/config.toml."""

@@ -24,6 +24,15 @@ class AgentStepResult:
     stopped_for_approval: bool = False
 
 
+@dataclass(frozen=True)
+class AgentRunResult:
+    """Result of advancing a bounded number of agent steps."""
+
+    state: AgentSessionState
+    steps: list[AgentStepResult]
+    stopped_reason: str
+
+
 class AgentLoop:
     """Deterministic stepping loop used before model-driven autonomy."""
 
@@ -72,3 +81,31 @@ class AgentLoop:
         )
         saved = self.store.save(updated)
         return AgentStepResult(state=saved, observation=observation)
+
+    def run(self, goal: str | None = None, max_steps: int = 5) -> AgentRunResult:
+        """Advance up to ``max_steps`` safe steps."""
+        if max_steps < 1:
+            raise ValueError("max_steps must be >= 1")
+
+        steps: list[AgentStepResult] = []
+        next_goal = goal
+        stopped_reason = "max_steps_reached"
+        state: AgentSessionState | None = self.store.load()
+
+        for _ in range(max_steps):
+            result = self.step(next_goal)
+            steps.append(result)
+            state = result.state
+            next_goal = None
+            if result.stopped_for_approval:
+                stopped_reason = "approval_required"
+                break
+            if state.status == "completed":
+                stopped_reason = "completed"
+                break
+
+        if state is None:
+            # This is only reachable if step() behavior changes.
+            raise FileNotFoundError("No agent session found.")
+
+        return AgentRunResult(state=state, steps=steps, stopped_reason=stopped_reason)

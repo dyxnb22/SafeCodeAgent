@@ -5,7 +5,7 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v1.9.1
+# Current Baseline - v1.9.2
 
 ## Status
 Implemented locally; tag pending.
@@ -22,7 +22,7 @@ Implemented locally; tag pending.
 ## Current Capability
 SafeCode Agent has a safety-first local runtime centered on controlled file edits, command policy, audit, rollback, and sandbox planning.
 
-The current baseline extends `v1.9.0` by adding `sac agent step`, a deterministic one-step interactive loop that creates or resumes `.sac/session.json`, advances exactly one plan item, records a read-only pending action, and stops before any write or command execution. Session writes use same-directory temp files and `os.replace`, so same-name symlinks are replaced instead of followed. All v1.8.x sandbox safety invariants remain in force: Noop is the only real execution backend, approval claim is single-use and atomic, macOS/Linux/Docker backends remain dry-run, and sandbox execution remains gated by proposal, approval, preflight, command policy, network policy, filesystem boundary, and backend capability.
+The current baseline extends `v1.9.1` by adding `sac agent run "goal" --max-steps N`, a bounded loop that repeatedly advances safe agent steps until completion, max-step exhaustion, or a future approval stop. `sac agent step` still advances exactly one plan item and records only a read-only pending action. Session writes use same-directory temp files and `os.replace`, so same-name symlinks are replaced instead of followed. All v1.8.x sandbox safety invariants remain in force: Noop is the only real execution backend, approval claim is single-use and atomic, macOS/Linux/Docker backends remain dry-run, and sandbox execution remains gated by proposal, approval, preflight, command policy, network policy, filesystem boundary, and backend capability.
 
 ## Important Entry Points
 - `src/safecode/cli.py`

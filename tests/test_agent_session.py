@@ -103,3 +103,39 @@ class TestAgentStep:
         data = json.loads((tmp_path / ".sac" / "session.json").read_text(encoding="utf-8"))
         assert data["current_step"] == 1
         assert data["pending_action"]["type"] == "read"
+
+
+class TestAgentRun:
+    def test_run_advances_until_completed(self, tmp_path):
+        result = AgentLoop(tmp_path).run("finish the plan", max_steps=5)
+
+        assert result.stopped_reason == "completed"
+        assert result.state.status == "completed"
+        assert result.state.current_step == 3
+        assert len(result.steps) == 4
+
+    def test_run_respects_max_steps(self, tmp_path):
+        result = AgentLoop(tmp_path).run("partial plan", max_steps=2)
+
+        assert result.stopped_reason == "max_steps_reached"
+        assert result.state.status == "active"
+        assert result.state.current_step == 2
+        assert len(result.steps) == 2
+
+    def test_run_rejects_invalid_max_steps(self, tmp_path):
+        try:
+            AgentLoop(tmp_path).run("bad", max_steps=0)
+        except ValueError as exc:
+            assert "max_steps" in str(exc)
+        else:
+            raise AssertionError("max_steps=0 should fail")
+
+    def test_run_cli_bounded_roundtrip(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+
+        result = runner.invoke(app, ["agent", "run", "ship", "--max-steps", "2"])
+
+        assert result.exit_code == 0
+        assert "max_steps_reached" in result.stdout
+        data = json.loads((tmp_path / ".sac" / "session.json").read_text(encoding="utf-8"))
+        assert data["current_step"] == 2
