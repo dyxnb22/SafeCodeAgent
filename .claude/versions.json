@@ -1,0 +1,125 @@
+{
+  "project": "SafeCode Agent",
+  "version_index": "docs/version_implementation_matrix.md",
+  "release_roadmap": "docs/release_roadmap_v0_1_to_v1_0.md",
+  "current_implemented_tag": "v1.7.9",
+  "branch_prefix_policy": "Do not use codex/ for this repository.",
+  "version_ranges": [
+    {
+      "range": "v0.1.x",
+      "name": "Safe Patch Runtime",
+      "depends_on": null,
+      "notes": "Minimal patch proposal, preview, checkpoint, audit, rollback loop."
+    },
+    {
+      "range": "v0.2.x",
+      "name": "Permissioned Shell Runtime",
+      "depends_on": "v0.1.x",
+      "notes": "Controlled command execution with risk classification and audit."
+    },
+    {
+      "range": "v0.3.x",
+      "name": "Long-running State",
+      "depends_on": "v0.2.x",
+      "notes": "Project rules, progress, hooks, lightweight memory."
+    },
+    {
+      "range": "v0.4.x",
+      "name": "Skills + Tool Registry",
+      "depends_on": "v0.3.x",
+      "notes": "Skill directory and internal tool registry."
+    },
+    {
+      "range": "v0.5.x",
+      "name": "Code Index",
+      "depends_on": "v0.4.x",
+      "notes": "File, symbol, and context selection."
+    },
+    {
+      "range": "v0.6.x",
+      "name": "MCP Integration",
+      "depends_on": "v0.5.x",
+      "notes": "MCP config and discovery; real execution deferred until safety boundaries are ready."
+    },
+    {
+      "range": "v0.7.x",
+      "name": "Sandbox / Containment",
+      "depends_on": "v0.6.x",
+      "notes": "Filesystem, network, and sandbox policy boundaries."
+    },
+    {
+      "range": "v0.8.x",
+      "name": "Subagents",
+      "depends_on": "v0.7.x",
+      "notes": "Task model, result files, readonly subagents, merge review."
+    },
+    {
+      "range": "v0.9.x",
+      "name": "Observability + Evaluation",
+      "depends_on": "v0.8.x",
+      "notes": "Trace events, evaluation suite, reports, failure taxonomy."
+    },
+    {
+      "range": "v1.0.x",
+      "name": "Stable Local Agent Runtime",
+      "depends_on": "v0.9.x",
+      "notes": "Stable CLI, packaging, docs, security presets, release demo."
+    },
+    {
+      "range": "v1.1.x",
+      "name": "Product Extension Layer",
+      "depends_on": "v1.0.x",
+      "notes": "Local API facade, export, task queue, IDE manifest, release checklist."
+    },
+    {
+      "range": "v1.2.x",
+      "name": "Production Hardening",
+      "depends_on": "v1.1.x",
+      "notes": "Shell hardening, trusted policy, sandbox enforcement, real LLM, deployment."
+    },
+    {
+      "range": "v1.3.x",
+      "name": "Runtime Trust Refinement",
+      "depends_on": "v1.2.x",
+      "notes": "Context secret filtering, hook trust, LLM network policy, trace/audit integration."
+    },
+    {
+      "range": "v1.4.x",
+      "name": "Runtime Operations",
+      "depends_on": "v1.3.x",
+      "notes": "Runtime logs, debugging commands, failure diagnostics."
+    },
+    {
+      "range": "v1.5.x",
+      "name": "Core Security Boundary",
+      "depends_on": "v1.4.x",
+      "notes": "Security boundary fixes across context, apply, command policy, hooks, audit."
+    },
+    {
+      "range": "v1.6.x",
+      "name": "Controlled Tooling and Subagents",
+      "depends_on": "v1.5.x",
+      "notes": "Controlled MCP execution, subagent runner, merge review, sandbox capability research."
+    },
+    {
+      "range": "v1.7.x",
+      "name": "OS-Level Sandbox Containment",
+      "depends_on": "v1.6.x",
+      "notes": "Sandbox adapters, plans, approval gate, preflight security evaluations."
+    }
+  ],
+  "latest_versions": [
+    {
+      "tag": "v1.7.8",
+      "name": "sandbox-execution-preflight",
+      "depends_on": "v1.7.7",
+      "skill": null
+    },
+    {
+      "tag": "v1.7.9",
+      "name": "sandbox-execution-preflight-evals",
+      "depends_on": "v1.7.8",
+      "skill": ".claude/skills/v1.7.9/SKILL.md"
+    }
+  ]
+}
