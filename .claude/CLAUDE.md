@@ -17,12 +17,13 @@
 - Release roadmap: `docs/release_roadmap_v0_1_to_v1_0.md`
 - Current runtime summary: `.claude/skills/shared/core-runtime.md`
 - Version skills: `.claude/skills/<version>/SKILL.md`
+- Implemented tag index: `.claude/versions.json` under `implemented_tags`
 - General rules: `.claude/rules/general-rules.md`
 
 ## Version Workflow
 When asked to implement `vX.Y.Z`:
 1. Read `.claude/skills/vX.Y.Z/SKILL.md` if it exists.
-2. Check the base tag and previous version in `.claude/versions.json`.
+2. Check the base tag, previous version, and historical tag coverage in `.claude/versions.json`.
 3. Use the previous tag as the code baseline and preserve backward-compatible safety behavior unless the skill explicitly says otherwise.
 4. Add or update tests for every security, sandbox, policy, patch, audit, or approval change.
 5. Update docs/version notes when the version is completed.

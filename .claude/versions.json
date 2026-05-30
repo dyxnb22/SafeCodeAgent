@@ -110,15 +110,460 @@
   ],
   "latest_versions": [
     {
+      "tag": "v1.7.5",
+      "depends_on": "v1.7.4",
+      "commit": "f37fea7",
+      "subject": "v1.7.5 snapshot",
+      "skill": ".claude/skills/v1.7.5/SKILL.md"
+    },
+    {
+      "tag": "v1.7.6",
+      "depends_on": "v1.7.5",
+      "commit": "18f9c0f",
+      "subject": "v1.7.6 snapshot",
+      "skill": ".claude/skills/v1.7.6/SKILL.md"
+    },
+    {
+      "tag": "v1.7.7",
+      "depends_on": "v1.7.6",
+      "commit": "bda1d21",
+      "subject": "v1.7.7 snapshot",
+      "skill": ".claude/skills/v1.7.7/SKILL.md"
+    },
+    {
       "tag": "v1.7.8",
-      "name": "sandbox-execution-preflight",
       "depends_on": "v1.7.7",
-      "skill": null
+      "commit": "7bd5d96",
+      "subject": "v1.7.8 snapshot",
+      "skill": ".claude/skills/v1.7.8/SKILL.md"
     },
     {
       "tag": "v1.7.9",
-      "name": "sandbox-execution-preflight-evals",
       "depends_on": "v1.7.8",
+      "commit": "c3081b2",
+      "subject": "v1.7.9 snapshot",
+      "skill": ".claude/skills/v1.7.9/SKILL.md"
+    }
+  ],
+  "implemented_tags": [
+    {
+      "tag": "v0.1.0-v0.1.3",
+      "depends_on": null,
+      "commit": "d3998f5",
+      "subject": "v0.1.0-v0.1.3 snapshot",
+      "skill": ".claude/skills/v0.1.0-v0.1.3/SKILL.md"
+    },
+    {
+      "tag": "v0.1.4",
+      "depends_on": "v0.1.0-v0.1.3",
+      "commit": "2e05bd1",
+      "subject": "v0.1.4 snapshot",
+      "skill": ".claude/skills/v0.1.4/SKILL.md"
+    },
+    {
+      "tag": "v0.1.5",
+      "depends_on": "v0.1.4",
+      "commit": "073c85b",
+      "subject": "v0.1.5 snapshot",
+      "skill": ".claude/skills/v0.1.5/SKILL.md"
+    },
+    {
+      "tag": "v0.2.0",
+      "depends_on": "v0.1.5",
+      "commit": "52e52e8",
+      "subject": "v0.2.0 snapshot",
+      "skill": ".claude/skills/v0.2.0/SKILL.md"
+    },
+    {
+      "tag": "v0.2.1",
+      "depends_on": "v0.2.0",
+      "commit": "c82b591",
+      "subject": "v0.2.1 snapshot",
+      "skill": ".claude/skills/v0.2.1/SKILL.md"
+    },
+    {
+      "tag": "v0.2.2-v0.2.4",
+      "depends_on": "v0.2.1",
+      "commit": "df29f96",
+      "subject": "v0.2.2-v0.2.4 snapshot",
+      "skill": ".claude/skills/v0.2.2-v0.2.4/SKILL.md"
+    },
+    {
+      "tag": "v0.3.0-v0.3.3",
+      "depends_on": "v0.2.2-v0.2.4",
+      "commit": "f60d643",
+      "subject": "v0.3.0-v0.3.3 snapshot",
+      "skill": ".claude/skills/v0.3.0-v0.3.3/SKILL.md"
+    },
+    {
+      "tag": "v0.4.0-v0.4.3",
+      "depends_on": "v0.3.0-v0.3.3",
+      "commit": "50e192d",
+      "subject": "v0.4.0-v0.4.3 snapshot",
+      "skill": ".claude/skills/v0.4.0-v0.4.3/SKILL.md"
+    },
+    {
+      "tag": "v0.5.0-v0.5.3",
+      "depends_on": "v0.4.0-v0.4.3",
+      "commit": "e2f4213",
+      "subject": "v0.5.0-v0.5.3 snapshot",
+      "skill": ".claude/skills/v0.5.0-v0.5.3/SKILL.md"
+    },
+    {
+      "tag": "v0.6.0-v0.6.3",
+      "depends_on": "v0.5.0-v0.5.3",
+      "commit": "e08f8e3",
+      "subject": "v0.6.0-v0.6.3 snapshot",
+      "skill": ".claude/skills/v0.6.0-v0.6.3/SKILL.md"
+    },
+    {
+      "tag": "v0.7.0-v0.7.3",
+      "depends_on": "v0.6.0-v0.6.3",
+      "commit": "9c0a047",
+      "subject": "v0.7.0-v0.7.3 snapshot",
+      "skill": ".claude/skills/v0.7.0-v0.7.3/SKILL.md"
+    },
+    {
+      "tag": "v0.8.0-v0.8.3",
+      "depends_on": "v0.7.0-v0.7.3",
+      "commit": "b1fa73f",
+      "subject": "v0.8.0-v0.8.3 snapshot",
+      "skill": ".claude/skills/v0.8.0-v0.8.3/SKILL.md"
+    },
+    {
+      "tag": "v0.9.0-v0.9.3",
+      "depends_on": "v0.8.0-v0.8.3",
+      "commit": "c2d3bf1",
+      "subject": "v0.9.0-v0.9.3 snapshot",
+      "skill": ".claude/skills/v0.9.0-v0.9.3/SKILL.md"
+    },
+    {
+      "tag": "v1.0.0-v1.0.5",
+      "depends_on": "v0.9.0-v0.9.3",
+      "commit": "5d50078",
+      "subject": "v1.0.0-v1.0.5 snapshot",
+      "skill": ".claude/skills/v1.0.0-v1.0.5/SKILL.md"
+    },
+    {
+      "tag": "v1.1.0-v1.1.5",
+      "depends_on": "v1.0.0-v1.0.5",
+      "commit": "a27b9b0",
+      "subject": "v1.1.0-v1.1.5 snapshot",
+      "skill": ".claude/skills/v1.1.0-v1.1.5/SKILL.md"
+    },
+    {
+      "tag": "v1.2.0",
+      "depends_on": "v1.1.0-v1.1.5",
+      "commit": "10be28a",
+      "subject": "v1.2.0 snapshot",
+      "skill": ".claude/skills/v1.2.0/SKILL.md"
+    },
+    {
+      "tag": "v1.2.1",
+      "depends_on": "v1.2.0",
+      "commit": "a21a8ef",
+      "subject": "v1.2.1 snapshot",
+      "skill": ".claude/skills/v1.2.1/SKILL.md"
+    },
+    {
+      "tag": "v1.2.2",
+      "depends_on": "v1.2.1",
+      "commit": "afab707",
+      "subject": "v1.2.2 snapshot",
+      "skill": ".claude/skills/v1.2.2/SKILL.md"
+    },
+    {
+      "tag": "v1.2.3",
+      "depends_on": "v1.2.2",
+      "commit": "3bc5d8e",
+      "subject": "v1.2.3 snapshot",
+      "skill": ".claude/skills/v1.2.3/SKILL.md"
+    },
+    {
+      "tag": "v1.2.4",
+      "depends_on": "v1.2.3",
+      "commit": "aeca9bc",
+      "subject": "v1.2.4 snapshot",
+      "skill": ".claude/skills/v1.2.4/SKILL.md"
+    },
+    {
+      "tag": "v1.2.5",
+      "depends_on": "v1.2.4",
+      "commit": "f74e117",
+      "subject": "v1.2.5 snapshot",
+      "skill": ".claude/skills/v1.2.5/SKILL.md"
+    },
+    {
+      "tag": "v1.3.0",
+      "depends_on": "v1.2.5",
+      "commit": "d443301",
+      "subject": "v1.3.0 snapshot",
+      "skill": ".claude/skills/v1.3.0/SKILL.md"
+    },
+    {
+      "tag": "v1.3.1",
+      "depends_on": "v1.3.0",
+      "commit": "55aad83",
+      "subject": "v1.3.1 snapshot",
+      "skill": ".claude/skills/v1.3.1/SKILL.md"
+    },
+    {
+      "tag": "v1.3.2",
+      "depends_on": "v1.3.1",
+      "commit": "6758dd0",
+      "subject": "v1.3.2 snapshot",
+      "skill": ".claude/skills/v1.3.2/SKILL.md"
+    },
+    {
+      "tag": "v1.3.3",
+      "depends_on": "v1.3.2",
+      "commit": "6704679",
+      "subject": "v1.3.3 snapshot",
+      "skill": ".claude/skills/v1.3.3/SKILL.md"
+    },
+    {
+      "tag": "v1.3.4",
+      "depends_on": "v1.3.3",
+      "commit": "5842d5f",
+      "subject": "v1.3.4 snapshot",
+      "skill": ".claude/skills/v1.3.4/SKILL.md"
+    },
+    {
+      "tag": "v1.4.0",
+      "depends_on": "v1.3.4",
+      "commit": "40d12d0",
+      "subject": "v1.4.0 snapshot",
+      "skill": ".claude/skills/v1.4.0/SKILL.md"
+    },
+    {
+      "tag": "v1.5.0",
+      "depends_on": "v1.4.0",
+      "commit": "b0066cf",
+      "subject": "v1.5.0 snapshot",
+      "skill": ".claude/skills/v1.5.0/SKILL.md"
+    },
+    {
+      "tag": "v1.5.1",
+      "depends_on": "v1.5.0",
+      "commit": "40eccb6",
+      "subject": "v1.5.1 snapshot",
+      "skill": ".claude/skills/v1.5.1/SKILL.md"
+    },
+    {
+      "tag": "v1.5.2",
+      "depends_on": "v1.5.1",
+      "commit": "93d4221",
+      "subject": "v1.5.2 snapshot",
+      "skill": ".claude/skills/v1.5.2/SKILL.md"
+    },
+    {
+      "tag": "v1.5.3",
+      "depends_on": "v1.5.2",
+      "commit": "7e743fa",
+      "subject": "v1.5.3 snapshot",
+      "skill": ".claude/skills/v1.5.3/SKILL.md"
+    },
+    {
+      "tag": "v1.5.4",
+      "depends_on": "v1.5.3",
+      "commit": "4ca756c",
+      "subject": "v1.5.4 snapshot",
+      "skill": ".claude/skills/v1.5.4/SKILL.md"
+    },
+    {
+      "tag": "v1.5.5",
+      "depends_on": "v1.5.4",
+      "commit": "1281ca3",
+      "subject": "v1.5.5 snapshot",
+      "skill": ".claude/skills/v1.5.5/SKILL.md"
+    },
+    {
+      "tag": "v1.5.6",
+      "depends_on": "v1.5.5",
+      "commit": "2d7f0f7",
+      "subject": "v1.5.6 snapshot",
+      "skill": ".claude/skills/v1.5.6/SKILL.md"
+    },
+    {
+      "tag": "v1.5.7",
+      "depends_on": "v1.5.6",
+      "commit": "7ed6d43",
+      "subject": "v1.5.7 snapshot",
+      "skill": ".claude/skills/v1.5.7/SKILL.md"
+    },
+    {
+      "tag": "v1.5.8",
+      "depends_on": "v1.5.7",
+      "commit": "281d1ca",
+      "subject": "v1.5.8 snapshot",
+      "skill": ".claude/skills/v1.5.8/SKILL.md"
+    },
+    {
+      "tag": "v1.5.9",
+      "depends_on": "v1.5.8",
+      "commit": "acdc569",
+      "subject": "v1.5.9 snapshot",
+      "skill": ".claude/skills/v1.5.9/SKILL.md"
+    },
+    {
+      "tag": "v1.5.10",
+      "depends_on": "v1.5.9",
+      "commit": "b7918b2",
+      "subject": "v1.5.10 snapshot",
+      "skill": ".claude/skills/v1.5.10/SKILL.md"
+    },
+    {
+      "tag": "v1.5.11",
+      "depends_on": "v1.5.10",
+      "commit": "1fbc8b0",
+      "subject": "v1.5.11 snapshot",
+      "skill": ".claude/skills/v1.5.11/SKILL.md"
+    },
+    {
+      "tag": "v1.5.12",
+      "depends_on": "v1.5.11",
+      "commit": "8935f5c",
+      "subject": "v1.5.12 snapshot",
+      "skill": ".claude/skills/v1.5.12/SKILL.md"
+    },
+    {
+      "tag": "v1.5.13",
+      "depends_on": "v1.5.12",
+      "commit": "1db7fb5",
+      "subject": "v1.5.13 snapshot",
+      "skill": ".claude/skills/v1.5.13/SKILL.md"
+    },
+    {
+      "tag": "v1.5.14",
+      "depends_on": "v1.5.13",
+      "commit": "c37c07c",
+      "subject": "v1.5.14 snapshot",
+      "skill": ".claude/skills/v1.5.14/SKILL.md"
+    },
+    {
+      "tag": "v1.5.20",
+      "depends_on": "v1.5.14",
+      "commit": "8faf812",
+      "subject": "v1.5.20 snapshot",
+      "skill": ".claude/skills/v1.5.20/SKILL.md"
+    },
+    {
+      "tag": "v1.5.24",
+      "depends_on": "v1.5.20",
+      "commit": "193aa12",
+      "subject": "v1.5.24 snapshot",
+      "skill": ".claude/skills/v1.5.24/SKILL.md"
+    },
+    {
+      "tag": "v1.6.0",
+      "depends_on": "v1.5.24",
+      "commit": "9175373",
+      "subject": "v1.6.0 snapshot",
+      "skill": ".claude/skills/v1.6.0/SKILL.md"
+    },
+    {
+      "tag": "v1.6.1",
+      "depends_on": "v1.6.0",
+      "commit": "7f1332a",
+      "subject": "v1.6.1 snapshot",
+      "skill": ".claude/skills/v1.6.1/SKILL.md"
+    },
+    {
+      "tag": "v1.6.2",
+      "depends_on": "v1.6.1",
+      "commit": "0fb250b",
+      "subject": "v1.6.2 snapshot",
+      "skill": ".claude/skills/v1.6.2/SKILL.md"
+    },
+    {
+      "tag": "v1.6.3",
+      "depends_on": "v1.6.2",
+      "commit": "f681ead",
+      "subject": "v1.6.3 snapshot",
+      "skill": ".claude/skills/v1.6.3/SKILL.md"
+    },
+    {
+      "tag": "v1.6.4",
+      "depends_on": "v1.6.3",
+      "commit": "43a8f35",
+      "subject": "v1.6.4 snapshot",
+      "skill": ".claude/skills/v1.6.4/SKILL.md"
+    },
+    {
+      "tag": "v1.6.5",
+      "depends_on": "v1.6.4",
+      "commit": "5e7b432",
+      "subject": "v1.6.5 snapshot",
+      "skill": ".claude/skills/v1.6.5/SKILL.md"
+    },
+    {
+      "tag": "v1.7.0",
+      "depends_on": "v1.6.5",
+      "commit": "79ae492",
+      "subject": "v1.7.0 snapshot",
+      "skill": ".claude/skills/v1.7.0/SKILL.md"
+    },
+    {
+      "tag": "v1.7.1",
+      "depends_on": "v1.7.0",
+      "commit": "7b08cde",
+      "subject": "v1.7.1 snapshot",
+      "skill": ".claude/skills/v1.7.1/SKILL.md"
+    },
+    {
+      "tag": "v1.7.2",
+      "depends_on": "v1.7.1",
+      "commit": "8a1516d",
+      "subject": "v1.7.2 snapshot",
+      "skill": ".claude/skills/v1.7.2/SKILL.md"
+    },
+    {
+      "tag": "v1.7.3",
+      "depends_on": "v1.7.2",
+      "commit": "d0a26ee",
+      "subject": "v1.7.3 snapshot",
+      "skill": ".claude/skills/v1.7.3/SKILL.md"
+    },
+    {
+      "tag": "v1.7.4",
+      "depends_on": "v1.7.3",
+      "commit": "a21c3b1",
+      "subject": "v1.7.4 snapshot",
+      "skill": ".claude/skills/v1.7.4/SKILL.md"
+    },
+    {
+      "tag": "v1.7.5",
+      "depends_on": "v1.7.4",
+      "commit": "f37fea7",
+      "subject": "v1.7.5 snapshot",
+      "skill": ".claude/skills/v1.7.5/SKILL.md"
+    },
+    {
+      "tag": "v1.7.6",
+      "depends_on": "v1.7.5",
+      "commit": "18f9c0f",
+      "subject": "v1.7.6 snapshot",
+      "skill": ".claude/skills/v1.7.6/SKILL.md"
+    },
+    {
+      "tag": "v1.7.7",
+      "depends_on": "v1.7.6",
+      "commit": "bda1d21",
+      "subject": "v1.7.7 snapshot",
+      "skill": ".claude/skills/v1.7.7/SKILL.md"
+    },
+    {
+      "tag": "v1.7.8",
+      "depends_on": "v1.7.7",
+      "commit": "7bd5d96",
+      "subject": "v1.7.8 snapshot",
+      "skill": ".claude/skills/v1.7.8/SKILL.md"
+    },
+    {
+      "tag": "v1.7.9",
+      "depends_on": "v1.7.8",
+      "commit": "c3081b2",
+      "subject": "v1.7.9 snapshot",
       "skill": ".claude/skills/v1.7.9/SKILL.md"
     }
   ]
