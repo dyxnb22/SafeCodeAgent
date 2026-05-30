@@ -8,6 +8,7 @@ output stored per attempt; pending proposal cleared on execution or claim failur
 v1.8.5: filter_by() supports limit + sort_order; sac sandbox execution show for detail.
 v1.8.6: stats() + plan_prune() + prune() for safe result record maintenance.
 v1.8.8: result records are written through same-dir temp files and os.replace().
+v1.8.9: pending proposals are written through same-dir temp files and os.replace().
 """
 
 from __future__ import annotations
@@ -455,7 +456,19 @@ class SandboxExecutionProposalStore:
             "status": proposal.status,
             "risk_reason": proposal.risk_reason,
         }
-        self.path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        temp_path = self.path.with_name(f".{self.path.name}.{uuid4().hex}.tmp")
+        try:
+            temp_path.write_text(
+                json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
+                encoding="utf-8",
+            )
+            os.replace(temp_path, self.path)
+        finally:
+            if temp_path.exists():
+                try:
+                    temp_path.unlink()
+                except OSError:
+                    pass
 
 
 class SandboxExecutionGate:

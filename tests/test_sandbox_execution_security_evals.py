@@ -38,6 +38,7 @@ from safecode.sandbox.approvals import SandboxExecutionApprovalStore
 from safecode.sandbox.capabilities import SandboxCapability
 from safecode.sandbox.execution import (
     SandboxExecutionGate,
+    SandboxExecutionProposalStore,
     SandboxExecutionResultRecord,
     SandboxExecutionResultStore,
 )
@@ -1536,6 +1537,49 @@ class TestExecutionResultAtomicSave:
         assert store._dir.exists()
         assert list(store._dir.glob("*.tmp")) == []
         assert store.load("replace-fails") is None
+
+
+# ── D++++++++. Pending Proposal Atomic Save (v1.8.9) ──────────────────────
+
+
+class TestPendingProposalAtomicSave:
+    """v1.8.9: pending sandbox proposals are saved atomically."""
+
+    def test_create_replaces_existing_symlink_without_following(self, tmp_path, monkeypatch):
+        """Creating a proposal replaces a same-name symlink instead of writing through it."""
+        _setup_gate(tmp_path, monkeypatch)
+        store = SandboxExecutionProposalStore(tmp_path)
+        store.path.parent.mkdir(parents=True, exist_ok=True)
+        outside_target = tmp_path.parent / f"outside-proposal-{tmp_path.name}.json"
+        store.path.symlink_to(outside_target)
+        assert store.path.exists() is False
+        assert store.path.is_symlink() is True
+
+        proposal = SandboxExecutionGate(tmp_path).propose(_make_plan(), "shell")
+
+        assert not outside_target.exists()
+        assert store.path.exists()
+        assert not store.path.is_symlink()
+        loaded = store.load_pending()
+        assert loaded is not None
+        assert loaded.proposal_id == proposal.proposal_id
+
+    def test_create_cleans_temp_file_when_replace_fails(self, tmp_path, monkeypatch):
+        """A failed atomic replace does not leave temp proposal files behind."""
+        _setup_gate(tmp_path, monkeypatch)
+
+        def fail_replace(_src, _dst):
+            raise OSError("replace failed")
+
+        monkeypatch.setattr("safecode.sandbox.execution.os.replace", fail_replace)
+
+        with pytest.raises(OSError, match="replace failed"):
+            SandboxExecutionGate(tmp_path).propose(_make_plan(), "shell")
+
+        proposal_dir = tmp_path / ".sac"
+        assert proposal_dir.exists()
+        assert list(proposal_dir.glob("*.tmp")) == []
+        assert not (proposal_dir / "pending_sandbox_execution.json").exists()
 
 
 # ── E. Regression ───────────────────────────────────────────────────────
