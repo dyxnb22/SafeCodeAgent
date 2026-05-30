@@ -5,13 +5,13 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v1.8.10
+# Current Baseline - v1.9.0
 
 ## Status
-Implemented and tagged as `v1.8.10`.
+Implemented locally; tag pending.
 
 ## Stage
-`v1.8.x` Local Policy-Gated Sandbox Execution.
+`v1.9.x` Interactive Agent Loop.
 
 ## Source Of Truth
 - Version index: `docs/version_implementation_matrix.md`
@@ -22,10 +22,11 @@ Implemented and tagged as `v1.8.10`.
 ## Current Capability
 SafeCode Agent has a safety-first local runtime centered on controlled file edits, command policy, audit, rollback, and sandbox planning.
 
-The current baseline extends `v1.7.9` by enabling real sandbox execution through the **Noop adapter** (local policy-gated execution). Commands run via SafeCode's own `ShellRunner` (CommandPolicy + NetworkPolicy + FilesystemBoundary) when all preflight checks pass (proposal integrity, approval, command policy, network policy, filesystem boundary, backend capability). Sandbox execution approvals are **single-use** and **atomically claimed** before execution via `claim_for_execution()` (lock file + `os.replace`), closing the TOCTOU window between preflight and `ShellRunner.run()`. Approval create/consume/claim writes use same-directory random temp files and `os.replace`, so same-name symlinks are replaced instead of followed. If claim fails, execution is blocked without invoking the shell. Blocked preflight does not consume the approval. Pending sandbox execution proposals and execution result records are written through same-directory temp files and `os.replace`. Every execution attempt (successful, non-zero exit, or claim-blocked) writes a persistent, redacted/truncated `SandboxExecutionResultRecord` to `.sac/sandbox_executions/`, then clears the pending proposal. Preflight-blocked attempts preserve the pending proposal for retry. CLI commands `sac sandbox executions` (with `--status`/`--backend`/`--proposal-id`/`--limit`/`--sort` filters, plus `stats` and `prune` subcommands), `sac sandbox execution show <id>`, and `sac sandbox last-execution` let users inspect and maintain past results. `prune` requires `--dry-run` or `--yes`, skips symlinks, and only deletes valid `.json` source files scanned under `.sac/sandbox_executions/`; a record cannot redirect deletion by claiming another `proposal_id`. Confirmed CLI pruning writes a `sandbox_execution_results_pruned` audit event with minimal count/filter metadata, while dry-run pruning writes no destructive maintenance event. Result records include a `_schema_version` marker for future migration and tolerate unknown fields for forward compatibility. `sac sandbox status` shows an execution results summary panel. macOS Seatbelt, Linux Bubblewrap, and Docker adapters remain dry-run only. No OS sandbox binary is ever invoked.
+The current baseline extends `v1.8.10` by adding file-backed interactive agent session state at `.sac/session.json`. CLI commands `sac agent start`, `sac agent status`, and `sac agent clear` let users create, inspect, and remove the current session. Session state records goal, plan, current step, pending action, last observation, status, errors, and timestamps. Session writes use same-directory temp files and `os.replace`, so same-name symlinks are replaced instead of followed. All v1.8.x sandbox safety invariants remain in force: Noop is the only real execution backend, approval claim is single-use and atomic, macOS/Linux/Docker backends remain dry-run, and sandbox execution remains gated by proposal, approval, preflight, command policy, network policy, filesystem boundary, and backend capability.
 
 ## Important Entry Points
 - `src/safecode/cli.py`
+- `src/safecode/agent/session.py`
 - `src/safecode/sandbox/execution.py`
 - `src/safecode/sandbox/preflight.py`
 - `src/safecode/sandbox/adapter.py`

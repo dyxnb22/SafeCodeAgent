@@ -11,6 +11,7 @@ from rich.syntax import Syntax
 from rich.table import Table
 
 from safecode.agent.orchestrator import AgentOrchestrator
+from safecode.agent.session import AgentSessionStore
 from safecode.audit.logger import AuditLogger
 from safecode.audit.models import AuditEvent
 from safecode.config import SafeCodeConfig, ensure_config_file
@@ -72,6 +73,7 @@ logs_app = typer.Typer(help="Inspect runtime logs.")
 audit_app = typer.Typer(help="Inspect and verify audit logs.")
 hooks_app = typer.Typer(help="Approve and inspect project hooks.")
 sandbox_app = typer.Typer(help="Check OS sandbox capabilities and recommendations.")
+agent_app = typer.Typer(help="Run and inspect interactive SafeCode agent sessions.")
 console = Console()
 
 
@@ -263,6 +265,61 @@ def run_command(command: str, yes: bool = typer.Option(False, "--yes", "-y", hel
     if result.stderr:
         console.print(f"[red]{result.stderr}[/red]")
     raise typer.Exit(code=0 if result.exit_code in (0, 125, 126) else result.exit_code)
+
+
+@agent_app.command("start")
+def agent_start(goal: str) -> None:
+    """Start or replace the current interactive agent session."""
+    store = AgentSessionStore(Path.cwd())
+    state = store.start(goal)
+    console.print(
+        Panel.fit(
+            f"Session ID: {state.session_id}\n"
+            f"Goal: {state.goal}\n"
+            f"Status: {state.status}\n"
+            f"Session path: {store.path}",
+            title="SafeCode Agent Session",
+        )
+    )
+
+
+@agent_app.command("status")
+def agent_status() -> None:
+    """Show the current interactive agent session state."""
+    store = AgentSessionStore(Path.cwd())
+    state = store.load()
+    if state is None:
+        console.print("[yellow]No agent session found.[/yellow]")
+        console.print("[yellow]Run 'sac agent start \"goal\"' first.[/yellow]")
+        return
+
+    table = Table(title="SafeCode Agent Session")
+    table.add_column("Field")
+    table.add_column("Value")
+    table.add_row("Session ID", state.session_id)
+    table.add_row("Goal", state.goal)
+    table.add_row("Status", state.status)
+    table.add_row("Current Step", str(state.current_step))
+    table.add_row("Plan Items", str(len(state.plan)))
+    table.add_row(
+        "Pending Action",
+        json.dumps(state.pending_action, ensure_ascii=False) if state.pending_action else "(none)",
+    )
+    table.add_row("Last Observation", state.last_observation or "(none)")
+    table.add_row("Last Error", state.last_error or "(none)")
+    table.add_row("Created At", state.created_at)
+    table.add_row("Updated At", state.updated_at)
+    console.print(table)
+
+
+@agent_app.command("clear")
+def agent_clear() -> None:
+    """Clear the current interactive agent session."""
+    removed = AgentSessionStore(Path.cwd()).clear()
+    if removed:
+        console.print("[green]Agent session cleared.[/green]")
+    else:
+        console.print("[yellow]No agent session found.[/yellow]")
 
 
 @config_app.command("init")
@@ -1447,6 +1504,7 @@ app.add_typer(logs_app, name="logs")
 app.add_typer(audit_app, name="audit")
 app.add_typer(hooks_app, name="hooks")
 app.add_typer(sandbox_app, name="sandbox")
+app.add_typer(agent_app, name="agent")
 
 
 def main() -> None:
