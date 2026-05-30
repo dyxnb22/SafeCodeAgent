@@ -5,6 +5,7 @@ v1.8.0: Noop adapter executes commands through SafeCode logical boundaries
 when all preflight checks pass. macOS/Linux/Docker backends remain dry-run.
 v1.8.3: sandbox execution result lifecycle — result records with redacted/truncated
 output stored per attempt; pending proposal cleared on execution or claim failure.
+v1.8.5: filter_by() supports limit + sort_order; sac sandbox execution show for detail.
 """
 
 from __future__ import annotations
@@ -181,14 +182,35 @@ class SandboxExecutionResultStore:
         backend: str | None = None,
         status: str | None = None,
         proposal_id_substr: str | None = None,
+        sort_order: str = "newest",
+        limit: int | None = None,
     ) -> list[SandboxExecutionResultRecord]:
-        records = self.list_all()
+        """Return filtered, sorted result records.
+
+        ``sort_order`` must be ``"newest"`` (default) or ``"oldest"``.
+        ``limit`` caps the returned list length; ``None`` means unlimited.
+        Raises ``ValueError`` when ``limit`` <= 0 or ``sort_order`` is
+        invalid.
+        """
+        if sort_order not in {"newest", "oldest"}:
+            raise ValueError(f"Invalid sort_order: {sort_order!r}. Must be 'newest' or 'oldest'.")
+        if limit is not None and limit <= 0:
+            raise ValueError(f"limit must be >= 1, got {limit}")
+
+        records = self.list_all()  # already sorted newest-first
         if backend:
             records = [r for r in records if r.backend == backend]
         if status:
             records = [r for r in records if r.status == status]
         if proposal_id_substr:
             records = [r for r in records if proposal_id_substr in r.proposal_id]
+
+        if sort_order == "oldest":
+            records = list(reversed(records))
+
+        if limit is not None:
+            records = records[:limit]
+
         return records
 
     def latest(self) -> SandboxExecutionResultRecord | None:

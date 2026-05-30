@@ -1077,6 +1077,134 @@ class TestExecutionResultRobustness:
         assert len(proposal_ids) > 0
 
 
+# ── D+++++. Execution Result Query (v1.8.5) ──────────────────────────────
+
+
+class TestExecutionResultQuery:
+    """v1.8.5: filter_by() supports limit and sort_order; CLI execution show
+    and executions --limit/--sort work correctly."""
+
+    def test_filter_by_limit(self, tmp_path, monkeypatch):
+        """filter_by(limit=N) returns at most N records."""
+        gate = _setup_gate(tmp_path, monkeypatch)
+        for name in ["a", "b", "c"]:
+            gate.propose(_make_plan(command=["echo", name]), "shell")
+            gate.approve()
+            gate.execute_pending()
+
+        store = SandboxExecutionResultStore(tmp_path)
+        results = store.filter_by(limit=2)
+        assert len(results) == 2
+
+    def test_filter_by_sort_oldest(self, tmp_path, monkeypatch):
+        """filter_by(sort_order='oldest') returns oldest-first."""
+        gate = _setup_gate(tmp_path, monkeypatch)
+        for name in ["first", "second", "third"]:
+            gate.propose(_make_plan(command=["echo", name]), "shell")
+            gate.approve()
+            gate.execute_pending()
+
+        store = SandboxExecutionResultStore(tmp_path)
+        results = store.filter_by(sort_order="oldest")
+        assert len(results) >= 3
+        # oldest first → attempted_at ascending
+        for i in range(len(results) - 1):
+            assert results[i].attempted_at <= results[i + 1].attempted_at
+
+    def test_filter_by_sort_newest_default(self, tmp_path, monkeypatch):
+        """filter_by() without sort_order returns newest-first (default)."""
+        gate = _setup_gate(tmp_path, monkeypatch)
+        for name in ["a", "b"]:
+            gate.propose(_make_plan(command=["echo", name]), "shell")
+            gate.approve()
+            gate.execute_pending()
+
+        store = SandboxExecutionResultStore(tmp_path)
+        results = store.filter_by()
+        assert len(results) >= 2
+        for i in range(len(results) - 1):
+            assert results[i].attempted_at >= results[i + 1].attempted_at
+
+    def test_filter_by_invalid_sort_order(self, tmp_path, monkeypatch):
+        """filter_by() with invalid sort_order raises ValueError."""
+        _setup_gate(tmp_path, monkeypatch)
+        store = SandboxExecutionResultStore(tmp_path)
+        with pytest.raises(ValueError, match="sort_order"):
+            store.filter_by(sort_order="invalid")
+
+    def test_filter_by_invalid_limit_zero(self, tmp_path, monkeypatch):
+        """filter_by(limit=0) raises ValueError."""
+        _setup_gate(tmp_path, monkeypatch)
+        store = SandboxExecutionResultStore(tmp_path)
+        with pytest.raises(ValueError, match="limit"):
+            store.filter_by(limit=0)
+
+    def test_filter_by_invalid_limit_negative(self, tmp_path, monkeypatch):
+        """filter_by(limit=-1) raises ValueError."""
+        _setup_gate(tmp_path, monkeypatch)
+        store = SandboxExecutionResultStore(tmp_path)
+        with pytest.raises(ValueError, match="limit"):
+            store.filter_by(limit=-1)
+
+    def test_filter_by_combined_status_and_limit(self, tmp_path, monkeypatch):
+        """Combined status filter + limit works correctly."""
+        gate = _setup_gate(tmp_path, monkeypatch)
+        # Create at least one completed record
+        gate.propose(_make_plan(command=["echo", "test"]), "shell")
+        gate.approve()
+        gate.execute_pending()
+
+        store = SandboxExecutionResultStore(tmp_path)
+        results = store.filter_by(status="completed", limit=5)
+        assert len(results) >= 1
+        for r in results:
+            assert r.status == "completed"
+
+    def test_filter_by_combined_backend_and_sort(self, tmp_path, monkeypatch):
+        """Combined backend filter + sort works correctly."""
+        gate = _setup_gate(tmp_path, monkeypatch)
+        for name in ["a", "b"]:
+            gate.propose(_make_plan(command=["echo", name]), "shell")
+            gate.approve()
+            gate.execute_pending()
+
+        store = SandboxExecutionResultStore(tmp_path)
+        results = store.filter_by(backend="none", sort_order="oldest")
+        assert len(results) >= 2
+        for r in results:
+            assert r.backend == "none"
+        for i in range(len(results) - 1):
+            assert results[i].attempted_at <= results[i + 1].attempted_at
+
+    def test_filter_by_limit_with_proposal_id(self, tmp_path, monkeypatch):
+        """filter_by() with proposal_id_substr + limit caps correctly."""
+        gate = _setup_gate(tmp_path, monkeypatch)
+        gate.propose(_make_plan(command=["echo", "target"]), "shell")
+        gate.approve()
+        r = gate.execute_pending()
+
+        store = SandboxExecutionResultStore(tmp_path)
+        results = store.filter_by(proposal_id_substr=r.proposal_id[:8], limit=1)
+        assert len(results) == 1
+        assert results[0].proposal_id == r.proposal_id
+
+    def test_filter_by_limit_does_not_mutate_source(self, tmp_path, monkeypatch):
+        """filter_by() returns a truncated copy; list_all() is unaffected."""
+        gate = _setup_gate(tmp_path, monkeypatch)
+        for name in ["a", "b", "c"]:
+            gate.propose(_make_plan(command=["echo", name]), "shell")
+            gate.approve()
+            gate.execute_pending()
+
+        store = SandboxExecutionResultStore(tmp_path)
+        all_records = store.list_all()
+        assert len(all_records) == 3
+
+        limited = store.filter_by(limit=1)
+        assert len(limited) == 1
+        assert len(store.list_all()) == 3
+
+
 # ── E. Regression ───────────────────────────────────────────────────────
 
 
