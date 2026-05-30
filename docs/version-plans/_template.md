@@ -1,18 +1,12 @@
----
-name: Implement Version VERSION
-description: >
-  Build VERSION based on PREVIOUS_VERSION. Replace this template with the
-  concrete version specification before implementation starts.
----
-
-# Version VERSION Specification
+# VERSION: short-feature-name
 
 ## Status
 Planned.
 
-## Base Version
+## Base
 - Depends on: `PREVIOUS_VERSION`
-- Branch: `work/VERSION` or `VERSION-short-feature-name`
+- Baseline context: `.claude/skills/current/SKILL.md`
+- Runtime invariants: `.claude/skills/shared/core-runtime.md`
 - New tag: `VERSION`
 
 ## Goals
@@ -24,7 +18,7 @@ Planned.
 - [ ] Requirement 2
 
 ## Backward Compatibility
-- Preserve existing CLI commands unless this section explicitly lists a breaking change.
+- Preserve existing CLI commands unless this plan explicitly lists a breaking change.
 - Preserve safety invariants from `.claude/skills/shared/core-runtime.md`.
 - Keep migrations and state changes additive where possible.
 

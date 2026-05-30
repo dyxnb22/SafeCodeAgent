@@ -9,7 +9,7 @@
 ## Implementation
 - Prefer small, reviewable changes with focused tests.
 - Keep CLI behavior deterministic in tests; default LLM provider should remain `mock`.
-- Preserve existing command names and documented flows unless a version skill declares a breaking change.
+- Preserve existing command names and documented flows unless a version plan declares a breaking change.
 - Use structured parsing and typed models for policy/security state instead of ad hoc string handling.
 
 ## Verification
