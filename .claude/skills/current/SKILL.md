@@ -5,7 +5,7 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v1.9.2
+# Current Baseline - v1.9.3
 
 ## Status
 Implemented locally; tag pending.
@@ -22,12 +22,13 @@ Implemented locally; tag pending.
 ## Current Capability
 SafeCode Agent has a safety-first local runtime centered on controlled file edits, command policy, audit, rollback, and sandbox planning.
 
-The current baseline extends `v1.9.1` by adding `sac agent run "goal" --max-steps N`, a bounded loop that repeatedly advances safe agent steps until completion, max-step exhaustion, or a future approval stop. `sac agent step` still advances exactly one plan item and records only a read-only pending action. Session writes use same-directory temp files and `os.replace`, so same-name symlinks are replaced instead of followed. All v1.8.x sandbox safety invariants remain in force: Noop is the only real execution backend, approval claim is single-use and atomic, macOS/Linux/Docker backends remain dry-run, and sandbox execution remains gated by proposal, approval, preflight, command policy, network policy, filesystem boundary, and backend capability.
+The current baseline extends `v1.9.2` by adding a typed tool intent router for read, patch, shell, sandbox, MCP, subagent, and report actions. `sac agent step` records a validated read intent with route metadata, while write/execute intent categories are marked approval-required and unknown or malformed intents fail closed. `sac agent run "goal" --max-steps N` remains bounded and stops on completion, max-step exhaustion, or future approval stops. All v1.8.x sandbox safety invariants remain in force: Noop is the only real execution backend, approval claim is single-use and atomic, macOS/Linux/Docker backends remain dry-run, and sandbox execution remains gated by proposal, approval, preflight, command policy, network policy, filesystem boundary, and backend capability.
 
 ## Important Entry Points
 - `src/safecode/cli.py`
 - `src/safecode/agent/loop.py`
 - `src/safecode/agent/session.py`
+- `src/safecode/agent/tools.py`
 - `src/safecode/sandbox/execution.py`
 - `src/safecode/sandbox/preflight.py`
 - `src/safecode/sandbox/adapter.py`

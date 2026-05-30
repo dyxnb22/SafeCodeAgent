@@ -19,7 +19,7 @@ class AgentSessionState(BaseModel):
     goal: str
     plan: list[str] = Field(default_factory=list)
     current_step: int = 0
-    pending_action: dict[str, str] | None = None
+    pending_action: dict[str, object] | None = None
     last_observation: str = ""
     status: str = "active"
     last_error: str | None = None

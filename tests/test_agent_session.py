@@ -103,6 +103,8 @@ class TestAgentStep:
         data = json.loads((tmp_path / ".sac" / "session.json").read_text(encoding="utf-8"))
         assert data["current_step"] == 1
         assert data["pending_action"]["type"] == "read"
+        assert data["pending_action"]["route"] == "context.read"
+        assert data["pending_action"]["executable_now"] == "true"
 
 
 class TestAgentRun:

@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from safecode.agent.session import AgentSessionState, AgentSessionStore
+from safecode.agent.tools import ToolIntentRouter
 
 
 DEFAULT_PLAN = [
@@ -64,10 +65,18 @@ class AgentLoop:
             return AgentStepResult(state=saved, observation=saved.last_observation)
 
         plan_item = state.plan[state.current_step]
+        routed = ToolIntentRouter().route(
+            {
+                "type": "read",
+                "target": "project_context",
+                "description": plan_item,
+            }
+        )
         pending_action = {
-            "type": "read",
-            "status": "planned",
-            "description": plan_item,
+            **routed.intent.model_dump(exclude_none=True),
+            "route": routed.route,
+            "executable_now": str(routed.executable_now).lower(),
+            "reason": routed.reason,
         }
         observation = f"Step {state.current_step + 1}: {plan_item}"
         updated = state.model_copy(
