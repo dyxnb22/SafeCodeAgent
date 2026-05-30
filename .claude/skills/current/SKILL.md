@@ -8,7 +8,7 @@ description: >
 # Current Baseline - v1.8.10
 
 ## Status
-Implemented locally; tag pending.
+Implemented and tagged as `v1.8.10`.
 
 ## Stage
 `v1.8.x` Local Policy-Gated Sandbox Execution.
@@ -16,7 +16,7 @@ Implemented locally; tag pending.
 ## Source Of Truth
 - Version index: `docs/version_implementation_matrix.md`
 - Release roadmap: `docs/release_roadmap_v0_1_to_v1_0.md`
-- Git baseline: tag `v1.8.6`
+- Git baseline: tag `v1.8.10`
 - Runtime invariants: `.claude/skills/shared/core-runtime.md`
 
 ## Current Capability

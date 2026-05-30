@@ -214,3 +214,85 @@
 | `v1.8.8` | `v1.8.8-sandbox-result-atomic-save` | `src/safecode/sandbox/execution.py::SandboxExecutionResultStore.save` | result record 使用同目录临时文件 + `os.replace` 原子写入；已有同名 symlink 被替换而不被跟随；replace 失败清理临时文件；2 项新安全评测 |
 | `v1.8.9` | `v1.8.9-sandbox-proposal-atomic-save` | `src/safecode/sandbox/execution.py::SandboxExecutionProposalStore._write` | pending sandbox proposal 使用同目录临时文件 + `os.replace` 原子写入；broken symlink 被替换而不被跟随；replace 失败清理临时文件；2 项新安全评测 |
 | `v1.8.10` | `v1.8.10-sandbox-approval-atomic-save` | `src/safecode/sandbox/approvals.py::SandboxExecutionApprovalStore._atomic_write_json` | approval approve/consume/claim 统一使用同目录随机临时文件 + `os.replace`；同名 symlink 被替换而不被跟随；replace 失败清理临时文件；2 项新安全评测 |
+
+## v1.9.x: Interactive Agent Loop
+
+| 版本 | 分支 | 主要入口 | 验收命令 |
+|---|---|---|---|
+| `v1.9.0` | `v1.9.0-session-state` | `src/safecode/agent/session.py`、`src/safecode/cli.py::agent_status` | `.sac/session.json` 记录 goal/plan/current_step/pending_action/last_observation，可显示当前 session |
+| `v1.9.1` | `v1.9.1-agent-step-command` | `src/safecode/agent/loop.py`、`src/safecode/cli.py::agent_step` | `sac agent step "goal"` 只执行一个 plan/tool-decision step，不直接越过安全门 |
+| `v1.9.2` | `v1.9.2-agent-run-loop` | `src/safecode/agent/loop.py`、`src/safecode/cli.py::agent_run` | `sac agent run "goal" --max-steps 5` 可多步推进，遇到写入/执行审批时停下 |
+| `v1.9.3` | `v1.9.3-tool-intent-router` | `src/safecode/agent/tools.py` | typed tool intents 覆盖 read/patch/shell/sandbox/MCP/subagent/report，未知 intent fail closed |
+| `v1.9.4` | `v1.9.4-human-checkpoint-prompts` | `src/safecode/agent/approvals.py`、`src/safecode/cli.py` | patch apply、shell run、MCP write、sandbox execute 使用统一审批提示和 audit metadata |
+| `v1.9.5` | `v1.9.5-agent-recovery` | `src/safecode/agent/session.py`、`src/safecode/logs/runtime.py` | `sac agent resume/abort/explain-last-failure` 可恢复或解释失败状态 |
+
+## v2.0.x: Usable Local Coding Agent MVP
+
+| 版本 | 分支 | 主要入口 | 验收命令 |
+|---|---|---|---|
+| `v2.0.0` | `v2.0.0-real-llm-agent-contract` | `src/safecode/agent/schemas.py`、`src/safecode/llm/*` | LLM 输出 answer/plan/tool_intent/patch/stop_for_user 结构化并可校验 |
+| `v2.0.1` | `v2.0.1-context-budget-manager` | `src/safecode/context/selector.py`、`src/safecode/context/collector.py` | context 打包有 token/byte budget、来源列表、截断说明 |
+| `v2.0.2` | `v2.0.2-task-journal` | `src/safecode/state/`、`src/safecode/report/` | 每个 agent session 生成 plan/action/diff/command/failure/final summary journal |
+| `v2.0.3` | `v2.0.3-test-detect-and-run` | `src/safecode/project/`、`src/safecode/shell/runner.py` | 自动识别 pytest/uv/npm 等测试命令，并通过 policy gate 提议执行 |
+| `v2.0.4` | `v2.0.4-demo-workflow-suite` | `examples/`、`tests/` | FastAPI/CLI/docs/failing-test repair 四类 demo workflow 可回归运行 |
+| `v2.0.5` | `v2.0.5-mvp-docs` | `README.md`、`docs/*` | install、model config、first task、safety、rollback 文档可按步骤跑通 |
+
+## v2.1.x: Repository Intelligence
+
+| 版本 | 分支 | 主要入口 | 验收命令 |
+|---|---|---|---|
+| `v2.1.0` | `v2.1.0-code-map` | `src/safecode/index/` | repo map 输出 files/symbols/imports/tests/entrypoints |
+| `v2.1.1` | `v2.1.1-test-build-detector` | `src/safecode/project/detector.py` | 检测 pytest、uv、npm、pnpm、gradle、maven、go、cargo 常见命令 |
+| `v2.1.2` | `v2.1.2-symbol-aware-context-selection` | `src/safecode/context/selector.py` | context ranking 综合 symbol/import/test/recent failure/user path |
+| `v2.1.3` | `v2.1.3-diff-planner` | `src/safecode/agent/planner.py` | patch 前预测 touched files，最终 patch scope 与计划不一致时提示 |
+| `v2.1.4` | `v2.1.4-context-debug-command` | `src/safecode/cli.py::context_explain` | `sac context explain "task"` 显示文件被选择的原因 |
+
+## v2.2.x: Tool Ecosystem
+
+| 版本 | 分支 | 主要入口 | 验收命令 |
+|---|---|---|---|
+| `v2.2.0` | `v2.2.0-tool-schema-registry` | `src/safecode/tools/registry.py` | 内部工具 schema、risk、permission、audit event 显式可查询 |
+| `v2.2.1` | `v2.2.1-model-tool-call-adapter` | `src/safecode/agent/tools.py` | LLM tool intent 转换为 runtime tool call 前完成 schema 校验 |
+| `v2.2.2` | `v2.2.2-mcp-read-tool-loop` | `src/safecode/mcp/runner.py`、`src/safecode/agent/loop.py` | agent loop 可调用 approved readonly MCP tool 并记录观察 |
+| `v2.2.3` | `v2.2.3-mcp-write-review-flow` | `src/safecode/mcp/proposal.py`、`src/safecode/agent/loop.py` | MCP write 进入 proposal/review/apply/audit 生命周期，不直接执行 |
+| `v2.2.4` | `v2.2.4-subagent-orchestration` | `src/safecode/subagents/`、`src/safecode/agent/loop.py` | main agent 可派发 readonly subagent 并把结果合并进单一计划 |
+
+## v2.3.x: Developer Experience
+
+| 版本 | 分支 | 主要入口 | 验收命令 |
+|---|---|---|---|
+| `v2.3.0` | `v2.3.0-interactive-tui` | `src/safecode/tui/` | TUI 展示 plan、diff、approval、command output、history |
+| `v2.3.1` | `v2.3.1-config-wizard` | `src/safecode/setup.py`、`src/safecode/cli.py::setup` | `sac setup` 引导 model/network/approval dirs/safety preset |
+| `v2.3.2` | `v2.3.2-ide-bridge-mvp` | `src/safecode/ide/` | IDE bridge 可打开 diff 和 selected files |
+| `v2.3.3` | `v2.3.3-install-update-polish` | `pyproject.toml`、`src/safecode/doctor.py` | doctor/version/update 指南覆盖常见安装问题 |
+| `v2.3.4` | `v2.3.4-onboarding-examples` | `examples/`、`docs/tutorials/` | bug fix、feature edit、docs edit、safe shell task 四个教程跑通 |
+
+## v2.4.x: Real Sandbox Backends
+
+| 版本 | 分支 | 主要入口 | 验收命令 |
+|---|---|---|---|
+| `v2.4.0` | `v2.4.0-sandbox-backend-contract-v2` | `src/safecode/sandbox/adapter.py` | dry-run/preflight/execute contract 按 backend 分离 |
+| `v2.4.1` | `v2.4.1-macos-seatbelt-execution-preview` | `src/safecode/sandbox/seatbelt.py` | opt-in macOS Seatbelt execution path 有窄 allowlist 和 eval |
+| `v2.4.2` | `v2.4.2-linux-bubblewrap-execution-preview` | `src/safecode/sandbox/bubblewrap.py` | opt-in Bubblewrap execution path 有 filesystem/network containment eval |
+| `v2.4.3` | `v2.4.3-docker-execution-preview` | `src/safecode/sandbox/docker.py` | opt-in Docker execution path 支持隔离命令运行 |
+| `v2.4.4` | `v2.4.4-cross-backend-security-evals` | `tests/test_sandbox_*` | backend-specific escape/attack/security eval 全部通过 |
+
+## v2.5.x: Reliability and Evaluation
+
+| 版本 | 分支 | 主要入口 | 验收命令 |
+|---|---|---|---|
+| `v2.5.0` | `v2.5.0-task-eval-format` | `src/safecode/eval/` | task eval fixture 包含 repo、goal、expected outcome、safety expectations |
+| `v2.5.1` | `v2.5.1-agent-replay-runner` | `src/safecode/eval/runner.py` | 保存的 session 可 replay 并比较 action/diff/command/outcome |
+| `v2.5.2` | `v2.5.2-failure-taxonomy` | `src/safecode/eval/failures.py` | context miss、patch parse、validation、command block、test failure、model error 可分类 |
+| `v2.5.3` | `v2.5.3-quality-dashboard-report` | `src/safecode/report/` | eval 结果渲染为 Markdown/HTML dashboard |
+| `v2.5.4` | `v2.5.4-performance-budgets` | `src/safecode/trace/`、`src/safecode/eval/` | 记录 context size、command duration、LLM latency、disk growth |
+
+## v2.6.x: Product Hardening
+
+| 版本 | 分支 | 主要入口 | 验收命令 |
+|---|---|---|---|
+| `v2.6.0` | `v2.6.0-policy-presets` | `src/safecode/config.py` | strict/balanced/experimental safety presets 可切换且不可被项目配置降级 |
+| `v2.6.1` | `v2.6.1-migration-system` | `src/safecode/state/migrations.py` | `.sac` state 与用户级 approval/audit store 有版本迁移 |
+| `v2.6.2` | `v2.6.2-release-signoff` | `src/safecode/release/` | release checklist 覆盖 tests/docs/tags/security eval |
+| `v2.6.3` | `v2.6.3-team-trust-boundaries` | `docs/security/`、`src/safecode/config.py` | project/user/team trust boundary 文档和 enforcement 明确 |
+| `v2.6.4` | `v2.6.4-product-security-review` | `docs/security/`、`tests/` | prompts/tools/state/sandbox/install-update 完成产品级安全 review |

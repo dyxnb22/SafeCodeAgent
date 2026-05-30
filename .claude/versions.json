@@ -1,7 +1,7 @@
 {
   "project": "SafeCode Agent",
-  "current_implemented_tag": "v1.8.6",
-  "current_local_version": "v1.8.10",
+  "current_implemented_tag": "v1.8.10",
+  "current_local_version": null,
   "current_baseline": ".claude/skills/current/SKILL.md",
   "runtime_summary": ".claude/skills/shared/core-runtime.md",
   "version_index": "docs/version_implementation_matrix.md",
@@ -122,6 +122,54 @@
       "name": "Local Policy-Gated Sandbox Execution",
       "depends_on": "v1.7.x",
       "notes": "Noop adapter executes commands through SafeCode logical boundaries when all preflight checks pass. macOS/Linux/Docker backends remain dry-run. Result maintenance includes stats, safe prune, confirmed-prune audit, atomic result record save, atomic pending proposal save, and atomic approval save."
+    },
+    {
+      "range": "v1.9.x",
+      "name": "Interactive Agent Loop",
+      "depends_on": "v1.8.x",
+      "notes": "Session state, plan/step loop, tool intent routing, recovery, and human checkpoint UX."
+    },
+    {
+      "range": "v2.0.x",
+      "name": "Usable Local Coding Agent MVP",
+      "depends_on": "v1.9.x",
+      "notes": "End-to-end ask/edit/run/apply loop with real LLM, context budgeting, task journal, and demo repo workflows."
+    },
+    {
+      "range": "v2.1.x",
+      "name": "Repository Intelligence",
+      "depends_on": "v2.0.x",
+      "notes": "Richer code map, test/build detection, context ranking, and diff planning."
+    },
+    {
+      "range": "v2.2.x",
+      "name": "Tool Ecosystem",
+      "depends_on": "v2.1.x",
+      "notes": "MCP execution hardening, tool schemas, scoped tool permissions, and subagent orchestration."
+    },
+    {
+      "range": "v2.3.x",
+      "name": "Developer Experience",
+      "depends_on": "v2.2.x",
+      "notes": "TUI, IDE bridge, install/update path, config wizard, and onboarding docs."
+    },
+    {
+      "range": "v2.4.x",
+      "name": "Real Sandbox Backends",
+      "depends_on": "v2.3.x",
+      "notes": "Carefully enable macOS/Linux/Docker sandbox execution beyond the Noop backend."
+    },
+    {
+      "range": "v2.5.x",
+      "name": "Reliability and Evaluation",
+      "depends_on": "v2.4.x",
+      "notes": "Replayable evals, regression benchmarks, failure taxonomy, and local-only metrics."
+    },
+    {
+      "range": "v2.6.x",
+      "name": "Product Hardening",
+      "depends_on": "v2.5.x",
+      "notes": "Policy profiles, signed release checks, migration handling, and team-ready trust boundaries."
     }
   ],
   "latest_tags": [
@@ -136,12 +184,11 @@
     "v1.8.3",
     "v1.8.4",
     "v1.8.5",
-    "v1.8.6"
-  ],
-  "local_versions": [
+    "v1.8.6",
     "v1.8.7",
     "v1.8.8",
     "v1.8.9",
     "v1.8.10"
-  ]
+  ],
+  "local_versions": []
 }
