@@ -34,7 +34,10 @@ from safecode.sandbox.adapter import (
 )
 from safecode.sandbox.approvals import SandboxExecutionApprovalStore
 from safecode.sandbox.capabilities import SandboxCapability
-from safecode.sandbox.execution import SandboxExecutionGate
+from safecode.sandbox.execution import (
+    SandboxExecutionGate,
+    SandboxExecutionResultStore,
+)
 
 
 def _setup_gate(tmp_path, monkeypatch):
@@ -344,16 +347,20 @@ class TestSingleUseApproval:
     """v1.8.1: approval is consumed after first successful execution."""
 
     def test_second_execution_blocked_after_first(self, tmp_path, monkeypatch):
-        """Execute once successfully, then second attempt is blocked."""
+        """Execute once successfully, then second attempt is blocked.
+
+        v1.8.3: successful execution clears the pending proposal, so the
+        second call reports "No pending" instead of "Approval".
+        """
         gate = _setup_gate(tmp_path, monkeypatch)
         gate.propose(_make_plan(), "shell")
         gate.approve()
         r1 = gate.execute_pending()
         assert r1.executed is True
-        # Second execution blocked — approval already consumed
+        # Second execution blocked — no pending proposal remains
         r2 = gate.execute_pending()
         assert r2.executed is False
-        assert "Approval" in r2.message
+        assert "No pending" in r2.message
 
     def test_blocked_preflight_does_not_consume(self, tmp_path, monkeypatch):
         """Blocked execution (unsupported backend) does NOT consume approval."""
@@ -391,13 +398,16 @@ class TestSingleUseApproval:
         assert claimed[0].status == "success"
 
     def test_consumed_approval_fails_is_approved(self, tmp_path, monkeypatch):
-        """After consumption, is_approved() returns False for same approval."""
+        """After consumption, is_approved() returns False for same approval.
+
+        v1.8.3: pending proposal is cleared after execution, so store the
+        proposal fields before calling execute_pending().
+        """
         gate = _setup_gate(tmp_path, monkeypatch)
-        gate.propose(_make_plan(), "shell")
+        proposal = gate.propose(_make_plan(), "shell")
         gate.approve()
         gate.execute_pending()
         approval_store = SandboxExecutionApprovalStore(tmp_path)
-        proposal = gate.load_pending()
         assert approval_store.is_approved(
             proposal.proposal_id,
             proposal.backend,
@@ -474,15 +484,18 @@ class TestAtomicApprovalClaim:
         assert c2 is False
 
     def test_claim_fails_after_successful_execution(self, tmp_path, monkeypatch):
-        """After a full execute_pending cycle, claim on same approval fails."""
+        """After a full execute_pending cycle, claim on same approval fails.
+
+        v1.8.3: pending proposal is cleared after execution, so store the
+        proposal fields before calling execute_pending().
+        """
         gate = _setup_gate(tmp_path, monkeypatch)
-        gate.propose(_make_plan(), "shell")
+        proposal = gate.propose(_make_plan(), "shell")
         gate.approve()
         r1 = gate.execute_pending()
         assert r1.executed is True
         # Direct claim on the same approval must fail
         approval_store = SandboxExecutionApprovalStore(tmp_path)
-        proposal = gate.load_pending()
         c2 = approval_store.claim_for_execution(
             proposal.proposal_id,
             proposal.backend,
@@ -642,6 +655,271 @@ class TestAtomicApprovalClaim:
         blocked = [e for e in events if e.type == "sandbox_execution_blocked"]
         claim_blocked = [e for e in blocked if "claim" in e.message.lower()]
         assert len(claim_blocked) >= 1
+
+
+# ── D+++. Execution Result Lifecycle (v1.8.3) ────────────────────────────
+
+
+class TestExecutionResultLifecycle:
+    """v1.8.3: execution result records are persisted with redacted/truncated
+    output; pending proposal is cleared on execution or claim failure."""
+
+    def test_successful_execution_writes_result_record(self, tmp_path, monkeypatch):
+        """Successful execution persists a result record under .sac/sandbox_executions/."""
+        gate = _setup_gate(tmp_path, monkeypatch)
+        gate.propose(_make_plan(), "shell")
+        gate.approve()
+        result = gate.execute_pending()
+        assert result.executed is True
+
+        store = SandboxExecutionResultStore(tmp_path)
+        record = store.load(result.proposal_id)
+        assert record is not None
+        assert record.status == "completed"
+        assert record.executed is True
+        assert record.exit_code == 0
+        assert record.backend == "none"
+        assert record.command_hash_prefix != ""
+        assert len(record.command_hash_prefix) == 16
+
+    def test_successful_execution_clears_pending(self, tmp_path, monkeypatch):
+        """After successful execution, the pending proposal file is removed."""
+        gate = _setup_gate(tmp_path, monkeypatch)
+        gate.propose(_make_plan(), "shell")
+        gate.approve()
+        gate.execute_pending()
+        assert not gate.pending_path.exists()
+
+    def test_non_zero_exit_writes_result_record(self, tmp_path, monkeypatch):
+        """Non-zero exit still writes a completed result record."""
+        from safecode.config import SafeCodeConfig
+
+        gate = _setup_gate(tmp_path, monkeypatch)
+        cfg = SafeCodeConfig()
+        cfg.shell.allowed_commands = [sys.executable]
+        cfg.shell.require_confirm_for_medium = False
+        gate.config = cfg
+        gate.propose(
+            _make_plan(command=[sys.executable, "/tmp/nonexistent_script.py"]),
+            "shell",
+        )
+        gate.approve()
+        result = gate.execute_pending()
+        assert result.executed is True
+        assert result.exit_code != 0
+
+        store = SandboxExecutionResultStore(tmp_path)
+        record = store.load(result.proposal_id)
+        assert record is not None
+        assert record.status == "completed"
+        assert record.executed is True
+        assert record.exit_code != 0
+        assert record.stdout_length >= 0
+        assert record.stderr_length > 0
+
+    def test_non_zero_exit_clears_pending(self, tmp_path, monkeypatch):
+        """Non-zero exit clears pending — it's a terminal state."""
+        from safecode.config import SafeCodeConfig
+
+        gate = _setup_gate(tmp_path, monkeypatch)
+        cfg = SafeCodeConfig()
+        cfg.shell.allowed_commands = [sys.executable]
+        cfg.shell.require_confirm_for_medium = False
+        gate.config = cfg
+        gate.propose(
+            _make_plan(command=[sys.executable, "/tmp/nonexistent_script.py"]),
+            "shell",
+        )
+        gate.approve()
+        gate.execute_pending()
+        assert not gate.pending_path.exists()
+
+    def test_claim_failure_writes_result_record(self, tmp_path, monkeypatch):
+        """Claim failure writes a blocked_claim result record."""
+        gate = _setup_gate(tmp_path, monkeypatch)
+        gate.propose(_make_plan(), "shell")
+        gate.approve()
+        # Force claim_for_execution to return False while is_approved still
+        # returns True so preflight passes.
+        monkeypatch.setattr(
+            SandboxExecutionApprovalStore,
+            "claim_for_execution",
+            lambda *a, **kw: False,
+        )
+
+        result = gate.execute_pending()
+        assert result.executed is False
+
+        store = SandboxExecutionResultStore(tmp_path)
+        record = store.load(result.proposal_id)
+        assert record is not None
+        assert record.status == "blocked_claim"
+        assert record.executed is False
+        assert record.exit_code is None
+        assert "claim" in record.message.lower()
+
+    def test_claim_failure_clears_pending(self, tmp_path, monkeypatch):
+        """Claim failure clears pending — it's a terminal state not retriable."""
+        gate = _setup_gate(tmp_path, monkeypatch)
+        gate.propose(_make_plan(), "shell")
+        gate.approve()
+        monkeypatch.setattr(
+            SandboxExecutionApprovalStore,
+            "claim_for_execution",
+            lambda *a, **kw: False,
+        )
+        gate.execute_pending()
+        assert not gate.pending_path.exists()
+
+    def test_preflight_blocked_preserves_pending(self, tmp_path, monkeypatch):
+        """Preflight blocked does NOT clear pending — user can fix and retry."""
+        gate = _setup_gate(tmp_path, monkeypatch)
+        gate.propose(
+            _make_plan(
+                backend=SandboxBackend.MACOS_SEATBELT,
+                profile_preview="(deny default)",
+                profile_backend="macos_seatbelt",
+            ),
+            "shell",
+        )
+        gate.approve()
+        result = gate.execute_pending()
+        assert result.executed is False
+        assert gate.pending_path.exists()
+
+    def test_preflight_blocked_does_not_consume_approval(self, tmp_path, monkeypatch):
+        """Preflight blocked still preserves the approval for retry."""
+        gate = _setup_gate(tmp_path, monkeypatch)
+        gate.propose(
+            _make_plan(
+                backend=SandboxBackend.MACOS_SEATBELT,
+                profile_preview="(deny default)",
+                profile_backend="macos_seatbelt",
+            ),
+            "shell",
+        )
+        gate.approve()
+        gate.execute_pending()
+        approval_store = SandboxExecutionApprovalStore(tmp_path)
+        proposal = gate.load_pending()
+        assert approval_store.is_approved(
+            proposal.proposal_id,
+            proposal.backend,
+            proposal.command_hash,
+            proposal.preview_hash,
+        ) is True
+
+    def test_claim_failure_does_not_call_shell_runner(self, tmp_path, monkeypatch):
+        """Claim failure writes result without invoking subprocess."""
+        gate = _setup_gate(tmp_path, monkeypatch)
+        gate.propose(_make_plan(), "shell")
+        gate.approve()
+        approval_store = SandboxExecutionApprovalStore(tmp_path)
+        proposal = gate.load_pending()
+        approval_store.consume(proposal.proposal_id)
+        called = []
+        monkeypatch.setattr(subprocess, "run", lambda *a, **kw: called.append(1))
+        result = gate.execute_pending()
+        assert result.executed is False
+        assert len(called) == 0
+
+    def test_result_record_no_env_value_leak(self, tmp_path, monkeypatch):
+        """Result record structured fields do not leak env values."""
+        gate = _setup_gate(tmp_path, monkeypatch)
+        monkeypatch.setenv("SECRET_TOKEN", "secret-value-123")
+        gate.propose(_make_plan(env_keys=["SECRET_TOKEN"]), "shell")
+        gate.approve()
+        result = gate.execute_pending()
+        store = SandboxExecutionResultStore(tmp_path)
+        record = store.load(result.proposal_id)
+        payload = json.loads(
+            store._path_for(result.proposal_id).read_text(encoding="utf-8")
+        )
+        combined = json.dumps(payload)
+        assert "secret-value-123" not in combined
+        assert "SECRET_TOKEN" not in combined
+
+    def test_result_record_no_full_command_stored(self, tmp_path, monkeypatch):
+        """Result record does NOT contain the full command — only hash + head."""
+        gate = _setup_gate(tmp_path, monkeypatch)
+        gate.propose(_make_plan(command=["echo", "hello"]), "shell")
+        gate.approve()
+        result = gate.execute_pending()
+        store = SandboxExecutionResultStore(tmp_path)
+        record = store.load(result.proposal_id)
+        payload = json.loads(
+            store._path_for(result.proposal_id).read_text(encoding="utf-8")
+        )
+        # "echo hello" as full argv must not appear in the record
+        combined = json.dumps(payload)
+        assert '["echo", "hello"]' not in combined
+
+    def test_stdout_truncated_when_exceeds_limit(self, tmp_path, monkeypatch):
+        """Output exceeding MAX_RESULT_PREVIEW_LENGTH is truncated."""
+        from safecode.sandbox.execution import MAX_RESULT_PREVIEW_LENGTH
+        from safecode.config import SafeCodeConfig
+
+        gate = _setup_gate(tmp_path, monkeypatch)
+        cfg = SafeCodeConfig()
+        cfg.shell.allowed_commands = [sys.executable]
+        cfg.shell.require_confirm_for_medium = False
+        gate.config = cfg
+        gate.propose(
+            _make_plan(command=[sys.executable, "-c", "print('x' * 3000)"]),
+            "shell",
+        )
+        gate.approve()
+        result = gate.execute_pending()
+        assert result.executed is True
+        store = SandboxExecutionResultStore(tmp_path)
+        record = store.load(result.proposal_id)
+        assert record.stdout_length == 3001  # 3000 x's + newline
+        assert len(record.stdout_preview) < record.stdout_length
+        assert "truncated" in record.stdout_preview.lower()
+
+    def test_store_list_all_returns_records(self, tmp_path, monkeypatch):
+        """list_all returns all stored result records sorted newest first."""
+        gate = _setup_gate(tmp_path, monkeypatch)
+        # Execute two proposals
+        gate.propose(_make_plan(command=["echo", "first"]), "shell")
+        gate.approve()
+        r1 = gate.execute_pending()
+
+        gate.propose(_make_plan(command=["echo", "second"]), "shell")
+        gate.approve()
+        r2 = gate.execute_pending()
+
+        store = SandboxExecutionResultStore(tmp_path)
+        records = store.list_all()
+        assert len(records) >= 2
+        # Newest first
+        assert records[0].proposal_id == r2.proposal_id
+
+    def test_store_latest_returns_most_recent(self, tmp_path, monkeypatch):
+        """latest() returns the most recent result record."""
+        gate = _setup_gate(tmp_path, monkeypatch)
+        gate.propose(_make_plan(command=["echo", "latest-test"]), "shell")
+        gate.approve()
+        result = gate.execute_pending()
+        store = SandboxExecutionResultStore(tmp_path)
+        latest = store.latest()
+        assert latest is not None
+        assert latest.proposal_id == result.proposal_id
+
+    def test_store_load_nonexistent_returns_none(self, tmp_path, monkeypatch):
+        """load() returns None for unknown proposal_id."""
+        _setup_gate(tmp_path, monkeypatch)
+        store = SandboxExecutionResultStore(tmp_path)
+        assert store.load("nonexistent-id") is None
+
+    def test_discarded_pending_has_no_result(self, tmp_path, monkeypatch):
+        """Manually discarding pending does NOT write a result record."""
+        gate = _setup_gate(tmp_path, monkeypatch)
+        gate.propose(_make_plan(), "shell")
+        proposal_id = gate.load_pending().proposal_id
+        gate.discard()
+        store = SandboxExecutionResultStore(tmp_path)
+        assert store.load(proposal_id) is None
 
 
 # ── E. Regression ───────────────────────────────────────────────────────

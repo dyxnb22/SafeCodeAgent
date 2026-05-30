@@ -33,7 +33,11 @@ from safecode.project.rules import ProjectRules
 from safecode.report.render import ReportRenderer
 from safecode.release.checklist import render_release_checklist
 from safecode.sandbox.approvals import SandboxExecutionApprovalStore
-from safecode.sandbox.execution import SandboxExecutionGate, SandboxExecutionProposalStore
+from safecode.sandbox.execution import (
+    SandboxExecutionGate,
+    SandboxExecutionProposalStore,
+    SandboxExecutionResultStore,
+)
 from safecode.sandbox.factory import SandboxAdapterFactory
 from safecode.sandbox.preflight import SandboxExecutionPreflight
 from safecode.sandbox.planner import SandboxPlanner
@@ -1012,6 +1016,77 @@ def sandbox_preflight() -> None:
         console.print(Panel("\n".join(warn_lines), title="[dim]Warnings[/dim]"))
 
     console.print("[yellow]No command was executed.[/yellow]")
+
+
+@sandbox_app.command("executions")
+def sandbox_executions() -> None:
+    """List all sandbox execution result records."""
+    project_root = Path.cwd()
+    store = SandboxExecutionResultStore(project_root)
+    records = store.list_all()
+
+    if not records:
+        console.print("[yellow]No sandbox execution result records found.[/yellow]")
+        return
+
+    table = Table(title="Sandbox Execution Results")
+    table.add_column("Attempted At")
+    table.add_column("Proposal ID")
+    table.add_column("Status")
+    table.add_column("Exit Code")
+    table.add_column("Command")
+    table.add_column("Message")
+
+    for r in records:
+        status_color = "green" if r.status == "completed" else "red"
+        exit_str = str(r.exit_code) if r.exit_code is not None else "-"
+        exit_color = "green" if r.exit_code == 0 else ("red" if r.exit_code != 0 else "")
+        table.add_row(
+            r.attempted_at[:19],
+            r.proposal_id[:12] + "...",
+            f"[{status_color}]{r.status}[/{status_color}]",
+            exit_str,
+            r.command_head,
+            r.message[:80] if r.message else "",
+        )
+    console.print(table)
+
+
+@sandbox_app.command("last-execution")
+def sandbox_last_execution() -> None:
+    """Show the most recent sandbox execution result record."""
+    project_root = Path.cwd()
+    store = SandboxExecutionResultStore(project_root)
+    record = store.latest()
+
+    if record is None:
+        console.print("[yellow]No sandbox execution result records found.[/yellow]")
+        return
+
+    status_color = "green" if record.status == "completed" else "red"
+    exit_color = "green" if record.exit_code == 0 else "red"
+
+    meta_table = Table(title="Last Sandbox Execution Result")
+    meta_table.add_column("Field")
+    meta_table.add_column("Value")
+    meta_table.add_row("Proposal ID", record.proposal_id)
+    meta_table.add_row("Attempted At", record.attempted_at)
+    meta_table.add_row("Backend", record.backend)
+    meta_table.add_row("Executed", "[green]yes[/green]" if record.executed else "[red]no[/red]")
+    meta_table.add_row("Exit Code", f"[{exit_color}]{record.exit_code}[/{exit_color}]")
+    meta_table.add_row("Duration (ms)", str(record.duration_ms))
+    meta_table.add_row("Status", f"[{status_color}]{record.status}[/{status_color}]")
+    meta_table.add_row("Command Head", record.command_head)
+    meta_table.add_row("Command Hash Prefix", record.command_hash_prefix)
+    meta_table.add_row("Message", record.message)
+    meta_table.add_row("Stdout Length", str(record.stdout_length))
+    meta_table.add_row("Stderr Length", str(record.stderr_length))
+    console.print(meta_table)
+
+    if record.stdout_preview:
+        console.print(Panel(record.stdout_preview.rstrip(), title="stdout preview", border_style="dim"))
+    if record.stderr_preview:
+        console.print(Panel(record.stderr_preview.rstrip(), title="stderr preview", border_style="dim"))
 
 
 @app.command("rules")

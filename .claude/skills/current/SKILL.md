@@ -5,10 +5,10 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v1.8.2
+# Current Baseline - v1.8.3
 
 ## Status
-Implemented and tagged as `v1.8.2`.
+Implemented and tagged as `v1.8.3`.
 
 ## Stage
 `v1.8.x` Local Policy-Gated Sandbox Execution.
@@ -22,7 +22,7 @@ Implemented and tagged as `v1.8.2`.
 ## Current Capability
 SafeCode Agent has a safety-first local runtime centered on controlled file edits, command policy, audit, rollback, and sandbox planning.
 
-The current baseline extends `v1.7.9` by enabling real sandbox execution through the **Noop adapter** (local policy-gated execution). Commands run via SafeCode's own `ShellRunner` (CommandPolicy + NetworkPolicy + FilesystemBoundary) when all preflight checks pass (proposal integrity, approval, command policy, network policy, filesystem boundary, backend capability). Sandbox execution approvals are **single-use** and **atomically claimed** before execution via `claim_for_execution()` (lock file + `os.replace`), closing the TOCTOU window between preflight and `ShellRunner.run()`. If claim fails, execution is blocked without invoking the shell. Blocked preflight does not consume the approval. macOS Seatbelt, Linux Bubblewrap, and Docker adapters remain dry-run only. No OS sandbox binary is ever invoked.
+The current baseline extends `v1.7.9` by enabling real sandbox execution through the **Noop adapter** (local policy-gated execution). Commands run via SafeCode's own `ShellRunner` (CommandPolicy + NetworkPolicy + FilesystemBoundary) when all preflight checks pass (proposal integrity, approval, command policy, network policy, filesystem boundary, backend capability). Sandbox execution approvals are **single-use** and **atomically claimed** before execution via `claim_for_execution()` (lock file + `os.replace`), closing the TOCTOU window between preflight and `ShellRunner.run()`. If claim fails, execution is blocked without invoking the shell. Blocked preflight does not consume the approval. Every execution attempt (successful, non-zero exit, or claim-blocked) writes a persistent, redacted/truncated `SandboxExecutionResultRecord` to `.sac/sandbox_executions/` and clears the pending proposal. Preflight-blocked attempts preserve the pending proposal for retry. CLI commands `sac sandbox executions` and `sac sandbox last-execution` let users inspect past results. macOS Seatbelt, Linux Bubblewrap, and Docker adapters remain dry-run only. No OS sandbox binary is ever invoked.
 
 ## Important Entry Points
 - `src/safecode/cli.py`

@@ -3,6 +3,8 @@
 v1.7.5: proposal models, persistence, dry-run rejection only.
 v1.8.0: Noop adapter executes commands through SafeCode logical boundaries
 when all preflight checks pass. macOS/Linux/Docker backends remain dry-run.
+v1.8.3: sandbox execution result lifecycle — result records with redacted/truncated
+output stored per attempt; pending proposal cleared on execution or claim failure.
 """
 
 from __future__ import annotations
@@ -56,6 +58,110 @@ class SandboxExecutionResult:
     backend: str
     dry_run: bool
     message: str
+
+
+MAX_RESULT_PREVIEW_LENGTH = 2000
+
+
+@dataclass(frozen=True)
+class SandboxExecutionResultRecord:
+    """Persistent record of a sandbox execution attempt.
+
+    Stored under ``.sac/sandbox_executions/<proposal_id>.json`` with
+    output truncated to prevent disk bloat and redacted to avoid
+    leaking sensitive values.
+    """
+
+    proposal_id: str
+    attempted_at: str
+    backend: str
+    executed: bool
+    exit_code: int | None
+    duration_ms: int
+    status: str  # "completed" or "blocked_claim"
+    message: str
+    command_hash_prefix: str  # first 16 chars
+    command_head: str
+    stdout_preview: str
+    stderr_preview: str
+    stdout_length: int
+    stderr_length: int
+
+
+class SandboxExecutionResultStore:
+    """Persist sandbox execution result records.
+
+    Each execution attempt writes one record keyed by ``proposal_id``.
+    Records are stored under ``.sac/sandbox_executions/`` and include
+    truncated output so that sensitive content is not retained in full.
+    """
+
+    def __init__(self, project_root: Path, config: SafeCodeConfig | None = None) -> None:
+        self.project_root = project_root
+        self.config = config or SafeCodeConfig.load(project_root)
+        self._dir = project_root / self.config.sac_dir / "sandbox_executions"
+
+    def save(self, record: SandboxExecutionResultRecord) -> SandboxExecutionResultRecord:
+        self._dir.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "proposal_id": record.proposal_id,
+            "attempted_at": record.attempted_at,
+            "backend": record.backend,
+            "executed": record.executed,
+            "exit_code": record.exit_code,
+            "duration_ms": record.duration_ms,
+            "status": record.status,
+            "message": record.message,
+            "command_hash_prefix": record.command_hash_prefix,
+            "command_head": record.command_head,
+            "stdout_preview": record.stdout_preview,
+            "stderr_preview": record.stderr_preview,
+            "stdout_length": record.stdout_length,
+            "stderr_length": record.stderr_length,
+        }
+        self._path_for(record.proposal_id).write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+        )
+        return record
+
+    def load(self, proposal_id: str) -> SandboxExecutionResultRecord | None:
+        path = self._path_for(proposal_id)
+        if not path.exists():
+            return None
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+            return SandboxExecutionResultRecord(**data)
+        except (json.JSONDecodeError, TypeError):
+            return None
+
+    def list_all(self) -> list[SandboxExecutionResultRecord]:
+        if not self._dir.exists():
+            return []
+        records: list[SandboxExecutionResultRecord] = []
+        for p in self._dir.iterdir():
+            if not p.suffix == ".json":
+                continue
+            try:
+                data = json.loads(p.read_text(encoding="utf-8"))
+                records.append(SandboxExecutionResultRecord(**data))
+            except (json.JSONDecodeError, TypeError):
+                continue
+        records.sort(key=lambda r: r.attempted_at, reverse=True)
+        return records
+
+    def latest(self) -> SandboxExecutionResultRecord | None:
+        all_records = self.list_all()
+        return all_records[0] if all_records else None
+
+    def _path_for(self, proposal_id: str) -> Path:
+        safe = proposal_id.replace("/", "_").replace("..", "_")
+        return self._dir / f"{safe}.json"
+
+    @staticmethod
+    def _truncate(text: str) -> str:
+        if len(text) <= MAX_RESULT_PREVIEW_LENGTH:
+            return text
+        return text[:MAX_RESULT_PREVIEW_LENGTH] + f"\n... [truncated, total {len(text)} chars]"
 
 
 class SandboxExecutionProposalStore:
@@ -333,6 +439,29 @@ class SandboxExecutionGate:
                 proposal.command_hash,
                 reason,
             )
+            # v1.8.3: write result record, then clear pending so this
+            # terminal state is not retried.
+            requested_at = utc_now_iso()
+            result_store = SandboxExecutionResultStore(self.project_root, self.config)
+            result_store.save(
+                SandboxExecutionResultRecord(
+                    proposal_id=proposal.proposal_id,
+                    attempted_at=requested_at,
+                    backend=proposal.backend,
+                    executed=False,
+                    exit_code=None,
+                    duration_ms=0,
+                    status="blocked_claim",
+                    message=reason,
+                    command_hash_prefix=proposal.command_hash[:16],
+                    command_head=proposal.command[0] if proposal.command else "",
+                    stdout_preview="",
+                    stderr_preview=reason,
+                    stdout_length=0,
+                    stderr_length=len(reason),
+                )
+            )
+            self.store.discard_pending()
             return SandboxExecutionResult(
                 proposal_id=proposal.proposal_id,
                 executed=False,
@@ -354,9 +483,11 @@ class SandboxExecutionGate:
             "Approval claimed for execution (atomic).",
         )
 
+        requested_at = utc_now_iso()
         cmd_text = shlex.join(proposal.command)
         runner = ShellRunner(self.project_root, self.config)
         result = runner.run(cmd_text, approved=True)
+        duration_ms = result.duration_ms
 
         self._audit(
             "sandbox_execution_completed",
@@ -365,8 +496,30 @@ class SandboxExecutionGate:
             proposal.purpose,
             proposal.command[0] if proposal.command else "",
             proposal.command_hash,
-            f"exit_code={result.exit_code} duration_ms={result.duration_ms}",
+            f"exit_code={result.exit_code} duration_ms={duration_ms}",
         )
+        # v1.8.3: persist result record with redacted/truncated output
+        # and clear the pending proposal so it cannot be retried.
+        result_store = SandboxExecutionResultStore(self.project_root, self.config)
+        result_store.save(
+            SandboxExecutionResultRecord(
+                proposal_id=proposal.proposal_id,
+                attempted_at=requested_at,
+                backend=proposal.backend,
+                executed=result.executed,
+                exit_code=result.exit_code,
+                duration_ms=duration_ms,
+                status="completed",
+                message=f"Command executed via {proposal.backend} backend. Exit code: {result.exit_code}.",
+                command_hash_prefix=proposal.command_hash[:16],
+                command_head=proposal.command[0] if proposal.command else "",
+                stdout_preview=SandboxExecutionResultStore._truncate(result.stdout),
+                stderr_preview=SandboxExecutionResultStore._truncate(result.stderr),
+                stdout_length=len(result.stdout),
+                stderr_length=len(result.stderr),
+            )
+        )
+        self.store.discard_pending()
         return SandboxExecutionResult(
             proposal_id=proposal.proposal_id,
             executed=result.executed,
