@@ -122,6 +122,12 @@ class SandboxExecutionResultStats:
     total_bytes: int
 
 
+@dataclass(frozen=True)
+class _SandboxExecutionResultEntry:
+    record: SandboxExecutionResultRecord
+    path: Path
+
+
 class SandboxExecutionResultStore:
     """Persist sandbox execution result records.
 
@@ -173,22 +179,7 @@ class SandboxExecutionResultStore:
             return None
 
     def list_all(self) -> list[SandboxExecutionResultRecord]:
-        if not self._dir.exists():
-            return []
-        records: list[SandboxExecutionResultRecord] = []
-        for p in self._dir.iterdir():
-            if not p.suffix == ".json":
-                continue
-            try:
-                data = json.loads(p.read_text(encoding="utf-8"))
-                filtered = self._filter_record_data(data)
-                if not filtered:
-                    continue
-                records.append(SandboxExecutionResultRecord(**filtered))
-            except (json.JSONDecodeError, TypeError):
-                continue
-        records.sort(key=lambda r: r.attempted_at, reverse=True)
-        return records
+        return [entry.record for entry in self._list_entries()]
 
     def filter_by(
         self,
@@ -261,13 +252,20 @@ class SandboxExecutionResultStore:
         """
         self._validate_prune_params(keep_latest, status)
 
+        return [entry.record for entry in self._plan_prune_entries(keep_latest, status)]
+
+    def _plan_prune_entries(
+        self,
+        keep_latest: int | None = None,
+        status: str | None = None,
+    ) -> list[_SandboxExecutionResultEntry]:
         # Load only valid, parseable records from the store directory.
-        all_records = self.list_all()  # newest-first
+        all_entries = self._list_entries()  # newest-first
 
         # Determine which records to delete.
-        candidates = list(all_records)
+        candidates = list(all_entries)
         if status is not None:
-            candidates = [r for r in candidates if r.status == status]
+            candidates = [entry for entry in candidates if entry.record.status == status]
 
         if keep_latest is None:
             return candidates
@@ -291,10 +289,10 @@ class SandboxExecutionResultStore:
         Raises ValueError on invalid parameters.
         """
         self._validate_prune_params(keep_latest, status)
-        to_delete = self.plan_prune(keep_latest=keep_latest, status=status)
+        to_delete = self._plan_prune_entries(keep_latest=keep_latest, status=status)
         deleted = 0
-        for record in to_delete:
-            path = self._path_for(record.proposal_id)
+        for entry in to_delete:
+            path = entry.path
             if not path.exists():
                 continue
             if path.is_symlink():
@@ -309,6 +307,26 @@ class SandboxExecutionResultStore:
         return deleted
 
     # -- internal helpers --
+
+    def _list_entries(self) -> list[_SandboxExecutionResultEntry]:
+        if not self._dir.exists():
+            return []
+        entries: list[_SandboxExecutionResultEntry] = []
+        for p in self._dir.iterdir():
+            if not p.suffix == ".json":
+                continue
+            try:
+                data = json.loads(p.read_text(encoding="utf-8"))
+                filtered = self._filter_record_data(data)
+                if not filtered:
+                    continue
+                entries.append(
+                    _SandboxExecutionResultEntry(SandboxExecutionResultRecord(**filtered), p)
+                )
+            except (json.JSONDecodeError, TypeError):
+                continue
+        entries.sort(key=lambda entry: entry.record.attempted_at, reverse=True)
+        return entries
 
     def _disk_usage(self) -> int:
         if not self._dir.exists():

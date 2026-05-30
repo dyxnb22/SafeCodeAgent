@@ -1349,6 +1349,29 @@ class TestExecutionResultMaintenance:
         # the real record should be deleted though
         assert link_path.is_symlink()
 
+    def test_prune_deletes_source_file_not_claimed_proposal_path(self, tmp_path, monkeypatch):
+        """A record cannot cause prune() to delete another record's file."""
+        gate = _setup_gate(tmp_path, monkeypatch)
+        for name in ["legit-a", "legit-b"]:
+            gate.propose(_make_plan(command=["echo", name]), "shell")
+            gate.approve()
+            gate.execute_pending()
+
+        store = SandboxExecutionResultStore(tmp_path)
+        newest = store.list_all()[0]
+        newest_path = store._path_for(newest.proposal_id)
+        impostor_path = store._dir / "impostor.json"
+
+        payload = json.loads(newest_path.read_text(encoding="utf-8"))
+        payload["attempted_at"] = "1900-01-01T00:00:00Z"
+        impostor_path.write_text(json.dumps(payload), encoding="utf-8")
+
+        deleted = store.prune(keep_latest=2)
+
+        assert deleted == 1
+        assert newest_path.exists()
+        assert not impostor_path.exists()
+
     def test_malformed_record_does_not_crash_stats(self, tmp_path, monkeypatch):
         """stats() skips unparseable files without crashing."""
         gate = _setup_gate(tmp_path, monkeypatch)
