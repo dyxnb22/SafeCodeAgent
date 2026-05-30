@@ -6,6 +6,7 @@ when all preflight checks pass. macOS/Linux/Docker backends remain dry-run.
 v1.8.3: sandbox execution result lifecycle — result records with redacted/truncated
 output stored per attempt; pending proposal cleared on execution or claim failure.
 v1.8.5: filter_by() supports limit + sort_order; sac sandbox execution show for detail.
+v1.8.6: stats() + plan_prune() + prune() for safe result record maintenance.
 """
 
 from __future__ import annotations
@@ -107,6 +108,18 @@ class SandboxExecutionResultRecord:
     stderr_preview: str
     stdout_length: int
     stderr_length: int
+
+
+@dataclass(frozen=True)
+class SandboxExecutionResultStats:
+    """Aggregate stats for the sandbox execution result store."""
+
+    total_records: int
+    completed_count: int
+    blocked_claim_count: int
+    oldest_attempted_at: str | None
+    newest_attempted_at: str | None
+    total_bytes: int
 
 
 class SandboxExecutionResultStore:
@@ -216,6 +229,108 @@ class SandboxExecutionResultStore:
     def latest(self) -> SandboxExecutionResultRecord | None:
         all_records = self.list_all()
         return all_records[0] if all_records else None
+
+    def stats(self) -> SandboxExecutionResultStats:
+        records = self.list_all()
+        completed = sum(1 for r in records if r.status == "completed")
+        blocked_claim = sum(1 for r in records if r.status == "blocked_claim")
+        oldest = records[-1].attempted_at if records else None
+        newest = records[0].attempted_at if records else None
+        total_bytes = self._disk_usage()
+        return SandboxExecutionResultStats(
+            total_records=len(records),
+            completed_count=completed,
+            blocked_claim_count=blocked_claim,
+            oldest_attempted_at=oldest,
+            newest_attempted_at=newest,
+            total_bytes=total_bytes,
+        )
+
+    def plan_prune(
+        self,
+        keep_latest: int | None = None,
+        status: str | None = None,
+    ) -> list[SandboxExecutionResultRecord]:
+        """Return records that *would* be deleted by ``prune()``.
+
+        ``keep_latest``: keep the newest N records (unlimited when None).
+        ``status``: only consider records with this status for deletion;
+        None means all statuses.
+
+        Raises ValueError on invalid parameters.
+        """
+        self._validate_prune_params(keep_latest, status)
+
+        # Load only valid, parseable records from the store directory.
+        all_records = self.list_all()  # newest-first
+
+        # Determine which records to delete.
+        candidates = list(all_records)
+        if status is not None:
+            candidates = [r for r in candidates if r.status == status]
+
+        if keep_latest is None:
+            return candidates
+
+        if keep_latest >= len(candidates):
+            return []
+
+        return candidates[keep_latest:]
+
+    def prune(
+        self,
+        keep_latest: int | None = None,
+        status: str | None = None,
+    ) -> int:
+        """Delete result records, returning the count of removed files.
+
+        Only deletes ``.json`` files under ``.sac/sandbox_executions/``
+        that are valid, loadable result records matching the filters.
+        Symlinks and non-regular files are never deleted.
+
+        Raises ValueError on invalid parameters.
+        """
+        self._validate_prune_params(keep_latest, status)
+        to_delete = self.plan_prune(keep_latest=keep_latest, status=status)
+        deleted = 0
+        for record in to_delete:
+            path = self._path_for(record.proposal_id)
+            if not path.exists():
+                continue
+            if path.is_symlink():
+                continue
+            if not path.is_file():
+                continue
+            try:
+                path.unlink()
+                deleted += 1
+            except OSError:
+                continue
+        return deleted
+
+    # -- internal helpers --
+
+    def _disk_usage(self) -> int:
+        if not self._dir.exists():
+            return 0
+        total = 0
+        for p in self._dir.iterdir():
+            if p.suffix == ".json" and p.is_file() and not p.is_symlink():
+                try:
+                    total += p.stat().st_size
+                except OSError:
+                    pass
+        return total
+
+    @staticmethod
+    def _validate_prune_params(keep_latest: int | None, status: str | None) -> None:
+        if keep_latest is not None and keep_latest < 0:
+            raise ValueError(f"keep_latest must be >= 0, got {keep_latest}")
+        if status is not None and status not in {"completed", "blocked_claim"}:
+            raise ValueError(
+                f"Invalid status for prune: {status!r}. "
+                "Must be 'completed', 'blocked_claim', or None."
+            )
 
     @staticmethod
     def _filter_record_data(data: dict) -> dict | None:

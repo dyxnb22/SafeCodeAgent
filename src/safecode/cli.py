@@ -1034,7 +1034,10 @@ def sandbox_preflight() -> None:
     console.print("[yellow]No command was executed.[/yellow]")
 
 
-@sandbox_app.command("executions")
+executions_app = typer.Typer(help="List and manage sandbox execution result records.")
+
+
+@executions_app.callback(invoke_without_command=True)
 def sandbox_executions(
     status: str = typer.Option("", "--status", help="Filter by status: completed, blocked_claim."),
     backend: str = typer.Option("", "--backend", help="Filter by backend: none, macos_seatbelt, linux_bubblewrap, docker."),
@@ -1087,6 +1090,86 @@ def sandbox_executions(
             r.message[:80] if r.message else "",
         )
     console.print(table)
+
+
+@executions_app.command("stats")
+def sandbox_executions_stats() -> None:
+    """Show aggregate statistics for sandbox execution results."""
+    project_root = Path.cwd()
+    store = SandboxExecutionResultStore(project_root)
+    st = store.stats()
+
+    table = Table(title="Sandbox Execution Result Statistics")
+    table.add_column("Metric")
+    table.add_column("Value")
+    table.add_row("Total Records", str(st.total_records))
+    table.add_row("Completed", str(st.completed_count))
+    table.add_row("Blocked Claims", str(st.blocked_claim_count))
+    table.add_row("Oldest Attempt", st.oldest_attempted_at or "(none)")
+    table.add_row("Newest Attempt", st.newest_attempted_at or "(none)")
+    table.add_row("Total Disk (bytes)", str(st.total_bytes))
+    console.print(table)
+
+
+@executions_app.command("prune")
+def sandbox_executions_prune(
+    keep_latest: int = typer.Option(..., "--keep-latest", min=0, help="Keep the newest N records."),
+    status: str = typer.Option("", "--status", help="Only prune records with this status: completed, blocked_claim."),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Show what would be deleted without deleting."),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Confirm deletion."),
+) -> None:
+    """Prune old sandbox execution result records.
+
+    Requires --dry-run (preview only) or --yes (confirm deletion).
+    Use --status to limit pruning to a specific record status.
+    """
+    project_root = Path.cwd()
+    store = SandboxExecutionResultStore(project_root)
+
+    if not dry_run and not yes:
+        console.print("[red]Prune requires --dry-run or --yes.[/red]")
+        raise typer.Exit(code=1)
+
+    status_filter = status if status else None
+    try:
+        candidates = store.plan_prune(keep_latest=keep_latest, status=status_filter)
+    except ValueError as exc:
+        console.print(f"[red]Invalid parameter:[/red] {exc}")
+        raise typer.Exit(code=1) from exc
+
+    all_records = store.list_all()
+    remaining = len(all_records) - len(candidates)
+
+    if dry_run:
+        console.print(
+            Panel.fit(
+                f"Keep latest: {keep_latest}\n"
+                f"Status filter: {status_filter or 'all'}\n"
+                f"Candidates to delete: {len(candidates)}\n"
+                f"Records kept: {remaining}",
+                title="Prune Dry Run",
+            )
+        )
+        if candidates:
+            cand_table = Table(title="Candidates for Deletion")
+            cand_table.add_column("Attempted At")
+            cand_table.add_column("Proposal ID")
+            cand_table.add_column("Status")
+            for r in candidates:
+                cand_table.add_row(
+                    r.attempted_at[:19],
+                    r.proposal_id[:12] + "...",
+                    r.status,
+                )
+            console.print(cand_table)
+        return
+
+    # --yes confirmed
+    deleted = store.prune(keep_latest=keep_latest, status=status_filter)
+    console.print(f"[green]Pruned {deleted} record(s).[/green] {remaining} record(s) kept.")
+
+
+sandbox_app.add_typer(executions_app, name="executions")
 
 
 @sandbox_app.command("last-execution")

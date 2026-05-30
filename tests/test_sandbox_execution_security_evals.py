@@ -1205,6 +1205,204 @@ class TestExecutionResultQuery:
         assert len(store.list_all()) == 3
 
 
+# ── D++++++. Execution Result Maintenance (v1.8.6) ────────────────────────
+
+
+class TestExecutionResultMaintenance:
+    """v1.8.6: stats(), plan_prune(), prune() with safety guards."""
+
+    # ── stats ───────────────────────────────────────────────────────
+
+    def test_stats_empty_store(self, tmp_path, monkeypatch):
+        """stats() on an empty store returns zero counts."""
+        _setup_gate(tmp_path, monkeypatch)
+        store = SandboxExecutionResultStore(tmp_path)
+        st = store.stats()
+        assert st.total_records == 0
+        assert st.completed_count == 0
+        assert st.blocked_claim_count == 0
+        assert st.oldest_attempted_at is None
+        assert st.newest_attempted_at is None
+        assert st.total_bytes == 0
+
+    def test_stats_counts_by_status(self, tmp_path, monkeypatch):
+        """stats() correctly counts completed and blocked_claim records."""
+        gate = _setup_gate(tmp_path, monkeypatch)
+        # completed record
+        gate.propose(_make_plan(command=["echo", "one"]), "shell")
+        gate.approve()
+        gate.execute_pending()
+        # blocked_claim via monkeypatch
+        gate.propose(_make_plan(command=["echo", "two"]), "shell")
+        gate.approve()
+        monkeypatch.setattr(
+            SandboxExecutionApprovalStore,
+            "claim_for_execution",
+            lambda *a, **kw: False,
+        )
+        gate.execute_pending()
+
+        store = SandboxExecutionResultStore(tmp_path)
+        st = store.stats()
+        assert st.total_records == 2
+        assert st.completed_count == 1
+        assert st.blocked_claim_count == 1
+
+    def test_stats_bytes(self, tmp_path, monkeypatch):
+        """stats() reports non-zero disk usage when records exist."""
+        gate = _setup_gate(tmp_path, monkeypatch)
+        gate.propose(_make_plan(), "shell")
+        gate.approve()
+        gate.execute_pending()
+
+        store = SandboxExecutionResultStore(tmp_path)
+        st = store.stats()
+        assert st.total_bytes > 0
+
+    # ── plan_prune / prune ───────────────────────────────────────────
+
+    def test_dry_run_does_not_delete(self, tmp_path, monkeypatch):
+        """plan_prune() returns candidates but does not modify disk."""
+        gate = _setup_gate(tmp_path, monkeypatch)
+        for name in ["a", "b", "c", "d", "e"]:
+            gate.propose(_make_plan(command=["echo", name]), "shell")
+            gate.approve()
+            gate.execute_pending()
+
+        store = SandboxExecutionResultStore(tmp_path)
+        before = len(store.list_all())
+        candidates = store.plan_prune(keep_latest=2)
+        assert len(candidates) == before - 2
+        # disk unchanged
+        assert len(store.list_all()) == before
+
+    def test_prune_keep_latest_deletes_older(self, tmp_path, monkeypatch):
+        """prune(keep_latest=2) keeps newest 2, deletes older."""
+        gate = _setup_gate(tmp_path, monkeypatch)
+        for name in ["a", "b", "c", "d", "e"]:
+            gate.propose(_make_plan(command=["echo", name]), "shell")
+            gate.approve()
+            gate.execute_pending()
+
+        store = SandboxExecutionResultStore(tmp_path)
+        before = len(store.list_all())
+        assert before == 5
+        deleted = store.prune(keep_latest=2)
+        assert deleted == 3
+        assert len(store.list_all()) == 2
+
+    def test_prune_with_status_filter(self, tmp_path, monkeypatch):
+        """prune() with status= only deletes matching status."""
+        gate = _setup_gate(tmp_path, monkeypatch)
+        # completed
+        gate.propose(_make_plan(command=["echo", "a"]), "shell")
+        gate.approve()
+        gate.execute_pending()
+        # blocked_claim
+        gate.propose(_make_plan(command=["echo", "b"]), "shell")
+        gate.approve()
+        monkeypatch.setattr(
+            SandboxExecutionApprovalStore,
+            "claim_for_execution",
+            lambda *a, **kw: False,
+        )
+        gate.execute_pending()
+
+        store = SandboxExecutionResultStore(tmp_path)
+        # Only prune blocked_claim — completed should survive
+        deleted = store.prune(keep_latest=0, status="blocked_claim")
+        assert deleted == 1
+        remaining = store.list_all()
+        assert len(remaining) == 1
+        assert remaining[0].status == "completed"
+
+    def test_invalid_keep_latest_negative(self, tmp_path, monkeypatch):
+        """Negative keep_latest raises ValueError."""
+        _setup_gate(tmp_path, monkeypatch)
+        store = SandboxExecutionResultStore(tmp_path)
+        with pytest.raises(ValueError, match="keep_latest"):
+            store.plan_prune(keep_latest=-1)
+
+    def test_invalid_status_rejected(self, tmp_path, monkeypatch):
+        """Invalid status raises ValueError."""
+        _setup_gate(tmp_path, monkeypatch)
+        store = SandboxExecutionResultStore(tmp_path)
+        with pytest.raises(ValueError, match="status"):
+            store.plan_prune(keep_latest=5, status="invalid_status")
+
+    def test_symlink_in_executions_dir_ignored(self, tmp_path, monkeypatch):
+        """A symlink in the executions dir is never deleted by prune()."""
+        gate = _setup_gate(tmp_path, monkeypatch)
+        gate.propose(_make_plan(command=["echo", "safe"]), "shell")
+        gate.approve()
+        gate.execute_pending()
+
+        store = SandboxExecutionResultStore(tmp_path)
+        link_path = store._dir / "link.json"
+        real_path = store._dir / "real.json"
+        real_path.write_text("{}")
+        link_path.symlink_to(real_path)
+
+        deleted = store.prune(keep_latest=0)
+        # symlink must not be deleted
+        assert link_path.exists()
+        # the real record should be deleted though
+        assert link_path.is_symlink()
+
+    def test_malformed_record_does_not_crash_stats(self, tmp_path, monkeypatch):
+        """stats() skips unparseable files without crashing."""
+        gate = _setup_gate(tmp_path, monkeypatch)
+        gate.propose(_make_plan(), "shell")
+        gate.approve()
+        gate.execute_pending()
+
+        store = SandboxExecutionResultStore(tmp_path)
+        # Write a corrupt file alongside valid records
+        (store._dir / "corrupt.json").write_text("{ not json }", encoding="utf-8")
+        st = store.stats()
+        # Should have the original record count, corrupt skipped
+        assert st.total_records == 1
+
+    def test_malformed_record_not_deleted_by_prune(self, tmp_path, monkeypatch):
+        """prune() does not delete unparseable files."""
+        gate = _setup_gate(tmp_path, monkeypatch)
+        gate.propose(_make_plan(), "shell")
+        gate.approve()
+        gate.execute_pending()
+
+        store = SandboxExecutionResultStore(tmp_path)
+        corrupt_path = store._dir / "corrupt.json"
+        corrupt_path.write_text("{ not json }", encoding="utf-8")
+        store.prune(keep_latest=0)
+        # Corrupt file survives because it's not a valid record
+        assert corrupt_path.exists()
+
+    def test_plan_prune_empty_keep_all(self, tmp_path, monkeypatch):
+        """plan_prune with keep_latest >= total records returns empty."""
+        gate = _setup_gate(tmp_path, monkeypatch)
+        for name in ["a", "b"]:
+            gate.propose(_make_plan(command=["echo", name]), "shell")
+            gate.approve()
+            gate.execute_pending()
+
+        store = SandboxExecutionResultStore(tmp_path)
+        candidates = store.plan_prune(keep_latest=10)
+        assert len(candidates) == 0
+
+    def test_prune_keep_latest_zero_deletes_all(self, tmp_path, monkeypatch):
+        """prune(keep_latest=0) deletes all valid records."""
+        gate = _setup_gate(tmp_path, monkeypatch)
+        for name in ["a", "b"]:
+            gate.propose(_make_plan(command=["echo", name]), "shell")
+            gate.approve()
+            gate.execute_pending()
+
+        store = SandboxExecutionResultStore(tmp_path)
+        deleted = store.prune(keep_latest=0)
+        assert deleted == 2
+        assert len(store.list_all()) == 0
+
+
 # ── E. Regression ───────────────────────────────────────────────────────
 
 
