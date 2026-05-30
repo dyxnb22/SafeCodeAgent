@@ -1166,7 +1166,25 @@ def sandbox_executions_prune(
 
     # --yes confirmed
     deleted = store.prune(keep_latest=keep_latest, status=status_filter)
-    console.print(f"[green]Pruned {deleted} record(s).[/green] {remaining} record(s) kept.")
+    remaining_after = len(store.list_all())
+    AuditLogger(project_root).write(
+        AuditEvent(
+            type="sandbox_execution_results_pruned",
+            timestamp=utc_now_iso(),
+            status="success",
+            message=f"Pruned {deleted} sandbox execution result record(s).",
+            metadata={
+                "keep_latest": str(keep_latest),
+                "status_filter": status_filter or "all",
+                "candidate_count": str(len(candidates)),
+                "deleted_count": str(deleted),
+                "remaining_count": str(remaining_after),
+                "proposal_ids": ",".join(r.proposal_id for r in candidates[:20]),
+                "proposal_ids_truncated": "true" if len(candidates) > 20 else "false",
+            },
+        )
+    )
+    console.print(f"[green]Pruned {deleted} record(s).[/green] {remaining_after} record(s) kept.")
 
 
 sandbox_app.add_typer(executions_app, name="executions")

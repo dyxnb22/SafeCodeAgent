@@ -21,7 +21,9 @@ import sys
 from pathlib import Path
 
 import pytest
+from typer.testing import CliRunner
 
+from safecode.cli import app
 from safecode.audit.logger import AuditLogger
 from safecode.config import SafeCodeConfig
 from safecode.sandbox.adapter import (
@@ -38,6 +40,8 @@ from safecode.sandbox.execution import (
     SandboxExecutionGate,
     SandboxExecutionResultStore,
 )
+
+runner = CliRunner()
 
 
 def _setup_gate(tmp_path, monkeypatch):
@@ -1424,6 +1428,49 @@ class TestExecutionResultMaintenance:
         deleted = store.prune(keep_latest=0)
         assert deleted == 2
         assert len(store.list_all()) == 0
+
+    def test_cli_prune_yes_writes_audit_event(self, tmp_path, monkeypatch):
+        """Confirmed CLI prune writes an audit event for destructive maintenance."""
+        gate = _setup_gate(tmp_path, monkeypatch)
+        for name in ["a", "b", "c"]:
+            gate.propose(_make_plan(command=["echo", name]), "shell")
+            gate.approve()
+            gate.execute_pending()
+
+        monkeypatch.chdir(tmp_path)
+        result = runner.invoke(
+            app,
+            ["sandbox", "executions", "prune", "--keep-latest", "1", "--yes"],
+        )
+
+        assert result.exit_code == 0
+        events = AuditLogger(tmp_path).read_recent(limit=10)
+        pruned = [e for e in events if e.type == "sandbox_execution_results_pruned"]
+        assert len(pruned) == 1
+        assert pruned[0].status == "success"
+        assert pruned[0].metadata["keep_latest"] == "1"
+        assert pruned[0].metadata["status_filter"] == "all"
+        assert pruned[0].metadata["candidate_count"] == "2"
+        assert pruned[0].metadata["deleted_count"] == "2"
+        assert "echo" not in str(pruned[0].metadata)
+
+    def test_cli_prune_dry_run_does_not_write_audit_event(self, tmp_path, monkeypatch):
+        """Dry-run prune previews deletion without creating a destructive audit event."""
+        gate = _setup_gate(tmp_path, monkeypatch)
+        for name in ["a", "b", "c"]:
+            gate.propose(_make_plan(command=["echo", name]), "shell")
+            gate.approve()
+            gate.execute_pending()
+
+        monkeypatch.chdir(tmp_path)
+        result = runner.invoke(
+            app,
+            ["sandbox", "executions", "prune", "--keep-latest", "1", "--dry-run"],
+        )
+
+        assert result.exit_code == 0
+        events = AuditLogger(tmp_path).read_recent(limit=10)
+        assert not any(e.type == "sandbox_execution_results_pruned" for e in events)
 
 
 # ── E. Regression ───────────────────────────────────────────────────────
