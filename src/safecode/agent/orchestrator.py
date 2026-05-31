@@ -4,6 +4,7 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
+from safecode.agent.planner import DiffPlanner, DiffScopeResult
 from safecode.audit.logger import AuditLogger
 from safecode.audit.models import AuditEvent
 from safecode.checkpoint.manager import CheckpointManager
@@ -28,6 +29,7 @@ class EditResult:
     proposal: PatchProposal
     diff_text: str
     pending_patch_path: Path
+    scope_result: DiffScopeResult | None = None
 
 
 @dataclass
@@ -89,14 +91,24 @@ class AgentOrchestrator:
         """Generate and store a pending patch proposal."""
         trace_id = self.trace_logger.new_trace_id()
         self.trace_logger.write(trace_id, "edit.start", task)
+
+        planner = DiffPlanner()
+        diff_plan = planner.predict(task)
+
         context = self.context_collector.collect()
         patch_response = self.llm_client.propose_patch(task, context)
         proposal = PatchParser().parse(patch_response.patch_text, task=task)
+
+        scope_result = planner.compare(diff_plan, proposal)
 
         PatchValidator(self.project_root).validate(proposal)
         diff_text = build_unified_diff(self.project_root, proposal)
         pending_patch_path = self._save_pending_patch(proposal)
         self.trace_logger.write(trace_id, "edit.patch_saved", proposal.id)
+
+        audit_metadata: dict[str, str] = {"scope_status": scope_result.status}
+        if scope_result.warning:
+            audit_metadata["scope_warning"] = scope_result.warning
 
         self.audit_logger.write(
             AuditEvent(
@@ -106,12 +118,14 @@ class AgentOrchestrator:
                 files=[block.file_path.as_posix() for block in proposal.blocks],
                 message=task,
                 trace_id=trace_id,
+                metadata=audit_metadata,
             )
         )
         return EditResult(
             proposal=proposal,
             diff_text=diff_text,
             pending_patch_path=pending_patch_path,
+            scope_result=scope_result,
         )
 
     def preview_apply(self) -> ApplyPreview:

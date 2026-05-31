@@ -50,6 +50,8 @@ def edit(task: str) -> None:
 
     console.print(Panel.fit(f"Pending patch saved: {result.pending_patch_path}", title="SafeCode"))
     console.print(Syntax(result.diff_text, "diff", theme="ansi_dark"))
+    if result.scope_result and result.scope_result.warning:
+        console.print(f"[yellow]{result.scope_result.warning}[/yellow]")
 
 
 @core_app.command()
