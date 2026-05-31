@@ -5,10 +5,10 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v1.9.3
+# Current Baseline - v1.9.4
 
 ## Status
-Implemented and tagged as `v1.9.3`.
+Implemented locally; tag pending.
 
 ## Stage
 `v1.9.x` Interactive Agent Loop.
@@ -22,10 +22,11 @@ Implemented and tagged as `v1.9.3`.
 ## Current Capability
 SafeCode Agent has a safety-first local runtime centered on controlled file edits, command policy, audit, rollback, and sandbox planning.
 
-The current baseline extends `v1.9.2` by adding a typed tool intent router for read, patch, shell, sandbox, MCP, subagent, and report actions. `sac agent step` records a validated read intent with route metadata, while write/execute intent categories are marked approval-required and unknown or malformed intents fail closed. `sac agent run "goal" --max-steps N` remains bounded and stops on completion, max-step exhaustion, or future approval stops. All v1.8.x sandbox safety invariants remain in force: Noop is the only real execution backend, approval claim is single-use and atomic, macOS/Linux/Docker backends remain dry-run, and sandbox execution remains gated by proposal, approval, preflight, command policy, network policy, filesystem boundary, and backend capability.
+The current baseline extends `v1.9.3` by adding standardized human checkpoints for approval-gated actions. Patch apply, medium-risk shell run, MCP write proposal, and sandbox execution approval now present consistent checkpoint panels and write `human_checkpoint_presented` audit events with checkpoint type, risk level, subject hash, and minimal action metadata. The typed tool intent router still marks write/execute intent categories approval-required and unknown or malformed intents fail closed. `sac agent run "goal" --max-steps N` remains bounded and stops on completion, max-step exhaustion, or future approval stops. All v1.8.x sandbox safety invariants remain in force.
 
 ## Important Entry Points
 - `src/safecode/cli.py`
+- `src/safecode/agent/approvals.py`
 - `src/safecode/agent/loop.py`
 - `src/safecode/agent/session.py`
 - `src/safecode/agent/tools.py`

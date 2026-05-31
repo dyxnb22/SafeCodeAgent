@@ -11,6 +11,7 @@ from rich.syntax import Syntax
 from rich.table import Table
 
 from safecode.agent.orchestrator import AgentOrchestrator
+from safecode.agent.approvals import HumanCheckpointPresenter
 from safecode.agent.loop import AgentLoop
 from safecode.agent.session import AgentSessionStore
 from safecode.audit.logger import AuditLogger
@@ -78,6 +79,18 @@ agent_app = typer.Typer(help="Run and inspect interactive SafeCode agent session
 console = Console()
 
 
+def _show_human_checkpoint(checkpoint) -> None:
+    """Render a standardized human checkpoint."""
+    lines = [
+        f"Type: {checkpoint.checkpoint_type}",
+        f"Risk: {checkpoint.risk_level}",
+        f"Subject: {checkpoint.subject_hash}",
+        "",
+        checkpoint.summary,
+    ]
+    console.print(Panel.fit("\n".join(lines), title=checkpoint.title))
+
+
 def _runtime_logger() -> RuntimeLogger:
     """Return the runtime logger for the current project."""
     return RuntimeLogger(Path.cwd())
@@ -139,7 +152,20 @@ def apply() -> None:
         raise typer.Exit(code=1) from exc
 
     console.print(Syntax(preview.diff_text, "diff", theme="ansi_dark"))
-    approved = typer.confirm("Apply this patch?", default=False)
+    checkpoint = HumanCheckpointPresenter(project_root).checkpoint(
+        checkpoint_type="patch_apply",
+        title="Patch Apply Checkpoint",
+        prompt="Apply this patch?",
+        risk_level="write",
+        summary=f"Apply pending patch {preview.proposal.id} touching {len(preview.proposal.blocks)} file operation(s).",
+        subject=preview.proposal.id,
+        metadata={
+            "patch_id": preview.proposal.id,
+            "file_count": str(len(preview.proposal.blocks)),
+        },
+    )
+    _show_human_checkpoint(checkpoint)
+    approved = typer.confirm(checkpoint.prompt, default=False)
     if not approved:
         console.print("[yellow]Patch was not applied.[/yellow]")
         raise typer.Exit(code=0)
@@ -235,7 +261,20 @@ def run_command(command: str, yes: bool = typer.Option(False, "--yes", "-y", hel
 
     approved = yes
     if risk.level == RiskLevel.MEDIUM and not yes:
-        approved = typer.confirm("Run this medium-risk command?", default=False)
+        checkpoint = HumanCheckpointPresenter(project_root).checkpoint(
+            checkpoint_type="shell_run",
+            title="Shell Command Checkpoint",
+            prompt="Run this medium-risk command?",
+            risk_level=str(risk.level),
+            summary=f"Run medium-risk shell command with {len(risk.reasons)} risk reason(s).",
+            subject=command,
+            metadata={
+                "command_head": risk.tokens[0] if risk.tokens else "",
+                "reason_count": str(len(risk.reasons)),
+            },
+        )
+        _show_human_checkpoint(checkpoint)
+        approved = typer.confirm(checkpoint.prompt, default=False)
     if risk.level == RiskLevel.HIGH and not yes:
         console.print("[red]High-risk command blocked by policy.[/red]")
         approved = False
@@ -543,6 +582,22 @@ def mcp_propose_write(
             title="MCP Write Proposal",
         )
     )
+    checkpoint = HumanCheckpointPresenter(project_root).checkpoint(
+        checkpoint_type="mcp_write",
+        title="MCP Write Checkpoint",
+        prompt="Review this MCP write proposal before applying it.",
+        risk_level=proposal.risk_level,
+        summary=f"MCP write proposal for {proposal.server}.{proposal.tool}; no tool was executed.",
+        subject=proposal.proposal_id,
+        metadata={
+            "proposal_id": proposal.proposal_id,
+            "server": proposal.server,
+            "tool": proposal.tool,
+            "classification": proposal.classification,
+        },
+    )
+    _show_human_checkpoint(checkpoint)
+    console.print("[yellow]Review and apply through the MCP proposal flow; no write was executed.[/yellow]")
 
 
 @mcp_app.command("pending")
@@ -1037,6 +1092,22 @@ def sandbox_approve(
     """Approve the pending sandbox execution proposal. Does NOT execute."""
     project_root = Path.cwd()
     gate = SandboxExecutionGate(project_root)
+    proposal = gate.load_pending()
+    if proposal is not None:
+        checkpoint = HumanCheckpointPresenter(project_root).checkpoint(
+            checkpoint_type="sandbox_execute",
+            title="Sandbox Execution Checkpoint",
+            prompt="Approve this sandbox execution proposal?",
+            risk_level="execute",
+            summary=f"Approve sandbox proposal {proposal.proposal_id} for backend {proposal.backend}.",
+            subject=proposal.proposal_id,
+            metadata={
+                "proposal_id": proposal.proposal_id,
+                "backend": proposal.backend,
+                "command_head": proposal.command[0] if proposal.command else "",
+            },
+        )
+        _show_human_checkpoint(checkpoint)
     approval = gate.approve(ttl_minutes=ttl_minutes)
 
     if approval is None:
