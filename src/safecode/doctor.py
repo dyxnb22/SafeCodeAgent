@@ -1,5 +1,6 @@
-"""Environment checks for v1.0 install polish."""
+"""Environment checks for install and update polish."""
 
+import os
 import shutil
 import sys
 from dataclasses import dataclass
@@ -28,4 +29,12 @@ class Doctor:
             DoctorCheck("uv", shutil.which("uv") is not None, shutil.which("uv") or "not found"),
             DoctorCheck("project_root", self.project_root.exists(), str(self.project_root)),
             DoctorCheck("pyproject", (self.project_root / "pyproject.toml").exists(), "pyproject.toml"),
+            DoctorCheck("config", (self.project_root / ".sac" / "config.toml").exists(), ".sac/config.toml"),
+            DoctorCheck("sac_dir", (self.project_root / ".sac").exists(), ".sac"),
+            DoctorCheck("approval_dir", bool(os.getenv("SAFECODE_APPROVAL_DIR")), os.getenv("SAFECODE_APPROVAL_DIR", "not set")),
+            DoctorCheck(
+                "sandbox_approval_dir",
+                bool(os.getenv("SAFECODE_SANDBOX_APPROVAL_DIR")),
+                os.getenv("SAFECODE_SANDBOX_APPROVAL_DIR", "not set"),
+            ),
         ]

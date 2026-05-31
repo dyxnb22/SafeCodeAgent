@@ -7,6 +7,7 @@ from rich.syntax import Syntax
 from rich.table import Table
 
 from safecode.cli_shared import console, log_cli_error, runtime_logger, show_human_checkpoint
+from safecode import __version__
 
 from safecode.audit.logger import AuditLogger
 from safecode.doctor import Doctor
@@ -155,6 +156,13 @@ def doctor() -> None:
     for check in Doctor(Path.cwd()).run():
         table.add_row(check.name, "yes" if check.passed else "no", check.detail)
     console.print(table)
+
+
+@ops_app.command("version")
+def version() -> None:
+    """Show SafeCode package version and update hints."""
+    console.print(f"SafeCode Agent {__version__}")
+    console.print("Update source checkout: git pull --ff-only && python -m pytest -q")
 
 
 @logs_app.command("show")

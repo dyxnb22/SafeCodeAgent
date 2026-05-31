@@ -5,13 +5,16 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v2.3.2
+# Current Baseline - v2.3.3
 
 ## Status
-Implemented and tagged as `v2.3.2`.
+Implemented and tagged as `v2.3.3`.
 
 ## Stage
 `v2.3.x` Developer Experience.
+
+## v2.3.3 (Install/Update Polish)
+Package version metadata is synchronized in `pyproject.toml` and `src/safecode/__init__.py`. Root command `sac version` prints the installed SafeCode version and update hint. `sac doctor` now checks `.sac/config.toml`, `.sac/`, and approval directory environment variables in addition to Python, uv, project root, and pyproject.
 
 ## v2.3.2 (IDE Bridge MVP)
 `src/safecode/ide/bridge.py` adds read-only IDE bridge targets. `sac ide open-diff` materializes the current pending patch diff to `.sac/ide/pending.diff` and prints a file URI/path. `sac ide open-files "query"` prints safe selected project file URIs from the context selector. The IDE manifest includes `safecode.openDiff` and `safecode.openSelectedFiles`.

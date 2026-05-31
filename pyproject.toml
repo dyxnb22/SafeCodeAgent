@@ -1,6 +1,6 @@
 [project]
 name = "safecode-agent"
-version = "2.3.2"
+version = "2.3.3"
 description = "A safety-first terminal coding agent with diff review, checkpoints, rollback, and audit logs."
 readme = "README.md"
 requires-python = ">=3.11"
