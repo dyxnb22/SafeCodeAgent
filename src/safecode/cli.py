@@ -362,6 +362,39 @@ def agent_clear() -> None:
         console.print("[yellow]No agent session found.[/yellow]")
 
 
+@agent_app.command("abort")
+def agent_abort(reason: str = typer.Option("aborted by user", "--reason")) -> None:
+    """Mark the current interactive agent session as aborted."""
+    try:
+        state = AgentSessionStore(Path.cwd()).abort(reason)
+    except FileNotFoundError as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(code=1) from exc
+    console.print(Panel.fit(f"Session ID: {state.session_id}\nStatus: {state.status}\nReason: {state.last_error}", title="Agent Session Aborted"))
+
+
+@agent_app.command("resume")
+def agent_resume() -> None:
+    """Resume an existing non-completed interactive agent session."""
+    try:
+        state = AgentSessionStore(Path.cwd()).resume()
+    except (FileNotFoundError, ValueError) as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(code=1) from exc
+    console.print(Panel.fit(f"Session ID: {state.session_id}\nStatus: {state.status}", title="Agent Session Resumed"))
+
+
+@agent_app.command("explain-last-failure")
+def agent_explain_last_failure() -> None:
+    """Explain the latest recorded agent session failure."""
+    try:
+        explanation = AgentSessionStore(Path.cwd()).explain_last_failure()
+    except FileNotFoundError as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(code=1) from exc
+    console.print(Panel.fit(explanation, title="Agent Last Failure"))
+
+
 @agent_app.command("step")
 def agent_step(goal: str = typer.Argument("", help="Goal to start or replace the session with.")) -> None:
     """Advance exactly one safe interactive agent step."""

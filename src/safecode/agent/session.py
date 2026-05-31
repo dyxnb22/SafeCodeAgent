@@ -75,6 +75,48 @@ class AgentSessionStore:
             return True
         return False
 
+    def abort(self, reason: str = "aborted by user") -> AgentSessionState:
+        """Mark the current session as aborted."""
+        state = self.load()
+        if state is None:
+            raise FileNotFoundError("No agent session found.")
+        updated = state.model_copy(
+            update={
+                "status": "aborted",
+                "last_error": reason,
+                "last_observation": f"Session aborted: {reason}",
+                "pending_action": None,
+            }
+        )
+        return self.save(updated)
+
+    def resume(self) -> AgentSessionState:
+        """Resume an existing non-completed session."""
+        state = self.load()
+        if state is None:
+            raise FileNotFoundError("No agent session found.")
+        if state.status == "completed":
+            raise ValueError("Completed sessions cannot be resumed.")
+        updated = state.model_copy(
+            update={
+                "status": "active",
+                "last_observation": "Session resumed.",
+                "last_error": None,
+            }
+        )
+        return self.save(updated)
+
+    def explain_last_failure(self) -> str:
+        """Return a short explanation of the latest recoverable failure."""
+        state = self.load()
+        if state is None:
+            raise FileNotFoundError("No agent session found.")
+        if state.last_error:
+            return state.last_error
+        if state.status == "completed":
+            return "The current session is completed and has no recorded failure."
+        return "No failure has been recorded for the current session."
+
     def _atomic_write_text(self, text: str) -> None:
         tmp_path = self.path.with_name(f".{self.path.name}.{uuid4().hex}.tmp")
         try:

@@ -5,7 +5,7 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v1.9.4
+# Current Baseline - v1.9.5
 
 ## Status
 Implemented locally; tag pending.
@@ -22,7 +22,7 @@ Implemented locally; tag pending.
 ## Current Capability
 SafeCode Agent has a safety-first local runtime centered on controlled file edits, command policy, audit, rollback, and sandbox planning.
 
-The current baseline extends `v1.9.3` by adding standardized human checkpoints for approval-gated actions. Patch apply, medium-risk shell run, MCP write proposal, and sandbox execution approval now present consistent checkpoint panels and write `human_checkpoint_presented` audit events with checkpoint type, risk level, subject hash, and minimal action metadata. The typed tool intent router still marks write/execute intent categories approval-required and unknown or malformed intents fail closed. `sac agent run "goal" --max-steps N` remains bounded and stops on completion, max-step exhaustion, or future approval stops. All v1.8.x sandbox safety invariants remain in force.
+The current baseline extends `v1.9.4` by adding agent session recovery commands: `sac agent resume`, `sac agent abort`, and `sac agent explain-last-failure`. Sessions can now be marked aborted with a reason, resumed when not completed, and queried for the latest recorded failure. Standardized human checkpoints remain in place for approval-gated actions, and the typed tool intent router still marks write/execute categories approval-required while malformed intents fail closed. `sac agent run "goal" --max-steps N` remains bounded and stops on completion, max-step exhaustion, or future approval stops. All v1.8.x sandbox safety invariants remain in force.
 
 ## Important Entry Points
 - `src/safecode/cli.py`

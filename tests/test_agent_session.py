@@ -141,3 +141,46 @@ class TestAgentRun:
         assert "max_steps_reached" in result.stdout
         data = json.loads((tmp_path / ".sac" / "session.json").read_text(encoding="utf-8"))
         assert data["current_step"] == 2
+
+
+class TestAgentRecovery:
+    def test_abort_resume_and_explain_failure(self, tmp_path):
+        store = AgentSessionStore(tmp_path)
+        store.start("recover me")
+
+        aborted = store.abort("tool failed")
+        assert aborted.status == "aborted"
+        assert aborted.last_error == "tool failed"
+        assert store.explain_last_failure() == "tool failed"
+
+        resumed = store.resume()
+        assert resumed.status == "active"
+        assert resumed.last_error is None
+
+    def test_resume_completed_session_fails_closed(self, tmp_path):
+        loop = AgentLoop(tmp_path)
+        loop.run("finish", max_steps=5)
+
+        try:
+            AgentSessionStore(tmp_path).resume()
+        except ValueError as exc:
+            assert "Completed" in str(exc)
+        else:
+            raise AssertionError("completed session should not resume")
+
+    def test_recovery_cli_roundtrip(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        runner.invoke(app, ["agent", "start", "recover cli"])
+
+        abort = runner.invoke(app, ["agent", "abort", "--reason", "manual stop"])
+        explain = runner.invoke(app, ["agent", "explain-last-failure"])
+        resume = runner.invoke(app, ["agent", "resume"])
+
+        assert abort.exit_code == 0
+        assert "aborted" in abort.stdout
+        assert explain.exit_code == 0
+        assert "manual stop" in explain.stdout
+        assert resume.exit_code == 0
+        data = json.loads((tmp_path / ".sac" / "session.json").read_text(encoding="utf-8"))
+        assert data["status"] == "active"
+        assert data["last_error"] is None
