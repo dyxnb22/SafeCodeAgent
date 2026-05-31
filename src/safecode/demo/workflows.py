@@ -123,6 +123,21 @@ def default_demo_workflows() -> list[DemoWorkflow]:
             expected_files=("src/calculator.py", "tests/test_calculator.py"),
             acceptance=("initial pytest fails", "pytest passes after fixing src/calculator.py"),
         ),
+        DemoWorkflow(
+            id="safe-shell-status",
+            title="Safe shell status check",
+            category="safe-shell",
+            task="Inspect repository status using a safe read-only shell command.",
+            description="Safe shell workflow that demonstrates policy-gated command review without file edits.",
+            files={
+                "README.md": "# Safe Shell Demo\n\nUse SafeCode to run a read-only status command.\n",
+                ".gitkeep": "",
+                ".sac/config.toml": _SHELL_CONFIG,
+            },
+            commands=('sac run "git status"', "sac history"),
+            expected_files=("README.md",),
+            acceptance=("git status is classified as low/read-only", "history records the shell event"),
+        ),
     ]
 
 
@@ -137,6 +152,11 @@ def _inside_directory(path: Path, directory: Path) -> bool:
 _PYTEST_CONFIG = """[shell]
 allowed_commands = ["pytest", "python"]
 require_confirm_for_medium = false
+"""
+
+_SHELL_CONFIG = """[shell]
+allowed_commands = ["git", "echo", "pwd", "ls"]
+require_confirm_for_medium = true
 """
 
 _DOCS_CONFIG = """[shell]

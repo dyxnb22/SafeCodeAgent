@@ -5,13 +5,16 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v2.3.3
+# Current Baseline - v2.3.4
 
 ## Status
-Implemented and tagged as `v2.3.3`.
+Implemented and tagged as `v2.3.4`.
 
 ## Stage
 `v2.3.x` Developer Experience.
+
+## v2.3.4 (Onboarding Examples)
+`docs/tutorials/` adds guided bug fix, feature edit, docs edit, and safe shell task tutorials. `examples/README.md` points to the built-in workflow commands. `DemoWorkflowSuite` now includes `safe-shell-status`, completing the four onboarding paths alongside existing bug, feature, and docs workflows.
 
 ## v2.3.3 (Install/Update Polish)
 Package version metadata is synchronized in `pyproject.toml` and `src/safecode/__init__.py`. Root command `sac version` prints the installed SafeCode version and update hint. `sac doctor` now checks `.sac/config.toml`, `.sac/`, and approval directory environment variables in addition to Python, uv, project root, and pyproject.

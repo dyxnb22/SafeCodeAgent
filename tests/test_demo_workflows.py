@@ -12,15 +12,16 @@ from safecode.project.test_detector import ProjectTestDetector
 runner = CliRunner()
 
 
-def test_default_suite_covers_four_demo_workflow_categories() -> None:
+def test_default_suite_covers_onboarding_demo_workflow_categories() -> None:
     workflows = DemoWorkflowSuite().list()
 
-    assert [workflow.category for workflow in workflows] == ["fastapi", "cli", "docs", "failing-test"]
+    assert [workflow.category for workflow in workflows] == ["fastapi", "cli", "docs", "failing-test", "safe-shell"]
     assert [workflow.id for workflow in workflows] == [
         "fastapi-health-endpoint",
         "cli-version-flag",
         "docs-safety-note",
         "failing-test-repair",
+        "safe-shell-status",
     ]
 
 
