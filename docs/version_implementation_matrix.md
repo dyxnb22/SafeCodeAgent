@@ -268,15 +268,18 @@
 | `v2.3.2` | `v2.3.2-ide-bridge-mvp` | `src/safecode/ide/`、`src/safecode/cli_ops.py::ide_app` | `sac ide open-diff` 输出 materialized pending diff URI/path；`sac ide open-files` 输出 selected files URI/path；manifest 暴露 IDE bridge commands；`PYTHONPATH=src python3 -m pytest tests/test_ide_bridge.py -q` |
 | `v2.3.3` | `v2.3.3-install-update-polish` | `pyproject.toml`、`src/safecode/__init__.py`、`src/safecode/doctor.py` | package version 同步；`sac version` 输出版本和 update hint；`sac doctor` 覆盖 config、`.sac/`、approval env；`docs/install-update.md`；`PYTHONPATH=src python3 -m pytest tests/test_install_update_polish.py -q` |
 | `v2.3.4` | `v2.3.4-onboarding-examples` | `examples/`、`docs/tutorials/`、`src/safecode/demo/workflows.py` | bug fix、feature edit、docs edit、safe shell task 四个教程；`safe-shell-status` demo workflow 可 materialize；`PYTHONPATH=src python3 -m pytest tests/test_onboarding_examples.py -q` |
+| `v2.3.5` | `v2.3.5-honest-surface` | `src/safecode/cli_sandbox.py`、`src/safecode/cli_mcp.py`、`src/safecode/cli_subagent.py`、`docs/` | CLI/docs 明确当前边界：Noop 是唯一执行 backend；macOS/Linux/Docker 为 plan-only/dry-run；MCP 是 subprocess JSON shim；subagent 是 read-only context/result collector；`PYTHONPATH=src python3 -m pytest tests/test_cli_output_honesty.py -q` |
+| `v2.3.6` | `v2.3.6-agent-loop-patch-path` | `src/safecode/agent/loop.py`、`src/safecode/agent/tools.py`、`src/safecode/llm/mock.py`、`src/safecode/patch/` | `sac agent run "goal"` 对 write-class plan item 生成 `.sac/pending_patch.json` 并停在 approval；legacy `sac edit/apply` 不破坏；`PYTHONPATH=src python3 -m pytest tests/test_agent_loop_patch.py -q` |
+| `v2.3.7` | `v2.3.7-universal-gate-and-migrations` | `src/safecode/tools/`、`src/safecode/cli_*.py`、`src/safecode/state/migrations.py` | 所有 CLI 写入/执行/工具通信路径先经过 ToolCallAdapter/ToolCallGate；持久化 state records 带 `_schema_version` 并支持 migrate-on-load；`PYTHONPATH=src python3 -m pytest tests/test_tool_call_gate.py tests/test_state_migrations.py -q` |
 
 ## v2.4.x: Real Sandbox Backends
 
 | 版本 | 分支 | 主要入口 | 验收命令 |
 |---|---|---|---|
-| `v2.4.0` | `v2.4.0-sandbox-backend-contract-v2` | `src/safecode/sandbox/adapter.py` | dry-run/preflight/execute contract 按 backend 分离 |
-| `v2.4.1` | `v2.4.1-macos-seatbelt-execution-preview` | `src/safecode/sandbox/seatbelt.py` | opt-in macOS Seatbelt execution path 有窄 allowlist 和 eval |
-| `v2.4.2` | `v2.4.2-linux-bubblewrap-execution-preview` | `src/safecode/sandbox/bubblewrap.py` | opt-in Bubblewrap execution path 有 filesystem/network containment eval |
-| `v2.4.3` | `v2.4.3-docker-execution-preview` | `src/safecode/sandbox/docker.py` | opt-in Docker execution path 支持隔离命令运行 |
+| `v2.4.0` | `v2.4.0-sandbox-backend-contract-v2` | `src/safecode/sandbox/adapter.py`、`src/safecode/sandbox/execution.py` | Split planning/preflight/execution contracts per backend; Noop remains the only executing backend until previews opt in; begin splitting `sandbox/execution.py` stores/gate façade |
+| `v2.4.1` | `v2.4.1-docker-execution-preview` | `src/safecode/sandbox/docker.py` | opt-in Docker execution path first, because it is most uniform across macOS/Linux/CI; fixed allowlisted image, network forced off, backend-specific eval |
+| `v2.4.2` | `v2.4.2-macos-seatbelt-execution-preview` | `src/safecode/sandbox/seatbelt.py` | opt-in macOS Seatbelt execution path with narrow allowlist and on-host eval |
+| `v2.4.3` | `v2.4.3-linux-bubblewrap-execution-preview` | `src/safecode/sandbox/bubblewrap.py` | opt-in Bubblewrap execution path with filesystem/network containment eval |
 | `v2.4.4` | `v2.4.4-cross-backend-security-evals` | `tests/test_sandbox_*` | backend-specific escape/attack/security eval 全部通过 |
 
 ## v2.5.x: Reliability and Evaluation
@@ -294,7 +297,7 @@
 | 版本 | 分支 | 主要入口 | 验收命令 |
 |---|---|---|---|
 | `v2.6.0` | `v2.6.0-policy-presets` | `src/safecode/config.py` | strict/balanced/experimental safety presets 可切换且不可被项目配置降级 |
-| `v2.6.1` | `v2.6.1-migration-system` | `src/safecode/state/migrations.py` | `.sac` state 与用户级 approval/audit store 有版本迁移 |
+| `v2.6.1` | `v2.6.1-migration-hardening` | `src/safecode/state/migrations.py` | 扩展 v2.3.7 migration 基础，覆盖用户级 approval/audit store、release migration checks、backward compatibility fixtures |
 | `v2.6.2` | `v2.6.2-release-signoff` | `src/safecode/release/` | release checklist 覆盖 tests/docs/tags/security eval |
 | `v2.6.3` | `v2.6.3-team-trust-boundaries` | `docs/security/`、`src/safecode/config.py` | project/user/team trust boundary 文档和 enforcement 明确 |
 | `v2.6.4` | `v2.6.4-product-security-review` | `docs/security/`、`tests/` | prompts/tools/state/sandbox/install-update 完成产品级安全 review |

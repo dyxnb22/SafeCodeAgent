@@ -1,6 +1,6 @@
 {
   "project": "SafeCode Agent",
-  "current_implemented_tag": "v2.3.4",
+  "current_implemented_tag": "v2.3.5",
   "current_local_version": null,
   "current_baseline": ".claude/skills/current/SKILL.md",
   "runtime_summary": ".claude/skills/shared/core-runtime.md",
@@ -151,13 +151,13 @@
       "range": "v2.3.x",
       "name": "Developer Experience",
       "depends_on": "v2.2.x",
-      "notes": "TUI, IDE bridge, install/update path, config wizard, and onboarding docs."
+      "notes": "TUI, IDE bridge, install/update path, config wizard, onboarding docs, then reviewed stabilization: honest CLI/docs surface, agent-loop patch path, universal tool gate, and persisted-state migrations."
     },
     {
       "range": "v2.4.x",
       "name": "Real Sandbox Backends",
       "depends_on": "v2.3.x",
-      "notes": "Carefully enable macOS/Linux/Docker sandbox execution beyond the Noop backend."
+      "notes": "Carefully enable real execution beyond Noop only after v2.3.5-v2.3.7 stabilization; backend preview order is Docker, macOS Seatbelt, Linux Bubblewrap, then cross-backend evals."
     },
     {
       "range": "v2.5.x",
@@ -209,15 +209,13 @@
     "v2.2.0",
     "v2.2.1",
     "v2.2.2",
-    "v2.2.3",
-    "v2.2.4",
-    "v2.2.5",
     "v2.2.6",
     "v2.3.0",
     "v2.3.1",
     "v2.3.2",
     "v2.3.3",
-    "v2.3.4"
+    "v2.3.4",
+    "v2.3.5"
   ],
   "local_versions": []
 }

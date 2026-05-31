@@ -13,6 +13,7 @@ from safecode.audit.logger import AuditLogger
 from safecode.audit.models import AuditEvent
 from safecode.config import SafeCodeConfig
 from safecode.sandbox.approvals import SandboxExecutionApprovalStore
+from safecode.sandbox.capabilities import SandboxBackend
 from safecode.sandbox.execution import SandboxExecutionGate, SandboxExecutionResultStore
 from safecode.sandbox.factory import SandboxAdapterFactory
 from safecode.sandbox.preflight import SandboxExecutionPreflight
@@ -28,15 +29,31 @@ def sandbox_status() -> None:
     project_root = Path.cwd()
     plan = SandboxPlanner(project_root).plan()
 
+    # v2.3.5: Clearly state execution scope before showing backend table.
+    console.print(
+        Panel.fit(
+            "[bold]v2.3.x executes only through the Noop backend.[/bold]\n"
+            "macOS Seatbelt, Linux Bubblewrap, and Docker are [yellow]plan-only / dry-run[/yellow]\n"
+            "until real-backend previews land in v2.4.x.",
+            title="[yellow]Execution Scope (v2.3.x)[/yellow]",
+        )
+    )
+
     cap_table = Table(title="Sandbox Backend Status")
     cap_table.add_column("Backend")
     cap_table.add_column("Available")
+    cap_table.add_column("Mode")
     cap_table.add_column("Platforms")
     cap_table.add_column("Recommended For")
     for cap in plan.capabilities:
+        if cap.backend == SandboxBackend.NONE:
+            mode = "[green]executing[/green]"
+        else:
+            mode = "[yellow]plan-only[/yellow]"
         cap_table.add_row(
             cap.backend.value,
             "[green]yes[/green]" if cap.available else "[red]no[/red]",
+            mode,
             ", ".join(cap.supported_platforms),
             cap.recommended_for or "-",
         )
@@ -110,10 +127,16 @@ def sandbox_plan(
         console.print(f"[red]Sandbox plan blocked:[/red] {exc}")
         raise typer.Exit(code=1) from exc
 
+    if exec_plan.backend == SandboxBackend.NONE:
+        backend_mode = "[green]executing[/green] (Noop — SafeCode logical boundaries)"
+    else:
+        backend_mode = "[bold yellow]plan-only / dry-run[/bold yellow] (no OS-level execution)"
+
     table = Table(title="Sandbox Execution Plan")
     table.add_column("Field")
     table.add_column("Value")
     table.add_row("Backend", exec_plan.backend.value)
+    table.add_row("Backend Mode", backend_mode)
     table.add_row("Command", " ".join(exec_plan.command))
     table.add_row("CWD", exec_plan.cwd)
     table.add_row("Network", "[green]enabled[/green]" if exec_plan.network_enabled else "[red]disabled[/red]")
@@ -187,8 +210,9 @@ def sandbox_plan(
     console.print(
         Panel.fit(
             "[bold yellow]This command was NOT executed.[/bold yellow]\n"
-            "v1.7.x generates sandbox execution plans and backend previews only.\n"
-            "Actual OS-level sandbox execution is deferred to a future version.",
+            "v2.3.x generates sandbox execution plans and backend previews only.\n"
+            "Non-Noop backends (macOS Seatbelt, Linux Bubblewrap, Docker) are plan-only / dry-run.\n"
+            "Real OS-level sandbox execution beyond Noop is deferred to v2.4.x.",
             title="Dry Run",
         )
     )

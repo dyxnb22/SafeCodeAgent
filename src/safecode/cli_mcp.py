@@ -18,12 +18,23 @@ from safecode.mcp.proposal import MCPWriteProposalStore
 from safecode.mcp.runner import MCPReadOnlyRunner
 from safecode.utils.time import utc_now_iso
 
-mcp_app = typer.Typer(help="Inspect configured MCP servers and tools.")
+mcp_app = typer.Typer(
+    help=(
+        "Inspect configured MCP servers and tools.\n\n"
+        "[dim]Current MCP support is a subprocess JSON shim: configured commands receive "
+        "JSON on stdin and return JSON on stdout. This is not a full MCP JSON-RPC client "
+        "(no live tools/list or tools/call protocol).[/dim]"
+    )
+)
 
 
 @mcp_app.command("tools")
 def mcp_tools() -> None:
-    """List configured MCP tools."""
+    """List configured MCP tools.
+
+    Tools are read from .sac/mcp.toml config, not from a live JSON-RPC tools/list call.
+    Current MCP support is a subprocess JSON shim.
+    """
     tools = MCPDiscovery(Path.cwd()).list_tools()
     table = Table(title="MCP Tools")
     table.add_column("Server")
@@ -32,6 +43,10 @@ def mcp_tools() -> None:
     for tool in tools:
         table.add_row(tool.server, tool.name, tool.risk)
     console.print(table if tools else "[yellow]No MCP tools configured.[/yellow]")
+    console.print(
+        "[dim]MCP support is a subprocess JSON shim. "
+        "Tools are read from config, not from a live MCP JSON-RPC tools/list call.[/dim]"
+    )
 
 
 @mcp_app.command("call-readonly")

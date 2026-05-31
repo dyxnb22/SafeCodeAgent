@@ -12,7 +12,14 @@ from safecode.subagents.merge import SubagentMergeReviewer
 from safecode.subagents.runner import ReadonlySubagentRunner
 from safecode.subagents.task import SubagentTaskStore
 
-subagent_app = typer.Typer(help="Create file-backed subagent tasks.")
+subagent_app = typer.Typer(
+    help=(
+        "Create and run file-backed subagent tasks.\n\n"
+        "[dim]Current subagents are read-only context/result collectors: they collect "
+        "project context and write a result file under .sac/subagents/. "
+        "They are not independent LLM investigations.[/dim]"
+    )
+)
 
 
 @subagent_app.command("create")
@@ -27,7 +34,11 @@ def subagent_run_readonly(
     title: str,
     instructions: str,
 ) -> None:
-    """Run a read-only subagent task that writes only a result file."""
+    """Run a read-only subagent task (context/result collector).
+
+    Collects project context and writes a result file under .sac/subagents/.
+    Subagents are read-only context/result collectors, not independent LLM investigations.
+    """
     project_root = Path.cwd()
     try:
         result = ReadonlySubagentRunner(project_root).run(title, instructions)
@@ -40,7 +51,9 @@ def subagent_run_readonly(
         Panel.fit(
             f"Task ID: {result.task.id}\n"
             f"Status: {result.task.status}\n"
-            f"Result: {result.result_path}",
+            f"Result: {result.result_path}\n\n"
+            "[dim]This subagent collected read-only context/result. "
+            "No independent LLM investigation was performed.[/dim]",
             title="Subagent Read-only Run",
         )
     )

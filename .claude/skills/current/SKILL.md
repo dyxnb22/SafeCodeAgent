@@ -5,13 +5,24 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v2.3.4
+# Current Baseline - v2.3.5
 
 ## Status
-Implemented and tagged as `v2.3.4`.
+Implemented and tagged as `v2.3.5`.
 
 ## Stage
-`v2.3.x` Developer Experience.
+`v2.3.x` Developer Experience stabilization. Do not jump directly to real sandbox execution; complete the reviewed v2.3.6-v2.3.7 stabilization track first, then v2.4.x real backends.
+
+## Product Review Follow-up (remaining after v2.3.5)
+The product-level review found SafeCode Agent is strongest as a hardened patch + command policy + audit harness, but still immature as an autonomous coding agent. The remaining gaps before v2.4 real sandbox backends:
+
+1. `v2.3.6-agent-loop-patch-path`: connect `AgentLoop` to patch proposal generation so `sac agent run "goal"` can produce `.sac/pending_patch.json` and stop for approval.
+2. `v2.3.7-universal-gate-and-migrations`: make ToolCallAdapter/ToolCallGate the universal pre-gate for CLI write/exec/tool paths and add schema-versioned migration hooks for persisted state.
+
+Only after those should v2.4 begin real sandbox backend previews, ordered Docker first, then macOS Seatbelt, then Linux Bubblewrap.
+
+## v2.3.5 (Honest Surface)
+CLI output and docs now accurately communicate current enforcement boundaries. `sac sandbox status` opens with an **Execution Scope (v2.3.x)** panel and adds a **Mode** column (`executing` for Noop, `plan-only` for all others). `sac sandbox plan` adds a **Backend Mode** row to the plan table so non-Noop plan-only status is visible before the trailing note. `sac mcp --help` and `mcp tools` output state that MCP is a subprocess JSON shim, not a full JSON-RPC client. `sac subagent --help` and `subagent run-readonly` state that subagents are read-only context/result collectors, not independent LLM investigations. 21 new tests in `tests/test_cli_output_honesty.py` cover all four surfaces.
 
 ## v2.3.4 (Onboarding Examples)
 `docs/tutorials/` adds guided bug fix, feature edit, docs edit, and safe shell task tutorials. `examples/README.md` points to the built-in workflow commands. `DemoWorkflowSuite` now includes `safe-shell-status`, completing the four onboarding paths alongside existing bug, feature, and docs workflows.
@@ -37,7 +48,9 @@ Package version metadata is synchronized in `pyproject.toml` and `src/safecode/_
 ## Source Of Truth
 - Version index: `docs/version_implementation_matrix.md`
 - Release roadmap: `docs/release_roadmap_v0_1_to_v1_0.md`
-- Git baseline: tag `v2.2.5`
+- Productization roadmap: `docs/productization-roadmap-to-claude-code.md`
+- Product review follow-up: `docs/product-review-v2.3.4-followup.md`
+- Git baseline: tag `v2.3.4`
 - Runtime invariants: `.claude/skills/shared/core-runtime.md`
 
 ## Current Capability
@@ -67,6 +80,9 @@ The `v2.1.x` stage added repository intelligence on top of the `v2.0.x` MVP:
 
 ## Important Entry Points
 - `src/safecode/subagents/journal_adapter.py`
+- `src/safecode/cli_sandbox.py`
+- `src/safecode/cli_mcp.py`
+- `src/safecode/cli_subagent.py`
 - `src/safecode/subagents/merge_policy.py`
 - `src/safecode/subagents/executor.py`
 - `src/safecode/cli.py` — slim Typer registry; imports from cli_*.py modules

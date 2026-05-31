@@ -188,21 +188,33 @@ Subtasks:
 - `v2.3.4-onboarding-examples`
   Provide guided examples for bug fix, feature edit, docs edit, and safe shell
   task.
+- `v2.3.5-honest-surface`
+  Make CLI and docs explicit about current boundaries before adding real
+  sandbox execution: Noop is the only executing sandbox backend; macOS/Linux/
+  Docker are plan-only; current MCP is a subprocess JSON shim; current
+  subagents are read-only context/result collectors.
+- `v2.3.6-agent-loop-patch-path`
+  Connect the interactive agent loop to patch proposal generation so
+  `sac agent run "goal"` can produce a pending patch and stop for approval.
+- `v2.3.7-universal-gate-and-migrations`
+  Route all CLI write/exec/tool paths through a universal registry gate and
+  add schema-versioned migration hooks for persisted state.
 
 ### v2.4.x: Real Sandbox Backends
 
-Goal: carefully enable real containment beyond Noop.
+Goal: carefully enable real containment beyond Noop after v2.3.5-v2.3.7
+stabilization closes the biggest product-trust and architecture gaps.
 
 Subtasks:
 
 - `v2.4.0-sandbox-backend-contract-v2`
   Split dry-run planning, preflight, and execution contracts per backend.
-- `v2.4.1-macos-seatbelt-execution-preview`
-  Enable an opt-in macOS Seatbelt execution path with narrow allowlists.
-- `v2.4.2-linux-bubblewrap-execution-preview`
-  Enable an opt-in Bubblewrap path with filesystem/network containment tests.
-- `v2.4.3-docker-execution-preview`
+- `v2.4.1-docker-execution-preview`
   Enable opt-in Docker execution for isolated command runs.
+- `v2.4.2-macos-seatbelt-execution-preview`
+  Enable an opt-in macOS Seatbelt execution path with narrow allowlists.
+- `v2.4.3-linux-bubblewrap-execution-preview`
+  Enable an opt-in Bubblewrap path with filesystem/network containment tests.
 - `v2.4.4-cross-backend-security-evals`
   Add backend-specific attack and escape evaluations.
 
@@ -233,8 +245,9 @@ Subtasks:
 
 - `v2.6.0-policy-presets`
   Ship strict, balanced, and experimental safety presets.
-- `v2.6.1-migration-system`
-  Add migrations for `.sac` state and user-level approval/audit stores.
+- `v2.6.1-migration-hardening`
+  Extend the v2.3.7 migration foundation to user-level approval/audit stores
+  and release compatibility checks.
 - `v2.6.2-release-signoff`
   Add release checklist automation for tests, docs, tags, and security evals.
 - `v2.6.3-team-trust-boundaries`
@@ -245,7 +258,8 @@ Subtasks:
 
 ## Recommended Next Move
 
-Start with `v1.9.0-session-state`. It is the smallest useful bridge from a
-safe command collection into an actual agent product. It also gives every
-later feature a place to record plan, step, observation, failure, and resume
-state.
+Start with `v2.3.5-honest-surface`. The v2.3.4 product review found that the
+security substrate is stronger than the product surface: sandbox, MCP, and
+subagent wording can overstate what is currently enforced. Make those
+boundaries explicit first, then wire agent-loop patch generation and universal
+tool gating before enabling real sandbox backends.
