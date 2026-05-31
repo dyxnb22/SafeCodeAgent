@@ -9,6 +9,7 @@ from uuid import uuid4
 
 from pydantic import BaseModel, Field
 
+from safecode.state.journal import AgentJournalStore
 from safecode.utils.time import utc_now_iso
 
 
@@ -36,11 +37,12 @@ class AgentSessionStore:
 
     def start(self, goal: str, plan: list[str] | None = None) -> AgentSessionState:
         """Create or replace the current session."""
+        planned_steps = list(plan or [])
         now = utc_now_iso()
         state = AgentSessionState(
             session_id=uuid4().hex,
             goal=goal,
-            plan=list(plan or []),
+            plan=planned_steps,
             current_step=0,
             pending_action=None,
             last_observation="Session created.",
@@ -49,6 +51,7 @@ class AgentSessionStore:
             updated_at=now,
         )
         self.save(state)
+        AgentJournalStore(self.project_root).record_plan(state.session_id, goal, planned_steps)
         return state
 
     def load(self) -> AgentSessionState | None:
@@ -88,7 +91,13 @@ class AgentSessionStore:
                 "pending_action": None,
             }
         )
-        return self.save(updated)
+        saved = self.save(updated)
+        AgentJournalStore(self.project_root).record_failure(
+            saved.session_id,
+            saved.last_observation,
+            {"reason": reason, "status": saved.status},
+        )
+        return saved
 
     def resume(self) -> AgentSessionState:
         """Resume an existing non-completed session."""

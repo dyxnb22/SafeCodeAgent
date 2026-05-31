@@ -7,6 +7,7 @@ from pathlib import Path
 
 from safecode.agent.session import AgentSessionState, AgentSessionStore
 from safecode.agent.tools import ToolIntentRouter
+from safecode.state.journal import AgentJournalStore
 
 
 DEFAULT_PLAN = [
@@ -40,6 +41,7 @@ class AgentLoop:
     def __init__(self, project_root: Path) -> None:
         self.project_root = project_root
         self.store = AgentSessionStore(project_root)
+        self.journal = AgentJournalStore(project_root)
 
     def step(self, goal: str | None = None) -> AgentStepResult:
         """Advance exactly one safe session step."""
@@ -52,6 +54,7 @@ class AgentLoop:
             state = self.store.start(goal, plan=DEFAULT_PLAN)
         elif not state.plan:
             state = state.model_copy(update={"plan": DEFAULT_PLAN})
+            self.journal.record_plan(state.session_id, state.goal, DEFAULT_PLAN)
 
         if state.current_step >= len(state.plan):
             updated = state.model_copy(
@@ -62,6 +65,15 @@ class AgentLoop:
                 }
             )
             saved = self.store.save(updated)
+            self.journal.record_final_summary(
+                saved.session_id,
+                saved.last_observation,
+                {
+                    "status": saved.status,
+                    "current_step": saved.current_step,
+                    "plan_items": len(saved.plan),
+                },
+            )
             return AgentStepResult(state=saved, observation=saved.last_observation)
 
         plan_item = state.plan[state.current_step]
@@ -89,6 +101,12 @@ class AgentLoop:
             }
         )
         saved = self.store.save(updated)
+        self.journal.record_action(
+            saved.session_id,
+            saved.current_step,
+            observation,
+            pending_action,
+        )
         return AgentStepResult(state=saved, observation=observation)
 
     def run(self, goal: str | None = None, max_steps: int = 5) -> AgentRunResult:

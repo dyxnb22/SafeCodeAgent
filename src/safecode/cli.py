@@ -46,6 +46,7 @@ from safecode.sandbox.preflight import SandboxExecutionPreflight
 from safecode.sandbox.planner import SandboxPlanner
 from safecode.shell.risk import RiskLevel
 from safecode.shell.runner import ShellRunner
+from safecode.state.journal import AgentJournalStore
 from safecode.skills.loader import SkillLoader
 from safecode.state.progress import ProgressState, ProgressStore
 from safecode.subagents.task import SubagentTaskStore
@@ -393,6 +394,26 @@ def agent_explain_last_failure() -> None:
         console.print(f"[red]{exc}[/red]")
         raise typer.Exit(code=1) from exc
     console.print(Panel.fit(explanation, title="Agent Last Failure"))
+
+
+@agent_app.command("journal")
+def agent_journal(session_id: str = typer.Argument("", help="Session ID to render. Defaults to current session.")) -> None:
+    """Render the current interactive agent session journal."""
+    project_root = Path.cwd()
+    store = AgentSessionStore(project_root)
+    journal = AgentJournalStore(project_root)
+    selected_session_id = session_id
+    if not selected_session_id:
+        state = store.load()
+        selected_session_id = state.session_id if state else journal.latest_session_id() or ""
+    if not selected_session_id:
+        console.print("[yellow]No agent journal found.[/yellow]")
+        return
+    try:
+        console.print(journal.render_markdown(selected_session_id))
+    except ValueError as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(code=1) from exc
 
 
 @agent_app.command("step")

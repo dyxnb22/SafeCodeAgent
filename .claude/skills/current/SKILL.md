@@ -5,10 +5,10 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v2.0.1
+# Current Baseline - v2.0.2
 
 ## Status
-Implemented and tagged as `v2.0.1`.
+Implemented and tagged as `v2.0.2`.
 
 ## Stage
 `v2.0.x` Usable Local Coding Agent MVP.
@@ -16,13 +16,13 @@ Implemented and tagged as `v2.0.1`.
 ## Source Of Truth
 - Version index: `docs/version_implementation_matrix.md`
 - Release roadmap: `docs/release_roadmap_v0_1_to_v1_0.md`
-- Git baseline: tag `v2.0.1`
+- Git baseline: tag `v2.0.2`
 - Runtime invariants: `.claude/skills/shared/core-runtime.md`
 
 ## Current Capability
 SafeCode Agent has a safety-first local runtime centered on controlled file edits, command policy, audit, rollback, and sandbox planning.
 
-The current baseline extends `v2.0.0` by adding explicit context budget metadata. `ContextCollector.collect()` still returns legacy fields, but now also includes `context_budget` with byte limits, approximate token limits, packed sources, and truncation notes. `ContextBudgetPacker` handles UTF-8-safe truncation and reusable budget reports, while `ContextSelector.select_sources(...)` exposes ranked source reasons for later context explainability. Real-model validation still requires `OPENAI_API_KEY` or `SAFECODE_LLM_API_KEY`, plus the existing network allow policy. Tests and normal local development remain keyless through mock mode.
+The current baseline extends `v2.0.1` by adding durable per-session task journals. Agent sessions now write JSONL timelines under `.sac/agent_journals/` for plan, action, failure, and final-summary events, with reusable diff and command event helpers ready for upcoming workflow layers. `sac agent journal [session_id]` renders a session timeline as Markdown, and task reports include a compact latest-journal summary. Context budget metadata from `v2.0.1` remains in place. Real-model validation still requires `OPENAI_API_KEY` or `SAFECODE_LLM_API_KEY`, plus the existing network allow policy. Tests and normal local development remain keyless through mock mode.
 
 ## Important Entry Points
 - `src/safecode/cli.py`
@@ -34,6 +34,7 @@ The current baseline extends `v2.0.0` by adding explicit context budget metadata
 - `src/safecode/context/budget.py`
 - `src/safecode/context/collector.py`
 - `src/safecode/context/selector.py`
+- `src/safecode/state/journal.py`
 - `src/safecode/llm/base.py`
 - `src/safecode/llm/mock.py`
 - `src/safecode/llm/openai_client.py`
@@ -48,6 +49,7 @@ The current baseline extends `v2.0.0` by adding explicit context budget metadata
 
 ## Verification
 ```bash
+PYTHONPATH=src python3 -m pytest tests/test_agent_journal.py tests/test_agent_session.py -q
 PYTHONPATH=src python3 -m pytest tests/test_context_budget.py -q
 PYTHONPATH=src python3 -m pytest tests/test_agent_contract.py tests/test_agent_tool_intents.py -q
 PYTHONPATH=src python3 -m pytest tests/test_sandbox_execution_security_evals.py -q
@@ -63,3 +65,4 @@ uv run sac --help
 - New historical details belong in docs and Git tags, not in additional `.claude/skills/v*` files.
 - Real LLM calls must keep network policy and API key requirements explicit; mock mode must remain available for keyless tests.
 - Context collection must remain bounded and redacted; budget metadata should explain truncation without exposing hidden content.
+- Agent journals must validate session ids and remain summaries rather than hidden context dumps.
