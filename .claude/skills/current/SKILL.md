@@ -5,13 +5,16 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v2.2.6
+# Current Baseline - v2.3.0
 
 ## Status
-Implemented and tagged as `v2.2.6`.
+Implemented and tagged as `v2.3.0`.
 
 ## Stage
-`v2.2.x` Tool Ecosystem.
+`v2.3.x` Developer Experience.
+
+## v2.3.0 (Interactive TUI)
+`src/safecode/tui/dashboard.py` adds a Rich-rendered dashboard for current agent sessions. `sac tui dashboard` displays session status, plan progress, pending approval/action JSON, pending patch diff preview, and recent journal history in one terminal view. It is read-only and does not mutate session, patch, journal, or audit state.
 
 ## v2.2.6 (Subagent Findings Context Integration)
 `src/safecode/subagents/journal_adapter.py` adds `findings_from_journal_events(events)` and `merge_journal_subagent_findings(events, max_observations=20, max_files=50)`. The adapter reads `subagent_dispatch` journal events, converts compatible payloads to `SubagentFinding` via `_event_to_finding()` (returns `None` on malformed payload, never raises), and delegates merge to `merge_subagent_findings()`. `AgentLoop.step()` now calls `_enrich_with_subagent_findings(session_id, context)` between context collection and `choose_tool`: when the session journal has prior dispatch events, the merged result is injected as `"subagent_findings"` in the context dict passed to the LLM. Fail closed: any exception leaves context unchanged. Blocked/failed subagents contribute only errors/provenance, not content. No change to execution behavior or subagent dispatch.

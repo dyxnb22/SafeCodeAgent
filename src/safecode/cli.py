@@ -11,6 +11,7 @@ from safecode.cli_project import config_app, index_app, progress_app, skills_app
 from safecode.cli_sandbox import sandbox_app
 from safecode.cli_subagent import subagent_app
 from safecode.cli_test_demo import demo_app, test_app
+from safecode.cli_tui import tui_app
 
 app = typer.Typer(
     name="sac",
@@ -49,6 +50,7 @@ app.add_typer(sandbox_app, name="sandbox")
 app.add_typer(agent_app, name="agent")
 app.add_typer(test_app, name="test")
 app.add_typer(demo_app, name="demo")
+app.add_typer(tui_app, name="tui")
 
 
 def main() -> None:
