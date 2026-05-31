@@ -33,6 +33,7 @@ from safecode.memory.store import MemoryStore
 from safecode.patch.parser import PatchParseError
 from safecode.patch.validator import PatchValidationError
 from safecode.project.rules import ProjectRules
+from safecode.project.test_detector import ProjectTestDetector, TestCommandCandidate
 from safecode.report.render import ReportRenderer
 from safecode.release.checklist import render_release_checklist
 from safecode.sandbox.approvals import SandboxExecutionApprovalStore
@@ -77,6 +78,7 @@ audit_app = typer.Typer(help="Inspect and verify audit logs.")
 hooks_app = typer.Typer(help="Approve and inspect project hooks.")
 sandbox_app = typer.Typer(help="Check OS sandbox capabilities and recommendations.")
 agent_app = typer.Typer(help="Run and inspect interactive SafeCode agent sessions.")
+test_app = typer.Typer(help="Detect and run project tests through SafeCode policy.")
 console = Console()
 
 
@@ -294,6 +296,125 @@ def run_command(command: str, yes: bool = typer.Option(False, "--yes", "-y", hel
     AgentOrchestrator(project_root).audit_logger.write(
         AuditEvent(
             type="shell_completed" if result.executed else "shell_blocked",
+            timestamp=utc_now_iso(),
+            status="success" if result.exit_code == 0 else "failed",
+            command=command,
+            exit_code=result.exit_code,
+            message=f"risk={result.risk.level}; duration_ms={result.duration_ms}",
+        )
+    )
+    if result.stdout:
+        console.print(result.stdout)
+    if result.stderr:
+        console.print(f"[red]{result.stderr}[/red]")
+    raise typer.Exit(code=0 if result.exit_code in (0, 125, 126) else result.exit_code)
+
+
+def _render_test_candidates(project_root: Path, candidates: list[TestCommandCandidate]) -> None:
+    """Render detected test commands and policy proposal status."""
+    if not candidates:
+        console.print("[yellow]No test command candidates detected.[/yellow]")
+        return
+
+    runner = ShellRunner(project_root)
+    table = Table(title="SafeCode Test Commands")
+    table.add_column("#")
+    table.add_column("Command")
+    table.add_column("Tool")
+    table.add_column("Confidence")
+    table.add_column("Policy")
+    table.add_column("Reason")
+    for index, candidate in enumerate(candidates):
+        proposal = runner.propose(candidate.command)
+        table.add_row(
+            str(index),
+            candidate.command,
+            candidate.tool,
+            candidate.confidence,
+            proposal.status,
+            f"{candidate.reason} {proposal.decision.reason}",
+        )
+    console.print(table)
+
+
+def _select_test_candidate(project_root: Path, candidates: list[TestCommandCandidate], index: int) -> TestCommandCandidate:
+    if index != 0:
+        if index >= len(candidates):
+            raise IndexError(index)
+        return candidates[index]
+
+    runner = ShellRunner(project_root)
+    for candidate in candidates:
+        if runner.propose(candidate.command).status != "blocked":
+            return candidate
+    return candidates[0]
+
+
+@test_app.command("detect")
+def test_detect() -> None:
+    """Detect likely project test commands without executing them."""
+    project_root = Path.cwd()
+    candidates = ProjectTestDetector(project_root).detect()
+    _render_test_candidates(project_root, candidates)
+
+
+@test_app.command("run")
+def test_run(
+    command: Optional[str] = typer.Option(None, "--command", "-c", help="Run an explicit test command."),
+    index: int = typer.Option(0, "--index", min=0, help="Detected command index to run."),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Approve medium-risk test commands."),
+) -> None:
+    """Run a detected test command through SafeCode policy checks."""
+    project_root = Path.cwd()
+    candidates = ProjectTestDetector(project_root).detect()
+    if command is None:
+        if not candidates:
+            console.print("[yellow]No test command candidates detected.[/yellow]")
+            raise typer.Exit(code=1)
+        try:
+            selected = _select_test_candidate(project_root, candidates, index)
+        except IndexError:
+            console.print(f"[red]No test command candidate at index {index}.[/red]")
+            raise typer.Exit(code=1)
+        command = selected.command
+
+    runner = ShellRunner(project_root)
+    proposal = runner.propose(command)
+    risk = proposal.decision.risk
+    console.print(Panel.fit("\n".join([f"Command: {command}", f"Policy: {proposal.status}", *risk.reasons]), title="Test Command"))
+
+    approved = yes
+    if risk.level == RiskLevel.MEDIUM and proposal.decision.requires_approval and not yes:
+        checkpoint = HumanCheckpointPresenter(project_root).checkpoint(
+            checkpoint_type="test_run",
+            title="Test Command Checkpoint",
+            prompt="Run this test command?",
+            risk_level=str(risk.level),
+            summary=f"Run test command through SafeCode policy: {command}",
+            subject=command,
+            metadata={
+                "command_head": risk.tokens[0] if risk.tokens else "",
+                "detected": str(command in [candidate.command for candidate in candidates]),
+            },
+        )
+        _show_human_checkpoint(checkpoint)
+        approved = typer.confirm(checkpoint.prompt, default=False)
+    if risk.level == RiskLevel.HIGH:
+        console.print("[red]High-risk test command blocked by policy.[/red]")
+        approved = False
+
+    result = runner.run(command, approved=approved)
+    _runtime_logger().info(
+        "cli.test.run",
+        "test command evaluated",
+        command=command,
+        exit_code=str(result.exit_code),
+        executed=str(result.executed),
+        risk=str(result.risk.level),
+    )
+    AgentOrchestrator(project_root).audit_logger.write(
+        AuditEvent(
+            type="test_completed" if result.executed else "test_blocked",
             timestamp=utc_now_iso(),
             status="success" if result.exit_code == 0 else "failed",
             command=command,
@@ -1681,6 +1802,7 @@ app.add_typer(audit_app, name="audit")
 app.add_typer(hooks_app, name="hooks")
 app.add_typer(sandbox_app, name="sandbox")
 app.add_typer(agent_app, name="agent")
+app.add_typer(test_app, name="test")
 
 
 def main() -> None:

@@ -1,0 +1,115 @@
+"""Detect likely project test commands."""
+
+from __future__ import annotations
+
+import json
+import tomllib
+from dataclasses import dataclass
+from pathlib import Path
+
+
+@dataclass(frozen=True)
+class TestCommandCandidate:
+    """One detected test command with a short explanation."""
+
+    command: str
+    tool: str
+    reason: str
+    confidence: str = "medium"
+
+
+class ProjectTestDetector:
+    """Detect common test commands from local project manifests."""
+
+    def __init__(self, project_root: Path) -> None:
+        self.project_root = project_root
+
+    def detect(self) -> list[TestCommandCandidate]:
+        """Return likely test commands in deterministic priority order."""
+        candidates: list[TestCommandCandidate] = []
+        candidates.extend(self._detect_python())
+        candidates.extend(self._detect_node())
+        return _dedupe_commands(candidates)
+
+    def _detect_python(self) -> list[TestCommandCandidate]:
+        candidates: list[TestCommandCandidate] = []
+        pyproject = self.project_root / "pyproject.toml"
+        has_pytest_ini = any((self.project_root / name).exists() for name in ("pytest.ini", "tox.ini", "setup.cfg"))
+        has_tests_dir = (self.project_root / "tests").is_dir()
+        pyproject_mentions_pytest = self._pyproject_mentions_pytest(pyproject)
+        if not (pyproject.exists() or has_pytest_ini or has_tests_dir):
+            return candidates
+
+        if (self.project_root / "uv.lock").exists():
+            candidates.append(
+                TestCommandCandidate(
+                    command="uv run pytest -q",
+                    tool="uv",
+                    reason="uv.lock detected with Python test markers.",
+                    confidence="high" if pyproject_mentions_pytest or has_tests_dir else "medium",
+                )
+            )
+
+        if pyproject_mentions_pytest or has_pytest_ini or has_tests_dir:
+            candidates.append(
+                TestCommandCandidate(
+                    command="pytest -q",
+                    tool="pytest",
+                    reason="pytest configuration or tests directory detected.",
+                    confidence="high",
+                )
+            )
+        return candidates
+
+    def _pyproject_mentions_pytest(self, pyproject: Path) -> bool:
+        if not pyproject.exists():
+            return False
+        try:
+            text = pyproject.read_text(encoding="utf-8")
+        except OSError:
+            return False
+        try:
+            data = tomllib.loads(text)
+        except tomllib.TOMLDecodeError:
+            return "pytest" in text.lower()
+
+        project = data.get("project", {})
+        optional = project.get("optional-dependencies", {}) if isinstance(project, dict) else {}
+        dependency_groups = data.get("dependency-groups", {})
+        tool = data.get("tool", {})
+        if isinstance(tool, dict) and "pytest" in tool:
+            return True
+        serialized = json.dumps([project.get("dependencies", []), optional, dependency_groups]).lower()
+        return "pytest" in serialized
+
+    def _detect_node(self) -> list[TestCommandCandidate]:
+        package_json = self.project_root / "package.json"
+        if not package_json.exists():
+            return []
+        try:
+            data = json.loads(package_json.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return []
+        scripts = data.get("scripts", {})
+        if not isinstance(scripts, dict) or "test" not in scripts:
+            return []
+        tool = "pnpm" if (self.project_root / "pnpm-lock.yaml").exists() else "npm"
+        return [
+            TestCommandCandidate(
+                command=f"{tool} test",
+                tool=tool,
+                reason="package.json test script detected.",
+                confidence="high",
+            )
+        ]
+
+
+def _dedupe_commands(candidates: list[TestCommandCandidate]) -> list[TestCommandCandidate]:
+    seen: set[str] = set()
+    deduped: list[TestCommandCandidate] = []
+    for candidate in candidates:
+        if candidate.command in seen:
+            continue
+        seen.add(candidate.command)
+        deduped.append(candidate)
+    return deduped

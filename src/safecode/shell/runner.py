@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from safecode.config import SafeCodeConfig
-from safecode.policy.commands import CommandPolicy
+from safecode.policy.commands import CommandDecision, CommandPolicy
 from safecode.sandbox.filesystem import FilesystemBoundary
 from safecode.sandbox.network import NetworkPolicy
 from safecode.shell.risk import ShellRisk, ShellRiskClassifier
@@ -26,6 +26,22 @@ class ShellRunResult:
     executed: bool
 
 
+@dataclass(frozen=True)
+class ShellCommandProposal:
+    """Policy-gated proposal for a command before execution."""
+
+    command: str
+    decision: CommandDecision
+
+    @property
+    def status(self) -> str:
+        if self.decision.allowed:
+            return "allowed"
+        if self.decision.requires_approval:
+            return "approval_required"
+        return "blocked"
+
+
 class ShellRunner:
     """Execute commands only after risk classification."""
 
@@ -39,6 +55,10 @@ class ShellRunner:
     def assess(self, command: str) -> ShellRisk:
         """Classify a command without executing it."""
         return self.classifier.classify(command)
+
+    def propose(self, command: str, approved: bool = False) -> ShellCommandProposal:
+        """Evaluate a command through policy without executing it."""
+        return ShellCommandProposal(command=command, decision=self.policy.evaluate(command, approved=approved))
 
     def run(self, command: str, approved: bool = False) -> ShellRunResult:
         """Run a command when policy allows it."""
@@ -127,7 +147,11 @@ class ShellRunner:
         if command in {"curl", "wget", "ssh", "scp", "rsync"}:
             target = self._extract_network_target(tokens[1:])
             return self._check_network_policy(policy, target, command)
-        if command in {"npm", "pnpm", "npx"}:
+        if command in {"npm", "pnpm"} and any(
+            token in {"install", "add", "update", "ci", "audit", "publish"} for token in [arg.lower() for arg in tokens[1:]]
+        ):
+            return self._check_network_policy(policy, None, command)
+        if command == "npx":
             return self._check_network_policy(policy, None, command)
         if command in {"pip", "pip3", "pipx"} and "install" in [token.lower() for token in tokens[1:]]:
             return self._check_network_policy(policy, None, command)
