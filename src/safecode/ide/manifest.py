@@ -14,6 +14,8 @@ def render_manifest() -> str:
             {"id": "safecode.apply", "command": "sac apply"},
             {"id": "safecode.rollback", "command": "sac rollback --last"},
             {"id": "safecode.history", "command": "sac history"},
+            {"id": "safecode.openDiff", "command": "sac ide open-diff"},
+            {"id": "safecode.openSelectedFiles", "command": "sac ide open-files"},
         ],
     }
     return json.dumps(data, indent=2)

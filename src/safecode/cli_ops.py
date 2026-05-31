@@ -14,6 +14,7 @@ from safecode.eval.cases import default_cases
 from safecode.eval.runner import EvalRunner
 from safecode.export.bundle import Exporter
 from safecode.hooks.approvals import HookApprovalStore
+from safecode.ide.bridge import pending_diff_target, selected_file_targets
 from safecode.ide.manifest import render_manifest, write_manifest
 from safecode.logs.runtime import RuntimeLogger
 from safecode.memory.store import MemoryStore
@@ -109,6 +110,35 @@ def ide_manifest(write: bool = typer.Option(False, "--write")) -> None:
         console.print(Syntax(render_manifest(), "json", theme="ansi_dark"))
 
 
+@ide_app.command("open-diff")
+def ide_open_diff() -> None:
+    """Print the materialized pending diff target for an IDE bridge."""
+    try:
+        target = pending_diff_target(Path.cwd())
+    except (FileNotFoundError, ValueError) as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(code=1) from exc
+    console.print(f"{target.uri}\n{target.path}")
+
+
+@ide_app.command("open-files")
+def ide_open_files(query: str, limit: int = typer.Option(5, "--limit", min=1)) -> None:
+    """Print selected safe file targets for an IDE bridge."""
+    targets = selected_file_targets(Path.cwd(), query, limit=limit)
+    if not targets:
+        console.print("[yellow]No selected files found.[/yellow]")
+        return
+    table = Table(title="IDE Open Targets")
+    table.add_column("Label")
+    table.add_column("URI")
+    table.add_column("Path")
+    for target in targets:
+        table.add_row(target.label, target.uri, str(target.path))
+    console.print(table)
+    for target in targets:
+        console.print(f"{target.uri}\n{target.path}")
+
+
 @release_app.command("checklist")
 def release_checklist(version: str) -> None:
     """Render a release checklist."""
@@ -196,5 +226,3 @@ def hooks_list() -> None:
     for approval in approvals:
         table.add_row(approval.hook_name, approval.command, approval.approved_at, approval.expires_at, approval.command_hash[:12])
     console.print(table if approvals else "[yellow]No hook approvals found.[/yellow]")
-
-

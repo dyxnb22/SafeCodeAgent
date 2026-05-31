@@ -5,13 +5,16 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v2.3.1
+# Current Baseline - v2.3.2
 
 ## Status
-Implemented and tagged as `v2.3.1`.
+Implemented and tagged as `v2.3.2`.
 
 ## Stage
 `v2.3.x` Developer Experience.
+
+## v2.3.2 (IDE Bridge MVP)
+`src/safecode/ide/bridge.py` adds read-only IDE bridge targets. `sac ide open-diff` materializes the current pending patch diff to `.sac/ide/pending.diff` and prints a file URI/path. `sac ide open-files "query"` prints safe selected project file URIs from the context selector. The IDE manifest includes `safecode.openDiff` and `safecode.openSelectedFiles`.
 
 ## v2.3.1 (Config Wizard)
 `src/safecode/setup.py` adds `write_setup()` for project setup. Root command `sac setup` writes `.sac/config.toml` for provider/model/network/policy choices and `.sac/setup.env` with external approval directory environment variables. Existing setup files are protected unless `--force` is passed.
