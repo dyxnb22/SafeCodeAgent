@@ -52,6 +52,56 @@ def test_detects_pnpm_when_lockfile_exists(tmp_path: Path) -> None:
     assert ProjectTestDetector(tmp_path).detect()[0].command == "pnpm test"
 
 
+def test_detects_node_test_build_and_lint_scripts(tmp_path: Path) -> None:
+    (tmp_path / "package.json").write_text(
+        '{"scripts":{"test":"vitest run","build":"vite build","lint":"eslint ."}}',
+        encoding="utf-8",
+    )
+
+    commands = [candidate.command for candidate in ProjectTestDetector(tmp_path).detect()]
+
+    assert commands == ["npm test", "npm run build", "npm run lint"]
+
+
+def test_detects_python_ruff_commands(tmp_path: Path) -> None:
+    (tmp_path / "pyproject.toml").write_text(
+        '[project]\ndependencies = ["pytest"]\n[tool.ruff]\nline-length = 100\n',
+        encoding="utf-8",
+    )
+    (tmp_path / "uv.lock").write_text("", encoding="utf-8")
+    (tmp_path / "tests").mkdir()
+
+    commands = [candidate.command for candidate in ProjectTestDetector(tmp_path).detect()]
+
+    assert commands == ["uv run pytest -q", "pytest -q", "uv run ruff check .", "ruff check ."]
+
+
+def test_detects_gradle_with_wrapper(tmp_path: Path) -> None:
+    (tmp_path / "build.gradle").write_text("plugins { id 'java' }\n", encoding="utf-8")
+    (tmp_path / "gradlew").write_text("#!/bin/sh\n", encoding="utf-8")
+
+    commands = [candidate.command for candidate in ProjectTestDetector(tmp_path).detect()]
+
+    assert commands == ["./gradlew test", "./gradlew build"]
+
+
+def test_detects_maven_go_and_cargo_commands(tmp_path: Path) -> None:
+    (tmp_path / "pom.xml").write_text("<project />\n", encoding="utf-8")
+    (tmp_path / "go.mod").write_text("module example.com/demo\n", encoding="utf-8")
+    (tmp_path / "Cargo.toml").write_text("[package]\nname = \"demo\"\nversion = \"0.1.0\"\n", encoding="utf-8")
+
+    commands = [candidate.command for candidate in ProjectTestDetector(tmp_path).detect()]
+
+    assert commands == [
+        "mvn test",
+        "mvn package",
+        "go test ./...",
+        "go vet ./...",
+        "cargo test",
+        "cargo check",
+    ]
+
+
 def test_detected_commands_are_proposed_through_policy(tmp_path: Path) -> None:
     (tmp_path / "tests").mkdir()
 

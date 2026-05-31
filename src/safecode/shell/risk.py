@@ -44,6 +44,10 @@ MEDIUM_RISK_TOKENS = {
     "npm",
     "pnpm",
     "node",
+    "gradle",
+    "mvn",
+    "go",
+    "cargo",
 }
 LOW_RISK_TOKENS = {
     "pwd",

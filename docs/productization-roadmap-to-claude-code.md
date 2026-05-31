@@ -140,9 +140,10 @@ Subtasks:
 - `v2.1.1-test-build-detector`
   Detect pytest, uv, npm, pnpm, gradle, maven, go, cargo, and common lint
   commands.
-- `v2.1.2-symbol-aware-context-selection`
-  Rank context using symbol matches, imports, tests, recent failures, and
-  user-mentioned paths.
+- `v2.1.2-runtime-consolidation`
+  Split CLI command groups, connect the agent loop to structured LLM plan/tool
+  decisions, feed repo-map and selected context into the collector, and remove
+  or clarify placeholder surfaces before adding more autonomy.
 - `v2.1.3-diff-planner`
   Add a planning phase that predicts touched files and validates final patch
   scope against the plan.

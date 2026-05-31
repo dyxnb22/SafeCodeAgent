@@ -1,6 +1,7 @@
 """Collect safe, bounded project context for the agent."""
 
 from fnmatch import fnmatch
+from dataclasses import asdict
 import os
 from pathlib import Path
 
@@ -34,14 +35,18 @@ class ContextCollector:
         self.config = config or SafeCodeConfig.load(project_root)
         self.filesystem = FilesystemBoundary(self.project_root, self.config)
 
-    def collect(self) -> dict:
-        """Return a small context dictionary for v0.1."""
+    def collect(self, query: str | None = None) -> dict:
+        """Return bounded project context with optional task-focused sources."""
+        files = self._list_files()
         context = {
             "project_root": "[PROJECT_ROOT]",
-            "files": self._list_files(),
+            "files": files,
             "readme": self._read_limited("README.md", self.config.max_file_lines),
             "pyproject": self._read_limited("pyproject.toml", self.config.max_file_lines),
+            "repo_map": self._repo_map_summary(),
         }
+        if query:
+            context["selected_context"] = self._selected_context(query)
         return self._cap_context(context)
 
     def _list_files(self) -> list[str]:
@@ -126,3 +131,37 @@ class ContextCollector:
         capped, report = ContextBudgetPacker(ContextBudget.from_max_chars(self.config.max_context_chars)).pack(context)
         capped["context_budget"] = report.to_dict()
         return capped
+
+    def _repo_map_summary(self) -> dict:
+        """Return a compact repository intelligence summary for planning."""
+        from safecode.index.repo_map import RepoMapBuilder
+
+        repo_map = RepoMapBuilder(self.project_root).build()
+        return {
+            "counts": {
+                "files": len(repo_map.files),
+                "symbols": len(repo_map.symbols),
+                "imports": len(repo_map.imports),
+                "tests": len(repo_map.tests),
+                "commands": len(repo_map.commands),
+                "entrypoints": len(repo_map.entrypoints),
+            },
+            "symbols": [asdict(item) for item in repo_map.symbols[:50]],
+            "tests": [asdict(item) for item in repo_map.tests[:50]],
+            "commands": [asdict(item) for item in repo_map.commands[:20]],
+            "entrypoints": [asdict(item) for item in repo_map.entrypoints[:20]],
+        }
+
+    def _selected_context(self, query: str) -> dict:
+        """Select and include small snippets for files related to the query."""
+        from safecode.context.selector import ContextSelector
+
+        sources = ContextSelector(self.project_root).select_sources(query, limit=5)
+        snippets = {
+            source.path: self._read_limited(source.path, max_lines=min(self.config.max_file_lines, 80))
+            for source in sources
+        }
+        return {
+            "sources": [asdict(source) for source in sources],
+            "snippets": {path: text for path, text in snippets.items() if text is not None},
+        }

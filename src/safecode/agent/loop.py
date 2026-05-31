@@ -5,8 +5,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from safecode.agent.schemas import AgentStopForUserResponse, AgentToolIntentResponse
 from safecode.agent.session import AgentSessionState, AgentSessionStore
 from safecode.agent.tools import ToolIntentRouter
+from safecode.config import SafeCodeConfig
+from safecode.context.collector import ContextCollector
+from safecode.llm.factory import create_llm_client
 from safecode.state.journal import AgentJournalStore
 
 
@@ -40,6 +44,9 @@ class AgentLoop:
 
     def __init__(self, project_root: Path) -> None:
         self.project_root = project_root
+        self.config = SafeCodeConfig.load(project_root)
+        self.context_collector = ContextCollector(project_root, self.config)
+        self.llm_client = create_llm_client(self.config)
         self.store = AgentSessionStore(project_root)
         self.journal = AgentJournalStore(project_root)
 
@@ -49,12 +56,14 @@ class AgentLoop:
         if state is None:
             if not goal:
                 raise FileNotFoundError("No agent session found. Provide a goal or run 'sac agent start'.")
-            state = self.store.start(goal, plan=DEFAULT_PLAN)
+            state = self._start_planned_session(goal)
         elif goal and goal != state.goal:
-            state = self.store.start(goal, plan=DEFAULT_PLAN)
+            state = self._start_planned_session(goal)
         elif not state.plan:
-            state = state.model_copy(update={"plan": DEFAULT_PLAN})
-            self.journal.record_plan(state.session_id, state.goal, DEFAULT_PLAN)
+            planned = self._plan_steps(state.goal)
+            state = state.model_copy(update={"plan": planned, "current_step": 0})
+            state = self.store.save(state)
+            self.journal.record_plan(state.session_id, state.goal, planned)
 
         if state.current_step >= len(state.plan):
             updated = state.model_copy(
@@ -77,13 +86,32 @@ class AgentLoop:
             return AgentStepResult(state=saved, observation=saved.last_observation)
 
         plan_item = state.plan[state.current_step]
-        routed = ToolIntentRouter().route(
-            {
-                "type": "read",
-                "target": "project_context",
-                "description": plan_item,
-            }
+        tool_choice = self.llm_client.choose_tool(
+            state.goal,
+            self.context_collector.collect(query=f"{state.goal}\n{plan_item}"),
         )
+        if isinstance(tool_choice, AgentStopForUserResponse):
+            updated = state.model_copy(
+                update={
+                    "pending_action": {
+                        "type": tool_choice.type,
+                        "reason": tool_choice.reason,
+                        "message": tool_choice.message,
+                        "requires_approval": str(tool_choice.requires_approval).lower(),
+                    },
+                    "last_observation": tool_choice.message,
+                    "status": "waiting_for_user",
+                    "last_error": None,
+                }
+            )
+            saved = self.store.save(updated)
+            self.journal.record_action(saved.session_id, saved.current_step, tool_choice.message, saved.pending_action)
+            return AgentStepResult(state=saved, observation=tool_choice.message, stopped_for_approval=True)
+
+        if not isinstance(tool_choice, AgentToolIntentResponse):
+            raise ValueError(f"Unsupported tool choice response: {tool_choice.type}")
+
+        routed = ToolIntentRouter().route(tool_choice.intent.model_dump(exclude_none=True))
         pending_action = {
             **routed.intent.model_dump(exclude_none=True),
             "route": routed.route,
@@ -136,3 +164,15 @@ class AgentLoop:
             raise FileNotFoundError("No agent session found.")
 
         return AgentRunResult(state=state, steps=steps, stopped_reason=stopped_reason)
+
+    def _start_planned_session(self, goal: str) -> AgentSessionState:
+        """Create a session using the current LLM planning contract."""
+        return self.store.start(goal, plan=self._plan_steps(goal))
+
+    def _plan_steps(self, goal: str) -> list[str]:
+        """Return LLM-planned steps with a deterministic fallback."""
+        try:
+            plan = self.llm_client.plan(goal, self.context_collector.collect(query=goal))
+            return list(plan.steps)
+        except Exception:
+            return list(DEFAULT_PLAN)

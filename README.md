@@ -31,6 +31,8 @@ uv tool install .
 sac doctor
 ```
 
+For a complete first run, follow [docs/mvp-user-guide.md](docs/mvp-user-guide.md).
+
 ## Core Commands
 
 ```bash
@@ -88,7 +90,25 @@ uv run sac ask "这个项目是什么？"
 
 Model output is still parsed and validated by SafeCode before any write can happen.
 
-Real LLM mode also requires trusted user-level network policy. A project-local config cannot enable network access by itself.
+Real LLM mode also requires trusted user-level and project-level network policy. A project-local config cannot enable network access by itself, and a project-local config cannot switch the model provider.
+
+See [docs/mvp-user-guide.md](docs/mvp-user-guide.md#model-configuration) for the exact config files.
+
+## First Demo Task
+
+Create and run a repeatable demo workflow:
+
+```bash
+sac demo materialize failing-test-repair
+cd examples/demo-workflows/failing-test-repair
+sac test run --yes
+sac edit "Fix the calculator add function so the existing failing test passes."
+sac apply
+sac test run --yes
+sac rollback --last
+```
+
+The same flow is documented with expected results in [docs/mvp-user-guide.md](docs/mvp-user-guide.md#first-task-failing-test-repair).
 
 ## Docker
 

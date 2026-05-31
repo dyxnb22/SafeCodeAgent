@@ -18,6 +18,7 @@ from safecode.agent.schemas import (
     AgentToolIntentResponse,
     parse_agent_contract_response,
 )
+from safecode.agent.prompts import SYSTEM_PROMPT
 from safecode.config import SafeCodeConfig
 from safecode.sandbox.network import NetworkPolicy
 
@@ -37,7 +38,7 @@ class OpenAICompatibleLLMClient:
         """Answer a read-only question."""
         content = self._chat(
             [
-                {"role": "system", "content": "You are SafeCode Agent. Answer read-only project questions."},
+                {"role": "system", "content": f"{SYSTEM_PROMPT}\nAnswer read-only project questions."},
                 {"role": "user", "content": f"Question: {question}\nContext: {json.dumps(context)[:12000]}"},
             ]
         )
@@ -74,7 +75,7 @@ class OpenAICompatibleLLMClient:
                 {
                     "role": "system",
                     "content": (
-                        "Return only a SafeCode patch proposal using *** Begin Patch, "
+                        f"{SYSTEM_PROMPT}\nReturn only a SafeCode patch proposal using *** Begin Patch, "
                         "*** Update File, SEARCH, REPLACE, and *** End Patch. Do not explain."
                     ),
                 },
@@ -97,7 +98,7 @@ class OpenAICompatibleLLMClient:
 
     def _contract_prompt(self, expected_type: str) -> str:
         return (
-            "You are SafeCode Agent. Return exactly one JSON object and no prose. "
+            f"{SYSTEM_PROMPT}\nReturn exactly one JSON object and no prose. "
             f"The response type must be {expected_type}. Supported response shapes: "
             '{"type":"answer","content":"..."}, '
             '{"type":"plan","goal":"...","steps":["..."]}, '

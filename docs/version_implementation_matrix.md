@@ -242,8 +242,8 @@
 | 版本 | 分支 | 主要入口 | 验收命令 |
 |---|---|---|---|
 | `v2.1.0` | `v2.1.0-code-map` | `src/safecode/index/` | repo map 输出 files/symbols/imports/tests/entrypoints |
-| `v2.1.1` | `v2.1.1-test-build-detector` | `src/safecode/project/detector.py` | 检测 pytest、uv、npm、pnpm、gradle、maven、go、cargo 常见命令 |
-| `v2.1.2` | `v2.1.2-symbol-aware-context-selection` | `src/safecode/context/selector.py` | context ranking 综合 symbol/import/test/recent failure/user path |
+| `v2.1.1` | `v2.1.1-test-build-detector` | `src/safecode/project/test_detector.py` | 检测 pytest、uv、npm、pnpm、gradle、maven、go、cargo 常见命令 |
+| `v2.1.2` | `v2.1.2-runtime-consolidation` | `src/safecode/cli*.py`、`src/safecode/agent/loop.py`、`src/safecode/context/collector.py` | CLI 分组拆分、agent loop 接入 LLM plan/tool、context 接入 repo map/selector/budget，版本与占位模块同步 |
 | `v2.1.3` | `v2.1.3-diff-planner` | `src/safecode/agent/planner.py` | patch 前预测 touched files，最终 patch scope 与计划不一致时提示 |
 | `v2.1.4` | `v2.1.4-context-debug-command` | `src/safecode/cli.py::context_explain` | `sac context explain "task"` 显示文件被选择的原因 |
 
