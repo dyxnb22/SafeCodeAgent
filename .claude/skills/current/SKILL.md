@@ -5,10 +5,10 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v2.2.0
+# Current Baseline - v2.2.1
 
 ## Status
-Implemented and tagged as `v2.2.0`.
+Implemented and tagged as `v2.2.1`.
 
 ## Stage
 `v2.2.x` Tool Ecosystem.
@@ -16,7 +16,7 @@ Implemented and tagged as `v2.2.0`.
 ## Source Of Truth
 - Version index: `docs/version_implementation_matrix.md`
 - Release roadmap: `docs/release_roadmap_v0_1_to_v1_0.md`
-- Git baseline: tag `v2.2.0`
+- Git baseline: tag `v2.2.1`
 - Runtime invariants: `.claude/skills/shared/core-runtime.md`
 
 ## Current Capability
@@ -34,11 +34,14 @@ The `v2.1.x` stage added repository intelligence on top of the `v2.0.x` MVP:
 
 **v2.1.4 (Context Debug Command):** `src/safecode/cli_context.py` adds a `context_app` Typer group registered under `sac context`. The `sac context explain "task"` command is read-only and LLM-free: it calls `ContextSelector.select_sources()` to rank and explain file selection, reads budget limits from `SafeCodeConfig`, and calls `RepoMapBuilder.build()` for repository statistics. Output sections: Context Selection (ranked table with score and reason), Budget Metadata (max bytes/tokens), and Repo Map (counts). Sensitive files are excluded via existing `FileIndexer` skip rules. No writes to `.sac/` or any project path.
 
+**v2.2.1 (Model Tool Call Adapter):** `src/safecode/tools/adapter.py` adds `ToolCallAdapter` with `validate(tool_name, args)` and `lookup(tool_name)`. `validate()` checks name existence in `ToolRegistry`, required arg presence, and arg types; raises `AdapterError` (a `ValueError` subclass) on any failure. Returns frozen `ToolCallValidationResult` with `tool_name`, `spec`, `resolved_args`, `requires_approval`, `risk`, `permission_category`, and `audit_event`. `ToolIntentRouter` in `src/safecode/agent/tools.py` now calls `ToolCallAdapter.lookup()` for every intent type via a `_REGISTRY_NAMES` mapping; approval is derived from `ToolSpec.requires_human_approval` (authoritative) OR the intent flag. MCP intents default to `mcp.propose_write` (conservative). Unknown registry names fail closed. All public route strings and CLI behavior are unchanged.
+
 **v2.2.0 (Tool Schema Registry):** `src/safecode/tools/registry.py` is rewritten with a complete schema layer. New models: `ToolRiskLevel` (StrEnum: low/medium/high), `PermissionCategory` (StrEnum: read/write/shell/sandbox/mcp/subagent/audit), `ToolArgSchema` (frozen Pydantic: name/type/required/description), `AuditEventRef` (frozen Pydantic: event_type/description), `ToolSpec` (frozen Pydantic: full tool metadata). `ToolRegistry` provides `list()`, `get(name)`, `names()`, `by_permission()`, `by_risk()`, and `requiring_approval()`. 16 internal tools are registered covering the full read/write/shell/sandbox/mcp/subagent/audit surface. Registry is deterministic, keyless, and produces no side effects. `sac tools list` expanded to show Name/Risk/Permission/Approval/Description with `--risk` and `--permission` filters. New `sac tools inspect TOOL_NAME` shows full schema in a rich panel.
 
 ## Important Entry Points
 - `src/safecode/cli.py` — slim Typer registry; imports from cli_*.py modules
 - `src/safecode/cli_context.py`
+- `src/safecode/tools/adapter.py`
 - `src/safecode/tools/registry.py`
 - `src/safecode/cli_agent.py`
 - `src/safecode/cli_core.py`
@@ -74,6 +77,7 @@ The `v2.1.x` stage added repository intelligence on top of the `v2.0.x` MVP:
 
 ## Verification
 ```bash
+PYTHONPATH=src python3 -m pytest tests/test_tool_call_adapter.py -q
 PYTHONPATH=src python3 -m pytest tests/test_tool_schema_registry.py -q
 PYTHONPATH=src python3 -m pytest tests/test_context_explain.py -v
 PYTHONPATH=src python3 -m pytest tests/test_repo_map.py -q
@@ -85,6 +89,13 @@ PYTHONPATH=src python3 -m pytest tests/test_sandbox_execution_security_evals.py 
 PYTHONPATH=src python3 -m pytest -q
 uv run sac --help
 ```
+
+## Compatibility Requirements (v2.2.1 additions)
+- `ToolCallAdapter.validate()` is validation/adaptation only — it must not execute tools or call the LLM.
+- `ToolCallValidationResult` is frozen; callers must not construct mutable copies.
+- `AdapterError` is a `ValueError` subclass — callers catching `ValueError` will catch it.
+- `ToolIntentRouter` backward compat: all existing route strings and `RoutedToolIntent` fields are unchanged.
+- `requires_human_approval` from `ToolSpec` is always respected; registry metadata is authoritative.
 
 ## Compatibility Requirements (v2.2.0 additions)
 - Tool schema registry is schema/metadata only; no tool execution is performed by the registry layer.

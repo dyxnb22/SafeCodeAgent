@@ -6,6 +6,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, ValidationError, model_validator
 
+from safecode.tools.adapter import AdapterError, ToolCallAdapter
+
 
 ToolIntentType = Literal["read", "patch", "shell", "sandbox", "mcp", "subagent", "report"]
 
@@ -46,7 +48,11 @@ class RoutedToolIntent(BaseModel):
 
 
 class ToolIntentRouter:
-    """Validate and route tool intents without executing them."""
+    """Validate and route tool intents without executing them.
+
+    Since v2.2.1 the router consults the ToolRegistry via ToolCallAdapter before
+    accepting any intent. Unknown registry names fail closed.
+    """
 
     ROUTES = {
         "read": "context.read",
@@ -59,14 +65,39 @@ class ToolIntentRouter:
     }
     APPROVAL_REQUIRED = {"patch", "shell", "sandbox", "mcp"}
 
+    # Registry name to look up for each intent type.  MCP defaults to the write
+    # variant so approval is always required (conservative).
+    _REGISTRY_NAMES: dict[str, str] = {
+        "read": "context.read",
+        "patch": "patch.propose",
+        "shell": "shell.propose",
+        "sandbox": "sandbox.propose",
+        "mcp": "mcp.propose_write",
+        "subagent": "subagent.inspect",
+        "report": "report.render",
+    }
+
     def route(self, raw_intent: dict) -> RoutedToolIntent:
-        """Return a route decision for a raw intent dict."""
+        """Return a validated route decision for a raw intent dict.
+
+        Raises ValueError for unknown intent types, missing required fields, or
+        registry names that are not present in the ToolRegistry.
+        """
         try:
             intent = ToolIntent(**raw_intent)
         except (TypeError, ValidationError, ValueError) as exc:
             raise ValueError(f"Invalid tool intent: {exc}") from exc
 
-        approval_required = intent.type in self.APPROVAL_REQUIRED or intent.requires_approval
+        registry_name = self._REGISTRY_NAMES.get(intent.type)
+        if registry_name is not None:
+            try:
+                spec = ToolCallAdapter().lookup(registry_name)
+            except AdapterError as exc:
+                raise ValueError(f"Registry validation failed: {exc}") from exc
+            approval_required = spec.requires_human_approval or intent.requires_approval
+        else:
+            approval_required = intent.type in self.APPROVAL_REQUIRED or intent.requires_approval
+
         normalized = intent.model_copy(update={"requires_approval": approval_required})
         route = self.ROUTES[normalized.type]
         return RoutedToolIntent(
