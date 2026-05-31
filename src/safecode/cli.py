@@ -3,6 +3,7 @@
 import typer
 
 from safecode.cli_agent import agent_app
+from safecode.cli_context import context_app
 from safecode.cli_core import core_app
 from safecode.cli_mcp import mcp_app, mcp_discard
 from safecode.cli_ops import audit_app, export_app, hooks_app, ide_app, logs_app, ops_app, queue_app, release_app
@@ -29,6 +30,7 @@ for command in core_app.registered_commands:
 for command in ops_app.registered_commands:
     app.registered_commands.append(command)
 
+app.add_typer(context_app, name="context")
 app.add_typer(config_app, name="config")
 app.add_typer(skills_app, name="skills")
 app.add_typer(tools_app, name="tools")
