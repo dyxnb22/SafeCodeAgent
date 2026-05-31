@@ -5,10 +5,10 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v2.0.0
+# Current Baseline - v2.0.1
 
 ## Status
-Implemented and tagged as `v2.0.0`.
+Implemented and tagged as `v2.0.1`.
 
 ## Stage
 `v2.0.x` Usable Local Coding Agent MVP.
@@ -16,13 +16,13 @@ Implemented and tagged as `v2.0.0`.
 ## Source Of Truth
 - Version index: `docs/version_implementation_matrix.md`
 - Release roadmap: `docs/release_roadmap_v0_1_to_v1_0.md`
-- Git baseline: tag `v2.0.0`
+- Git baseline: tag `v2.0.1`
 - Runtime invariants: `.claude/skills/shared/core-runtime.md`
 
 ## Current Capability
 SafeCode Agent has a safety-first local runtime centered on controlled file edits, command policy, audit, rollback, and sandbox planning.
 
-The current baseline extends `v1.9.5` by adding a structured real-LLM agent contract. LLM outputs now have validated `answer`, `plan`, `tool_intent`, `patch`, `stop_for_user`, and `error` schemas. The LLM client protocol includes `plan(...)` and `choose_tool(...)`, mock mode returns deterministic structured responses, and the OpenAI-compatible client can request and validate JSON plan/tool-choice responses. Real-model validation starts here and requires `OPENAI_API_KEY` or `SAFECODE_LLM_API_KEY`, plus the existing network allow policy. Tests and normal local development remain keyless through mock mode.
+The current baseline extends `v2.0.0` by adding explicit context budget metadata. `ContextCollector.collect()` still returns legacy fields, but now also includes `context_budget` with byte limits, approximate token limits, packed sources, and truncation notes. `ContextBudgetPacker` handles UTF-8-safe truncation and reusable budget reports, while `ContextSelector.select_sources(...)` exposes ranked source reasons for later context explainability. Real-model validation still requires `OPENAI_API_KEY` or `SAFECODE_LLM_API_KEY`, plus the existing network allow policy. Tests and normal local development remain keyless through mock mode.
 
 ## Important Entry Points
 - `src/safecode/cli.py`
@@ -31,6 +31,9 @@ The current baseline extends `v1.9.5` by adding a structured real-LLM agent cont
 - `src/safecode/agent/schemas.py`
 - `src/safecode/agent/session.py`
 - `src/safecode/agent/tools.py`
+- `src/safecode/context/budget.py`
+- `src/safecode/context/collector.py`
+- `src/safecode/context/selector.py`
 - `src/safecode/llm/base.py`
 - `src/safecode/llm/mock.py`
 - `src/safecode/llm/openai_client.py`
@@ -45,6 +48,7 @@ The current baseline extends `v1.9.5` by adding a structured real-LLM agent cont
 
 ## Verification
 ```bash
+PYTHONPATH=src python3 -m pytest tests/test_context_budget.py -q
 PYTHONPATH=src python3 -m pytest tests/test_agent_contract.py tests/test_agent_tool_intents.py -q
 PYTHONPATH=src python3 -m pytest tests/test_sandbox_execution_security_evals.py -q
 PYTHONPATH=src python3 -m pytest -q
@@ -58,3 +62,4 @@ uv run sac --help
 - Only Noop adapter supports real execution. macOS/Linux/Docker adapters must remain dry-run only.
 - New historical details belong in docs and Git tags, not in additional `.claude/skills/v*` files.
 - Real LLM calls must keep network policy and API key requirements explicit; mock mode must remain available for keyless tests.
+- Context collection must remain bounded and redacted; budget metadata should explain truncation without exposing hidden content.

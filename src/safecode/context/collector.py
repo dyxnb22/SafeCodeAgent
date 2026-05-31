@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 
 from safecode.config import SafeCodeConfig
+from safecode.context.budget import ContextBudget, ContextBudgetPacker
 from safecode.context.redactor import redact_secrets
 from safecode.sandbox.filesystem import FilesystemBoundary
 
@@ -121,22 +122,7 @@ class ContextCollector:
         return False
 
     def _cap_context(self, context: dict) -> dict:
-        """Keep string context under a global character budget."""
-        remaining = self.config.max_context_chars
-        capped: dict = {}
-        for key, value in context.items():
-            if isinstance(value, str):
-                capped[key] = value[: max(remaining, 0)]
-                remaining -= len(capped[key])
-            elif isinstance(value, list) and key == "files":
-                capped_files: list[str] = []
-                for item in value:
-                    item_cost = len(item) + 1
-                    if remaining - item_cost < 0:
-                        break
-                    capped_files.append(item)
-                    remaining -= item_cost
-                capped[key] = capped_files
-            else:
-                capped[key] = value
+        """Keep context under a global byte budget and report packing metadata."""
+        capped, report = ContextBudgetPacker(ContextBudget.from_max_chars(self.config.max_context_chars)).pack(context)
+        capped["context_budget"] = report.to_dict()
         return capped
