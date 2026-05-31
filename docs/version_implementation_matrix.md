@@ -264,7 +264,7 @@
 | 版本 | 分支 | 主要入口 | 验收命令 |
 |---|---|---|---|
 | `v2.3.0` | `v2.3.0-interactive-tui` | `src/safecode/tui/`、`src/safecode/cli_tui.py` | `sac tui dashboard` 用 Rich 展示 session、plan、pending action/approval、pending diff、journal history；read-only；`PYTHONPATH=src python3 -m pytest tests/test_tui_dashboard.py -q` |
-| `v2.3.1` | `v2.3.1-config-wizard` | `src/safecode/setup.py`、`src/safecode/cli.py::setup` | `sac setup` 引导 model/network/approval dirs/safety preset |
+| `v2.3.1` | `v2.3.1-config-wizard` | `src/safecode/setup.py`、`src/safecode/cli.py::setup` | `sac setup` 写入 `.sac/config.toml` 和 `.sac/setup.env`，覆盖 model/network/approval dirs/safety preset，默认不覆盖已有配置；`PYTHONPATH=src python3 -m pytest tests/test_setup_wizard.py -q` |
 | `v2.3.2` | `v2.3.2-ide-bridge-mvp` | `src/safecode/ide/` | IDE bridge 可打开 diff 和 selected files |
 | `v2.3.3` | `v2.3.3-install-update-polish` | `pyproject.toml`、`src/safecode/doctor.py` | doctor/version/update 指南覆盖常见安装问题 |
 | `v2.3.4` | `v2.3.4-onboarding-examples` | `examples/`、`docs/tutorials/` | bug fix、feature edit、docs edit、safe shell task 四个教程跑通 |

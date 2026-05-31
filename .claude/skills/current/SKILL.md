@@ -5,13 +5,16 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v2.3.0
+# Current Baseline - v2.3.1
 
 ## Status
-Implemented and tagged as `v2.3.0`.
+Implemented and tagged as `v2.3.1`.
 
 ## Stage
 `v2.3.x` Developer Experience.
+
+## v2.3.1 (Config Wizard)
+`src/safecode/setup.py` adds `write_setup()` for project setup. Root command `sac setup` writes `.sac/config.toml` for provider/model/network/policy choices and `.sac/setup.env` with external approval directory environment variables. Existing setup files are protected unless `--force` is passed.
 
 ## v2.3.0 (Interactive TUI)
 `src/safecode/tui/dashboard.py` adds a Rich-rendered dashboard for current agent sessions. `sac tui dashboard` displays session status, plan progress, pending approval/action JSON, pending patch diff preview, and recent journal history in one terminal view. It is read-only and does not mutate session, patch, journal, or audit state.
