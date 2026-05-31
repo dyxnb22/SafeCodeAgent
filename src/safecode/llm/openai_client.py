@@ -9,7 +9,15 @@ import os
 import urllib.error
 import urllib.request
 
-from safecode.agent.schemas import AgentAnswer, AgentPatchResponse
+from safecode.agent.schemas import (
+    AgentAnswer,
+    AgentError,
+    AgentPatchResponse,
+    AgentPlanResponse,
+    AgentStopForUserResponse,
+    AgentToolIntentResponse,
+    parse_agent_contract_response,
+)
 from safecode.config import SafeCodeConfig
 from safecode.sandbox.network import NetworkPolicy
 
@@ -35,6 +43,30 @@ class OpenAICompatibleLLMClient:
         )
         return AgentAnswer(content=content)
 
+    def plan(self, goal: str, context: dict) -> AgentPlanResponse:
+        """Return a structured plan for a user goal."""
+        response = self._chat_agent_json(
+            [
+                {"role": "system", "content": self._contract_prompt("plan")},
+                {"role": "user", "content": f"Goal: {goal}\nContext: {json.dumps(context)[:12000]}"},
+            ]
+        )
+        if not isinstance(response, AgentPlanResponse):
+            raise ValueError(f"Expected plan response, got {response.type}.")
+        return response
+
+    def choose_tool(self, goal: str, context: dict) -> AgentToolIntentResponse | AgentStopForUserResponse:
+        """Return the next structured tool intent or a user stop."""
+        response = self._chat_agent_json(
+            [
+                {"role": "system", "content": self._contract_prompt("tool_intent or stop_for_user")},
+                {"role": "user", "content": f"Goal: {goal}\nContext: {json.dumps(context)[:12000]}"},
+            ]
+        )
+        if not isinstance(response, (AgentToolIntentResponse, AgentStopForUserResponse)):
+            raise ValueError(f"Expected tool_intent or stop_for_user response, got {response.type}.")
+        return response
+
     def propose_patch(self, task: str, context: dict) -> AgentPatchResponse:
         """Return patch text, leaving parsing and validation to SafeCode."""
         content = self._chat(
@@ -50,6 +82,29 @@ class OpenAICompatibleLLMClient:
             ]
         )
         return AgentPatchResponse(patch_text=content, explanation="OpenAI-compatible patch response.")
+
+    def _chat_agent_json(
+        self, messages: list[dict[str, str]]
+    ) -> (
+        AgentAnswer
+        | AgentPlanResponse
+        | AgentToolIntentResponse
+        | AgentPatchResponse
+        | AgentStopForUserResponse
+        | AgentError
+    ):
+        return parse_agent_contract_response(self._chat(messages))
+
+    def _contract_prompt(self, expected_type: str) -> str:
+        return (
+            "You are SafeCode Agent. Return exactly one JSON object and no prose. "
+            f"The response type must be {expected_type}. Supported response shapes: "
+            '{"type":"answer","content":"..."}, '
+            '{"type":"plan","goal":"...","steps":["..."]}, '
+            '{"type":"tool_intent","intent":{"type":"read","target":"...","description":"..."},"rationale":"..."}, '
+            '{"type":"patch","patch_text":"*** Begin Patch\\n...\\n*** End Patch","explanation":"..."}, '
+            '{"type":"stop_for_user","reason":"...","message":"...","requires_approval":true}.'
+        )
 
     def _chat(self, messages: list[dict[str, str]]) -> str:
         payload = json.dumps({"model": self.model, "messages": messages, "temperature": 0}).encode("utf-8")

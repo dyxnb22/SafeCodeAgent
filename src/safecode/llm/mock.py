@@ -1,6 +1,12 @@
-"""Deterministic mock LLM client for v0.1 development and tests."""
+"""Deterministic mock LLM client for local development and tests."""
 
-from safecode.agent.schemas import AgentAnswer, AgentPatchResponse
+from safecode.agent.schemas import (
+    AgentAnswer,
+    AgentPatchResponse,
+    AgentPlanResponse,
+    AgentToolIntentResponse,
+)
+from safecode.agent.tools import ToolIntent
 
 
 class MockLLMClient:
@@ -8,6 +14,27 @@ class MockLLMClient:
 
     def ask(self, question: str, context: dict) -> AgentAnswer:
         return AgentAnswer(content="SafeCode Agent is a safety-first terminal coding assistant.")
+
+    def plan(self, goal: str, context: dict) -> AgentPlanResponse:
+        return AgentPlanResponse(
+            goal=goal,
+            steps=[
+                "Inspect the current project context.",
+                "Choose the safest next tool intent.",
+                "Stop before any write or command that needs approval.",
+            ],
+        )
+
+    def choose_tool(self, goal: str, context: dict) -> AgentToolIntentResponse:
+        target = context.get("target") or "project_context"
+        return AgentToolIntentResponse(
+            intent=ToolIntent(
+                type="read",
+                target=target,
+                description=f"Inspect context for: {goal}",
+            ),
+            rationale="Mock client always starts with a read-only inspection.",
+        )
 
     def propose_patch(self, task: str, context: dict) -> AgentPatchResponse:
         files = set(context.get("files", []))
