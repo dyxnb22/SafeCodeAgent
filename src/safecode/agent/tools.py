@@ -64,7 +64,7 @@ class ToolIntentRouter:
         "patch": "patch.propose",
         "shell": "shell.propose",
         "sandbox": "sandbox.propose",
-        "subagent": "subagent.inspect",
+        "subagent": "subagent.dispatch",
         "report": "report.render",
         # mcp route is computed dynamically from tool classification — see route()
     }
@@ -75,7 +75,7 @@ class ToolIntentRouter:
         "patch": "patch.propose",
         "shell": "shell.propose",
         "sandbox": "sandbox.propose",
-        "subagent": "subagent.inspect",
+        "subagent": "subagent.dispatch",
         "report": "report.render",
         # mcp handled dynamically
     }

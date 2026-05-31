@@ -92,6 +92,30 @@ class MCPWriteProposalStore:
         except (json.JSONDecodeError, TypeError, ValueError):
             return None
 
+    def approve_pending(self, proposal_id: str) -> MCPWriteProposal:
+        """Mark the pending proposal as approved. Raises PermissionError on mismatch."""
+        proposal = self.load_pending()
+        if proposal is None:
+            raise PermissionError("No pending MCP write proposal to approve.")
+        if proposal.proposal_id != proposal_id:
+            raise PermissionError("Proposal ID mismatch — cannot approve.")
+        if proposal.status != "pending":
+            raise PermissionError(f"Proposal is not in pending status: {proposal.status}")
+        approved = proposal.model_copy(update={"status": "approved"})
+        self._write(approved)
+        return approved
+
+    def reject_pending(self, proposal_id: str) -> MCPWriteProposal:
+        """Mark the pending proposal as rejected. Raises PermissionError on mismatch."""
+        proposal = self.load_pending()
+        if proposal is None:
+            raise PermissionError("No pending MCP write proposal to reject.")
+        if proposal.proposal_id != proposal_id:
+            raise PermissionError("Proposal ID mismatch — cannot reject.")
+        rejected = proposal.model_copy(update={"status": "rejected"})
+        self._write(rejected)
+        return rejected
+
     def discard_pending(self) -> bool:
         """Remove the pending proposal file. Returns True if one existed."""
         if self._pending_path.exists():
@@ -119,9 +143,14 @@ class MCPWriteProposalStore:
             return input_data
         return {"_redacted": True, "_payload": redacted_text}
 
-    def _hash_input(self, input_data: dict) -> str:
+    @staticmethod
+    def hash_input(input_data: dict) -> str:
+        """Hash an input dict using the same algorithm used when creating proposals."""
         payload = json.dumps(input_data, ensure_ascii=False, sort_keys=True)
         return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+    def _hash_input(self, input_data: dict) -> str:
+        return self.hash_input(input_data)
 
     @staticmethod
     def _risk_level(classification: str) -> str:

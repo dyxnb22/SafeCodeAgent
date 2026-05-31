@@ -206,6 +206,19 @@ _REGISTRY: list[ToolSpec] = [
         audit_event=AuditEventRef(event_type="mcp_write_proposed", description="Emitted when an MCP write proposal is created."),
     ),
     ToolSpec(
+        name="subagent.dispatch",
+        description="Dispatch a bounded, read-only investigation subagent and merge findings into the main loop.",
+        risk=ToolRiskLevel.LOW,
+        permission_category=PermissionCategory.SUBAGENT,
+        requires_human_approval=False,
+        args=[
+            ToolArgSchema(name="task", type="str", required=True, description="Investigation task description."),
+            ToolArgSchema(name="scope", type="str", required=True, description="File paths or patterns to investigate."),
+            ToolArgSchema(name="max_steps", type="int", required=True, description="Maximum investigation steps (1-10)."),
+        ],
+        audit_event=AuditEventRef(event_type="subagent_dispatched", description="Emitted when a subagent investigation is dispatched."),
+    ),
+    ToolSpec(
         name="subagent.run_readonly",
         description="Run a bounded, read-only subagent task and write results to .sac/subagents/.",
         risk=ToolRiskLevel.LOW,

@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field
 from safecode.utils.time import utc_now_iso
 
 
-JournalEventType = Literal["plan", "action", "diff", "command", "failure", "final_summary", "mcp_call"]
+JournalEventType = Literal["plan", "action", "diff", "command", "failure", "final_summary", "mcp_call", "subagent_dispatch"]
 
 
 class AgentJournalEvent(BaseModel):
@@ -104,6 +104,23 @@ class AgentJournalStore:
                 type="command",
                 message=message,
                 payload={"command": dict(command_summary)},
+            )
+        )
+
+    def record_subagent_dispatch(
+        self,
+        session_id: str,
+        step: int,
+        message: str,
+        dispatch_summary: dict[str, object],
+    ) -> AgentJournalEvent:
+        return self.append(
+            AgentJournalEvent(
+                session_id=session_id,
+                type="subagent_dispatch",
+                step=step,
+                message=message,
+                payload={"subagent_dispatch": dict(dispatch_summary)},
             )
         )
 

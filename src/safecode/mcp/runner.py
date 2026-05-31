@@ -224,6 +224,108 @@ class MCPReadOnlyRunner:
             )
         return MCPRunResult(server, tool, classification, output, stderr, exit_code, duration_ms, True, False)
 
+    def execute_approved_write(
+        self,
+        server: str,
+        tool: str,
+        input_data: dict[str, Any] | None = None,
+        trace_id: str | None = None,
+    ) -> MCPRunResult:
+        """Execute a write tool that has been explicitly approved through the proposal flow."""
+        classification = classify_mcp_tool(tool)
+        self._audit(
+            "mcp_approved_write_started", server, tool, classification,
+            "started", "Approved MCP write started", trace_id=trace_id,
+        )
+
+        server_config = self._get_server(server)
+        if not server_config:
+            return self._blocked(server, tool, classification, "MCP server is not configured.", trace_id)
+        if not server_config.enabled:
+            return self._blocked(server, tool, classification, "MCP server is disabled by config.", trace_id)
+        if not server_config.command:
+            return self._blocked(server, tool, classification, "MCP server command is empty.", trace_id)
+
+        decision = self._check_command_policy(server_config)
+        if not decision.allowed:
+            exit_code = 125 if decision.requires_approval else 126
+            return self._blocked(server, tool, classification, decision.reason, trace_id, exit_code)
+
+        network_block = self._network_block_reason(input_data or {})
+        if network_block:
+            return self._blocked(server, tool, classification, network_block, trace_id)
+
+        payload = {"tool": tool, "input": input_data or {}}
+        payload_text = json.dumps(payload, ensure_ascii=False)
+        if len(payload_text) > self._input_limit():
+            return self._blocked(server, tool, classification, "MCP input exceeded size limits.", trace_id)
+
+        started = time.perf_counter()
+        try:
+            completed = subprocess.run(
+                decision.risk.tokens,
+                cwd=self.project_root,
+                text=True,
+                input=payload_text,
+                capture_output=True,
+                env=ShellRunner(self.project_root, self.config)._sanitized_env(),
+                timeout=self.config.shell.default_timeout_seconds,
+                check=False,
+            )
+        except subprocess.TimeoutExpired as exc:
+            duration_ms = int((time.perf_counter() - started) * 1000)
+            message = exc.stderr or "MCP approved write timed out."
+            self.runtime_logger.error("mcp.runner", "MCP approved write timed out", exc=exc, trace_id=trace_id)
+            self._audit(
+                "mcp_approved_write_completed", server, tool, classification,
+                "failed", message, exit_code=124, trace_id=trace_id,
+            )
+            return MCPRunResult(server, tool, classification, "", message, 124, duration_ms, False, True)
+        except FileNotFoundError as exc:
+            duration_ms = int((time.perf_counter() - started) * 1000)
+            message = str(exc)
+            self.runtime_logger.error("mcp.runner", "MCP approved write command missing", exc=exc, trace_id=trace_id)
+            self._audit(
+                "mcp_approved_write_completed", server, tool, classification,
+                "failed", message, exit_code=127, trace_id=trace_id,
+            )
+            return MCPRunResult(server, tool, classification, "", message, 127, duration_ms, False, True)
+
+        duration_ms = int((time.perf_counter() - started) * 1000)
+        output, output_error = self._extract_output(completed.stdout)
+        if output_error:
+            self.runtime_logger.error(
+                "mcp.runner", "MCP approved write returned error payload",
+                trace_id=trace_id, error=output_error,
+            )
+        output = redact_secrets(output)
+        stderr = redact_secrets(completed.stderr or "")
+        if output_error:
+            stderr = redact_secrets(output_error)
+
+        if len(output) > self._output_limit():
+            message = "MCP output exceeded size limits."
+            self.runtime_logger.error("mcp.runner", message, trace_id=trace_id)
+            self._audit("mcp_call_blocked", server, tool, classification, "blocked", message, trace_id=trace_id)
+            return MCPRunResult(server, tool, classification, "", message, 126, duration_ms, True, True)
+
+        exit_code = completed.returncode
+        if output_error and exit_code == 0:
+            exit_code = 1
+
+        status = "success" if exit_code == 0 else "failed"
+        message = stderr or output or "MCP approved write completed."
+        self._audit(
+            "mcp_approved_write_completed", server, tool, classification,
+            status, message, exit_code=exit_code, trace_id=trace_id,
+        )
+        if exit_code != 0:
+            self.runtime_logger.error(
+                "mcp.runner", "MCP approved write failed",
+                trace_id=trace_id, exit_code=str(exit_code), stderr=stderr,
+            )
+        return MCPRunResult(server, tool, classification, output, stderr, exit_code, duration_ms, True, False)
+
     def propose_write(
         self,
         server: str,

@@ -5,18 +5,24 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v2.2.2
+# Current Baseline - v2.2.6
 
 ## Status
-Implemented and tagged as `v2.2.2`.
+Implemented and tagged as `v2.2.6`.
 
 ## Stage
 `v2.2.x` Tool Ecosystem.
 
+## v2.2.6 (Subagent Findings Context Integration)
+`src/safecode/subagents/journal_adapter.py` adds `findings_from_journal_events(events)` and `merge_journal_subagent_findings(events, max_observations=20, max_files=50)`. The adapter reads `subagent_dispatch` journal events, converts compatible payloads to `SubagentFinding` via `_event_to_finding()` (returns `None` on malformed payload, never raises), and delegates merge to `merge_subagent_findings()`. `AgentLoop.step()` now calls `_enrich_with_subagent_findings(session_id, context)` between context collection and `choose_tool`: when the session journal has prior dispatch events, the merged result is injected as `"subagent_findings"` in the context dict passed to the LLM. Fail closed: any exception leaves context unchanged. Blocked/failed subagents contribute only errors/provenance, not content. No change to execution behavior or subagent dispatch.
+
+## v2.2.5 (Subagent Result Merge Policy)
+`src/safecode/subagents/merge_policy.py` adds `SubagentFinding` and `MergedSubagentContext` (both frozen dataclasses) and `merge_subagent_findings(findings, max_observations=20, max_files=50)`. Merge rules: only successful findings contribute to summary/observations/files; deduplication preserves first occurrence; errors and `blocked_task_ids` are collected from failed/blocked findings; empty task IDs are silently skipped; caps applied after dedup; never raises. `AgentLoop` journal payload keys already match `SubagentFinding` fields — no execution behavior changes.
+
 ## Source Of Truth
 - Version index: `docs/version_implementation_matrix.md`
 - Release roadmap: `docs/release_roadmap_v0_1_to_v1_0.md`
-- Git baseline: tag `v2.2.2`
+- Git baseline: tag `v2.2.5`
 - Runtime invariants: `.claude/skills/shared/core-runtime.md`
 
 ## Current Capability
@@ -34,6 +40,10 @@ The `v2.1.x` stage added repository intelligence on top of the `v2.0.x` MVP:
 
 **v2.1.4 (Context Debug Command):** `src/safecode/cli_context.py` adds a `context_app` Typer group registered under `sac context`. The `sac context explain "task"` command is read-only and LLM-free: it calls `ContextSelector.select_sources()` to rank and explain file selection, reads budget limits from `SafeCodeConfig`, and calls `RepoMapBuilder.build()` for repository statistics. Output sections: Context Selection (ranked table with score and reason), Budget Metadata (max bytes/tokens), and Repo Map (counts). Sensitive files are excluded via existing `FileIndexer` skip rules. No writes to `.sac/` or any project path.
 
+**v2.2.4 (Subagent Orchestration):** `src/safecode/subagents/executor.py` adds `SubagentRequest` (frozen dataclass: task/scope/max_steps), `SubagentResult` (frozen dataclass: task_id/summary/observations/files_inspected/commands_attempted/blocked_actions/errors/success/blocked), and `SubagentDispatchExecutor`. The executor validates args via `ToolCallAdapter` against the new `subagent.dispatch` spec (required: task str, scope str, max_steps int; `requires_human_approval=False`), enforces max_steps in [1, 10], runs `ReadonlySubagentRunner`, parses result into structured `SubagentResult`, and never raises. `AgentJournalStore` gains `record_subagent_dispatch()` and `"subagent_dispatch"` event type. `ToolIntentRouter` routes `subagent` intents to `subagent.dispatch` (was `subagent.inspect`); `executable_now=True`. `AgentLoop.step()` routes `subagent.dispatch` to `_execute_subagent_dispatch_step()`, which extracts task/scope/max_steps from `intent.description` and `intent.input_json`, calls `SubagentDispatchExecutor`, records the structured result as an observation, and journals a `subagent_dispatch` event with the full payload. Writes confined to `.sac/subagents/` via `FilesystemBoundary`. All failures fail closed.
+
+**v2.2.3 (MCP Approved Write Execution):** `MCPWriteProposalStore` gains `approve_pending(proposal_id)` and `reject_pending(proposal_id)` — both verify ID match and update status. `MCPReadOnlyRunner.execute_approved_write()` runs write tools after proposal approval: enforces server config, command policy, network, input/output size limits; audits with `mcp_approved_write_started/completed`. `MCPApprovedWriteExecutor` (new, in `loop_executor.py`) validates via `ToolCallAdapter`, checks proposal status == "approved", verifies server/tool and proposal_id, calls `execute_approved_write`, discards proposal after execution. Never raises. `AgentLoop.step()` checks for an approved write proposal after `mcp.propose` routing — if found, calls `_execute_mcp_approved_write_step()` which journals an `mcp_call` event with `approved_write=True`. Unapproved/rejected/missing proposals fall through to the existing pending_action path.
+
 **v2.2.2 (MCP Read Tool Loop):** `src/safecode/mcp/loop_executor.py` adds `MCPReadToolExecutor` with `execute(tool_name, input_json)` — validates via `ToolCallAdapter`, classifies tool, calls `MCPReadOnlyRunner`, returns frozen `MCPLoopResult` (observation, success, blocked, exit_code, metadata). Never raises. `ToolIntentRouter._route_mcp()` dynamically classifies tool names: read-only → route `mcp.call_readonly`, `executable_now=True`; write/unknown → route `mcp.propose`, approval required. `AgentLoop.step()` now branches on `executable_now and route == "mcp.call_readonly"` to call `_execute_mcp_readonly_step()`, which runs the executor and records observations. `AgentJournalStore` gains `record_mcp_call()` and `"mcp_call"` event type. Audit via existing `MCPReadOnlyRunner` audit path. Fail closed for all error conditions.
 
 **v2.2.1 (Model Tool Call Adapter):** `src/safecode/tools/adapter.py` adds `ToolCallAdapter` with `validate(tool_name, args)` and `lookup(tool_name)`. `validate()` checks name existence in `ToolRegistry`, required arg presence, and arg types; raises `AdapterError` (a `ValueError` subclass) on any failure. Returns frozen `ToolCallValidationResult` with `tool_name`, `spec`, `resolved_args`, `requires_approval`, `risk`, `permission_category`, and `audit_event`. `ToolIntentRouter` in `src/safecode/agent/tools.py` now calls `ToolCallAdapter.lookup()` for every intent type via a `_REGISTRY_NAMES` mapping; approval is derived from `ToolSpec.requires_human_approval` (authoritative) OR the intent flag. MCP intents default to `mcp.propose_write` (conservative). Unknown registry names fail closed. All public route strings and CLI behavior are unchanged.
@@ -41,6 +51,9 @@ The `v2.1.x` stage added repository intelligence on top of the `v2.0.x` MVP:
 **v2.2.0 (Tool Schema Registry):** `src/safecode/tools/registry.py` is rewritten with a complete schema layer. New models: `ToolRiskLevel` (StrEnum: low/medium/high), `PermissionCategory` (StrEnum: read/write/shell/sandbox/mcp/subagent/audit), `ToolArgSchema` (frozen Pydantic: name/type/required/description), `AuditEventRef` (frozen Pydantic: event_type/description), `ToolSpec` (frozen Pydantic: full tool metadata). `ToolRegistry` provides `list()`, `get(name)`, `names()`, `by_permission()`, `by_risk()`, and `requiring_approval()`. 16 internal tools are registered covering the full read/write/shell/sandbox/mcp/subagent/audit surface. Registry is deterministic, keyless, and produces no side effects. `sac tools list` expanded to show Name/Risk/Permission/Approval/Description with `--risk` and `--permission` filters. New `sac tools inspect TOOL_NAME` shows full schema in a rich panel.
 
 ## Important Entry Points
+- `src/safecode/subagents/journal_adapter.py`
+- `src/safecode/subagents/merge_policy.py`
+- `src/safecode/subagents/executor.py`
 - `src/safecode/cli.py` — slim Typer registry; imports from cli_*.py modules
 - `src/safecode/cli_context.py`
 - `src/safecode/tools/adapter.py`
@@ -80,6 +93,8 @@ The `v2.1.x` stage added repository intelligence on top of the `v2.0.x` MVP:
 
 ## Verification
 ```bash
+PYTHONPATH=src python3 -m pytest tests/test_subagent_orchestration.py -q  # v2.2.4 + v2.2.5 + v2.2.6
+PYTHONPATH=src python3 -m pytest tests/test_mcp_approved_write.py -q
 PYTHONPATH=src python3 -m pytest tests/test_mcp_read_tool_loop.py -q
 PYTHONPATH=src python3 -m pytest tests/test_tool_call_adapter.py -q
 PYTHONPATH=src python3 -m pytest tests/test_tool_schema_registry.py -q
@@ -93,6 +108,41 @@ PYTHONPATH=src python3 -m pytest tests/test_sandbox_execution_security_evals.py 
 PYTHONPATH=src python3 -m pytest -q
 uv run sac --help
 ```
+
+## Compatibility Requirements (v2.2.6 additions)
+- `findings_from_journal_events()` and `merge_journal_subagent_findings()` never raise — all malformed payloads are silently skipped.
+- `_event_to_finding()` returns `None` (not an exception) for non-dict payloads, missing `"subagent_dispatch"` key, or non-list list fields; the calling loop skips `None` results.
+- `AgentLoop._enrich_with_subagent_findings()` catches all exceptions and returns the original context unchanged (fail closed).
+- Blocked/failed dispatch events contribute only `errors` and `blocked_task_ids` to context, never `summary`, `observations`, or `files_inspected`.
+- `"subagent_findings"` key is only injected when at least one source_task_id, blocked_task_id, or error exists — context for sessions with no prior dispatches is unchanged.
+- Subagent execution behavior is unchanged — only context enrichment path added.
+
+## Compatibility Requirements (v2.2.5 additions)
+- `SubagentFinding` and `MergedSubagentContext` are frozen dataclasses — callers must not construct mutable copies.
+- `merge_subagent_findings()` never raises — all edge cases (empty list, empty fields, all-blocked) return a valid `MergedSubagentContext`.
+- Only findings with `success=True` and `blocked=False` contribute to `summary`, `observations`, `files_inspected`, and `source_task_ids`.
+- Empty `task_id` strings are silently skipped in both `source_task_ids` and `blocked_task_ids`.
+- `max_observations` and `max_files` caps apply after dedup; order is preserved (first N entries).
+- `AgentLoop` execution behavior is unchanged — merge_policy is a data-layer module only.
+- `SubagentResult` fields map directly to `SubagentFinding` fields; no transformation needed at call sites.
+
+## Compatibility Requirements (v2.2.4 additions)
+- `SubagentDispatchExecutor.execute()` never raises — all failures return a blocked `SubagentResult`.
+- `max_steps` is validated in [1, 10]; values outside this range return a blocked result without running.
+- Subagent writes are confined to `.sac/subagents/{task_id}/` — `FilesystemBoundary` enforces this.
+- `commands_attempted` is always empty in `SubagentResult` — subagents execute no shell commands.
+- `ToolIntentRouter` route change (`subagent.inspect` → `subagent.dispatch`) is backward-compatible: intents are still `executable_now=True`, no approval required.
+- `JournalEventType` `"subagent_dispatch"` is append-only — existing event types are unchanged.
+- `AgentLoop._execute_subagent_dispatch_step()` records one `subagent_dispatch` journal event per dispatch.
+
+## Compatibility Requirements (v2.2.3 additions)
+- `MCPApprovedWriteExecutor.execute()` never raises — all failures return a blocked `MCPLoopResult`.
+- Execution requires proposal status == "approved"; "pending" and "rejected" are always blocked.
+- Proposal is discarded after execution regardless of outcome — no replay possible.
+- `approve_pending()` only accepts a proposal in "pending" status; already-approved proposals raise `PermissionError`.
+- `AgentLoop._find_approved_write_proposal()` performs exact server/tool string match against the stored proposal.
+- `mcp_call` journal events for approved writes include `approved_write: True` in the payload.
+- Read-only MCP path (`MCPReadToolExecutor`) is unchanged and unaffected by approved-write additions.
 
 ## Compatibility Requirements (v2.2.2 additions)
 - `MCPReadToolExecutor.execute()` never raises — all failures return a blocked `MCPLoopResult`.

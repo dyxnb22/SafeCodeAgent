@@ -11,7 +11,10 @@ from safecode.agent.tools import RoutedToolIntent, ToolIntentRouter
 from safecode.config import SafeCodeConfig
 from safecode.context.collector import ContextCollector
 from safecode.llm.factory import create_llm_client
-from safecode.mcp.loop_executor import MCPReadToolExecutor
+from safecode.mcp.loop_executor import MCPApprovedWriteExecutor, MCPReadToolExecutor
+from safecode.subagents.executor import SubagentDispatchExecutor
+from safecode.subagents.journal_adapter import merge_journal_subagent_findings
+from safecode.mcp.proposal import MCPWriteProposal, MCPWriteProposalStore
 from safecode.state.journal import AgentJournalStore
 
 
@@ -87,10 +90,9 @@ class AgentLoop:
             return AgentStepResult(state=saved, observation=saved.last_observation)
 
         plan_item = state.plan[state.current_step]
-        tool_choice = self.llm_client.choose_tool(
-            state.goal,
-            self.context_collector.collect(query=f"{state.goal}\n{plan_item}"),
-        )
+        context = self.context_collector.collect(query=f"{state.goal}\n{plan_item}")
+        context = self._enrich_with_subagent_findings(state.session_id, context)
+        tool_choice = self.llm_client.choose_tool(state.goal, context)
         if isinstance(tool_choice, AgentStopForUserResponse):
             updated = state.model_copy(
                 update={
@@ -116,6 +118,14 @@ class AgentLoop:
 
         if routed.executable_now and routed.route == "mcp.call_readonly":
             return self._execute_mcp_readonly_step(plan_item, state, routed)
+
+        if routed.executable_now and routed.route == "subagent.dispatch":
+            return self._execute_subagent_dispatch_step(plan_item, state, routed)
+
+        if routed.route == "mcp.propose" and not routed.executable_now:
+            approved = self._find_approved_write_proposal(routed.intent.tool_name or "")
+            if approved is not None:
+                return self._execute_mcp_approved_write_step(plan_item, state, routed, approved.proposal_id)
 
         pending_action = {
             **routed.intent.model_dump(exclude_none=True),
@@ -218,6 +228,155 @@ class AgentLoop:
             call_summary,
         )
         return AgentStepResult(state=saved, observation=observation)
+
+    def _execute_subagent_dispatch_step(
+        self, plan_item: str, state: AgentSessionState, routed: RoutedToolIntent
+    ) -> AgentStepResult:
+        """Dispatch a read-only subagent investigation and record the structured result."""
+        intent = routed.intent
+        input_json = intent.input_json or {}
+        # Prefer explicit task from input_json; fall back to intent.description.
+        task = input_json["task"] if "task" in input_json else (intent.description or "")
+        # Pass raw values — no defaults or coercions that would mask missing/invalid args.
+        # SubagentDispatchExecutor.execute() accepts Any and gates on ToolCallAdapter.
+        scope = input_json.get("scope")
+        max_steps = input_json.get("max_steps")
+
+        sub_result = SubagentDispatchExecutor(self.project_root).execute(task, scope, max_steps)
+
+        step_label = f"Step {state.current_step + 1}: {plan_item}"
+        observation = f"{step_label} → Subagent [{sub_result.task_id}]: {sub_result.summary}"
+        pending_action: dict[str, object] = {
+            "type": "subagent",
+            "route": routed.route,
+            "task_id": sub_result.task_id,
+            "executable_now": "true",
+            "reason": routed.reason,
+            "subagent_success": str(sub_result.success).lower(),
+            "subagent_blocked": str(sub_result.blocked).lower(),
+        }
+        updated = state.model_copy(
+            update={
+                "current_step": state.current_step + 1,
+                "pending_action": pending_action,
+                "last_observation": observation,
+                "status": "active",
+                "last_error": None if sub_result.success else sub_result.summary,
+            }
+        )
+        saved = self.store.save(updated)
+        dispatch_summary: dict[str, object] = {
+            "task_id": sub_result.task_id,
+            "task": task,
+            "scope": scope,
+            "max_steps": max_steps,
+            "summary": sub_result.summary,
+            "observations": list(sub_result.observations),
+            "files_inspected": list(sub_result.files_inspected),
+            "blocked_actions": list(sub_result.blocked_actions),
+            "errors": list(sub_result.errors),
+            "success": sub_result.success,
+            "blocked": sub_result.blocked,
+        }
+        self.journal.record_subagent_dispatch(
+            saved.session_id,
+            saved.current_step,
+            observation,
+            dispatch_summary,
+        )
+        return AgentStepResult(state=saved, observation=observation)
+
+    def _find_approved_write_proposal(self, tool_name: str) -> MCPWriteProposal | None:
+        """Return an approved write proposal matching tool_name, or None."""
+        if "." not in tool_name:
+            return None
+        server, tool = tool_name.split(".", 1)
+        if not server or not tool:
+            return None
+        store = MCPWriteProposalStore(self.project_root, self.config)
+        proposal = store.load_pending()
+        if proposal is None or proposal.status != "approved":
+            return None
+        if proposal.server != server or proposal.tool != tool:
+            return None
+        return proposal
+
+    def _execute_mcp_approved_write_step(
+        self,
+        plan_item: str,
+        state: AgentSessionState,
+        routed: RoutedToolIntent,
+        proposal_id: str,
+    ) -> AgentStepResult:
+        """Execute an explicitly approved MCP write tool call and record the observation."""
+        intent = routed.intent
+        tool_name = intent.tool_name or ""
+        input_json = intent.input_json or {}
+
+        mcp_result = MCPApprovedWriteExecutor(self.project_root).execute(
+            tool_name, input_json, proposal_id=proposal_id
+        )
+
+        step_label = f"Step {state.current_step + 1}: {plan_item}"
+        observation = f"{step_label} → MCP write [{tool_name}]: {mcp_result.observation}"
+        pending_action: dict[str, object] = {
+            "type": "mcp",
+            "route": "mcp.execute_approved_write",
+            "tool_name": tool_name,
+            "executable_now": "true",
+            "reason": "approved_write_executed",
+            "mcp_success": str(mcp_result.success).lower(),
+            "mcp_blocked": str(mcp_result.blocked).lower(),
+            "mcp_exit_code": str(mcp_result.exit_code),
+        }
+        updated = state.model_copy(
+            update={
+                "current_step": state.current_step + 1,
+                "pending_action": pending_action,
+                "last_observation": observation,
+                "status": "active",
+                "last_error": None if mcp_result.success else mcp_result.observation,
+            }
+        )
+        saved = self.store.save(updated)
+        call_summary: dict[str, object] = {
+            "tool_name": tool_name,
+            "server": mcp_result.server,
+            "tool": mcp_result.tool,
+            "success": mcp_result.success,
+            "blocked": mcp_result.blocked,
+            "exit_code": mcp_result.exit_code,
+            "approved_write": True,
+            **mcp_result.metadata,
+        }
+        self.journal.record_mcp_call(
+            saved.session_id,
+            saved.current_step,
+            observation,
+            call_summary,
+        )
+        return AgentStepResult(state=saved, observation=observation)
+
+    def _enrich_with_subagent_findings(self, session_id: str, context: dict) -> dict:
+        """Inject merged subagent findings from this session into planning context.
+
+        Fail closed: any error leaves context unchanged.
+        """
+        try:
+            events = self.journal.read(session_id)
+            merged = merge_journal_subagent_findings(events)
+            if merged.source_task_ids or merged.blocked_task_ids or merged.errors:
+                context["subagent_findings"] = {
+                    "summary": merged.summary,
+                    "observations": merged.observations,
+                    "files_inspected": merged.files_inspected,
+                    "source_task_ids": merged.source_task_ids,
+                    "blocked_task_ids": merged.blocked_task_ids,
+                    "errors": merged.errors,
+                }
+        except Exception:
+            pass
+        return context
 
     def _start_planned_session(self, goal: str) -> AgentSessionState:
         """Create a session using the current LLM planning contract."""
