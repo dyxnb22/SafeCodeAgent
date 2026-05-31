@@ -241,10 +241,11 @@ class TestRouterWithRegistryBackedValidation:
         assert routed.executable_now is False
         assert routed.intent.requires_approval is True
 
-    def test_mcp_intent_still_requires_approval(self):
+    def test_mcp_write_intent_still_requires_approval(self):
         from safecode.agent.tools import ToolIntentRouter
 
-        routed = ToolIntentRouter().route({"type": "mcp", "tool_name": "notion.search"})
+        # "notion.create" is write-classified → still requires approval
+        routed = ToolIntentRouter().route({"type": "mcp", "tool_name": "notion.create"})
         assert routed.route == "mcp.propose"
         assert routed.executable_now is False
         assert routed.intent.requires_approval is True

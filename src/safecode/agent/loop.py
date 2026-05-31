@@ -7,10 +7,11 @@ from pathlib import Path
 
 from safecode.agent.schemas import AgentStopForUserResponse, AgentToolIntentResponse
 from safecode.agent.session import AgentSessionState, AgentSessionStore
-from safecode.agent.tools import ToolIntentRouter
+from safecode.agent.tools import RoutedToolIntent, ToolIntentRouter
 from safecode.config import SafeCodeConfig
 from safecode.context.collector import ContextCollector
 from safecode.llm.factory import create_llm_client
+from safecode.mcp.loop_executor import MCPReadToolExecutor
 from safecode.state.journal import AgentJournalStore
 
 
@@ -112,6 +113,10 @@ class AgentLoop:
             raise ValueError(f"Unsupported tool choice response: {tool_choice.type}")
 
         routed = ToolIntentRouter().route(tool_choice.intent.model_dump(exclude_none=True))
+
+        if routed.executable_now and routed.route == "mcp.call_readonly":
+            return self._execute_mcp_readonly_step(plan_item, state, routed)
+
         pending_action = {
             **routed.intent.model_dump(exclude_none=True),
             "route": routed.route,
@@ -164,6 +169,55 @@ class AgentLoop:
             raise FileNotFoundError("No agent session found.")
 
         return AgentRunResult(state=state, steps=steps, stopped_reason=stopped_reason)
+
+    def _execute_mcp_readonly_step(
+        self, plan_item: str, state: AgentSessionState, routed: RoutedToolIntent
+    ) -> AgentStepResult:
+        """Execute a validated read-only MCP tool call and record the observation."""
+        intent = routed.intent
+        tool_name = intent.tool_name or ""
+        input_json = intent.input_json or {}
+
+        mcp_result = MCPReadToolExecutor(self.project_root).execute(tool_name, input_json)
+
+        step_label = f"Step {state.current_step + 1}: {plan_item}"
+        observation = f"{step_label} → MCP [{tool_name}]: {mcp_result.observation}"
+        pending_action: dict[str, object] = {
+            "type": "mcp",
+            "route": routed.route,
+            "tool_name": tool_name,
+            "executable_now": "true",
+            "reason": routed.reason,
+            "mcp_success": str(mcp_result.success).lower(),
+            "mcp_blocked": str(mcp_result.blocked).lower(),
+            "mcp_exit_code": str(mcp_result.exit_code),
+        }
+        updated = state.model_copy(
+            update={
+                "current_step": state.current_step + 1,
+                "pending_action": pending_action,
+                "last_observation": observation,
+                "status": "active",
+                "last_error": None if mcp_result.success else mcp_result.observation,
+            }
+        )
+        saved = self.store.save(updated)
+        call_summary: dict[str, object] = {
+            "tool_name": tool_name,
+            "server": mcp_result.server,
+            "tool": mcp_result.tool,
+            "success": mcp_result.success,
+            "blocked": mcp_result.blocked,
+            "exit_code": mcp_result.exit_code,
+            **mcp_result.metadata,
+        }
+        self.journal.record_mcp_call(
+            saved.session_id,
+            saved.current_step,
+            observation,
+            call_summary,
+        )
+        return AgentStepResult(state=saved, observation=observation)
 
     def _start_planned_session(self, goal: str) -> AgentSessionState:
         """Create a session using the current LLM planning contract."""

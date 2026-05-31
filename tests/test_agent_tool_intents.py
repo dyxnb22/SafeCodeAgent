@@ -23,7 +23,8 @@ class TestToolIntentRouter:
             ("patch", {"target": "src/app.py"}, "patch.propose"),
             ("shell", {"command": "pytest -q"}, "shell.propose"),
             ("sandbox", {"command": "pytest -q"}, "sandbox.propose"),
-            ("mcp", {"tool_name": "notion.search"}, "mcp.propose"),
+            # use a write-classified tool name so approval is still required
+            ("mcp", {"tool_name": "notion.create"}, "mcp.propose"),
         ],
     )
     def test_write_or_execute_intents_require_approval(self, intent_type, payload, route):

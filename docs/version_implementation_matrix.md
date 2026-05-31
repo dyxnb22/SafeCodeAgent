@@ -253,7 +253,7 @@
 |---|---|---|---|
 | `v2.2.0` | `v2.2.0-tool-schema-registry` | `src/safecode/tools/registry.py` | `PYTHONPATH=src python3 -m pytest tests/test_tool_schema_registry.py -q` / `uv run sac tools list` / `uv run sac tools inspect patch.propose` |
 | `v2.2.1` | `v2.2.1-model-tool-call-adapter` | `src/safecode/tools/adapter.py`、`src/safecode/agent/tools.py` | `ToolCallAdapter` 在路由前校验 tool name/required args/arg types；`ToolIntentRouter` 接入 registry 元数据；`PYTHONPATH=src python3 -m pytest tests/test_tool_call_adapter.py -q` |
-| `v2.2.2` | `v2.2.2-mcp-read-tool-loop` | `src/safecode/mcp/runner.py`、`src/safecode/agent/loop.py` | agent loop 可调用 approved readonly MCP tool 并记录观察 |
+| `v2.2.2` | `v2.2.2-mcp-read-tool-loop` | `src/safecode/mcp/loop_executor.py`、`src/safecode/agent/loop.py`、`src/safecode/agent/tools.py` | read-only MCP tool intents route to `mcp.call_readonly` without approval; executed in loop with journal+audit; `PYTHONPATH=src python3 -m pytest tests/test_mcp_read_tool_loop.py -q` |
 | `v2.2.3` | `v2.2.3-mcp-write-review-flow` | `src/safecode/mcp/proposal.py`、`src/safecode/agent/loop.py` | MCP write 进入 proposal/review/apply/audit 生命周期，不直接执行 |
 | `v2.2.4` | `v2.2.4-subagent-orchestration` | `src/safecode/subagents/`、`src/safecode/agent/loop.py` | main agent 可派发 readonly subagent 并把结果合并进单一计划 |
 

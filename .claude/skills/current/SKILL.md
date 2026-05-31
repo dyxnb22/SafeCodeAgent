@@ -5,10 +5,10 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v2.2.1
+# Current Baseline - v2.2.2
 
 ## Status
-Implemented and tagged as `v2.2.1`.
+Implemented and tagged as `v2.2.2`.
 
 ## Stage
 `v2.2.x` Tool Ecosystem.
@@ -16,7 +16,7 @@ Implemented and tagged as `v2.2.1`.
 ## Source Of Truth
 - Version index: `docs/version_implementation_matrix.md`
 - Release roadmap: `docs/release_roadmap_v0_1_to_v1_0.md`
-- Git baseline: tag `v2.2.1`
+- Git baseline: tag `v2.2.2`
 - Runtime invariants: `.claude/skills/shared/core-runtime.md`
 
 ## Current Capability
@@ -34,6 +34,8 @@ The `v2.1.x` stage added repository intelligence on top of the `v2.0.x` MVP:
 
 **v2.1.4 (Context Debug Command):** `src/safecode/cli_context.py` adds a `context_app` Typer group registered under `sac context`. The `sac context explain "task"` command is read-only and LLM-free: it calls `ContextSelector.select_sources()` to rank and explain file selection, reads budget limits from `SafeCodeConfig`, and calls `RepoMapBuilder.build()` for repository statistics. Output sections: Context Selection (ranked table with score and reason), Budget Metadata (max bytes/tokens), and Repo Map (counts). Sensitive files are excluded via existing `FileIndexer` skip rules. No writes to `.sac/` or any project path.
 
+**v2.2.2 (MCP Read Tool Loop):** `src/safecode/mcp/loop_executor.py` adds `MCPReadToolExecutor` with `execute(tool_name, input_json)` — validates via `ToolCallAdapter`, classifies tool, calls `MCPReadOnlyRunner`, returns frozen `MCPLoopResult` (observation, success, blocked, exit_code, metadata). Never raises. `ToolIntentRouter._route_mcp()` dynamically classifies tool names: read-only → route `mcp.call_readonly`, `executable_now=True`; write/unknown → route `mcp.propose`, approval required. `AgentLoop.step()` now branches on `executable_now and route == "mcp.call_readonly"` to call `_execute_mcp_readonly_step()`, which runs the executor and records observations. `AgentJournalStore` gains `record_mcp_call()` and `"mcp_call"` event type. Audit via existing `MCPReadOnlyRunner` audit path. Fail closed for all error conditions.
+
 **v2.2.1 (Model Tool Call Adapter):** `src/safecode/tools/adapter.py` adds `ToolCallAdapter` with `validate(tool_name, args)` and `lookup(tool_name)`. `validate()` checks name existence in `ToolRegistry`, required arg presence, and arg types; raises `AdapterError` (a `ValueError` subclass) on any failure. Returns frozen `ToolCallValidationResult` with `tool_name`, `spec`, `resolved_args`, `requires_approval`, `risk`, `permission_category`, and `audit_event`. `ToolIntentRouter` in `src/safecode/agent/tools.py` now calls `ToolCallAdapter.lookup()` for every intent type via a `_REGISTRY_NAMES` mapping; approval is derived from `ToolSpec.requires_human_approval` (authoritative) OR the intent flag. MCP intents default to `mcp.propose_write` (conservative). Unknown registry names fail closed. All public route strings and CLI behavior are unchanged.
 
 **v2.2.0 (Tool Schema Registry):** `src/safecode/tools/registry.py` is rewritten with a complete schema layer. New models: `ToolRiskLevel` (StrEnum: low/medium/high), `PermissionCategory` (StrEnum: read/write/shell/sandbox/mcp/subagent/audit), `ToolArgSchema` (frozen Pydantic: name/type/required/description), `AuditEventRef` (frozen Pydantic: event_type/description), `ToolSpec` (frozen Pydantic: full tool metadata). `ToolRegistry` provides `list()`, `get(name)`, `names()`, `by_permission()`, `by_risk()`, and `requiring_approval()`. 16 internal tools are registered covering the full read/write/shell/sandbox/mcp/subagent/audit surface. Registry is deterministic, keyless, and produces no side effects. `sac tools list` expanded to show Name/Risk/Permission/Approval/Description with `--risk` and `--permission` filters. New `sac tools inspect TOOL_NAME` shows full schema in a rich panel.
@@ -43,6 +45,7 @@ The `v2.1.x` stage added repository intelligence on top of the `v2.0.x` MVP:
 - `src/safecode/cli_context.py`
 - `src/safecode/tools/adapter.py`
 - `src/safecode/tools/registry.py`
+- `src/safecode/mcp/loop_executor.py`
 - `src/safecode/cli_agent.py`
 - `src/safecode/cli_core.py`
 - `src/safecode/cli_ops.py`
@@ -77,6 +80,7 @@ The `v2.1.x` stage added repository intelligence on top of the `v2.0.x` MVP:
 
 ## Verification
 ```bash
+PYTHONPATH=src python3 -m pytest tests/test_mcp_read_tool_loop.py -q
 PYTHONPATH=src python3 -m pytest tests/test_tool_call_adapter.py -q
 PYTHONPATH=src python3 -m pytest tests/test_tool_schema_registry.py -q
 PYTHONPATH=src python3 -m pytest tests/test_context_explain.py -v
@@ -89,6 +93,16 @@ PYTHONPATH=src python3 -m pytest tests/test_sandbox_execution_security_evals.py 
 PYTHONPATH=src python3 -m pytest -q
 uv run sac --help
 ```
+
+## Compatibility Requirements (v2.2.2 additions)
+- `MCPReadToolExecutor.execute()` never raises — all failures return a blocked `MCPLoopResult`.
+- `MCPLoopResult` is a frozen dataclass — callers must not construct mutable copies.
+- `ToolIntentRouter` read-only MCP routing uses `classify_mcp_tool()` keyword matching — same classification logic as `MCPReadOnlyRunner`.
+- Only `classify_mcp_tool()` result `"read"` enables `executable_now=True`; write/unknown still require approval.
+- MCP write/unknown intents remain backward-compatible: route to `mcp.propose`, approval required.
+- `JournalEventType` `"mcp_call"` is append-only — existing event types are unchanged.
+- `AgentLoop._execute_mcp_readonly_step()` records one `mcp_call` journal event per execution.
+- Audit logging is performed by `MCPReadOnlyRunner` — the executor does not write additional audit events.
 
 ## Compatibility Requirements (v2.2.1 additions)
 - `ToolCallAdapter.validate()` is validation/adaptation only — it must not execute tools or call the LLM.
