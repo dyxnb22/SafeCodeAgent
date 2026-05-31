@@ -245,13 +245,13 @@
 | `v2.1.1` | `v2.1.1-test-build-detector` | `src/safecode/project/test_detector.py` | 检测 pytest、uv、npm、pnpm、gradle、maven、go、cargo 常见命令 |
 | `v2.1.2` | `v2.1.2-runtime-consolidation` | `src/safecode/cli*.py`、`src/safecode/agent/loop.py`、`src/safecode/context/collector.py` | CLI 分组拆分、agent loop 接入 LLM plan/tool、context 接入 repo map/selector/budget，版本与占位模块同步 |
 | `v2.1.3` | `v2.1.3-diff-planner` | `src/safecode/agent/planner.py` | patch 前预测 touched files，最终 patch scope 与计划不一致时提示 |
-| `v2.1.4` | `v2.1.4-context-debug-command` | `src/safecode/cli.py::context_explain` | `sac context explain "task"` 显示文件被选择的原因 |
+| `v2.1.4` | `v2.1.4-context-debug-command` | `src/safecode/cli_context.py::context_explain` | `PYTHONPATH=src python3 -m pytest tests/test_context_explain.py -v` / `uv run sac context explain "task"` |
 
 ## v2.2.x: Tool Ecosystem
 
 | 版本 | 分支 | 主要入口 | 验收命令 |
 |---|---|---|---|
-| `v2.2.0` | `v2.2.0-tool-schema-registry` | `src/safecode/tools/registry.py` | 内部工具 schema、risk、permission、audit event 显式可查询 |
+| `v2.2.0` | `v2.2.0-tool-schema-registry` | `src/safecode/tools/registry.py` | `PYTHONPATH=src python3 -m pytest tests/test_tool_schema_registry.py -q` / `uv run sac tools list` / `uv run sac tools inspect patch.propose` |
 | `v2.2.1` | `v2.2.1-model-tool-call-adapter` | `src/safecode/agent/tools.py` | LLM tool intent 转换为 runtime tool call 前完成 schema 校验 |
 | `v2.2.2` | `v2.2.2-mcp-read-tool-loop` | `src/safecode/mcp/runner.py`、`src/safecode/agent/loop.py` | agent loop 可调用 approved readonly MCP tool 并记录观察 |
 | `v2.2.3` | `v2.2.3-mcp-write-review-flow` | `src/safecode/mcp/proposal.py`、`src/safecode/agent/loop.py` | MCP write 进入 proposal/review/apply/audit 生命周期，不直接执行 |

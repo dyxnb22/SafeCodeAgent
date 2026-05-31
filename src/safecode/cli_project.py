@@ -14,11 +14,11 @@ from safecode.index.python_symbols import PythonSymbolIndexer
 from safecode.index.repo_map import RepoMapBuilder
 from safecode.skills.loader import SkillLoader
 from safecode.state.progress import ProgressState, ProgressStore
-from safecode.tools.registry import ToolRegistry
+from safecode.tools.registry import PermissionCategory, ToolRegistry, ToolRiskLevel
 
 config_app = typer.Typer(help="Manage SafeCode project config.")
 skills_app = typer.Typer(help="List and inspect skills.")
-tools_app = typer.Typer(help="List internal tools.")
+tools_app = typer.Typer(help="List and inspect internal tool schemas.")
 index_app = typer.Typer(help="Build lightweight project indexes.")
 progress_app = typer.Typer(help="Read and update long-running progress.")
 
@@ -57,15 +57,76 @@ def skills_show(name: str) -> None:
 
 
 @tools_app.command("list")
-def tools_list() -> None:
-    """List built-in tools."""
-    table = Table(title="SafeCode Tools")
-    table.add_column("Name")
+def tools_list(
+    risk: Optional[str] = typer.Option(None, "--risk", help="Filter by risk level (low, medium, high)."),
+    permission: Optional[str] = typer.Option(None, "--permission", help="Filter by permission category."),
+) -> None:
+    """List built-in tool schemas with risk and permission metadata."""
+    registry = ToolRegistry()
+    tools = registry.list()
+
+    if risk:
+        try:
+            risk_level = ToolRiskLevel(risk.lower())
+        except ValueError:
+            console.print(f"[red]Unknown risk level: {risk!r}. Use low, medium, or high.[/red]")
+            raise typer.Exit(1)
+        tools = [t for t in tools if t.risk == risk_level]
+
+    if permission:
+        try:
+            perm_cat = PermissionCategory(permission.lower())
+        except ValueError:
+            valid = ", ".join(c.value for c in PermissionCategory)
+            console.print(f"[red]Unknown permission category: {permission!r}. Use one of: {valid}[/red]")
+            raise typer.Exit(1)
+        tools = [t for t in tools if t.permission_category == perm_cat]
+
+    table = Table(title="SafeCode Internal Tools")
+    table.add_column("Name", style="cyan", no_wrap=True)
     table.add_column("Risk")
+    table.add_column("Permission")
+    table.add_column("Approval", justify="center")
     table.add_column("Description")
-    for tool in ToolRegistry().list():
-        table.add_row(tool.name, tool.risk, tool.description)
-    console.print(table)
+    for tool in tools:
+        approval_marker = "[yellow]yes[/yellow]" if tool.requires_human_approval else "[green]no[/green]"
+        table.add_row(tool.name, tool.risk, tool.permission_category, approval_marker, tool.description)
+    console.print(table if tools else "[yellow]No tools match the given filters.[/yellow]")
+
+
+@tools_app.command("inspect")
+def tools_inspect(name: str = typer.Argument(..., help="Tool name to inspect.")) -> None:
+    """Show full schema for a single tool including arguments and audit event."""
+    registry = ToolRegistry()
+    try:
+        tool = registry.get(name)
+    except KeyError:
+        console.print(f"[red]Unknown tool: {name!r}[/red]")
+        console.print(f"Available tools: {', '.join(registry.names())}")
+        raise typer.Exit(1)
+
+    from rich.panel import Panel as _Panel
+
+    approval_text = "[yellow]required[/yellow]" if tool.requires_human_approval else "[green]not required[/green]"
+    lines = [
+        f"[bold]Description:[/bold] {tool.description}",
+        f"[bold]Risk:[/bold]        {tool.risk}",
+        f"[bold]Permission:[/bold]  {tool.permission_category}",
+        f"[bold]Approval:[/bold]    {approval_text}",
+    ]
+    if tool.args:
+        lines.append("\n[bold]Arguments:[/bold]")
+        for arg in tool.args:
+            req = "required" if arg.required else "optional"
+            lines.append(f"  • {arg.name} ({arg.type}, {req}): {arg.description}")
+    else:
+        lines.append("\n[bold]Arguments:[/bold] none")
+    if tool.audit_event:
+        lines.append(f"\n[bold]Audit Event:[/bold] {tool.audit_event.event_type} — {tool.audit_event.description}")
+    else:
+        lines.append("\n[bold]Audit Event:[/bold] none")
+
+    console.print(_Panel("\n".join(lines), title=f"[bold cyan]{tool.name}[/bold cyan]", expand=False))
 
 
 @index_app.command("files")
