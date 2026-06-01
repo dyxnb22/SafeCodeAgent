@@ -33,7 +33,9 @@ user-level intent and project-controlled files.
 - `allow_medium_after_apply` is conservative in `strict` and `balanced`.
 - Hook approvals and sandbox approvals are stored outside the project root.
 - Hook approvals are bound to a hook-approval schema version, user, command,
-  and hook-relevant config rather than to every patch release number.
+  hook-relevant config, and project root hash. The same hook command approved in
+  one project root is not valid in a different project root, even for the same user
+  with the same config.
 
 ## Release Gates
 

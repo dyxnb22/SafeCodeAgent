@@ -323,3 +323,4 @@
 | 版本 | 分支 | 主要入口 | 验收命令 |
 |---|---|---|---|
 | `v2.7.0` ✅ | `v2.7.0-audit-consolidation-baseline` | `src/safecode/config.py`, `src/safecode/doctor.py`, `src/safecode/hooks/approvals.py`, `src/safecode/release/bump.py`, `src/safecode/release/changelog.py`, `src/safecode/cli_sandbox.py` | policy presets apply on load; doctor --release opt-in; Noop backend labeled policy-gated; hook approval version schema-scoped; bump skips test files; changelog --recent N; `PYTHONPATH=src python3 -m pytest -q` → 1871 tests pass |
+| `v2.7.1` ✅ | `v2.7.1-hook-approval-project-binding` | `src/safecode/hooks/approvals.py` | `config_hash()` includes project root hash; approvals cannot carry across project roots; `test_approval_does_not_carry_across_projects` added; `PYTHONPATH=src python3 -m pytest -q` → 1872 tests pass |

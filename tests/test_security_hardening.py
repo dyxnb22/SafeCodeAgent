@@ -620,6 +620,26 @@ def test_hook_approval_policy_version_is_schema_scoped(tmp_path: Path, monkeypat
     assert HookApprovalStore(tmp_path, config).is_approved("after_apply", "git status") is True
 
 
+def test_approval_does_not_carry_across_projects(tmp_path: Path, monkeypatch) -> None:
+    """Approval granted in project_a must not be valid in project_b."""
+    shared_approval_dir = tmp_path / "approvals"
+    shared_approval_dir.mkdir()
+    monkeypatch.setenv("SAFECODE_APPROVAL_DIR", str(shared_approval_dir))
+
+    project_a = tmp_path / "project_a"
+    project_b = tmp_path / "project_b"
+    project_a.mkdir()
+    project_b.mkdir()
+
+    config = SafeCodeConfig()
+    config.hooks.allow_medium_after_apply = True
+
+    HookApprovalStore(project_a, config).approve("after_apply", "git status")
+
+    assert HookApprovalStore(project_a, config).is_approved("after_apply", "git status") is True
+    assert HookApprovalStore(project_b, config).is_approved("after_apply", "git status") is False
+
+
 def test_hook_approval_is_bound_to_config(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("SAFECODE_APPROVAL_DIR", str(external_approval_dir(tmp_path)))
     approved_config = SafeCodeConfig()

@@ -130,7 +130,10 @@ class HookApprovalStore:
         return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
     def config_hash(self) -> str:
-        """Hash the hook-relevant effective config."""
+        """Hash the hook-relevant effective config, including project root for project-binding."""
+        project_root_hash = hashlib.sha256(
+            str(self.project_root.resolve()).encode("utf-8")
+        ).hexdigest()
         payload = {
             "allow_medium_after_apply": self.config.hooks.allow_medium_after_apply,
             "after_apply": self.config.hooks.after_apply,
@@ -139,6 +142,7 @@ class HookApprovalStore:
             "block_high_risk": self.config.shell.block_high_risk,
             "policy": self.config.policy,
             "policy_version": self._policy_version(),
+            "project_root_hash": project_root_hash,
         }
         encoded = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
         return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
