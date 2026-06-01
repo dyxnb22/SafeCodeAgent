@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -11,6 +12,7 @@ from safecode.agent.session import AgentSessionState, AgentSessionStore
 from safecode.agent.tools import RoutedToolIntent, ToolIntentRouter
 from safecode.config import SafeCodeConfig
 from safecode.context.collector import ContextCollector
+from safecode.context.redactor import redact_secrets
 from safecode.llm.factory import create_llm_client
 from safecode.mcp.loop_executor import MCPApprovedWriteExecutor, MCPReadToolExecutor
 from safecode.subagents.executor import SubagentDispatchExecutor
@@ -471,22 +473,27 @@ class AgentLoop:
     def _enrich_with_subagent_findings(self, session_id: str, context: dict) -> dict:
         """Inject merged subagent findings from this session into planning context.
 
-        Fail closed: any error leaves context unchanged.
+        Secrets are redacted before injection. Fail closed: any error leaves context
+        unchanged and emits a debug warning without interrupting the agent loop.
         """
         try:
             events = self.journal.read(session_id)
             merged = merge_journal_subagent_findings(events)
             if merged.source_task_ids or merged.blocked_task_ids or merged.errors:
                 context["subagent_findings"] = {
-                    "summary": merged.summary,
-                    "observations": merged.observations,
+                    "summary": redact_secrets(merged.summary),
+                    "observations": [redact_secrets(o) for o in merged.observations],
                     "files_inspected": merged.files_inspected,
                     "source_task_ids": merged.source_task_ids,
                     "blocked_task_ids": merged.blocked_task_ids,
-                    "errors": merged.errors,
+                    "errors": [redact_secrets(e) for e in merged.errors],
                 }
-        except Exception:
-            pass
+        except Exception as exc:
+            warnings.warn(
+                f"subagent enrichment failed (context unchanged): {exc}",
+                RuntimeWarning,
+                stacklevel=2,
+            )
         return context
 
     def _start_planned_session(self, goal: str) -> AgentSessionState:
