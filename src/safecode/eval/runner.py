@@ -21,6 +21,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from safecode.eval.cases import EvalCase
+from safecode.eval.failures import ClassifiedFailure, classify_replay_result
 from safecode.eval.fixtures import TaskEvalFixture
 from safecode.shell.runner import ShellRunner
 
@@ -94,6 +95,7 @@ class ReplayResult:
     audit_events_status: str
     workspace_path: str | None = None
     error: str | None = None
+    classified_failures: list[ClassifiedFailure] = field(default_factory=list)
 
 
 # ── TaskReplayRunner ──────────────────────────────────────────────────────
@@ -285,7 +287,7 @@ class TaskReplayRunner:
         # 6d. Network intent (informational; enforcement is future work)
         network_intent = "allowed" if fixture.safety.allow_network else "denied"
 
-        return ReplayResult(
+        result = ReplayResult(
             fixture_name=fixture.name,
             passed=len(failure_reasons) == 0,
             failure_reasons=failure_reasons,
@@ -299,6 +301,8 @@ class TaskReplayRunner:
             workspace_path=str(workspace),
             error=None,
         )
+        result.classified_failures = classify_replay_result(result)
+        return result
 
     def _run_setup_commands(self, fixture: TaskEvalFixture, workspace: Path) -> str | None:
         """Run repo setup_commands; return an error string on first failure."""
@@ -398,7 +402,7 @@ class TaskReplayRunner:
 
     @staticmethod
     def _error_result(fixture: TaskEvalFixture, error: str) -> ReplayResult:
-        return ReplayResult(
+        result = ReplayResult(
             fixture_name=fixture.name,
             passed=False,
             failure_reasons=[error],
@@ -414,3 +418,5 @@ class TaskReplayRunner:
             workspace_path=None,
             error=error,
         )
+        result.classified_failures = classify_replay_result(result)
+        return result

@@ -5,13 +5,25 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v2.5.1
+# Current Baseline - v2.5.2
 
 ## Status
-Implemented. Git baseline: tag `v2.5.1`.
+Implemented. Git baseline: tag `v2.5.2`.
 
 ## Stage
-`v2.5.x` Reliability and Evaluation — v2.5.1 adds the deterministic replay runner for `TaskEvalFixture` to `src/safecode/eval/runner.py`. The old `EvalRunner`/`EvalCase` behavior is preserved.
+`v2.5.x` Reliability and Evaluation — v2.5.2 adds a structured failure taxonomy for task eval replay results. The v2.5.1 runner API is fully preserved.
+
+## v2.5.2 (Failure Taxonomy)
+`src/safecode/eval/failures.py` added. `ReplayResult` extended with backward-compatible `classified_failures` field. `tests/test_task_eval_failures.py` adds 50 tests.
+
+Key additions:
+- `FailureCategory` (`StrEnum`): 11-value taxonomy — `context_miss`, `patch_parse`, `validation`, `command_blocked`, `forbidden_file_write`, `forbidden_file_changed`, `setup`, `timeout`, `model_error`, `audit_unverified`, `unknown`.
+- `ClassifiedFailure` (frozen dataclass): `category: FailureCategory`, `reason: str`, `detail: str | None`; `as_dict()` returns a plain JSON-serializable dict.
+- `classify_replay_result(result) -> list[ClassifiedFailure]`: deterministic classifier. Returns `[]` for passing results. Prefers structured fields (`forbidden_file_writes_violated`, `forbidden_commands_violated`, `result.error`) over string parsing. Remaining `failure_reasons` matched via known keyword prefixes (not exact strings) using `_categorize_reason()`. Structured reasons are skipped in the string-parsing pass to avoid duplication.
+- `_categorize_reason(reason) -> FailureCategory`: internal helper matching on runner-produced prefixes; priority order prevents mis-classification (e.g., "Setup command timed out" → `setup`, not `timeout`).
+- `ReplayResult.classified_failures: list[ClassifiedFailure]` — new field with `field(default_factory=list)`, so all existing call sites constructing `ReplayResult` directly continue to work without change.
+- `TaskReplayRunner._run_in_workspace()` and `_error_result()` both call `classify_replay_result(result)` and assign to `result.classified_failures` before returning.
+- No new dependencies; no existing public fields removed or renamed.
 
 ## v2.5.1 (Agent Replay Runner)
 `src/safecode/eval/runner.py` extended with `TaskReplayRunner`, `ReplayResult`, `ValidationCommandResult`, and `WorkspaceError`. `tests/test_task_eval_runner.py` adds 68 tests across 18 classes.
