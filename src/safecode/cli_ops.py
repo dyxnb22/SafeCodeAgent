@@ -23,6 +23,7 @@ from safecode.project.rules import ProjectRules
 from safecode.queue.store import QueueStore
 from safecode.release.check import render_release_check, run_release_check
 from safecode.release.checklist import render_release_checklist
+from safecode.release.metadata import collect_release_metadata, render_release_metadata
 from safecode.release.smoke import render_smoke_results, run_smoke_tests
 from safecode.report.render import ReportRenderer
 
@@ -163,6 +164,15 @@ def release_smoke() -> None:
     result = run_smoke_tests()
     console.print(render_smoke_results(result))
     if not result.ok:
+        raise typer.Exit(code=1)
+
+
+@release_app.command("meta")
+def release_meta() -> None:
+    """Show release metadata index: version, tag, notes, and baseline consistency."""
+    meta = collect_release_metadata(Path.cwd())
+    console.print(render_release_metadata(meta))
+    if not meta.ok:
         raise typer.Exit(code=1)
 
 
