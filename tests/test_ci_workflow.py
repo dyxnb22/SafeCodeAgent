@@ -35,4 +35,5 @@ def test_ci_does_not_require_exact_tag_release_check_or_preflight() -> None:
 def test_ci_generates_changelog_preview() -> None:
     text = _workflow_text()
     assert "release changelog" in text
-    assert "--from 2.6.14 --to 2.6.17" in text
+    assert "--recent 5" in text
+    assert "--from 2.6.14 --to 2.6.17" not in text

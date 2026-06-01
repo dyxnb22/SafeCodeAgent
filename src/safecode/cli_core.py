@@ -250,6 +250,5 @@ def run_command(command: str, yes: bool = typer.Option(False, "--yes", "-y", hel
         console.print(result.stdout)
     if result.stderr:
         console.print(f"[red]{result.stderr}[/red]")
-    raise typer.Exit(code=0 if result.exit_code in (0, 125, 126) else result.exit_code)
-
+    raise typer.Exit(code=result.exit_code)
 

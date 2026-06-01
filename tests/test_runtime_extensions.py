@@ -1,7 +1,9 @@
 from pathlib import Path
 
 import pytest
+from typer.testing import CliRunner
 
+from safecode.cli import app
 from safecode.config import SafeCodeConfig, ensure_config_file
 from safecode.export.bundle import Exporter
 from safecode.ide.manifest import render_manifest, write_manifest
@@ -33,6 +35,22 @@ def test_shell_risk_classifier_blocks_dangerous_commands() -> None:
 
     assert risk.level == RiskLevel.HIGH
     assert any("downloads" in reason for reason in risk.reasons)
+
+
+def test_sac_run_blocked_command_returns_nonzero(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(app, ["run", "rm -rf /tmp/safecode-example", "--yes"])
+
+    assert result.exit_code == 126
+
+
+def test_sac_run_approval_required_returns_nonzero(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(app, ["run", "git status"], input="n\n")
+
+    assert result.exit_code == 125
 
 
 def test_memory_rejects_sensitive_values(tmp_path: Path) -> None:

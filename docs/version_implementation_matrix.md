@@ -317,3 +317,9 @@
 | `v2.6.19` ✅ | `v2.6.19-policy-audit-command` | `src/safecode/policy/audit.py` | `sac config policy-audit` audits policy names, aliases, unknown values, and invariants |
 | `v2.6.20` ✅ | `v2.6.20-security-review-documentation` | `docs/security/product-security-review-v2.6.md` | product security review covers config, sandbox, hooks, release gates, and trust boundaries |
 | `v2.6.21` ✅ | `v2.6.21-final-signoff` | `src/safecode/release/signoff.py` | final signoff verifies exact tag, release check, and preflight |
+
+## v2.7.x: Audit Consolidation
+
+| 版本 | 分支 | 主要入口 | 验收命令 |
+|---|---|---|---|
+| `v2.7.0` ✅ | `v2.7.0-audit-consolidation-baseline` | `src/safecode/config.py`, `src/safecode/doctor.py`, `src/safecode/hooks/approvals.py`, `src/safecode/release/bump.py`, `src/safecode/release/changelog.py`, `src/safecode/cli_sandbox.py` | policy presets apply on load; doctor --release opt-in; Noop backend labeled policy-gated; hook approval version schema-scoped; bump skips test files; changelog --recent N; `PYTHONPATH=src python3 -m pytest -q` → 1871 tests pass |

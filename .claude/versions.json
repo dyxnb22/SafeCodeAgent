@@ -1,6 +1,6 @@
 {
   "project": "SafeCode Agent",
-  "current_implemented_tag": "v2.5.4",
+  "current_implemented_tag": "v2.6.21",
   "current_local_version": null,
   "current_baseline": ".claude/skills/current/SKILL.md",
   "runtime_summary": ".claude/skills/shared/core-runtime.md",
@@ -170,6 +170,12 @@
       "name": "Product Hardening",
       "depends_on": "v2.5.x",
       "notes": "Policy profiles, signed release checks, migration handling, and team-ready trust boundaries."
+    },
+    {
+      "range": "v2.7.x",
+      "name": "Audit Consolidation",
+      "depends_on": "v2.6.x",
+      "notes": "Closes product-audit-v2.6.21 findings: policy preset application, doctor opt-in release diagnostics, honest Noop wording, schema-scoped hook approvals, project-bound approvals, versions.json sync, subagent redaction."
     }
   ],
   "latest_tags": [
@@ -229,7 +235,29 @@
     "v2.5.1",
     "v2.5.2",
     "v2.5.3",
-    "v2.5.4"
+    "v2.5.4",
+    "v2.6.0",
+    "v2.6.1",
+    "v2.6.2",
+    "v2.6.3",
+    "v2.6.4",
+    "v2.6.5",
+    "v2.6.6",
+    "v2.6.7",
+    "v2.6.8",
+    "v2.6.9",
+    "v2.6.10",
+    "v2.6.11",
+    "v2.6.12",
+    "v2.6.13",
+    "v2.6.14",
+    "v2.6.15",
+    "v2.6.16",
+    "v2.6.17",
+    "v2.6.18",
+    "v2.6.19",
+    "v2.6.20",
+    "v2.6.21"
   ],
   "local_versions": []
 }

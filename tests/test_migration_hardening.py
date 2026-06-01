@@ -199,6 +199,11 @@ class TestWriteSetupPolicyNames:
         assert result.policy == "balanced"
         assert 'policy = "balanced"' in result.config_path.read_text(encoding="utf-8")
 
+    def test_default_policy_is_canonical_balanced(self, tmp_path):
+        result = write_setup(tmp_path, **self._dirs(tmp_path))
+        assert result.policy == "balanced"
+        assert 'policy = "balanced"' in result.config_path.read_text(encoding="utf-8")
+
     def test_experimental_accepted(self, tmp_path):
         result = write_setup(tmp_path, policy="experimental", **self._dirs(tmp_path))
         assert result.policy == "experimental"

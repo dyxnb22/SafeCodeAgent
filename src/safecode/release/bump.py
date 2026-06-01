@@ -1,4 +1,4 @@
-"""Release version bump helper: updates all canonical version locations atomically."""
+"""Release version bump helper: updates canonical package version locations."""
 
 from __future__ import annotations
 
@@ -11,11 +11,8 @@ from safecode.release.ux import header, next_steps
 # Semver-ish: digits and dots only, no leading zeros in segments.
 _VERSION_RE = re.compile(r"^\d+\.\d+\.\d+$")
 
-# Patterns to find and replace in each file.
 _PYPROJECT_RE = re.compile(r'^(version\s*=\s*")[^"]+(")', re.MULTILINE)
 _INIT_RE = re.compile(r'^(__version__\s*=\s*")[^"]+(")', re.MULTILINE)
-_TEST_VERSION_RE = re.compile(r'(assert __version__ == ")[^"]+(")')
-_TEST_CLI_OUTPUT_RE = re.compile(r'(assert ")\d+\.\d+\.\d+(" in result\.output)')
 
 
 @dataclass(frozen=True)
@@ -59,19 +56,18 @@ def bump_versions(
     test_path: Path | None = None,
     dry_run: bool = False,
 ) -> BumpResult:
-    """Update all canonical version locations to *new_version*.
+    """Update all canonical package version locations to *new_version*.
 
     Locations updated:
     - pyproject.toml  [project].version
     - src/safecode/__init__.py  __version__
-    - tests/test_install_update_polish.py  assert __version__ == "..."
 
     Args:
         new_version: target version string, e.g. "2.6.10".
         project_root: repo root; defaults to cwd.
         pyproject_path: override pyproject.toml path.
         init_path: override __init__.py path.
-        test_path: override test file path.
+        test_path: ignored; retained for backward-compatible callers.
         dry_run: if True, validate and report without writing files.
 
     Returns:
@@ -90,18 +86,10 @@ def bump_versions(
     root = project_root or Path.cwd()
     pyproj = pyproject_path or (root / "pyproject.toml")
     init = init_path or (root / "src" / "safecode" / "__init__.py")
-    test = test_path or (root / "tests" / "test_install_update_polish.py")
 
     targets: list[tuple[Path, list[tuple[re.Pattern[str], str]]]] = [
         (pyproj, [(_PYPROJECT_RE, rf'\g<1>{new_version}\2')]),
         (init, [(_INIT_RE, rf'\g<1>{new_version}\2')]),
-        (
-            test,
-            [
-                (_TEST_VERSION_RE, rf'\g<1>{new_version}\2'),
-                (_TEST_CLI_OUTPUT_RE, rf'\g<1>{new_version}\2'),
-            ],
-        ),
     ]
 
     updated: list[str] = []

@@ -6,6 +6,7 @@ from rich.panel import Panel
 from rich.syntax import Syntax
 from rich.table import Table
 
+from safecode import __version__
 from safecode.cli_shared import console, log_cli_error, runtime_logger, show_human_checkpoint
 
 from safecode.agent.approvals import HumanCheckpointPresenter
@@ -30,15 +31,14 @@ def sandbox_status() -> None:
     project_root = Path.cwd()
     plan = SandboxPlanner(project_root).plan()
 
-    # v2.4.2: All four backends support execution.
     console.print(
         Panel.fit(
-            "[bold]v2.4.2 Linux Bubblewrap Sandbox Preview[/bold]\n"
-            "Noop backend: [green]executing[/green] (SafeCode logical boundaries)\n"
+            "[bold]SafeCode Sandbox Execution Scope[/bold]\n"
+            "Noop backend: [yellow]policy-gated[/yellow] (no OS containment; ShellRunner policy + approval only)\n"
             "Docker backend: [green]executing[/green] (preview — requires running daemon)\n"
             "macOS Seatbelt: [green]executing[/green] (preview — requires sandbox-exec on PATH)\n"
             "Linux Bubblewrap: [green]executing[/green] (preview — requires bwrap on PATH)",
-            title="[green]Execution Scope (v2.4.x)[/green]",
+            title=f"[green]Execution Scope ({__version__})[/green]",
         )
     )
 
@@ -50,7 +50,7 @@ def sandbox_status() -> None:
     cap_table.add_column("Recommended For")
     for cap in plan.capabilities:
         if cap.backend == SandboxBackend.NONE:
-            mode = "[green]executing[/green]"
+            mode = "[yellow]policy-gated[/yellow] (no OS containment)"
         elif cap.backend == SandboxBackend.DOCKER:
             mode = "[green]executing[/green] (preview)"
         elif cap.backend == SandboxBackend.MACOS_SEATBELT:
@@ -137,7 +137,7 @@ def sandbox_plan(
         raise typer.Exit(code=1) from exc
 
     if exec_plan.backend == SandboxBackend.NONE:
-        backend_mode = "[green]executing[/green] (Noop — SafeCode logical boundaries)"
+        backend_mode = "[yellow]policy-gated[/yellow] (Noop — no OS containment)"
     elif exec_plan.backend == SandboxBackend.DOCKER:
         backend_mode = "[green]executing[/green] (Docker preview — requires approval and daemon)"
     elif exec_plan.backend == SandboxBackend.MACOS_SEATBELT:
@@ -237,7 +237,7 @@ def sandbox_plan(
         console.print(
             Panel.fit(
                 "[bold yellow]This command was NOT executed.[/bold yellow]\n"
-                f"v2.4.2 preview: use 'sac sandbox propose' → 'sac sandbox approve' → 'sac sandbox execute'\n"
+                "Use 'sac sandbox propose' → 'sac sandbox approve' → 'sac sandbox execute'\n"
                 f"to run the command via {backend_label}.",
                 title="Dry Run",
             )
@@ -246,7 +246,7 @@ def sandbox_plan(
         console.print(
             Panel.fit(
                 "[bold yellow]This command was NOT executed.[/bold yellow]\n"
-                "v2.4.x generates sandbox execution plans and backend previews.",
+                "Noop execution is policy-gated only; it does not add OS containment.",
                 title="Dry Run",
             )
         )
@@ -741,4 +741,3 @@ def sandbox_execution_show(
         console.print(Panel(record.stdout_preview.rstrip(), title="stdout preview", border_style="dim"))
     if record.stderr_preview:
         console.print(Panel(record.stderr_preview.rstrip(), title="stderr preview", border_style="dim"))
-

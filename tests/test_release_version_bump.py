@@ -29,11 +29,7 @@ __version__ = "2.6.9"
 _TEST_TEMPLATE = '''\
 import safecode
 
-def test_version():
-    assert __version__ == "2.6.9"
-
-def test_version_cli_runs():
-    assert "2.6.9" in result.output
+SENTINEL_VERSION = "2.6.9"
 
 def test_doctor_cli_mentions_new_checks():
     assert "approval_dir" in result.output
@@ -57,7 +53,7 @@ def _write_files(tmp_path: Path, version: str = "2.6.9") -> tuple[Path, Path, Pa
 # ---------------------------------------------------------------------------
 
 class TestBumpVersionsHappyPath:
-    def test_updates_all_three_files(self, tmp_path: Path) -> None:
+    def test_updates_canonical_package_files(self, tmp_path: Path) -> None:
         pyproj, init, test = _write_files(tmp_path)
         result = bump_versions(
             "2.6.10",
@@ -66,7 +62,7 @@ class TestBumpVersionsHappyPath:
             test_path=test,
         )
         assert result.ok
-        assert len(result.updated_files) == 3
+        assert len(result.updated_files) == 2
         assert result.errors == []
 
     def test_pyproject_content_updated(self, tmp_path: Path) -> None:
@@ -79,15 +75,15 @@ class TestBumpVersionsHappyPath:
         bump_versions("2.6.10", pyproject_path=pyproj, init_path=init, test_path=test)
         assert '__version__ = "2.6.10"' in init.read_text()
 
-    def test_test_file_content_updated(self, tmp_path: Path) -> None:
+    def test_test_file_content_not_updated(self, tmp_path: Path) -> None:
         pyproj, init, test = _write_files(tmp_path)
         bump_versions("2.6.10", pyproject_path=pyproj, init_path=init, test_path=test)
-        assert 'assert __version__ == "2.6.10"' in test.read_text()
+        assert 'SENTINEL_VERSION = "2.6.9"' in test.read_text()
 
-    def test_test_file_cli_output_expectation_updated(self, tmp_path: Path) -> None:
+    def test_test_file_cli_output_expectation_not_updated(self, tmp_path: Path) -> None:
         pyproj, init, test = _write_files(tmp_path)
         bump_versions("2.6.10", pyproject_path=pyproj, init_path=init, test_path=test)
-        assert 'assert "2.6.10" in result.output' in test.read_text()
+        assert 'SENTINEL_VERSION = "2.6.9"' in test.read_text()
 
     def test_unrelated_result_output_expectation_preserved(self, tmp_path: Path) -> None:
         pyproj, init, test = _write_files(tmp_path)
@@ -121,7 +117,7 @@ class TestBumpVersionsDryRun:
         pyproj, init, test = _write_files(tmp_path)
         result = bump_versions("9.9.9", pyproject_path=pyproj, init_path=init, test_path=test, dry_run=True)
         assert result.ok
-        assert len(result.updated_files) == 3
+        assert len(result.updated_files) == 2
 
 
 # ---------------------------------------------------------------------------
@@ -147,12 +143,12 @@ class TestBumpVersionsInvalidVersion:
 # ---------------------------------------------------------------------------
 
 class TestBumpVersionsMissingFiles:
-    def test_missing_test_file_skipped(self, tmp_path: Path) -> None:
+    def test_missing_test_file_is_ignored(self, tmp_path: Path) -> None:
         pyproj, init, _ = _write_files(tmp_path)
         missing = tmp_path / "does_not_exist.py"
         result = bump_versions("2.6.10", pyproject_path=pyproj, init_path=init, test_path=missing)
         assert result.ok
-        assert str(missing) in result.skipped_files
+        assert str(missing) not in result.skipped_files
 
     def test_missing_pyproject_skipped(self, tmp_path: Path) -> None:
         _, init, test = _write_files(tmp_path)
@@ -161,7 +157,7 @@ class TestBumpVersionsMissingFiles:
         assert result.ok
         assert str(missing) in result.skipped_files
 
-    def test_project_root_scopes_default_test_path(self, tmp_path: Path) -> None:
+    def test_project_root_default_test_path_is_not_touched(self, tmp_path: Path) -> None:
         pyproj, init, _ = _write_files(tmp_path)
         repo_test = tmp_path / "tests" / "test_install_update_polish.py"
         repo_test.parent.mkdir()
@@ -174,7 +170,7 @@ class TestBumpVersionsMissingFiles:
             test_path=None,
         )
         assert result.ok
-        assert 'assert __version__ == "2.6.10"' in repo_test.read_text()
+        assert 'SENTINEL_VERSION = "2.6.9"' in repo_test.read_text()
 
 
 # ---------------------------------------------------------------------------

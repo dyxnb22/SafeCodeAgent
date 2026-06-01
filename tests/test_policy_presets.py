@@ -413,6 +413,87 @@ class TestSafecodePolicyEnv:
 
 
 # ---------------------------------------------------------------------------
+# SafeCodeConfig.load applies the selected preset
+# ---------------------------------------------------------------------------
+
+
+class TestLoadAppliesPolicyPreset:
+    def _write_project_config(self, tmp_path, text: str) -> None:
+        sac_dir = tmp_path / ".sac"
+        sac_dir.mkdir()
+        (sac_dir / "config.toml").write_text(text, encoding="utf-8")
+
+    def test_load_strict_actually_narrows_allowed_commands(self, monkeypatch, tmp_path):
+        monkeypatch.setenv("SAFECODE_USER_CONFIG", str(tmp_path / "missing-user.toml"))
+        self._write_project_config(tmp_path, 'policy = "strict"\n')
+
+        config = SafeCodeConfig.load(tmp_path)
+
+        assert config.policy == "strict"
+        assert config.shell.allowed_commands == ["git", "ls", "pwd"]
+        assert "echo" not in config.shell.allowed_commands
+        assert config.shell.allow_readonly_without_confirm is False
+
+    def test_load_experimental_widens_allowed_commands_when_user_allows_it(self, monkeypatch, tmp_path):
+        monkeypatch.setenv("SAFECODE_USER_CONFIG", str(tmp_path / "user_config.toml"))
+        (tmp_path / "user_config.toml").write_text('policy = "experimental"\n', encoding="utf-8")
+        self._write_project_config(tmp_path, 'policy = "experimental"\n')
+
+        config = SafeCodeConfig.load(tmp_path)
+
+        assert config.policy == "experimental"
+        assert config.shell.allowed_commands == ["cat", "echo", "find", "git", "grep", "ls", "pwd"]
+        assert config.shell.require_confirm_for_medium is False
+        assert config.hooks.allow_medium_after_apply is True
+
+    def test_env_strict_overrides_balanced_at_load(self, monkeypatch, tmp_path):
+        monkeypatch.setenv("SAFECODE_USER_CONFIG", str(tmp_path / "user_config.toml"))
+        monkeypatch.setenv("SAFECODE_POLICY", "strict")
+        (tmp_path / "user_config.toml").write_text('policy = "balanced"\n', encoding="utf-8")
+        self._write_project_config(tmp_path, 'policy = "balanced"\n')
+
+        config = SafeCodeConfig.load(tmp_path)
+
+        assert config.policy == "strict"
+        assert config.shell.allowed_commands == ["git", "ls", "pwd"]
+
+    def test_load_preserves_trusted_two_sided_network_opt_in(self, monkeypatch, tmp_path):
+        monkeypatch.setenv("SAFECODE_USER_CONFIG", str(tmp_path / "user_config.toml"))
+        config_text = (
+            'policy = "balanced"\n'
+            "\n"
+            "[sandbox]\n"
+            "network_enabled = true\n"
+            'network_allowlist = ["api.openai.com"]\n'
+        )
+        (tmp_path / "user_config.toml").write_text(config_text, encoding="utf-8")
+        self._write_project_config(tmp_path, config_text)
+
+        config = SafeCodeConfig.load(tmp_path)
+
+        assert config.sandbox.network_enabled is True
+        assert config.sandbox.network_allowlist == ["api.openai.com"]
+
+    def test_load_without_explicit_policy_preserves_user_shell_overrides(self, monkeypatch, tmp_path):
+        monkeypatch.setenv("SAFECODE_USER_CONFIG", str(tmp_path / "user_config.toml"))
+        (tmp_path / "user_config.toml").write_text(
+            '[shell]\nallowed_commands = ["pytest"]\nrequire_confirm_for_medium = false\n',
+            encoding="utf-8",
+        )
+        sac_dir = tmp_path / ".sac"
+        sac_dir.mkdir()
+        (sac_dir / "config.toml").write_text(
+            '[shell]\nallowed_commands = ["pytest"]\nrequire_confirm_for_medium = false\n',
+            encoding="utf-8",
+        )
+
+        config = SafeCodeConfig.load(tmp_path)
+
+        assert config.shell.allowed_commands == ["pytest"]
+        assert config.shell.require_confirm_for_medium is False
+
+
+# ---------------------------------------------------------------------------
 # Network isolation: project config cannot enable network if user disables it
 # ---------------------------------------------------------------------------
 

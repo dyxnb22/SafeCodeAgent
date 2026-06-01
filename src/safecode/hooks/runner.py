@@ -38,7 +38,7 @@ class HookRunner:
             if approved:
                 self._audit("hook_approval_used", command, "success", "stored hook approval matched")
             elif not self.config.hooks.allow_medium_after_apply:
-                self._audit("hook_approval_required", command, "blocked", "hook execution disabled by config")
+                self._audit("hook_skipped_by_policy", command, "blocked", "hook execution disabled by config")
             result = runner.run(command, approved=approved)
             results.append(result)
             if not result.executed and result.exit_code == 125:

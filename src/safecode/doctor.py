@@ -7,9 +7,6 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from safecode import __version__
-from safecode.release.docs_guard import check_docs_finalized
-from safecode.release.preflight import run_release_preflight
-from safecode.release.version_guard import check_tag_consistency, check_version_consistency
 
 
 @dataclass(frozen=True)
@@ -27,8 +24,8 @@ class Doctor:
     def __init__(self, project_root: Path) -> None:
         self.project_root = project_root
 
-    def run(self) -> list[DoctorCheck]:
-        """Run checks."""
+    def run(self, *, release: bool = False) -> list[DoctorCheck]:
+        """Run environment checks, optionally including release diagnostics."""
         checks = [
             DoctorCheck("python", sys.version_info >= (3, 11), sys.version.split()[0]),
             DoctorCheck("uv", shutil.which("uv") is not None, shutil.which("uv") or "not found"),
@@ -43,11 +40,16 @@ class Doctor:
                 os.getenv("SAFECODE_SANDBOX_APPROVAL_DIR", "not set"),
             ),
         ]
-        checks.extend(self._release_checks())
+        if release:
+            checks.extend(self.run_release())
         return checks
 
-    def _release_checks(self) -> list[DoctorCheck]:
+    def run_release(self) -> list[DoctorCheck]:
         """Run release diagnostics without mutating the checkout."""
+        from safecode.release.docs_guard import check_docs_finalized
+        from safecode.release.preflight import run_release_preflight
+        from safecode.release.version_guard import check_tag_consistency, check_version_consistency
+
         version = check_version_consistency(
             pyproject_path=self.project_root / "pyproject.toml",
             runtime_version=__version__,

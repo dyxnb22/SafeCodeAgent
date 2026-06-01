@@ -27,7 +27,7 @@ def write_setup(
     *,
     provider: str = "mock",
     model: str = "gpt-4.1-mini",
-    policy: str = "normal",
+    policy: str = "balanced",
     network_enabled: bool = False,
     approval_dir: Path | None = None,
     sandbox_approval_dir: Path | None = None,

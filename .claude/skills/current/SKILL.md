@@ -107,7 +107,7 @@ Key additions:
 `src/safecode/release/bump.py` added. `src/safecode/cli_ops.py` exposes `sac release bump VERSION [--dry-run]`.
 
 Key additions:
-- `bump_versions()`: updates `pyproject.toml`, `src/safecode/__init__.py`, and `tests/test_install_update_polish.py` version assertions atomically.
+- `bump_versions()`: updates canonical package version files (`pyproject.toml` and `src/safecode/__init__.py`) atomically. Tests validate version shape and runtime consistency instead of carrying patch-release literals.
 - Validates `X.Y.Z` format; rejects invalid strings before touching any file.
 - Supports `dry_run=True` to preview without writing.
 - `tests/test_release_version_bump.py` adds 22 focused tests.
@@ -384,7 +384,7 @@ Package version metadata is synchronized in `pyproject.toml` and `src/safecode/_
 - Release roadmap: `docs/release_roadmap_v0_1_to_v1_0.md`
 - Productization roadmap: `docs/productization-roadmap-to-claude-code.md`
 - Product review follow-up: `docs/product-review-v2.3.4-followup.md`
-- Git baseline: tag `v2.3.5`
+- Git baseline: tag `v2.7.0`
 - Runtime invariants: `.claude/skills/shared/core-runtime.md`
 
 ## Current Capability

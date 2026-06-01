@@ -1,5 +1,7 @@
-"""Tests for v2.6.8 release metadata index."""
+"""Tests for release metadata index."""
 
+import json
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -11,6 +13,28 @@ from safecode.release.metadata import (
     collect_release_metadata,
     render_release_metadata,
 )
+
+
+def test_versions_json_matches_latest_git_tag() -> None:
+    versions_path = Path(".claude/versions.json")
+    if not versions_path.is_file() or not Path(".git").exists():
+        pytest.skip("requires repository metadata")
+    completed = subprocess.run(
+        ["git", "tag", "--sort=v:refname"],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if completed.returncode != 0:
+        pytest.skip("git tags unavailable")
+    tags = [line.strip() for line in completed.stdout.splitlines() if line.strip()]
+    if not tags:
+        pytest.skip("no git tags available")
+
+    payload = json.loads(versions_path.read_text(encoding="utf-8"))
+
+    assert payload["current_implemented_tag"] == tags[-1]
+    assert payload["latest_tags"][-1] == tags[-1]
 
 
 class _Env:

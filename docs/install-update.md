@@ -44,6 +44,7 @@ Use external approval directories rather than project-local approval stores.
 ## Common Checks
 
 - `sac doctor` verifies Python, uv, project root, config, `.sac/`, and approval env status.
+- `sac doctor --release` adds tag/docs/preflight diagnostics for release preparation.
 - `sac version` shows the current package version and a source-checkout update hint.
 
 ## Release Checks
@@ -59,6 +60,7 @@ git tag -a v2.6.13 -m "v2.6.13 <summary>"
 sac release check              # package/runtime/tag consistency and clean tree
 sac release smoke              # fast smoke test: import, CLI, consistency, policy names, docs
 sac release meta               # metadata index: version, tag, notes, SKILL.md baseline
+sac release changelog --recent 5
 sac release preflight          # aggregate local release gate: check, smoke, meta, docs
 git describe --exact-match --tags HEAD
 ```

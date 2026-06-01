@@ -54,9 +54,9 @@ def render_release_signoff(result: ReleaseSignoffResult) -> str:
         ]
     )
     if result.ok:
-        lines.append("v2.6 final signoff passed.")
+        lines.append(f"Release signoff passed for v{result.version}.")
         lines.extend(next_steps([], ok_message="Release line is ready to close."))
     else:
-        lines.append("v2.6 final signoff failed.")
+        lines.append(f"Release signoff failed for v{result.version}.")
         lines.extend(next_steps(["Fix failed signoff checks, then rerun sac release signoff."]))
     return "\n".join(lines)

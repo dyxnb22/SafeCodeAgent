@@ -149,7 +149,7 @@ def test_run(
         console.print(result.stdout)
     if result.stderr:
         console.print(f"[red]{result.stderr}[/red]")
-    raise typer.Exit(code=0 if result.exit_code in (0, 125, 126) else result.exit_code)
+    raise typer.Exit(code=result.exit_code)
 
 
 @demo_app.command("list")
@@ -194,5 +194,4 @@ def demo_materialize(
         raise typer.Exit(code=1) from exc
 
     console.print(Panel.fit(f"Demo workflow created: {project_root}", title="SafeCode Demo"))
-
 

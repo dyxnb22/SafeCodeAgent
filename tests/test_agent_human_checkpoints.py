@@ -56,9 +56,9 @@ class TestHumanCheckpointCLI:
         monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor))
         monkeypatch.chdir(tmp_path)
 
-        result = runner.invoke(app, ["run", "python -V"], input="n\n")
+        result = runner.invoke(app, ["run", "git status"], input="n\n")
 
-        assert result.exit_code == 0
+        assert result.exit_code == 125
         assert "Shell Command Checkpoint" in result.stdout
         events = AuditLogger(tmp_path).read_recent(limit=10)
         checkpoints = [e for e in events if e.type == "human_checkpoint_presented"]

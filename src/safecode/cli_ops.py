@@ -24,7 +24,7 @@ from safecode.queue.store import QueueStore
 from safecode.release.bump import bump_versions, render_bump_result
 from safecode.release.check import render_release_check, run_release_check
 from safecode.release.checklist import render_release_checklist
-from safecode.release.changelog import generate_changelog, render_changelog
+from safecode.release.changelog import generate_changelog, generate_recent_changelog, render_changelog
 from safecode.release.metadata import collect_release_metadata, render_release_metadata
 from safecode.release.preflight import render_release_preflight, run_release_preflight
 from safecode.release.signoff import render_release_signoff, run_release_signoff
@@ -204,15 +204,19 @@ def release_preflight() -> None:
 
 @release_app.command("changelog")
 def release_changelog(
-    from_version: str = typer.Option(..., "--from", help="First version to include, e.g. 2.6.10."),
-    to_version: str = typer.Option(..., "--to", help="Last version to include, e.g. 2.6.15."),
+    from_version: Optional[str] = typer.Option(None, "--from", help="First version to include, e.g. 2.6.10."),
+    to_version: Optional[str] = typer.Option(None, "--to", help="Last version to include, e.g. 2.6.15."),
+    recent: Optional[int] = typer.Option(None, "--recent", min=1, help="Include the latest N version-note versions."),
 ) -> None:
     """Print a Markdown changelog from local version-note files."""
-    result = generate_changelog(
-        from_version,
-        to_version,
-        version_notes_dir=Path.cwd() / "docs" / "version-notes",
-    )
+    notes_dir = Path.cwd() / "docs" / "version-notes"
+    if recent is not None:
+        result = generate_recent_changelog(recent, version_notes_dir=notes_dir)
+    elif from_version is not None and to_version is not None:
+        result = generate_changelog(from_version, to_version, version_notes_dir=notes_dir)
+    else:
+        console.print("[red]Provide either --recent N or both --from and --to.[/red]")
+        raise typer.Exit(code=1)
     console.print(render_changelog(result))
     if not result.ok:
         raise typer.Exit(code=exit_code(result.ok))
@@ -228,13 +232,13 @@ def release_signoff() -> None:
 
 
 @ops_app.command("doctor")
-def doctor() -> None:
+def doctor(release: bool = typer.Option(False, "--release", help="Include release tag/docs/preflight diagnostics.")) -> None:
     """Check local install and project environment."""
     table = Table(title="SafeCode Doctor")
     table.add_column("Check")
     table.add_column("Passed")
     table.add_column("Detail")
-    for check in Doctor(Path.cwd()).run():
+    for check in Doctor(Path.cwd()).run(release=release):
         table.add_row(check.name, "yes" if check.passed else "no", check.detail)
     console.print(table)
 

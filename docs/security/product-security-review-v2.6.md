@@ -12,6 +12,8 @@ user-level intent and project-controlled files.
 - Legacy aliases `normal` and `learning` remain accepted for compatibility.
 - Unknown `SAFECODE_POLICY` values warn and are ignored.
 - Unknown project config policy names cannot override a known user policy.
+- Effective policy presets are applied during config load after user, project,
+  and env-policy strictness are merged.
 - `sac config policy-audit` checks known policy names, aliases, project/env
   policy values, and preset invariants.
 
@@ -30,6 +32,8 @@ user-level intent and project-controlled files.
   commands by default.
 - `allow_medium_after_apply` is conservative in `strict` and `balanced`.
 - Hook approvals and sandbox approvals are stored outside the project root.
+- Hook approvals are bound to a hook-approval schema version, user, command,
+  and hook-relevant config rather than to every patch release number.
 
 ## Release Gates
 

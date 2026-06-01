@@ -52,7 +52,7 @@ class SafeCodeConfig(BaseModel):
     max_file_lines: int = 300
     max_file_bytes: int = 200_000
     max_context_chars: int = 40_000
-    policy: str = "normal"
+    policy: str = "balanced"
     shell: ShellPolicy = Field(default_factory=ShellPolicy)
     sandbox: SandboxPolicy = Field(default_factory=SandboxPolicy)
     hooks: HookConfig = Field(default_factory=HookConfig)
@@ -61,13 +61,17 @@ class SafeCodeConfig(BaseModel):
     @classmethod
     def load(cls, project_root: Path) -> "SafeCodeConfig":
         """Load trusted user config first, then merge project config safely."""
-        user_config = cls(**_read_toml(_user_config_path()))
-        project_config = cls(**_read_toml(project_root / ".sac" / "config.toml"))
+        user_data = _read_toml(_user_config_path())
+        project_data = _read_toml(project_root / ".sac" / "config.toml")
+        user_config = cls(**user_data)
+        project_config = cls(**project_data)
         config = merge_trusted_config(user_config, project_config)
         env_policy = os.getenv("SAFECODE_POLICY")
+        apply_selected_preset = "policy" in user_data or "policy" in project_data
         if env_policy:
             if is_known_policy_name(env_policy):
                 config.policy = _stricter_policy(config.policy, env_policy)
+                apply_selected_preset = True
             else:
                 warnings.warn(
                     f"SAFECODE_POLICY={env_policy!r} is not a recognized policy name "
@@ -75,6 +79,16 @@ class SafeCodeConfig(BaseModel):
                     UserWarning,
                     stacklevel=2,
                 )
+        # Presets provide safe defaults, but network access remains a separate
+        # trusted two-sided opt-in computed by merge_trusted_config().
+        network_enabled = config.sandbox.network_enabled
+        network_allowlist = list(config.sandbox.network_allowlist)
+        if apply_selected_preset:
+            apply_policy_preset(config)
+            if network_enabled:
+                config.sandbox.network_enabled = True
+            if network_allowlist:
+                config.sandbox.network_allowlist = network_allowlist
         env_provider = os.getenv("SAFECODE_LLM_PROVIDER")
         if env_provider:
             config.llm.provider = env_provider

@@ -5,7 +5,7 @@ from pathlib import Path
 from typer.testing import CliRunner
 
 from safecode.cli import app
-from safecode.release.changelog import generate_changelog, render_changelog
+from safecode.release.changelog import generate_changelog, generate_recent_changelog, render_changelog
 
 
 def _write_note(notes_dir: Path, name: str, heading: str, summary: str) -> None:
@@ -47,6 +47,15 @@ class TestGenerateChangelog:
         assert not result.ok
         assert "not found" in result.issues[0]
 
+    def test_recent_selects_latest_versions(self, tmp_path):
+        notes = tmp_path / "docs" / "version-notes"
+        _write_note(notes, "v2.6.13-old.md", "v2.6.13 — Old", "Old.")
+        _write_note(notes, "v2.6.14-middle.md", "v2.6.14 — Middle", "Middle.")
+        _write_note(notes, "v2.6.15-new.md", "v2.6.15 — New", "New.")
+        result = generate_recent_changelog(2, version_notes_dir=notes)
+        assert result.ok
+        assert [entry.version for entry in result.entries] == ["2.6.14", "2.6.15"]
+
 
 class TestRenderChangelog:
     def test_render_is_markdown(self, tmp_path):
@@ -73,3 +82,19 @@ class TestReleaseChangelogCLI:
         monkeypatch.chdir(tmp_path)
         result = CliRunner().invoke(app, ["release", "changelog", "--from", "bad", "--to", "2.6.15"])
         assert result.exit_code == 1
+
+    def test_cli_changelog_recent_success(self, tmp_path, monkeypatch):
+        notes = tmp_path / "docs" / "version-notes"
+        _write_note(notes, "v2.6.14-release-command-ux-polish.md", "v2.6.14 — UX", "UX polish.")
+        _write_note(notes, "v2.6.15-release-changelog-generator.md", "v2.6.15 — Changelog", "Builds changelog.")
+        monkeypatch.chdir(tmp_path)
+        result = CliRunner().invoke(app, ["release", "changelog", "--recent", "1"])
+        assert result.exit_code == 0
+        assert "v2.6.15" in result.output
+        assert "Builds changelog." in result.output
+
+    def test_cli_changelog_requires_range_or_recent(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        result = CliRunner().invoke(app, ["release", "changelog"])
+        assert result.exit_code == 1
+        assert "--recent" in result.output

@@ -7,7 +7,6 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from safecode import __version__ as SAFECODE_VERSION
 from safecode.audit.logger import AuditLogger
 from safecode.audit.models import AuditEvent
 from safecode.config import SafeCodeConfig
@@ -28,7 +27,7 @@ class HookApproval:
     policy_version: str
 
 
-APPROVAL_POLICY_VERSION = f"{SAFECODE_VERSION}-hook-approval-v1"
+APPROVAL_POLICY_VERSION = "hook-approval-v1"
 REQUIRED_APPROVAL_FIELDS = {
     "hook_name",
     "command",

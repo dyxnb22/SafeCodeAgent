@@ -447,6 +447,19 @@ def test_medium_hook_requires_persisted_approval(tmp_path: Path, monkeypatch) ->
     assert summary.results[0].exit_code == 125
 
 
+def test_policy_skipped_hook_writes_single_approval_required_event(tmp_path: Path) -> None:
+    config = SafeCodeConfig()
+    config.hooks.after_apply = ["git status"]
+    config.hooks.allow_medium_after_apply = False
+
+    HookRunner(tmp_path, config).run_after_apply()
+    events = AgentOrchestrator(tmp_path).history(limit=5)
+    event_types = [event.type for event in events]
+
+    assert event_types.count("hook_skipped_by_policy") == 1
+    assert event_types.count("hook_approval_required") == 1
+
+
 def test_approved_hook_uses_persisted_approval(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("SAFECODE_APPROVAL_DIR", str(external_approval_dir(tmp_path)))
     config = SafeCodeConfig()
@@ -594,6 +607,17 @@ def test_hook_approval_policy_version_mismatch(tmp_path: Path, monkeypatch) -> N
     monkeypatch.setattr(approvals, "APPROVAL_POLICY_VERSION", "v2")
 
     assert HookApprovalStore(tmp_path, config).is_approved("after_apply", "git status") is False
+
+
+def test_hook_approval_policy_version_is_schema_scoped(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("SAFECODE_APPROVAL_DIR", str(external_approval_dir(tmp_path)))
+    config = SafeCodeConfig()
+    config.hooks.allow_medium_after_apply = True
+
+    approval = HookApprovalStore(tmp_path, config).approve("after_apply", "git status")
+
+    assert approval.policy_version == "hook-approval-v1"
+    assert HookApprovalStore(tmp_path, config).is_approved("after_apply", "git status") is True
 
 
 def test_hook_approval_is_bound_to_config(tmp_path: Path, monkeypatch) -> None:

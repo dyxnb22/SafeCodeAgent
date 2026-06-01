@@ -1,7 +1,7 @@
-"""Tests for v2.3.5+ honest surface (updated for v2.4.2).
+"""Tests for honest CLI safety-surface wording.
 
 Verifies that CLI output accurately communicates current execution boundaries:
-- sandbox status/plan: Noop/Docker/macOS Seatbelt/Linux Bubblewrap execute.
+- sandbox status/plan: Noop is policy-gated, while OS backends execute in preview mode.
 - mcp tools: current support is a subprocess JSON shim, not a full JSON-RPC client.
 - subagent: current subagents are read-only context/result collectors.
 """
@@ -74,16 +74,19 @@ class TestSandboxStatusHonesty:
         result = self._invoke_status()
         assert result.exit_code == 0
 
-    def test_status_mentions_v2_4_execution_scope(self):
-        """Output must state v2.4.x execution scope."""
+    def test_status_mentions_runtime_execution_scope(self):
+        """Output must show the runtime execution scope, not a frozen release line."""
         result = self._invoke_status()
-        assert "v2.4" in result.output
+        assert "Execution Scope" in result.output
+        assert "v2.4" not in result.output
 
     def test_status_noop_backend_present(self):
-        """Output must identify the Noop backend as the executing one."""
+        """Output must identify Noop as policy-gated without OS containment."""
         result = self._invoke_status()
         output_lower = result.output.lower()
         assert "noop" in output_lower or "none" in output_lower
+        assert "policy-gated" in output_lower
+        assert "no os containment" in output_lower
 
     def test_status_bubblewrap_now_executing_in_v242(self):
         """v2.4.2: Linux Bubblewrap must be labeled executing (preview) in the capability table."""
@@ -120,10 +123,12 @@ class TestSandboxPlanHonesty:
         result = self._invoke_plan_with_backend(SandboxBackend.NONE)
         assert result.exit_code == 0
 
-    def test_plan_noop_shows_executing_mode(self):
-        """Noop backend plan must show executing mode in the table."""
+    def test_plan_noop_shows_policy_gated_mode(self):
+        """Noop backend plan must not imply OS-level sandbox containment."""
         result = self._invoke_plan_with_backend(SandboxBackend.NONE)
-        assert "executing" in result.output.lower()
+        output_lower = result.output.lower()
+        assert "policy-gated" in output_lower
+        assert "no os containment" in output_lower
 
     def test_plan_bubblewrap_shows_executing_preview_in_table(self):
         """v2.4.2: Linux Bubblewrap plan must show executing preview mode in the table."""
@@ -143,10 +148,11 @@ class TestSandboxPlanHonesty:
         assert "executing" in result.output.lower()
         assert "Seatbelt preview" in result.output or "sandbox-exec" in result.output
 
-    def test_plan_trailing_note_references_v2_4(self):
-        """The trailing dry-run note must reference v2.4.x, not v1.7.x."""
+    def test_plan_trailing_note_describes_noop_scope(self):
+        """The trailing dry-run note must describe the current Noop scope."""
         result = self._invoke_plan_with_backend(SandboxBackend.NONE)
-        assert "v2.4" in result.output
+        assert "policy-gated only" in result.output.lower()
+        assert "v2.4" not in result.output
         assert "v1.7" not in result.output
 
     def test_plan_backend_mode_row_in_output(self):

@@ -122,6 +122,29 @@ def generate_changelog(
     return ChangelogResult(from_version, to_version, entries, issues)
 
 
+def generate_recent_changelog(
+    count: int,
+    *,
+    version_notes_dir: Path | None = None,
+) -> ChangelogResult:
+    """Generate changelog entries for the latest *count* version-note versions."""
+    notes_dir = version_notes_dir or Path("docs") / "version-notes"
+    if count <= 0:
+        return ChangelogResult("", "", [], ["recent count must be greater than zero."])
+    if not notes_dir.is_dir():
+        return ChangelogResult("", "", [], [f"Version-notes directory not found: {notes_dir}."])
+
+    versions = sorted(
+        {match.group("version") for path in notes_dir.iterdir() if (match := _NOTE_RE.match(path.name))},
+        key=_version_tuple,
+    )
+    if not versions:
+        return ChangelogResult("", "", [], [f"No version notes found in {notes_dir}."])
+
+    selected = versions[-count:]
+    return generate_changelog(selected[0], selected[-1], version_notes_dir=notes_dir)
+
+
 def render_changelog(result: ChangelogResult) -> str:
     """Render a changelog result as Markdown."""
     lines = header("SafeCode Release Changelog", result.ok)
