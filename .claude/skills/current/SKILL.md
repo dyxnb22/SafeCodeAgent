@@ -5,13 +5,21 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v2.6.18
+# Current Baseline - v2.6.19
 
 ## Status
-Implemented. Git baseline: tag `v2.6.18`.
+Implemented. Git baseline: tag `v2.6.19`.
 
 ## Stage
-`v2.6.x` Product Hardening — v2.6.1–v2.6.18 added release consistency checks, checklist polish, policy docs hardening, smoke tests, tag/version guard, next-step polish, release metadata index, docs finalization guard, release version bump helper, release preflight aggregation, version-note index validation, release workflow documentation, release command UX polish, release changelog generation, release checklist upgrade, CI workflow draft, and Doctor release diagnostics.
+`v2.6.x` Product Hardening — v2.6.1–v2.6.19 added release consistency checks, checklist polish, policy docs hardening, smoke tests, tag/version guard, next-step polish, release metadata index, docs finalization guard, release version bump helper, release preflight aggregation, version-note index validation, release workflow documentation, release command UX polish, release changelog generation, release checklist upgrade, CI workflow draft, Doctor release diagnostics, and policy audit command.
+
+## v2.6.19 (Policy Audit Command)
+`src/safecode/policy/audit.py` added. `src/safecode/cli_project.py` exposes `sac config policy-audit`.
+
+Key additions:
+- Audits canonical/legacy policy names, alias normalization, project config policy, `SAFECODE_POLICY`, and preset safety invariants.
+- Reports unknown project/env policies with actionable next steps.
+- `tests/test_policy_audit.py` adds helper and CLI coverage.
 
 ## v2.6.18 (Doctor Release Diagnostics)
 `src/safecode/doctor.py` updated.

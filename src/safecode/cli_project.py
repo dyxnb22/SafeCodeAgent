@@ -15,6 +15,7 @@ from safecode.index.repo_map import RepoMapBuilder
 from safecode.skills.loader import SkillLoader
 from safecode.state.progress import ProgressState, ProgressStore
 from safecode.tools.registry import PermissionCategory, ToolRegistry, ToolRiskLevel
+from safecode.policy.audit import audit_policy, render_policy_audit
 
 config_app = typer.Typer(help="Manage SafeCode project config.")
 skills_app = typer.Typer(help="List and inspect skills.")
@@ -35,6 +36,15 @@ def config_show() -> None:
     """Show effective SafeCode config."""
     config = SafeCodeConfig.load(Path.cwd())
     console.print(Syntax(config.to_toml(), "toml", theme="ansi_dark"))
+
+
+@config_app.command("policy-audit")
+def config_policy_audit() -> None:
+    """Audit policy presets, aliases, unknown names, and safety invariants."""
+    result = audit_policy(Path.cwd())
+    console.print(render_policy_audit(result))
+    if not result.ok:
+        raise typer.Exit(1)
 
 
 @skills_app.command("list")
@@ -206,5 +216,4 @@ def progress_set(goal: str, next_step: str = typer.Option("", "--next")) -> None
     state = ProgressState(goal=goal, completed=[], next_steps=[next_step] if next_step else [], blockers=[])
     ProgressStore(Path.cwd()).write(state)
     console.print("[green]Progress updated.[/green]")
-
 
