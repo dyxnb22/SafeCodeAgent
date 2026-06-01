@@ -5,13 +5,22 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v2.6.16
+# Current Baseline - v2.6.17
 
 ## Status
-Implemented. Git baseline: tag `v2.6.16`.
+Implemented. Git baseline: tag `v2.6.17`.
 
 ## Stage
-`v2.6.x` Product Hardening — v2.6.1–v2.6.16 added release consistency checks, checklist polish, policy docs hardening, smoke tests, tag/version guard, next-step polish, release metadata index, docs finalization guard, release version bump helper, release preflight aggregation, version-note index validation, release workflow documentation, release command UX polish, release changelog generation, and release checklist upgrade.
+`v2.6.x` Product Hardening — v2.6.1–v2.6.17 added release consistency checks, checklist polish, policy docs hardening, smoke tests, tag/version guard, next-step polish, release metadata index, docs finalization guard, release version bump helper, release preflight aggregation, version-note index validation, release workflow documentation, release command UX polish, release changelog generation, release checklist upgrade, and a CI workflow draft.
+
+## v2.6.17 (CI Workflow Draft)
+`.github/workflows/ci.yml` added.
+
+Key additions:
+- CI runs full pytest regression on Python 3.11.
+- CI runs release smoke, metadata audit, and changelog preview.
+- Exact-tag-only gates (`release check`, `release preflight`) remain local release gates.
+- `tests/test_ci_workflow.py` verifies the workflow intent.
 
 ## v2.6.16 (Release Checklist Upgrade)
 `src/safecode/release/checklist.py` updated.
