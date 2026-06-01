@@ -26,6 +26,16 @@ class MockLLMClient:
         )
 
     def choose_tool(self, goal: str, context: dict) -> AgentToolIntentResponse:
+        if "calculator" in goal.lower():
+            return AgentToolIntentResponse(
+                intent=ToolIntent(
+                    type="patch",
+                    target="src/calculator.py",
+                    description=f"Propose patch to fix: {goal}",
+                    requires_approval=True,
+                ),
+                rationale="Mock client proposes patch for write-like calculator goal.",
+            )
         target = context.get("target") or "project_context"
         return AgentToolIntentResponse(
             intent=ToolIntent(
@@ -37,6 +47,8 @@ class MockLLMClient:
         )
 
     def propose_patch(self, task: str, context: dict) -> AgentPatchResponse:
+        if "calculator" in task.lower():
+            return self._calculator_fix_patch()
         files = set(context.get("files", []))
         if "app/main.py" in files:
             return self._fastapi_health_patch()

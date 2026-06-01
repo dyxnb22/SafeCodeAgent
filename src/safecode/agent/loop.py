@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from safecode.agent.orchestrator import AgentOrchestrator
 from safecode.agent.schemas import AgentStopForUserResponse, AgentToolIntentResponse
 from safecode.agent.session import AgentSessionState, AgentSessionStore
 from safecode.agent.tools import RoutedToolIntent, ToolIntentRouter
@@ -126,6 +127,9 @@ class AgentLoop:
             approved = self._find_approved_write_proposal(routed.intent.tool_name or "")
             if approved is not None:
                 return self._execute_mcp_approved_write_step(plan_item, state, routed, approved.proposal_id)
+
+        if routed.route == "patch.propose" and not routed.executable_now:
+            return self._execute_patch_proposal_step(plan_item, state, routed)
 
         pending_action = {
             **routed.intent.model_dump(exclude_none=True),
@@ -285,6 +289,113 @@ class AgentLoop:
             dispatch_summary,
         )
         return AgentStepResult(state=saved, observation=observation)
+
+    def _execute_patch_proposal_step(
+        self, plan_item: str, state: AgentSessionState, routed: RoutedToolIntent
+    ) -> AgentStepResult:
+        """Generate a pending patch proposal via AgentOrchestrator and stop for approval.
+
+        Fail closed: if a pending patch already exists, stop for approval without
+        overwriting. If proposal generation fails, record the error without modifying
+        any business/source files.
+        """
+        pending_patch_path = self.project_root / ".sac" / "pending_patch.json"
+
+        if pending_patch_path.exists():
+            observation = (
+                "A pending patch already exists and requires review before a new one "
+                "can be created. Run 'sac apply' to review and apply it, or "
+                "'sac rollback' to discard it."
+            )
+            pending_action: dict[str, object] = {
+                "type": "patch",
+                "route": routed.route,
+                "target": str(routed.intent.target or ""),
+                "requires_approval": "true",
+                "reason": "pending_patch_already_exists",
+                "pending_patch_path": str(pending_patch_path),
+            }
+            updated = state.model_copy(
+                update={
+                    "pending_action": pending_action,
+                    "last_observation": observation,
+                    "status": "waiting_for_user",
+                    "last_error": observation,
+                }
+            )
+            saved = self.store.save(updated)
+            self.journal.record_action(
+                saved.session_id,
+                saved.current_step,
+                observation,
+                pending_action,
+            )
+            return AgentStepResult(state=saved, observation=observation, stopped_for_approval=True)
+
+        try:
+            edit_result = AgentOrchestrator(self.project_root).edit(state.goal)
+        except Exception as exc:
+            observation = f"Patch proposal failed: {exc}"
+            err_action: dict[str, object] = {
+                "type": "patch",
+                "route": routed.route,
+                "target": str(routed.intent.target or ""),
+                "requires_approval": "true",
+                "reason": "patch_proposal_failed",
+            }
+            updated = state.model_copy(
+                update={
+                    "pending_action": err_action,
+                    "last_observation": observation,
+                    "status": "active",
+                    "last_error": observation,
+                }
+            )
+            saved = self.store.save(updated)
+            self.journal.record_failure(saved.session_id, observation, {"error": str(exc)})
+            return AgentStepResult(state=saved, observation=observation, stopped_for_approval=False)
+
+        patch_files = [block.file_path.as_posix() for block in edit_result.proposal.blocks]
+        pending_action = {
+            "type": "patch",
+            "route": routed.route,
+            "patch_id": edit_result.proposal.id,
+            "pending_patch_path": str(edit_result.pending_patch_path),
+            "files": patch_files,
+            "requires_approval": "true",
+            "reason": "patch_proposal_awaiting_approval",
+        }
+        observation = (
+            f"Patch proposal created: {edit_result.pending_patch_path.name} "
+            f"(patch_id={edit_result.proposal.id}). "
+            "Review with 'sac apply' — target files are not modified until you approve."
+        )
+        updated = state.model_copy(
+            update={
+                "current_step": state.current_step + 1,
+                "pending_action": pending_action,
+                "last_observation": observation,
+                "status": "waiting_for_user",
+                "last_error": None,
+            }
+        )
+        saved = self.store.save(updated)
+        self.journal.record_patch_proposal(
+            saved.session_id,
+            saved.current_step,
+            observation,
+            {
+                "patch_id": edit_result.proposal.id,
+                "pending_patch_path": str(edit_result.pending_patch_path),
+                "files": patch_files,
+                "scope_status": (
+                    edit_result.scope_result.status
+                    if edit_result.scope_result is not None
+                    else "no_prediction"
+                ),
+            },
+        )
+        return AgentStepResult(state=saved, observation=observation, stopped_for_approval=True)
 
     def _find_approved_write_proposal(self, tool_name: str) -> MCPWriteProposal | None:
         """Return an approved write proposal matching tool_name, or None."""

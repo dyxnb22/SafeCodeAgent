@@ -5,19 +5,33 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v2.3.5
+# Current Baseline - v2.3.6
 
 ## Status
-Implemented and tagged as `v2.3.5`.
+Implemented. Git baseline: tag `v2.3.5` (v2.3.6 is local, not yet tagged).
 
 ## Stage
-`v2.3.x` Developer Experience stabilization. Do not jump directly to real sandbox execution; complete the reviewed v2.3.6-v2.3.7 stabilization track first, then v2.4.x real backends.
+`v2.3.x` Developer Experience stabilization. Do not jump directly to real sandbox execution; complete the reviewed v2.3.7 stabilization step first, then v2.4.x real backends.
 
-## Product Review Follow-up (remaining after v2.3.5)
-The product-level review found SafeCode Agent is strongest as a hardened patch + command policy + audit harness, but still immature as an autonomous coding agent. The remaining gaps before v2.4 real sandbox backends:
+## v2.3.6 (Agent Loop Patch Path)
+`AgentLoop` now connects to the existing `AgentOrchestrator.edit()` patch proposal workflow.
+`sac agent run "goal"` can produce `.sac/pending_patch.json` for a write-class / patch-class
+plan item, stop with `stopped_reason == "approval_required"`, and leave target files
+unmodified until `sac apply` is run.
 
-1. `v2.3.6-agent-loop-patch-path`: connect `AgentLoop` to patch proposal generation so `sac agent run "goal"` can produce `.sac/pending_patch.json` and stop for approval.
-2. `v2.3.7-universal-gate-and-migrations`: make ToolCallAdapter/ToolCallGate the universal pre-gate for CLI write/exec/tool paths and add schema-versioned migration hooks for persisted state.
+Key changes:
+- `AgentLoop.step()` routes `patch.propose` intents to `_execute_patch_proposal_step()`.
+- `_execute_patch_proposal_step()` delegates to `AgentOrchestrator.edit(goal)` (no duplication
+  of patch parsing, validation, diff building, audit logging, or pending patch serialization).
+- Fail closed: existing pending patch → stop for approval without overwriting. Proposal
+  failure → record error observation, no file modification.
+- `MockLLMClient.choose_tool()` returns a patch intent for "calculator" goals (deterministic
+  test coverage). `propose_patch()` returns the calculator repair patch for "calculator" tasks.
+- `JournalEventType` gains `"patch_proposed"`; `record_patch_proposal()` added.
+- `sac agent run` CLI prints a highlighted **Approval Required — Pending Patch** panel.
+
+## Product Review Follow-up (remaining after v2.3.6)
+1. `v2.3.7-universal-gate-and-migrations`: make ToolCallAdapter/ToolCallGate the universal pre-gate for CLI write/exec/tool paths and add schema-versioned migration hooks for persisted state.
 
 Only after those should v2.4 begin real sandbox backend previews, ordered Docker first, then macOS Seatbelt, then Linux Bubblewrap.
 
@@ -50,7 +64,7 @@ Package version metadata is synchronized in `pyproject.toml` and `src/safecode/_
 - Release roadmap: `docs/release_roadmap_v0_1_to_v1_0.md`
 - Productization roadmap: `docs/productization-roadmap-to-claude-code.md`
 - Product review follow-up: `docs/product-review-v2.3.4-followup.md`
-- Git baseline: tag `v2.3.4`
+- Git baseline: tag `v2.3.5`
 - Runtime invariants: `.claude/skills/shared/core-runtime.md`
 
 ## Current Capability

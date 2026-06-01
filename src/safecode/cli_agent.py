@@ -169,5 +169,25 @@ def agent_run(
             title="Agent Run Summary",
         )
     )
+    if result.stopped_reason == "approval_required":
+        pending = result.state.pending_action or {}
+        if pending.get("type") == "patch" and "pending_patch_path" in pending:
+            patch_path = pending["pending_patch_path"]
+            patch_id = pending.get("patch_id", "(unknown)")
+            files = pending.get("files", [])
+            files_line = ", ".join(files) if isinstance(files, list) else str(files)
+            console.print(
+                Panel.fit(
+                    f"[bold]Patch proposal saved — no files modified yet.[/bold]\n"
+                    f"File  : {patch_path}\n"
+                    f"ID    : {patch_id}\n"
+                    f"Target: {files_line}\n\n"
+                    "[bold]Next steps:[/bold]\n"
+                    "  sac apply          — preview diff and apply\n"
+                    "  sac apply --preview — preview diff only",
+                    title="[bold yellow]Approval Required — Pending Patch[/bold yellow]",
+                    border_style="yellow",
+                )
+            )
 
 
