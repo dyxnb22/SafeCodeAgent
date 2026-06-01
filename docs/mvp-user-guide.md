@@ -4,6 +4,26 @@ This guide is the v2.0.5 path for a new user: install SafeCode, choose a model
 mode, run one realistic coding task, review the diff, run tests, apply, and
 rollback.
 
+## Quickstart (fastest path)
+
+After installing, run the single guided entry point:
+
+```bash
+sac quickstart
+```
+
+This will:
+1. Detect or create `.sac/config.toml` with safe defaults (mock provider, balanced policy).
+2. Display the current provider and policy.
+3. Recommend the `cli-version-flag` demo workflow.
+4. Print the next commands to run.
+
+To also materialise the demo project locally:
+
+```bash
+sac quickstart --demo
+```
+
 ## Install
 
 From a checkout of this repository:

@@ -36,15 +36,15 @@ For a complete first run, follow [docs/mvp-user-guide.md](docs/mvp-user-guide.md
 ## Core Commands
 
 ```bash
+sac setup                           # first-time: write .sac/config.toml
+sac quickstart                      # guided first-run: check config, show demo, print next steps
 sac ask "这个项目是什么？"
 sac edit "给 FastAPI 项目添加 /health 接口"
 sac apply
 sac rollback --last
-sac history
-sac logs show --level error
-sac config show
 sac run "git status --short" --yes
 sac doctor
+sac version
 ```
 
 ## Safety Defaults

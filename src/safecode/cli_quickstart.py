@@ -1,0 +1,142 @@
+"""quickstart command: guided first-run onboarding for new users."""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Optional
+
+import typer
+from rich.panel import Panel
+from rich.table import Table
+
+from safecode.cli_shared import console
+from safecode.config import SafeCodeConfig
+from safecode.demo.workflows import DemoWorkflowSuite
+from safecode.setup import SetupResult, write_setup
+
+_RECOMMENDED_DEMO = "cli-version-flag"
+
+_NEXT_STEPS = """\
+Next steps:
+  sac ask "What does this project do?"
+  sac edit "Add a docstring to main()"
+  sac apply
+  sac rollback --last
+"""
+
+
+def _show_config_summary(project_root: Path) -> None:
+    config = SafeCodeConfig.load(project_root)
+    table = Table(title="Current SafeCode Config", show_header=False)
+    table.add_column("Key", style="bold")
+    table.add_column("Value")
+    table.add_row("Provider", config.llm.provider)
+    table.add_row("Model", config.llm.model)
+    table.add_row("Policy", config.policy)
+    table.add_row("Network", str(config.sandbox.network_enabled).lower())
+    console.print(table)
+
+
+def _ensure_config(project_root: Path, force: bool) -> Optional[SetupResult]:
+    """Write default config if none exists. Returns SetupResult or None if skipped."""
+    config_path = project_root / ".sac" / "config.toml"
+    if config_path.exists() and not force:
+        return None
+    try:
+        return write_setup(
+            project_root,
+            provider="mock",
+            model="gpt-4.1-mini",
+            policy="balanced",
+            force=force,
+        )
+    except FileExistsError:
+        return None
+
+
+def run_quickstart(
+    project_root: Path,
+    *,
+    yes: bool = False,
+    force: bool = False,
+    demo: bool = False,
+    demo_id: str = _RECOMMENDED_DEMO,
+    demo_dest: Path | None = None,
+) -> int:
+    """Core quickstart logic, returns exit code. Extracted for testability."""
+    config_path = project_root / ".sac" / "config.toml"
+    already_configured = config_path.exists() and not force
+
+    if already_configured:
+        console.print("[green]Found existing .sac/config.toml — skipping init.[/green]")
+    else:
+        if not yes:
+            confirmed = typer.confirm(
+                "No .sac/config.toml found. Create default config (provider=mock, policy=balanced)?",
+                default=True,
+            )
+            if not confirmed:
+                console.print("[yellow]Quickstart cancelled.[/yellow]")
+                return 0
+        result = _ensure_config(project_root, force=force)
+        if result:
+            console.print(f"[green]Created config: {result.config_path}[/green]")
+
+    _show_config_summary(project_root)
+
+    # Recommend a demo workflow.
+    suite = DemoWorkflowSuite()
+    try:
+        workflow = suite.get(demo_id)
+    except KeyError:
+        workflow = suite.list()[0]
+
+    console.print(
+        Panel.fit(
+            "\n".join(
+                [
+                    f"Recommended demo: [bold]{workflow.id}[/bold]",
+                    f"  Title   : {workflow.title}",
+                    f"  Task    : {workflow.task}",
+                    f"  Commands: {' -> '.join(workflow.commands)}",
+                ]
+            ),
+            title="SafeCode Quickstart",
+        )
+    )
+
+    if demo:
+        dest = demo_dest or project_root / "examples" / "demo-workflows"
+        dest.mkdir(parents=True, exist_ok=True)
+        try:
+            demo_root = suite.materialize(workflow.id, dest, force=force)
+            console.print(f"[green]Demo project created: {demo_root}[/green]")
+            console.print(f"  cd {demo_root}")
+        except FileExistsError as exc:
+            console.print(f"[yellow]Demo already exists ({exc}). Use --force to overwrite.[/yellow]")
+
+    console.print(_NEXT_STEPS)
+    return 0
+
+
+def register(app: typer.Typer) -> None:
+    """Register the quickstart command on the given Typer app."""
+
+    @app.command("quickstart")
+    def quickstart(
+        yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation prompts."),
+        force: bool = typer.Option(False, "--force", help="Overwrite existing config."),
+        demo: bool = typer.Option(False, "--demo", help="Materialize the recommended demo workflow."),
+        demo_id: str = typer.Option(_RECOMMENDED_DEMO, "--demo-id", help="Demo workflow to recommend/materialize."),
+        demo_dest: Optional[Path] = typer.Option(None, "--demo-dest", help="Destination for demo project."),
+    ) -> None:
+        """Guided first-run: check config, show provider/policy, recommend a demo, print next steps."""
+        code = run_quickstart(
+            Path.cwd(),
+            yes=yes,
+            force=force,
+            demo=demo,
+            demo_id=demo_id,
+            demo_dest=demo_dest,
+        )
+        raise typer.Exit(code=code)

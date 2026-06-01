@@ -5,13 +5,48 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v2.6.21
+# Current Baseline - v2.7.5
 
 ## Status
-Implemented. Git baseline: tag `v2.6.21`.
+Implemented. Git baseline: tag `v2.7.5`.
 
 ## Stage
-`v2.6.x` Product Hardening — v2.6.1–v2.6.21 added release consistency checks, checklist polish, policy docs hardening, smoke tests, tag/version guard, next-step polish, release metadata index, docs finalization guard, release version bump helper, release preflight aggregation, version-note index validation, release workflow documentation, release command UX polish, release changelog generation, release checklist upgrade, CI workflow draft, Doctor release diagnostics, policy audit command, product security review documentation, and final signoff.
+`v2.7.x` Consolidation — v2.7.0–v2.7.5: audit consolidation, hook approval project binding, versions-json sync, subagent finding redaction/logging, release surface honesty lite, quickstart command.
+
+## v2.7.5 (Quickstart Command)
+`src/safecode/cli_quickstart.py` added. `src/safecode/cli.py` registers `sac quickstart`.
+
+Key additions:
+- `sac quickstart` checks/creates `.sac/config.toml`, displays provider/policy, recommends a demo workflow, prints next-step commands.
+- `--demo` materializes the recommended demo project; `--force` overwrites existing config.
+- `--yes` skips confirmation (CI-safe). Never claims edit/apply ran.
+- README Core Commands updated to include `quickstart`; `docs/mvp-user-guide.md` adds quickstart path.
+- 8 new tests in `tests/test_quickstart.py`.
+
+## v2.7.4 (Release Surface Honesty Lite)
+`src/safecode/cli_ops.py` and `docs/install-update.md` updated.
+
+Key additions:
+- signoff/checklist/check/smoke/meta help text labelled [internal]/[advanced].
+- docs main flow clarified: bump→pytest→tag→preflight.
+- 18 new CLI surface tests.
+
+## v2.7.3 (Subagent Finding Redaction/Logging)
+`src/safecode/agent/loop.py` updated.
+
+Key additions:
+- Subagent findings redacted via `redact_secrets()` before context injection.
+- Broad except replaced with `RuntimeWarning` log.
+- 6 new redaction tests.
+
+## v2.7.2 (Versions JSON Sync)
+`sac release sync-versions-json` command added.
+
+## v2.7.1 (Hook Approval Project Binding)
+Hook approval directory binding tightened to project scope.
+
+## v2.7.0 (Audit Consolidation Baseline)
+Audit event deduplication and consolidation baseline.
 
 ## v2.6.21 (v2.6 Final Signoff)
 `src/safecode/release/signoff.py` added. `src/safecode/cli_ops.py` exposes `sac release signoff`.
