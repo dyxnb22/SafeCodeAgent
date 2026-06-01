@@ -5,13 +5,25 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v2.5.3
+# Current Baseline - v2.5.4
 
 ## Status
-Implemented. Git baseline: tag `v2.5.3`.
+Implemented. Git baseline: tag `v2.5.4`.
 
 ## Stage
-`v2.5.x` Reliability and Evaluation — v2.5.3 adds a local-only quality dashboard report generator that renders `ReplayResult` lists into Markdown and HTML.  The v2.5.2 failure taxonomy and v2.5.1 runner API are fully preserved.
+`v2.5.x` Reliability and Evaluation — v2.5.4 adds lightweight, deterministic performance budget telemetry for eval/replay runs.  The v2.5.3 dashboard report, v2.5.2 failure taxonomy, and v2.5.1 runner API are fully preserved.
+
+## v2.5.4 (Performance Budgets)
+`src/safecode/trace/budget.py` added. `src/safecode/trace/__init__.py` updated. `src/safecode/eval/runner.py` updated. `tests/test_performance_budgets.py` adds 40 tests.
+
+Key additions:
+- `PerformanceBudget` (frozen dataclass): `context_size_bytes`, `total_command_duration_ms`, `llm_latency_ms` (None = no LLM), `disk_growth_bytes`. All fields default to zero/None.
+- `PerformanceBudget.as_dict()`: deterministic, JSON-serializable dict; `total_command_duration_ms` rounded to 3dp.
+- `compute_context_size(snapshot)`: total UTF-8 bytes across all file contents in a `{path: content}` snapshot.
+- `compute_disk_growth(before, after)`: net bytes added between two snapshots; never negative.
+- `ReplayResult.performance_budget: PerformanceBudget | None = None` — backward-compatible new field.
+- `TaskReplayRunner._run_in_workspace()` computes and attaches a budget: context from initial snapshot, duration from `time.perf_counter()` across setup+validation commands, disk growth from before/after snapshots. `_error_result()` leaves budget as `None`.
+- No new dependencies; stdlib `time` only.
 
 ## v2.5.3 (Quality Dashboard Report)
 `src/safecode/report/dashboard.py` added. `src/safecode/report/__init__.py` updated. `tests/test_report_dashboard.py` adds 112 tests.

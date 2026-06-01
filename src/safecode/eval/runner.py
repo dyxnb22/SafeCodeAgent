@@ -17,6 +17,7 @@ import difflib
 import shutil
 import subprocess
 import tempfile
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -24,6 +25,7 @@ from safecode.eval.cases import EvalCase
 from safecode.eval.failures import ClassifiedFailure, classify_replay_result
 from safecode.eval.fixtures import TaskEvalFixture
 from safecode.shell.runner import ShellRunner
+from safecode.trace.budget import PerformanceBudget, compute_context_size, compute_disk_growth
 
 
 # ── Legacy EvalRunner (preserved) ────────────────────────────────────────
@@ -96,6 +98,7 @@ class ReplayResult:
     workspace_path: str | None = None
     error: str | None = None
     classified_failures: list[ClassifiedFailure] = field(default_factory=list)
+    performance_budget: PerformanceBudget | None = None
 
 
 # ── TaskReplayRunner ──────────────────────────────────────────────────────
@@ -174,12 +177,15 @@ class TaskReplayRunner:
 
     def _run_in_workspace(self, fixture: TaskEvalFixture, workspace: Path) -> ReplayResult:
         failure_reasons: list[str] = []
+        _cmd_ms: float = 0.0
 
         # Step 1: snapshot before agent simulation
         before = self._snapshot_files(workspace)
 
         # Step 2: run setup_commands (simulated agent actions)
+        _t0 = time.perf_counter()
         setup_error = self._run_setup_commands(fixture, workspace)
+        _cmd_ms += (time.perf_counter() - _t0) * 1000.0
         if setup_error:
             failure_reasons.append(setup_error)
 
@@ -194,7 +200,9 @@ class TaskReplayRunner:
         last_exit_code: int | None = None
 
         for cmd in fixture.validation_commands:
+            _t1 = time.perf_counter()
             detail = self._run_validation_command(cmd, workspace, cmd_timeout)
+            _cmd_ms += (time.perf_counter() - _t1) * 1000.0
             validation_details.append(detail)
             all_output += detail.stdout + detail.stderr
             last_exit_code = detail.exit_code
@@ -287,6 +295,13 @@ class TaskReplayRunner:
         # 6d. Network intent (informational; enforcement is future work)
         network_intent = "allowed" if fixture.safety.allow_network else "denied"
 
+        budget = PerformanceBudget(
+            context_size_bytes=compute_context_size(before),
+            total_command_duration_ms=_cmd_ms,
+            llm_latency_ms=None,
+            disk_growth_bytes=compute_disk_growth(before, after),
+        )
+
         result = ReplayResult(
             fixture_name=fixture.name,
             passed=len(failure_reasons) == 0,
@@ -300,6 +315,7 @@ class TaskReplayRunner:
             audit_events_status=audit_events_status,
             workspace_path=str(workspace),
             error=None,
+            performance_budget=budget,
         )
         result.classified_failures = classify_replay_result(result)
         return result
