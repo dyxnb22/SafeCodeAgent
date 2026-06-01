@@ -30,6 +30,7 @@ from safecode.release.preflight import render_release_preflight, run_release_pre
 from safecode.release.signoff import render_release_signoff, run_release_signoff
 from safecode.release.smoke import render_smoke_results, run_smoke_tests
 from safecode.release.ux import exit_code
+from safecode.release.versions_sync import sync_versions_json
 from safecode.report.render import ReportRenderer
 
 ops_app = typer.Typer()
@@ -229,6 +230,18 @@ def release_signoff() -> None:
     console.print(render_release_signoff(result))
     if not result.ok:
         raise typer.Exit(code=exit_code(result.ok))
+
+
+@release_app.command("sync-versions-json")
+def release_sync_versions_json(
+    dry_run: bool = typer.Option(False, "--dry-run", help="Report without writing."),
+) -> None:
+    """Sync .claude/versions.json latest_tags and current_implemented_tag from git tags."""
+    result = sync_versions_json(project_root=Path.cwd(), dry_run=dry_run)
+    status = "[green]OK[/green]" if result.ok else "[red]FAIL[/red]"
+    console.print(f"{status} {result.message}")
+    if not result.ok:
+        raise typer.Exit(code=1)
 
 
 @ops_app.command("doctor")
