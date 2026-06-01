@@ -10,6 +10,7 @@ from uuid import uuid4
 from pydantic import BaseModel, Field
 
 from safecode.state.journal import AgentJournalStore
+from safecode.state.migrations import SchemaVersionError, migrate_record
 from safecode.utils.time import utc_now_iso
 
 
@@ -26,6 +27,7 @@ class AgentSessionState(BaseModel):
     last_error: str | None = None
     created_at: str
     updated_at: str
+    schema_version: int = Field(default=1)
 
 
 class AgentSessionStore:
@@ -55,12 +57,15 @@ class AgentSessionStore:
         return state
 
     def load(self) -> AgentSessionState | None:
-        """Load the current session, returning None if missing or invalid."""
+        """Load the current session, returning None if missing, invalid, or unsupported version."""
         if not self.path.exists():
             return None
         try:
             data = json.loads(self.path.read_text(encoding="utf-8"))
+            data = migrate_record(data, "AgentSessionState")
             return AgentSessionState(**data)
+        except SchemaVersionError:
+            return None
         except (json.JSONDecodeError, OSError, TypeError, ValueError):
             return None
 

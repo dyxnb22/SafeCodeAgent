@@ -13,6 +13,7 @@ from safecode.audit.logger import AuditLogger
 from safecode.audit.models import AuditEvent
 from safecode.config import SafeCodeConfig
 from safecode.context.redactor import redact_secrets
+from safecode.state.migrations import SchemaVersionError, migrate_record
 from safecode.utils.time import utc_now_iso
 
 
@@ -29,6 +30,7 @@ class MCPWriteProposal(BaseModel):
     status: str = "pending"
     risk_level: str
     reason: str
+    schema_version: int = Field(default=1)
 
 
 class MCPWriteProposalStore:
@@ -83,12 +85,15 @@ class MCPWriteProposalStore:
         return proposal
 
     def load_pending(self) -> MCPWriteProposal | None:
-        """Return the current pending proposal, or None."""
+        """Return the current pending proposal, or None if missing, invalid, or unsupported version."""
         if not self._pending_path.exists():
             return None
         try:
             data = json.loads(self._pending_path.read_text(encoding="utf-8"))
+            data = migrate_record(data, "MCPWriteProposal")
             return MCPWriteProposal(**data)
+        except SchemaVersionError:
+            return None
         except (json.JSONDecodeError, TypeError, ValueError):
             return None
 

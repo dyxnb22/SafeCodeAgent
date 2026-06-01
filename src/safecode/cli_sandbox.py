@@ -18,6 +18,7 @@ from safecode.sandbox.execution import SandboxExecutionGate, SandboxExecutionRes
 from safecode.sandbox.factory import SandboxAdapterFactory
 from safecode.sandbox.preflight import SandboxExecutionPreflight
 from safecode.sandbox.planner import SandboxPlanner
+from safecode.tools.gate import ToolCallGate
 from safecode.utils.time import utc_now_iso
 
 sandbox_app = typer.Typer(help="Check OS sandbox capabilities and recommendations.")
@@ -312,6 +313,11 @@ def sandbox_execute() -> None:
     macOS/Linux/Docker backends remain dry-run only.
     """
     project_root = Path.cwd()
+    # Universal gate: sandbox.execute is high-risk; consult before side effects.
+    tool_gate_result = ToolCallGate().check_intent("sandbox.execute", approved=True)
+    if not tool_gate_result.allowed:
+        console.print(f"[red]Blocked by tool gate:[/red] {tool_gate_result.reason}")
+        raise typer.Exit(code=1)
     gate = SandboxExecutionGate(project_root)
     result = gate.execute_pending()
 

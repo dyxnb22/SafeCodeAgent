@@ -5,13 +5,27 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v2.3.6
+# Current Baseline - v2.3.7
 
 ## Status
-Implemented. Git baseline: tag `v2.3.5` (v2.3.6 is local, not yet tagged).
+Implemented. Git baseline: tag `v2.3.6` (v2.3.7 is local, not yet tagged).
 
 ## Stage
-`v2.3.x` Developer Experience stabilization. Do not jump directly to real sandbox execution; complete the reviewed v2.3.7 stabilization step first, then v2.4.x real backends.
+`v2.3.x` Developer Experience stabilization — complete. Next: v2.4.x real sandbox backend previews (Docker first, then macOS Seatbelt, then Linux Bubblewrap).
+
+## v2.3.7 (Universal Tool Gate + State Schema Migrations)
+`ToolCallGate` added under `src/safecode/tools/gate.py` — the universal pre-flight gate for all write/execute/dispatch CLI paths. `src/safecode/state/migrations.py` added — schema-version migration with fail-closed behaviour for future records.
+
+Key changes:
+- `ToolCallGate` wraps `ToolCallAdapter`; exposes `check()` (full arg validation + approval) and `check_intent()` (name + approval only, for CLI entry points where full args aren't yet known). `must_pass()` / `must_pass_intent()` raise `GateError` (a `ValueError` subclass) on failure.
+- `GateResult` is a frozen dataclass: `allowed`, `reason`, `validation` (optional).
+- `GateError` is a `ValueError` subclass.
+- Gate wired into CLI write/execute paths before side effects: `sac edit` (`patch.propose`, `approved=True`), `sac apply` (`patch.apply`, post-confirm), `sac run` (`shell.run`, only when `approved=True`), `sac rollback --last` (`checkpoint.rollback`), `sac sandbox execute` (`sandbox.execute`), `sac mcp call-readonly` (`mcp.call_readonly`), `sac mcp propose-write` (`mcp.propose_write`).
+- `schema_version: int = Field(default=1)` added to `AgentSessionState`, `AgentJournalEvent`, and `MCPWriteProposal`.
+- `migrate_record(data, record_type)` in `state/migrations.py`: missing field → v1; supported version → normalised; unsupported future version → `SchemaVersionError`.
+- Load paths (`AgentSessionStore.load()`, `AgentJournalStore.read()`, `MCPWriteProposalStore.load_pending()`) call `migrate_record()` before model construction. Journal events with unsupported versions are silently skipped; session/proposal with unsupported version returns `None`.
+- `CURRENT_SCHEMA_VERSION = 1`, `SUPPORTED_SCHEMA_VERSIONS = frozenset({1})`.
+- 65 new tests in `tests/test_tool_call_gate.py` and `tests/test_state_migrations.py`.
 
 ## v2.3.6 (Agent Loop Patch Path)
 `AgentLoop` now connects to the existing `AgentOrchestrator.edit()` patch proposal workflow.
@@ -30,10 +44,9 @@ Key changes:
 - `JournalEventType` gains `"patch_proposed"`; `record_patch_proposal()` added.
 - `sac agent run` CLI prints a highlighted **Approval Required — Pending Patch** panel.
 
-## Product Review Follow-up (remaining after v2.3.6)
-1. `v2.3.7-universal-gate-and-migrations`: make ToolCallAdapter/ToolCallGate the universal pre-gate for CLI write/exec/tool paths and add schema-versioned migration hooks for persisted state.
-
-Only after those should v2.4 begin real sandbox backend previews, ordered Docker first, then macOS Seatbelt, then Linux Bubblewrap.
+## Product Review Follow-up (remaining after v2.3.7)
+All v2.3.x stabilization items complete. v2.4 real sandbox backend previews can begin:
+ordered Docker first, then macOS Seatbelt, then Linux Bubblewrap.
 
 ## v2.3.5 (Honest Surface)
 CLI output and docs now accurately communicate current enforcement boundaries. `sac sandbox status` opens with an **Execution Scope (v2.3.x)** panel and adds a **Mode** column (`executing` for Noop, `plan-only` for all others). `sac sandbox plan` adds a **Backend Mode** row to the plan table so non-Noop plan-only status is visible before the trailing note. `sac mcp --help` and `mcp tools` output state that MCP is a subprocess JSON shim, not a full JSON-RPC client. `sac subagent --help` and `subagent run-readonly` state that subagents are read-only context/result collectors, not independent LLM investigations. 21 new tests in `tests/test_cli_output_honesty.py` cover all four surfaces.

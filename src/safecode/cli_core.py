@@ -15,6 +15,7 @@ from safecode.patch.parser import PatchParseError
 from safecode.patch.validator import PatchValidationError
 from safecode.shell.risk import RiskLevel
 from safecode.shell.runner import ShellRunner
+from safecode.tools.gate import GateError, ToolCallGate
 from safecode.utils.time import utc_now_iso
 
 core_app = typer.Typer()
@@ -37,6 +38,11 @@ def ask(question: str) -> None:
 def edit(task: str) -> None:
     """Create a pending patch proposal without modifying files."""
     project_root = Path.cwd()
+    # Gate: patch.propose is write-class; the user invoking sac edit is the approval gesture.
+    gate_result = ToolCallGate().check_intent("patch.propose", approved=True)
+    if not gate_result.allowed:
+        console.print(f"[red]Blocked by tool gate:[/red] {gate_result.reason}")
+        raise typer.Exit(code=1)
     try:
         result = AgentOrchestrator(project_root).edit(task)
     except (PatchParseError, PatchValidationError) as exc:
@@ -86,6 +92,14 @@ def apply() -> None:
         console.print("[yellow]Patch was not applied.[/yellow]")
         raise typer.Exit(code=0)
 
+    # Gate: human confirmed above — validate the apply tool call before side effects.
+    gate_result = ToolCallGate().check(
+        "patch.apply", {"patch_id": preview.proposal.id}, approved=True
+    )
+    if not gate_result.allowed:
+        console.print(f"[red]Blocked by tool gate:[/red] {gate_result.reason}")
+        raise typer.Exit(code=1)
+
     try:
         result = orchestrator.apply(preview.proposal)
     except PatchValidationError as exc:
@@ -116,6 +130,12 @@ def rollback(last: bool = typer.Option(False, "--last", help="Rollback the lates
         raise typer.Exit(code=1)
 
     project_root = Path.cwd()
+    # Gate: --last is the explicit approval gesture for this write-class operation.
+    gate_result = ToolCallGate().check_intent("checkpoint.rollback", approved=True)
+    if not gate_result.allowed:
+        console.print(f"[red]Blocked by tool gate:[/red] {gate_result.reason}")
+        raise typer.Exit(code=1)
+
     try:
         result = AgentOrchestrator(project_root).rollback_last()
     except FileNotFoundError as exc:
@@ -196,6 +216,16 @@ def run_command(command: str, yes: bool = typer.Option(False, "--yes", "-y", hel
         approved = False
     elif risk.level == RiskLevel.HIGH and yes:
         console.print("[red]High-risk command remains blocked even with --yes.[/red]")
+
+    # Gate: only call when the command will actually execute (approved is True).
+    # For unapproved/blocked commands the existing risk logic handles the outcome.
+    if approved:
+        gate_result = ToolCallGate().check(
+            "shell.run", {"command": command, "approved": True}, approved=True
+        )
+        if not gate_result.allowed:
+            console.print(f"[red]Blocked by tool gate:[/red] {gate_result.reason}")
+            raise typer.Exit(code=1)
 
     result = runner.run(command, approved=approved)
     runtime_logger().info(

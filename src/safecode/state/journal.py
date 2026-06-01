@@ -11,6 +11,7 @@ from uuid import uuid4
 
 from pydantic import BaseModel, Field
 
+from safecode.state.migrations import SchemaVersionError, migrate_record
 from safecode.utils.time import utc_now_iso
 
 
@@ -27,6 +28,7 @@ class AgentJournalEvent(BaseModel):
     timestamp: str = Field(default_factory=utc_now_iso)
     step: int | None = None
     payload: dict[str, object] = Field(default_factory=dict)
+    schema_version: int = Field(default=1)
 
 
 class AgentJournalSummary(BaseModel):
@@ -181,7 +183,11 @@ class AgentJournalStore:
         )
 
     def read(self, session_id: str) -> list[AgentJournalEvent]:
-        """Read valid journal events for one session."""
+        """Read valid journal events for one session.
+
+        Events with an unsupported future schema_version are silently skipped
+        (fail closed) so that the rest of the journal remains accessible.
+        """
         path = self.path_for(session_id)
         if not path.exists() or path.is_symlink():
             return []
@@ -189,7 +195,12 @@ class AgentJournalStore:
         for line in path.read_text(encoding="utf-8").splitlines():
             if not line.strip():
                 continue
-            events.append(AgentJournalEvent(**json.loads(line)))
+            try:
+                raw = json.loads(line)
+                raw = migrate_record(raw, "AgentJournalEvent")
+                events.append(AgentJournalEvent(**raw))
+            except (SchemaVersionError, json.JSONDecodeError, TypeError, ValueError):
+                continue
         return events
 
     def latest_session_id(self) -> str | None:

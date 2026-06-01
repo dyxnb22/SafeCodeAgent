@@ -16,6 +16,7 @@ from safecode.audit.models import AuditEvent
 from safecode.mcp.discovery import MCPDiscovery
 from safecode.mcp.proposal import MCPWriteProposalStore
 from safecode.mcp.runner import MCPReadOnlyRunner
+from safecode.tools.gate import ToolCallGate
 from safecode.utils.time import utc_now_iso
 
 mcp_app = typer.Typer(
@@ -68,6 +69,15 @@ def mcp_call_readonly(
     if not isinstance(payload, dict):
         console.print("[red]MCP input must be a JSON object.[/red]")
         raise typer.Exit(code=1)
+    # Gate: mcp.call_readonly is low-risk and does not require explicit approval.
+    gate_result = ToolCallGate().check(
+        "mcp.call_readonly",
+        {"tool_name": f"{server}.{tool}", "input_json": payload},
+        approved=False,
+    )
+    if not gate_result.allowed:
+        console.print(f"[red]Blocked by tool gate:[/red] {gate_result.reason}")
+        raise typer.Exit(code=1)
     result = MCPReadOnlyRunner(project_root).call_readonly(server, tool, payload)
     if result.output:
         console.print(result.output)
@@ -94,6 +104,16 @@ def mcp_propose_write(
         payload = {}
     if not isinstance(payload, dict):
         console.print("[red]MCP input must be a JSON object.[/red]")
+        raise typer.Exit(code=1)
+
+    # Gate: mcp.propose_write is write-class; user invoking sac mcp propose-write is approval.
+    gate_result = ToolCallGate().check(
+        "mcp.propose_write",
+        {"tool_name": f"{server}.{tool}", "input_json": payload},
+        approved=True,
+    )
+    if not gate_result.allowed:
+        console.print(f"[red]Blocked by tool gate:[/red] {gate_result.reason}")
         raise typer.Exit(code=1)
 
     runner = MCPReadOnlyRunner(project_root)
