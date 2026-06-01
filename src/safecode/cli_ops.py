@@ -21,6 +21,7 @@ from safecode.logs.runtime import RuntimeLogger
 from safecode.memory.store import MemoryStore
 from safecode.project.rules import ProjectRules
 from safecode.queue.store import QueueStore
+from safecode.release.bump import bump_versions, render_bump_result
 from safecode.release.check import render_release_check, run_release_check
 from safecode.release.checklist import render_release_checklist
 from safecode.release.metadata import collect_release_metadata, render_release_metadata
@@ -163,6 +164,18 @@ def release_smoke() -> None:
     """Run a fast release smoke test: import, CLI version, consistency, policy names."""
     result = run_smoke_tests()
     console.print(render_smoke_results(result))
+    if not result.ok:
+        raise typer.Exit(code=1)
+
+
+@release_app.command("bump")
+def release_bump(
+    version: str,
+    dry_run: bool = typer.Option(False, "--dry-run", help="Preview without writing files."),
+) -> None:
+    """Update all canonical version locations to VERSION (X.Y.Z)."""
+    result = bump_versions(version, project_root=Path.cwd(), dry_run=dry_run)
+    console.print(render_bump_result(result))
     if not result.ok:
         raise typer.Exit(code=1)
 

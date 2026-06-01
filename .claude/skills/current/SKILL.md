@@ -5,13 +5,22 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v2.6.9
+# Current Baseline - v2.6.10
 
 ## Status
-Implemented. Git baseline: tag `v2.6.9`.
+Implemented. Git baseline: tag `v2.6.10`.
 
 ## Stage
-`v2.6.x` Product Hardening — v2.6.1–v2.6.9 added release consistency checks, checklist polish, policy docs hardening, smoke tests, tag/version guard, next-step polish, release metadata index, and docs finalization guard.
+`v2.6.x` Product Hardening — v2.6.1–v2.6.10 added release consistency checks, checklist polish, policy docs hardening, smoke tests, tag/version guard, next-step polish, release metadata index, docs finalization guard, and release version bump helper.
+
+## v2.6.10 (Release Version Bump Helper)
+`src/safecode/release/bump.py` added. `src/safecode/cli_ops.py` exposes `sac release bump VERSION [--dry-run]`.
+
+Key additions:
+- `bump_versions()`: updates `pyproject.toml`, `src/safecode/__init__.py`, and `tests/test_install_update_polish.py` version assertions atomically.
+- Validates `X.Y.Z` format; rejects invalid strings before touching any file.
+- Supports `dry_run=True` to preview without writing.
+- `tests/test_release_version_bump.py` adds 22 focused tests.
 
 ## v2.6.9 (Release Docs Finalization Guard)
 `src/safecode/release/docs_guard.py` added. `smoke.py` gains `_check_docs_finalized()` case. `docs/install-update.md` updated with release command section.
