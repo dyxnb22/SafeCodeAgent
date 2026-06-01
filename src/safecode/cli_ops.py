@@ -21,6 +21,7 @@ from safecode.logs.runtime import RuntimeLogger
 from safecode.memory.store import MemoryStore
 from safecode.project.rules import ProjectRules
 from safecode.queue.store import QueueStore
+from safecode.release.check import render_release_check, run_release_check
 from safecode.release.checklist import render_release_checklist
 from safecode.report.render import ReportRenderer
 
@@ -144,6 +145,15 @@ def ide_open_files(query: str, limit: int = typer.Option(5, "--limit", min=1)) -
 def release_checklist(version: str) -> None:
     """Render a release checklist."""
     console.print(render_release_checklist(version))
+
+
+@release_app.command("check")
+def release_check() -> None:
+    """Report version consistency and working-tree state for local release preparation."""
+    result = run_release_check(Path.cwd())
+    console.print(render_release_check(result))
+    if not result.ok:
+        raise typer.Exit(code=1)
 
 
 @ops_app.command("doctor")
