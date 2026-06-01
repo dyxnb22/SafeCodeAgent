@@ -5,13 +5,26 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v2.6.0
+# Current Baseline - v2.6.1
 
 ## Status
-Implemented. Git baseline: tag `v2.5.4` (v2.6.0 not yet tagged).
+Implemented. Git baseline: tag `v2.6.0`.
 
 ## Stage
-`v2.6.x` Product Hardening — v2.6.0 adds explicit safety policy presets (`strict`, `balanced`, `experimental`) with legacy aliases (`normal`→`balanced`, `learning`→`experimental`).
+`v2.6.x` Product Hardening — v2.6.1 hardens migration behavior around policy names.
+
+## v2.6.1 (Migration Hardening)
+`src/safecode/config.py`, `src/safecode/setup.py`, `src/safecode/cli.py` updated. `tests/test_migration_hardening.py` adds 39 tests.
+
+Key additions:
+- `KNOWN_POLICY_NAMES: frozenset[str]` — all five recognized policy names (`strict`, `balanced`, `experimental`, `normal`, `learning`).
+- `is_known_policy_name(name) -> bool` — public helper for callers that need to validate a policy name.
+- `_stricter_policy()` hardened: unknown `right`-side name never overrides a known `left`; unknown `left` is compared conservatively as `balanced` (order=1). Prevents unknown project config policies from overriding a user's `experimental` or `balanced` policy.
+- `SafeCodeConfig.load()`: unknown `SAFECODE_POLICY` value now issues a `UserWarning` and is ignored; known aliases (`normal`, `learning`) continue to work without warnings.
+- `write_setup()` in `setup.py`: accepts all five recognized policy names (`balanced` and `experimental` were previously rejected); error message lists the full valid set.
+- `sac setup --policy` help text updated to mention canonical names plus legacy aliases.
+- 39 new tests: unknown right/left in `_stricter_policy` via `merge_trusted_config()`, env-var warning/skip behavior, `write_setup()` with all five names, end-to-end legacy alias round-trips, safety knob preservation.
+- No new runtime dependencies.
 
 ## v2.6.0 (Policy Presets)
 `src/safecode/config.py` updated. `tests/test_policy_presets.py` adds 75 tests.
@@ -20,9 +33,9 @@ Key additions:
 - `POLICY_PRESETS: dict[str, dict]` — maps canonical preset names (`strict`, `balanced`, `experimental`) to their safety-knob dicts. All presets keep `block_high_risk=True`, `restrict_to_project_root=True`, `network_enabled=False`. Allowed command sets are nested: strict ⊆ balanced ⊆ experimental.
 - `normalize_policy_name(name) -> str` — resolves `"normal"` → `"balanced"` and `"learning"` → `"experimental"`; unknown names pass through unchanged.
 - `apply_policy_preset(config: SafeCodeConfig) -> None` — unconditionally sets `shell.*`, `sandbox.*`, `hooks.*` knobs to the preset values for the canonical policy. No-op for unknown names.
-- `POLICY_ORDER` updated with all five names (`strict=2`, `balanced=1`/`normal=1`, `experimental=0`/`learning=0`). `_stricter_policy()` and `merge_trusted_config()` are unchanged.
+- `POLICY_ORDER` updated with all five names (`strict=2`, `balanced=1`/`normal=1`, `experimental=0`/`learning=0`).
 - Backward-compatible: `"normal"` and `"learning"` still load, compare, and merge correctly via `POLICY_ORDER`.
-- `SafeCodeConfig.load()` is unchanged; `apply_policy_preset()` is a standalone utility.
+- `SafeCodeConfig.load()` unchanged in v2.6.0; `apply_policy_preset()` is a standalone utility.
 - No new runtime dependencies.
 
 ## v2.5.4 (Performance Budgets)
