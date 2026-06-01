@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from safecode.config import SafeCodeConfig
+from safecode.config import KNOWN_POLICY_NAMES, SafeCodeConfig
 
 
 @dataclass(frozen=True)
@@ -34,8 +34,8 @@ def write_setup(
     force: bool = False,
 ) -> SetupResult:
     """Write SafeCode project config plus approval-dir environment hints."""
-    if policy not in {"learning", "normal", "strict"}:
-        raise ValueError("policy must be one of: learning, normal, strict")
+    if policy not in KNOWN_POLICY_NAMES:
+        raise ValueError(f"policy must be one of: {', '.join(sorted(KNOWN_POLICY_NAMES))}")
     if provider not in {"mock", "openai"}:
         raise ValueError("provider must be one of: mock, openai")
 

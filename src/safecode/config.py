@@ -2,6 +2,7 @@
 
 import os
 import tomllib
+import warnings
 from pathlib import Path
 
 from pydantic import BaseModel, Field
@@ -65,7 +66,15 @@ class SafeCodeConfig(BaseModel):
         config = merge_trusted_config(user_config, project_config)
         env_policy = os.getenv("SAFECODE_POLICY")
         if env_policy:
-            config.policy = _stricter_policy(config.policy, env_policy)
+            if is_known_policy_name(env_policy):
+                config.policy = _stricter_policy(config.policy, env_policy)
+            else:
+                warnings.warn(
+                    f"SAFECODE_POLICY={env_policy!r} is not a recognized policy name "
+                    f"(known: {sorted(KNOWN_POLICY_NAMES)}); ignoring.",
+                    UserWarning,
+                    stacklevel=2,
+                )
         env_provider = os.getenv("SAFECODE_LLM_PROVIDER")
         if env_provider:
             config.llm.provider = env_provider
@@ -126,6 +135,15 @@ POLICY_ORDER: dict[str, int] = {
     "normal": 1,
     "strict": 2,
 }
+
+# All recognized policy names (canonical + aliases). Unknown names are treated as
+# balanced-equivalent for ordering but never silently override a known name.
+KNOWN_POLICY_NAMES: frozenset[str] = frozenset(POLICY_ORDER)
+
+
+def is_known_policy_name(name: str) -> bool:
+    """Return True if name is a recognized canonical policy name or legacy alias."""
+    return name in KNOWN_POLICY_NAMES
 
 # Preset knob values keyed by canonical policy name.
 # Keys: shell.*, sandbox.restrict_to_project_root, sandbox.network_enabled,
@@ -241,8 +259,18 @@ def merge_trusted_config(user_config: SafeCodeConfig, project_config: SafeCodeCo
 
 
 def _stricter_policy(left: str, right: str) -> str:
-    """Return the stricter policy name."""
-    return left if POLICY_ORDER.get(left, 1) >= POLICY_ORDER.get(right, 1) else right
+    """Return the stricter policy name.
+
+    Unknown names on the right (project config or env var) never override a
+    known left-side name.  Unknown names on the left are compared conservatively
+    as balanced-equivalent (order=1).
+    """
+    if right not in POLICY_ORDER:
+        return left  # unknown right cannot override; always keep left
+    if left not in POLICY_ORDER:
+        # Unknown left: compare conservatively as balanced (1)
+        return left if 1 >= POLICY_ORDER[right] else right
+    return left if POLICY_ORDER[left] >= POLICY_ORDER[right] else right
 
 
 def _user_config_path() -> Path:

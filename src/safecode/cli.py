@@ -33,7 +33,7 @@ def callback() -> None:
 def setup(
     provider: str = typer.Option("mock", "--provider", help="LLM provider: mock or openai."),
     model: str = typer.Option("gpt-4.1-mini", "--model", help="Model name for the selected provider."),
-    policy: str = typer.Option("normal", "--policy", help="Safety preset: learning, normal, or strict."),
+    policy: str = typer.Option("normal", "--policy", help="Safety preset: strict, balanced, experimental (or legacy: normal, learning)."),
     network: bool = typer.Option(False, "--network/--no-network", help="Enable network access in project config."),
     approval_dir: str = typer.Option("", "--approval-dir", help="External hook approval directory."),
     sandbox_approval_dir: str = typer.Option("", "--sandbox-approval-dir", help="External sandbox approval directory."),
