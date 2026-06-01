@@ -729,6 +729,55 @@ class SandboxExecutionGate:
         )
 
         requested_at = utc_now_iso()
+
+        # v2.4.0: Docker backend executes via DockerExecutor.
+        if proposal.backend == "docker":
+            from safecode.sandbox.docker import DockerExecutor  # lazy — avoids circular import
+
+            docker_res = DockerExecutor(self.project_root, self.config).execute(proposal)
+            audit_type = (
+                "sandbox_execution_completed" if docker_res.executed else "sandbox_execution_blocked"
+            )
+            self._audit(
+                audit_type,
+                proposal.proposal_id,
+                proposal.backend,
+                proposal.purpose,
+                proposal.command[0] if proposal.command else "",
+                proposal.command_hash,
+                docker_res.message,
+            )
+            result_store = SandboxExecutionResultStore(self.project_root, self.config)
+            result_store.save(
+                SandboxExecutionResultRecord(
+                    proposal_id=proposal.proposal_id,
+                    attempted_at=requested_at,
+                    backend=proposal.backend,
+                    executed=docker_res.executed,
+                    exit_code=docker_res.exit_code,
+                    duration_ms=docker_res.duration_ms,
+                    status="completed",
+                    message=docker_res.message,
+                    command_hash_prefix=proposal.command_hash[:16],
+                    command_head=proposal.command[0] if proposal.command else "",
+                    stdout_preview=SandboxExecutionResultStore._truncate(docker_res.stdout),
+                    stderr_preview=SandboxExecutionResultStore._truncate(docker_res.stderr),
+                    stdout_length=len(docker_res.stdout),
+                    stderr_length=len(docker_res.stderr),
+                )
+            )
+            self.store.discard_pending()
+            return SandboxExecutionResult(
+                proposal_id=proposal.proposal_id,
+                executed=docker_res.executed,
+                exit_code=docker_res.exit_code,
+                stdout=docker_res.stdout,
+                stderr=docker_res.stderr,
+                backend=proposal.backend,
+                dry_run=not docker_res.executed,
+                message=docker_res.message,
+            )
+
         cmd_text = shlex.join(proposal.command)
         runner = ShellRunner(self.project_root, self.config)
         result = runner.run(cmd_text, approved=True)

@@ -201,20 +201,70 @@ class TestBlockedPaths:
         result = gate.execute_pending()
         assert result.executed is False
 
-    def test_backend_not_supported_docker(self, tmp_path, monkeypatch):
-        """Docker adapter still returns supports_execution=False."""
+    def test_docker_execution_blocked_when_daemon_unavailable(self, tmp_path, monkeypatch):
+        """v2.4.0: Docker execution fails closed when daemon is not reachable.
+
+        Simulates Docker CLI present (so preflight backend_available=True and
+        backend_supports_execution=True) but daemon unreachable at execution time.
+        """
+        from safecode.sandbox.capabilities import SandboxCapabilityDetector, SandboxCapability
+        from safecode.sandbox.docker import DockerDaemonChecker, DockerExecutor
+
         gate = _setup_gate(tmp_path, monkeypatch)
-        gate.propose(
-            _make_plan(
-                backend=SandboxBackend.DOCKER,
-                container_preview=["docker", "run", "--rm"],
-                container_backend="docker",
-            ),
-            "shell",
+
+        # Build a real docker plan so the preview_hash is correct
+        from safecode.sandbox.adapter import SandboxExecutionRequest
+        from safecode.sandbox.docker import DockerContainerPlanBuilder
+        from safecode.config import SafeCodeConfig
+
+        req = SandboxExecutionRequest(
+            command=["echo", "hello"],
+            cwd=tmp_path,
+            purpose="shell",
+            allow_network=False,
+            readonly_filesystem=True,
+            writable_paths=[],
+            env={},
+            timeout_seconds=30,
         )
+        docker_plan = DockerContainerPlanBuilder(tmp_path, SafeCodeConfig()).build(req)
+        plan = _make_plan(
+            backend=SandboxBackend.DOCKER,
+            container_preview=docker_plan.argv,
+            container_backend="docker",
+        )
+        gate.propose(plan, "shell")
         gate.approve()
+
+        # Make Docker CLI appear available for preflight
+        original_detect_all = SandboxCapabilityDetector.detect_all
+
+        def patched_detect_all(self):
+            caps = original_detect_all(self)
+            return [
+                SandboxCapability(
+                    backend=SandboxBackend.DOCKER,
+                    available=True,
+                    supported_platforms=["all"],
+                    reason="mocked available",
+                )
+                if cap.backend == SandboxBackend.DOCKER
+                else cap
+                for cap in caps
+            ]
+
+        monkeypatch.setattr(SandboxCapabilityDetector, "detect_all", patched_detect_all)
+
+        # Make daemon check fail at execution time
+        monkeypatch.setattr(
+            DockerDaemonChecker,
+            "check",
+            lambda self: (False, "daemon not running in test"),
+        )
+
         result = gate.execute_pending()
         assert result.executed is False
+        assert "unavailable" in result.message.lower()
 
     def test_corrupt_proposal_blocked(self, tmp_path, monkeypatch):
         gate = _setup_gate(tmp_path, monkeypatch)
@@ -1614,7 +1664,7 @@ class TestRegression:
 
         assert MacOSSeatbeltAdapter(mac_cap).supports_execution() is False
         assert LinuxBubblewrapAdapter(linux_cap).supports_execution() is False
-        assert DockerSandboxAdapter(docker_cap).supports_execution() is False
+        assert DockerSandboxAdapter(docker_cap).supports_execution() is True  # v2.4.0
         assert NoopSandboxAdapter().supports_execution() is True
 
     def test_factory_plan_still_works(self, tmp_path):

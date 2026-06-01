@@ -136,14 +136,15 @@ class TestDockerAdapter:
         assert plan.backend == SandboxBackend.DOCKER
         assert len(called) == 0
 
-    def test_supports_execution_is_false(self):
+    def test_supports_execution_is_true(self):
+        """v2.4.0: Docker backend now supports execution."""
         cap = SandboxCapability(
             backend=SandboxBackend.DOCKER,
             available=True,
             supported_platforms=["all"],
             reason="test",
         )
-        assert DockerSandboxAdapter(cap).supports_execution() is False
+        assert DockerSandboxAdapter(cap).supports_execution() is True
 
 
 # ── factory tests ──────────────────────────────────────────────────────

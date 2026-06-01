@@ -5,13 +5,26 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v2.3.7
+# Current Baseline - v2.4.0
 
 ## Status
-Implemented. Git baseline: tag `v2.3.6` (v2.3.7 is local, not yet tagged).
+Implemented. Git baseline: tag `v2.3.7` (v2.4.0 is local, not yet tagged).
 
 ## Stage
-`v2.3.x` Developer Experience stabilization — complete. Next: v2.4.x real sandbox backend previews (Docker first, then macOS Seatbelt, then Linux Bubblewrap).
+`v2.4.x` Real Sandbox Backends — Docker preview complete. Next: macOS Seatbelt real execution, then Linux Bubblewrap.
+
+## v2.4.0 (Docker Sandbox Backend Preview)
+`DockerExecutor` and `DockerDaemonChecker` added to `src/safecode/sandbox/docker.py`. `DockerSandboxAdapter.supports_execution()` now returns `True`. `SandboxExecutionGate.execute_pending()` routes Docker proposals through `DockerExecutor` after the atomic approval claim.
+
+Key changes:
+- `DockerDaemonChecker.check()` runs `docker info` with a 5-second timeout; returns `(available, reason)`. Never raises. Injectable `run_fn` for tests.
+- `DockerExecutor.execute(proposal)` rebuilds the docker run argv from stored proposal fields, verifies `preview_hash` integrity, checks daemon availability, then calls `subprocess.run(argv, capture_output=True, shell=False)`. Returns `DockerExecutionResult` (frozen dataclass).
+- `SandboxExecutionGate.execute_pending()`: after atomic approval claim, if `proposal.backend == "docker"` delegates to `DockerExecutor`; writes audit event (`sandbox_execution_completed` if ran, `sandbox_execution_blocked` if daemon unavailable/hash mismatch/timeout); writes result record and clears pending for all paths.
+- `DockerSandboxAdapter.build_plan()` warnings updated to v2.4.0 language.
+- `SandboxExecutionPreflight` error message updated (macOS/Linux still plan-only).
+- `sac sandbox status` scope panel and Docker Mode column updated to v2.4.0.
+- `sac sandbox plan` trailing note distinguishes Docker (propose→execute flow) from macOS/Linux (plan-only).
+- 26 new tests across `test_docker_container_plan.py` and `test_sandbox_execution_gate.py`. 4 existing tests updated for `supports_execution=True` and v2.4 text.
 
 ## v2.3.7 (Universal Tool Gate + State Schema Migrations)
 `ToolCallGate` added under `src/safecode/tools/gate.py` — the universal pre-flight gate for all write/execute/dispatch CLI paths. `src/safecode/state/migrations.py` added — schema-version migration with fail-closed behaviour for future records.
@@ -225,11 +238,20 @@ uv run sac --help
 - High-risk tools must carry `requires_human_approval=True`; WRITE and SHELL permission tools must too.
 - `ToolRegistry.get()` raises `KeyError` for unknown names — callers must not swallow this without logging.
 
+## Compatibility Requirements (v2.4.0 additions)
+- `DockerExecutor.execute()` never raises — all failure paths return `DockerExecutionResult(executed=False, ...)`.
+- `DockerDaemonChecker.check()` never raises — all OS/subprocess errors are caught and returned as `(False, reason)`.
+- Preview hash verification is enforced before daemon check; a hash mismatch always blocks execution.
+- `shell=False` is mandatory in all `subprocess.run()` calls in `DockerExecutor` and `DockerDaemonChecker`.
+- `--privileged` must never appear in the generated docker run argv.
+- Network defaults to disabled (`--network none`) unless `proposal.network_enabled=True`.
+- The Noop path in `execute_pending()` is unchanged after the Docker branch — no Noop behavior is altered.
+
 ## Compatibility Requirements
 - Keep sandbox execution disabled unless proposal, approval, policy, and preflight checks all allow it.
 - Preserve diff review, checkpoint, audit, rollback, command policy, filesystem containment, network deny-by-default, and approval binding.
 - Project-local configuration must not weaken user-level safety policy.
-- Only Noop adapter supports real execution. macOS/Linux/Docker adapters must remain dry-run only.
+- Noop and Docker adapters support execution; macOS Seatbelt and Linux Bubblewrap remain plan-only.
 - New historical details belong in docs and Git tags, not in additional `.claude/skills/v*` files.
 - Real LLM calls must keep network policy and API key requirements explicit; mock mode must remain available for keyless tests.
 - Context collection must remain bounded and redacted; budget metadata should explain truncation without exposing hidden content.

@@ -30,13 +30,14 @@ def sandbox_status() -> None:
     project_root = Path.cwd()
     plan = SandboxPlanner(project_root).plan()
 
-    # v2.3.5: Clearly state execution scope before showing backend table.
+    # v2.4.0: Docker backend now supports execution; others remain plan-only.
     console.print(
         Panel.fit(
-            "[bold]v2.3.x executes only through the Noop backend.[/bold]\n"
-            "macOS Seatbelt, Linux Bubblewrap, and Docker are [yellow]plan-only / dry-run[/yellow]\n"
-            "until real-backend previews land in v2.4.x.",
-            title="[yellow]Execution Scope (v2.3.x)[/yellow]",
+            "[bold]v2.4.0 Docker Sandbox Preview[/bold]\n"
+            "Noop backend: [green]executing[/green] (SafeCode logical boundaries)\n"
+            "Docker backend: [green]executing[/green] (preview — requires running daemon)\n"
+            "macOS Seatbelt and Linux Bubblewrap: [yellow]plan-only / dry-run[/yellow]",
+            title="[green]Execution Scope (v2.4.x)[/green]",
         )
     )
 
@@ -49,6 +50,8 @@ def sandbox_status() -> None:
     for cap in plan.capabilities:
         if cap.backend == SandboxBackend.NONE:
             mode = "[green]executing[/green]"
+        elif cap.backend == SandboxBackend.DOCKER:
+            mode = "[green]executing[/green] (preview)"
         else:
             mode = "[yellow]plan-only[/yellow]"
         cap_table.add_row(
@@ -130,6 +133,8 @@ def sandbox_plan(
 
     if exec_plan.backend == SandboxBackend.NONE:
         backend_mode = "[green]executing[/green] (Noop — SafeCode logical boundaries)"
+    elif exec_plan.backend == SandboxBackend.DOCKER:
+        backend_mode = "[green]executing[/green] (Docker preview — requires approval and daemon)"
     else:
         backend_mode = "[bold yellow]plan-only / dry-run[/bold yellow] (no OS-level execution)"
 
@@ -208,15 +213,24 @@ def sandbox_plan(
             cl_lines = [f"- {lim}" for lim in exec_plan.container_limitations]
             console.print(Panel("\n".join(cl_lines), title="[dim]Container Limitations[/dim]"))
 
-    console.print(
-        Panel.fit(
-            "[bold yellow]This command was NOT executed.[/bold yellow]\n"
-            "v2.3.x generates sandbox execution plans and backend previews only.\n"
-            "Non-Noop backends (macOS Seatbelt, Linux Bubblewrap, Docker) are plan-only / dry-run.\n"
-            "Real OS-level sandbox execution beyond Noop is deferred to v2.4.x.",
-            title="Dry Run",
+    if exec_plan.backend == SandboxBackend.DOCKER:
+        console.print(
+            Panel.fit(
+                "[bold yellow]This command was NOT executed.[/bold yellow]\n"
+                "v2.4.0 Docker preview: use 'sac sandbox propose' → 'sac sandbox approve' → 'sac sandbox execute'\n"
+                "to run the command in a Docker container (daemon must be running).",
+                title="Dry Run",
+            )
         )
-    )
+    else:
+        console.print(
+            Panel.fit(
+                "[bold yellow]This command was NOT executed.[/bold yellow]\n"
+                "v2.4.x generates sandbox execution plans and backend previews only for\n"
+                "macOS Seatbelt and Linux Bubblewrap (still plan-only / dry-run).",
+                title="Dry Run",
+            )
+        )
 
 
 @sandbox_app.command("propose")
@@ -708,5 +722,4 @@ def sandbox_execution_show(
         console.print(Panel(record.stdout_preview.rstrip(), title="stdout preview", border_style="dim"))
     if record.stderr_preview:
         console.print(Panel(record.stderr_preview.rstrip(), title="stderr preview", border_style="dim"))
-
 

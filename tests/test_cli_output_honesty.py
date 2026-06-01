@@ -74,10 +74,10 @@ class TestSandboxStatusHonesty:
         result = self._invoke_status()
         assert result.exit_code == 0
 
-    def test_status_mentions_v2_3_execution_scope(self):
-        """Output must state v2.3.x execution scope."""
+    def test_status_mentions_v2_4_execution_scope(self):
+        """Output must state v2.4.x execution scope."""
         result = self._invoke_status()
-        assert "v2.3" in result.output
+        assert "v2.4" in result.output
 
     def test_status_noop_backend_present(self):
         """Output must identify the Noop backend as the executing one."""
@@ -97,11 +97,12 @@ class TestSandboxStatusHonesty:
         assert "macos_seatbelt" in output
         assert "plan-only" in output
 
-    def test_status_docker_is_plan_only(self):
-        """docker backend must appear as plan-only, not as executing."""
+    def test_status_docker_is_executing_preview(self):
+        """docker backend must appear as executing preview in v2.4.x."""
         result = self._invoke_status()
         assert "docker" in result.output
-        assert "plan-only" in result.output
+        assert "executing" in result.output.lower()
+        assert "preview" in result.output.lower()
 
 
 class TestSandboxPlanHonesty:
@@ -128,15 +129,16 @@ class TestSandboxPlanHonesty:
         result = self._invoke_plan_with_backend(SandboxBackend.MACOS_SEATBELT)
         assert "plan-only" in result.output
 
-    def test_plan_docker_shows_plan_only_in_table(self):
-        """Docker backend plan must show plan-only mode."""
+    def test_plan_docker_shows_executing_preview_in_table(self):
+        """Docker backend plan must show executing preview mode."""
         result = self._invoke_plan_with_backend(SandboxBackend.DOCKER)
-        assert "plan-only" in result.output
+        assert "executing" in result.output.lower()
+        assert "Docker preview" in result.output
 
-    def test_plan_trailing_note_references_v2_3(self):
-        """The trailing dry-run note must reference v2.3.x, not v1.7.x."""
+    def test_plan_trailing_note_references_v2_4(self):
+        """The trailing dry-run note must reference v2.4.x, not v1.7.x."""
         result = self._invoke_plan_with_backend(SandboxBackend.NONE)
-        assert "v2.3" in result.output
+        assert "v2.4" in result.output
         assert "v1.7" not in result.output
 
     def test_plan_backend_mode_row_in_output(self):

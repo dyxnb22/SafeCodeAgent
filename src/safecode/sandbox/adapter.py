@@ -270,11 +270,12 @@ class DockerSandboxAdapter:
             timeout_seconds=effective_request.timeout_seconds,
             warnings=adapter_warnings + [
                 "Docker daemon must be running for actual execution.",
-                "v1.7.3 generates docker args for preview only.",
+                "v2.4.0 preview: Docker execution is enabled when daemon is reachable.",
             ],
             limitations=[
-                "v1.7.3 does not execute Docker containers.",
-                "Args are for review purposes only.",
+                "Container image selection is not configurable in v2.4.0.",
+                "Privileged containers are not supported.",
+                "Network is disabled by default unless SafeCodeConfig.sandbox.network_enabled is True.",
             ],
             container_preview=container_preview,
             container_backend=container_backend,
@@ -283,4 +284,4 @@ class DockerSandboxAdapter:
         )
 
     def supports_execution(self) -> bool:
-        return False
+        return True

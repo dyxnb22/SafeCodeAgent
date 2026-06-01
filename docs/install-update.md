@@ -33,6 +33,6 @@ Use external approval directories rather than project-local approval stores.
 
 ## Current Enforcement Boundaries
 
-- Sandbox command execution currently runs only through the Noop backend. macOS Seatbelt, Linux Bubblewrap, and Docker surfaces are plan-only/dry-run until the real-backend preview versions.
+- Sandbox command execution currently runs through the Noop backend and Docker preview backend. Docker requires an approved proposal and a reachable Docker daemon. macOS Seatbelt and Linux Bubblewrap remain plan-only/dry-run until their real-backend preview versions.
 - MCP support is currently a SafeCode subprocess JSON shim, not a full MCP JSON-RPC client.
 - Subagents currently collect read-only context/result summaries; they are not yet independent LLM investigations.

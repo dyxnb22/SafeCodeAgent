@@ -295,6 +295,157 @@ def _make_proposal():
     )
 
 
+# ── v2.4.0 Docker gate regression tests ──────────────────────────────
+
+
+class TestDockerExecutionGate:
+    """v2.4.0: Noop path unchanged; Docker blocked when daemon unavailable."""
+
+    def test_noop_still_executes_after_docker_support(self, tmp_path, monkeypatch):
+        """Noop execution path is completely unchanged by Docker support addition."""
+        anchor = tmp_path.parent / f"anchors-{tmp_path.name}"
+        monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor))
+        ad = tmp_path.parent / f"approvals-{tmp_path.name}"
+        monkeypatch.setenv("SAFECODE_SANDBOX_APPROVAL_DIR", str(ad))
+        gate = SandboxExecutionGate(tmp_path)
+        gate.propose(_make_plan(), "shell")  # Noop backend (SandboxBackend.NONE)
+        gate.approve()
+        result = gate.execute_pending()
+        assert result.executed is True
+        assert result.exit_code == 0
+
+    def test_docker_backend_blocked_when_daemon_unavailable(self, tmp_path, monkeypatch):
+        """Docker execution fails closed when daemon check returns unavailable."""
+        from safecode.sandbox.capabilities import SandboxCapabilityDetector, SandboxCapability
+        from safecode.sandbox.docker import DockerDaemonChecker, DockerContainerPlanBuilder
+        from safecode.sandbox.adapter import SandboxExecutionRequest
+        from safecode.config import SafeCodeConfig
+
+        anchor = tmp_path.parent / f"anchors-{tmp_path.name}"
+        monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor))
+        ad = tmp_path.parent / f"approvals-{tmp_path.name}"
+        monkeypatch.setenv("SAFECODE_SANDBOX_APPROVAL_DIR", str(ad))
+        gate = SandboxExecutionGate(tmp_path)
+
+        # Build a real Docker plan for the proposal
+        req = SandboxExecutionRequest(
+            command=["echo", "hello"],
+            cwd=tmp_path,
+            purpose="shell",
+            allow_network=False,
+            readonly_filesystem=True,
+            writable_paths=[],
+            env={},
+            timeout_seconds=30,
+        )
+        docker_plan_obj = DockerContainerPlanBuilder(tmp_path, SafeCodeConfig()).build(req)
+        plan = _make_plan(
+            backend=SandboxBackend.DOCKER,
+            container_preview=docker_plan_obj.argv,
+            container_backend="docker",
+        )
+        gate.propose(plan, "shell")
+        gate.approve()
+
+        # Mock Docker CLI as available for preflight
+        original_detect_all = SandboxCapabilityDetector.detect_all
+
+        def patched_detect_all(self):
+            caps = original_detect_all(self)
+            return [
+                SandboxCapability(
+                    backend=SandboxBackend.DOCKER,
+                    available=True,
+                    supported_platforms=["all"],
+                    reason="mocked",
+                )
+                if cap.backend == SandboxBackend.DOCKER
+                else cap
+                for cap in caps
+            ]
+
+        monkeypatch.setattr(SandboxCapabilityDetector, "detect_all", patched_detect_all)
+
+        # Daemon is unreachable at execution time
+        monkeypatch.setattr(
+            DockerDaemonChecker,
+            "check",
+            lambda self: (False, "no daemon in test"),
+        )
+
+        result = gate.execute_pending()
+        assert result.executed is False
+        assert result.dry_run is True
+        assert "unavailable" in result.message.lower()
+
+    def test_docker_execution_writes_result_record_and_clears_pending(self, tmp_path, monkeypatch):
+        """Docker execution (even when blocked by unavailable daemon) writes a
+        result record and clears the pending proposal."""
+        from safecode.sandbox.capabilities import SandboxCapabilityDetector, SandboxCapability
+        from safecode.sandbox.docker import DockerDaemonChecker, DockerContainerPlanBuilder
+        from safecode.sandbox.adapter import SandboxExecutionRequest
+        from safecode.config import SafeCodeConfig
+        from safecode.sandbox.execution import SandboxExecutionResultStore
+
+        anchor = tmp_path.parent / f"anchors-{tmp_path.name}"
+        monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor))
+        ad = tmp_path.parent / f"approvals-{tmp_path.name}"
+        monkeypatch.setenv("SAFECODE_SANDBOX_APPROVAL_DIR", str(ad))
+        gate = SandboxExecutionGate(tmp_path)
+
+        req = SandboxExecutionRequest(
+            command=["echo", "hello"],
+            cwd=tmp_path,
+            purpose="shell",
+            allow_network=False,
+            readonly_filesystem=True,
+            writable_paths=[],
+            env={},
+            timeout_seconds=30,
+        )
+        docker_plan_obj = DockerContainerPlanBuilder(tmp_path, SafeCodeConfig()).build(req)
+        plan = _make_plan(
+            backend=SandboxBackend.DOCKER,
+            container_preview=docker_plan_obj.argv,
+            container_backend="docker",
+        )
+        proposal = gate.propose(plan, "shell")
+        gate.approve()
+
+        original_detect_all = SandboxCapabilityDetector.detect_all
+
+        def patched_detect_all(self):
+            caps = original_detect_all(self)
+            return [
+                SandboxCapability(
+                    backend=SandboxBackend.DOCKER,
+                    available=True,
+                    supported_platforms=["all"],
+                    reason="mocked",
+                )
+                if cap.backend == SandboxBackend.DOCKER
+                else cap
+                for cap in caps
+            ]
+
+        monkeypatch.setattr(SandboxCapabilityDetector, "detect_all", patched_detect_all)
+        monkeypatch.setattr(
+            DockerDaemonChecker,
+            "check",
+            lambda self: (False, "no daemon"),
+        )
+
+        result = gate.execute_pending()
+        assert result.executed is False
+        # Pending is cleared (terminal state)
+        assert not gate.pending_path.exists()
+        # Result record written
+        store = SandboxExecutionResultStore(tmp_path)
+        record = store.load(proposal.proposal_id)
+        assert record is not None
+        assert record.backend == "docker"
+
+
 # ── regression tests ──────────────────────────────────────────────────
 
 
