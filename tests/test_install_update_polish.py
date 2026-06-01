@@ -10,7 +10,7 @@ from safecode.release.version_guard import check_version_consistency
 
 
 def test_package_version_is_current():
-    assert __version__ == "2.6.1"
+    assert __version__ == "2.6.5"
 
 
 # ---------------------------------------------------------------------------
@@ -25,33 +25,33 @@ class TestVersionConsistencyGuard:
         return p
 
     def test_matching_versions_pass(self, tmp_path):
-        pyproject = self._write_pyproject(tmp_path, "2.6.1")
-        result = check_version_consistency(pyproject_path=pyproject, runtime_version="2.6.1")
+        pyproject = self._write_pyproject(tmp_path, "2.6.5")
+        result = check_version_consistency(pyproject_path=pyproject, runtime_version="2.6.5")
         assert result.ok is True
-        assert result.package_version == "2.6.1"
-        assert result.runtime_version == "2.6.1"
+        assert result.package_version == "2.6.5"
+        assert result.runtime_version == "2.6.5"
         assert "OK" in result.message
 
     def test_mismatched_versions_fail_clearly(self, tmp_path):
         pyproject = self._write_pyproject(tmp_path, "2.5.0")
-        result = check_version_consistency(pyproject_path=pyproject, runtime_version="2.6.1")
+        result = check_version_consistency(pyproject_path=pyproject, runtime_version="2.6.5")
         assert result.ok is False
         assert result.package_version == "2.5.0"
-        assert result.runtime_version == "2.6.1"
+        assert result.runtime_version == "2.6.5"
         assert "mismatch" in result.message.lower()
         assert "2.5.0" in result.message
-        assert "2.6.1" in result.message
+        assert "2.6.5" in result.message
 
     def test_missing_pyproject_fails_clearly(self, tmp_path):
         missing = tmp_path / "nonexistent" / "pyproject.toml"
-        result = check_version_consistency(pyproject_path=missing, runtime_version="2.6.1")
+        result = check_version_consistency(pyproject_path=missing, runtime_version="2.6.5")
         assert result.ok is False
         assert "not found" in result.message.lower() or "pyproject" in result.message.lower()
 
     def test_malformed_pyproject_fails_clearly(self, tmp_path):
         bad = tmp_path / "pyproject.toml"
         bad.write_text("[project]\n# no version key\n", encoding="utf-8")
-        result = check_version_consistency(pyproject_path=bad, runtime_version="2.6.1")
+        result = check_version_consistency(pyproject_path=bad, runtime_version="2.6.5")
         assert result.ok is False
         assert "read error" in result.message.lower() or "version" in result.message.lower()
 
@@ -86,7 +86,7 @@ def test_doctor_reports_config_and_approval_env(tmp_path, monkeypatch):
 def test_version_cli_runs():
     result = CliRunner().invoke(app, ["version"])
     assert result.exit_code == 0
-    assert "2.6.1" in result.output
+    assert "2.6.5" in result.output
     assert "git pull" in result.output
 
 

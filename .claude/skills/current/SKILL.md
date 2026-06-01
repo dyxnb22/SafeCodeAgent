@@ -5,13 +5,42 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v2.6.1
+# Current Baseline - v2.6.5
 
 ## Status
-Implemented. Git baseline: tag `v2.6.0`.
+Implemented. Git baseline: tag `v2.6.5`.
 
 ## Stage
-`v2.6.x` Product Hardening — v2.6.1 hardens migration behavior around policy names.
+`v2.6.x` Product Hardening — v2.6.1 hardened migration behavior around policy names, and v2.6.2-v2.6.5 added release consistency checks, release checklist polish, policy docs hardening, and a release smoke-test workflow.
+
+## v2.6.5 (Release Smoke-Test Workflow)
+`src/safecode/release/smoke.py` added. `src/safecode/cli_ops.py` exposes `sac release smoke`. `tests/test_release_smoke.py` adds 24 tests.
+
+Key additions:
+- `run_smoke_tests()` verifies import/version, `sac version`, version consistency, and expected policy-name surface.
+- `render_smoke_results()` renders deterministic PASS/FAIL output.
+- Smoke checks are fast, local-only, and do not mutate config.
+
+## v2.6.4 (Policy Docs Hardening)
+`README.md`, `docs/install-update.md`, and `docs/version-notes/v2.6.4-policy-docs-hardening.md` updated.
+
+Key additions:
+- Policy docs now distinguish canonical names (`strict`, `balanced`, `experimental`) from legacy aliases (`normal`, `learning`).
+- Docs describe unknown `SAFECODE_POLICY` warning/skip behavior and unknown project-policy merge safety.
+
+## v2.6.3 (Release Checklist Polish)
+`src/safecode/release/check.py` added. `src/safecode/cli_ops.py` exposes `sac release check`. `tests/test_release_checklist_polish.py` adds 15 tests.
+
+Key additions:
+- `run_release_check()` reports package version, runtime version, version consistency, and working-tree state.
+- `render_release_check()` prints human-readable release readiness output and honest next-step hints.
+
+## v2.6.2 (Release Version Consistency Guard)
+`src/safecode/release/version_guard.py` added. `src/safecode/release/__init__.py` re-exports the guard. `tests/test_install_update_polish.py` adds version consistency coverage.
+
+Key additions:
+- `check_version_consistency()` verifies `pyproject.toml` `[project].version` matches `safecode.__version__`.
+- Clear mismatch, missing-file, and malformed-pyproject messages guard against package/runtime drift before tagging.
 
 ## v2.6.1 (Migration Hardening)
 `src/safecode/config.py`, `src/safecode/setup.py`, `src/safecode/cli.py` updated. `tests/test_migration_hardening.py` adds 39 tests.
