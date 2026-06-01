@@ -5,13 +5,25 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v2.5.4
+# Current Baseline - v2.6.0
 
 ## Status
-Implemented. Git baseline: tag `v2.5.4`.
+Implemented. Git baseline: tag `v2.5.4` (v2.6.0 not yet tagged).
 
 ## Stage
-`v2.5.x` Reliability and Evaluation — v2.5.4 adds lightweight, deterministic performance budget telemetry for eval/replay runs.  The v2.5.3 dashboard report, v2.5.2 failure taxonomy, and v2.5.1 runner API are fully preserved.
+`v2.6.x` Product Hardening — v2.6.0 adds explicit safety policy presets (`strict`, `balanced`, `experimental`) with legacy aliases (`normal`→`balanced`, `learning`→`experimental`).
+
+## v2.6.0 (Policy Presets)
+`src/safecode/config.py` updated. `tests/test_policy_presets.py` adds 75 tests.
+
+Key additions:
+- `POLICY_PRESETS: dict[str, dict]` — maps canonical preset names (`strict`, `balanced`, `experimental`) to their safety-knob dicts. All presets keep `block_high_risk=True`, `restrict_to_project_root=True`, `network_enabled=False`. Allowed command sets are nested: strict ⊆ balanced ⊆ experimental.
+- `normalize_policy_name(name) -> str` — resolves `"normal"` → `"balanced"` and `"learning"` → `"experimental"`; unknown names pass through unchanged.
+- `apply_policy_preset(config: SafeCodeConfig) -> None` — unconditionally sets `shell.*`, `sandbox.*`, `hooks.*` knobs to the preset values for the canonical policy. No-op for unknown names.
+- `POLICY_ORDER` updated with all five names (`strict=2`, `balanced=1`/`normal=1`, `experimental=0`/`learning=0`). `_stricter_policy()` and `merge_trusted_config()` are unchanged.
+- Backward-compatible: `"normal"` and `"learning"` still load, compare, and merge correctly via `POLICY_ORDER`.
+- `SafeCodeConfig.load()` is unchanged; `apply_policy_preset()` is a standalone utility.
+- No new runtime dependencies.
 
 ## v2.5.4 (Performance Budgets)
 `src/safecode/trace/budget.py` added. `src/safecode/trace/__init__.py` updated. `src/safecode/eval/runner.py` updated. `tests/test_performance_budgets.py` adds 40 tests.

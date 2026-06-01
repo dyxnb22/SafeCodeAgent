@@ -295,7 +295,7 @@
 
 | 版本 | 分支 | 主要入口 | 验收命令 |
 |---|---|---|---|
-| `v2.6.0` | `v2.6.0-policy-presets` | `src/safecode/config.py` | strict/balanced/experimental safety presets 可切换且不可被项目配置降级 |
+| `v2.6.0` ✅ | `v2.6.0-policy-presets` | `src/safecode/config.py` | `POLICY_PRESETS`, `normalize_policy_name()`, `apply_policy_preset()` added; POLICY_ORDER updated for all five names; `PYTHONPATH=src python3 -m pytest tests/test_policy_presets.py tests/test_security_hardening.py::test_project_config_cannot_lower_user_security -q` → 75 tests pass |
 | `v2.6.1` | `v2.6.1-migration-hardening` | `src/safecode/state/migrations.py` | 扩展 v2.3.7 migration 基础，覆盖用户级 approval/audit store、release migration checks、backward compatibility fixtures |
 | `v2.6.2` | `v2.6.2-release-signoff` | `src/safecode/release/` | release checklist 覆盖 tests/docs/tags/security eval |
 | `v2.6.3` | `v2.6.3-team-trust-boundaries` | `docs/security/`、`src/safecode/config.py` | project/user/team trust boundary 文档和 enforcement 明确 |

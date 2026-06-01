@@ -117,7 +117,78 @@ def ensure_config_file(project_root: Path) -> Path:
     return config_path
 
 
-POLICY_ORDER = {"learning": 0, "normal": 1, "strict": 2}
+_POLICY_ALIASES: dict[str, str] = {"normal": "balanced", "learning": "experimental"}
+
+POLICY_ORDER: dict[str, int] = {
+    "experimental": 0,
+    "learning": 0,
+    "balanced": 1,
+    "normal": 1,
+    "strict": 2,
+}
+
+# Preset knob values keyed by canonical policy name.
+# Keys: shell.*, sandbox.restrict_to_project_root, sandbox.network_enabled,
+#        sandbox.network_allowlist, hooks.allow_medium_after_apply
+POLICY_PRESETS: dict[str, dict] = {
+    "strict": {
+        "allow_readonly_without_confirm": False,
+        "require_confirm_for_medium": True,
+        "block_high_risk": True,
+        "allowed_commands": ["git", "ls", "pwd"],
+        "restrict_to_project_root": True,
+        "network_enabled": False,
+        "network_allowlist": [],
+        "allow_medium_after_apply": False,
+    },
+    "balanced": {
+        "allow_readonly_without_confirm": True,
+        "require_confirm_for_medium": True,
+        "block_high_risk": True,
+        "allowed_commands": ["echo", "git", "ls", "pwd"],
+        "restrict_to_project_root": True,
+        "network_enabled": False,
+        "network_allowlist": [],
+        "allow_medium_after_apply": False,
+    },
+    "experimental": {
+        "allow_readonly_without_confirm": True,
+        "require_confirm_for_medium": False,
+        "block_high_risk": True,
+        "allowed_commands": ["cat", "echo", "find", "git", "grep", "ls", "pwd"],
+        "restrict_to_project_root": True,
+        "network_enabled": False,
+        "network_allowlist": [],
+        "allow_medium_after_apply": True,
+    },
+}
+
+
+def normalize_policy_name(name: str) -> str:
+    """Resolve policy alias to canonical name (normal→balanced, learning→experimental)."""
+    return _POLICY_ALIASES.get(name, name)
+
+
+def apply_policy_preset(config: SafeCodeConfig) -> None:
+    """Apply preset knob values for config.policy in-place.
+
+    Unconditionally sets shell/sandbox/hooks knobs to the values defined by the
+    canonical policy preset.  Callers that want to preserve explicitly stricter
+    TOML values should snapshot those fields before calling and re-enforce them
+    after with the merge helpers.
+    """
+    canonical = normalize_policy_name(config.policy)
+    p = POLICY_PRESETS.get(canonical)
+    if p is None:
+        return
+    config.shell.allow_readonly_without_confirm = p["allow_readonly_without_confirm"]
+    config.shell.require_confirm_for_medium = p["require_confirm_for_medium"]
+    config.shell.block_high_risk = p["block_high_risk"]
+    config.shell.allowed_commands = list(p["allowed_commands"])
+    config.sandbox.restrict_to_project_root = p["restrict_to_project_root"]
+    config.sandbox.network_enabled = p["network_enabled"]
+    config.sandbox.network_allowlist = list(p["network_allowlist"])
+    config.hooks.allow_medium_after_apply = p["allow_medium_after_apply"]
 
 
 def merge_trusted_config(user_config: SafeCodeConfig, project_config: SafeCodeConfig) -> SafeCodeConfig:
