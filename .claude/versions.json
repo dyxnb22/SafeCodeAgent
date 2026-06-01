@@ -1,6 +1,6 @@
 {
   "project": "SafeCode Agent",
-  "current_implemented_tag": "v2.6.21",
+  "current_implemented_tag": "v2.7.0",
   "current_local_version": null,
   "current_baseline": ".claude/skills/current/SKILL.md",
   "runtime_summary": ".claude/skills/shared/core-runtime.md",
@@ -257,7 +257,8 @@
     "v2.6.18",
     "v2.6.19",
     "v2.6.20",
-    "v2.6.21"
+    "v2.6.21",
+    "v2.7.0"
   ],
   "local_versions": []
 }
