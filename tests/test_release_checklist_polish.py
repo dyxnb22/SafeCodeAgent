@@ -1,4 +1,4 @@
-"""Tests for v2.6.3 release checklist command polish."""
+"""Tests for v2.6.3 release checklist command polish and v2.6.6 tag consistency."""
 
 from pathlib import Path
 
@@ -7,6 +7,7 @@ from typer.testing import CliRunner
 
 from safecode.cli import app
 from safecode.release.check import ReleaseCheckResult, render_release_check, run_release_check
+from safecode.release.version_guard import TagConsistencyResult, check_tag_consistency
 
 
 # ---------------------------------------------------------------------------
@@ -226,3 +227,81 @@ class TestReleaseCheckCLI:
         result = CliRunner().invoke(app, ["release", "check"])
         assert "pyproject" in result.output.lower() or "2.6.1" in result.output
         assert "__version__" in result.output or "2.6.1" in result.output
+
+
+# ---------------------------------------------------------------------------
+# v2.6.6 — tag consistency guard
+# ---------------------------------------------------------------------------
+
+
+class TestCheckTagConsistency:
+    def test_matching_tag_is_consistent(self):
+        result = check_tag_consistency("2.6.6", tag="v2.6.6")
+        assert result.consistent is True
+        assert result.tag_available is True
+        assert result.tag == "v2.6.6"
+        assert "OK" in result.message
+
+    def test_mismatched_tag_is_not_consistent(self):
+        result = check_tag_consistency("2.6.6", tag="v2.6.5")
+        assert result.consistent is False
+        assert result.tag_available is True
+        assert result.tag == "v2.6.5"
+        assert "mismatch" in result.message.lower()
+        assert "v2.6.5" in result.message
+        assert "2.6.6" in result.message
+
+    def test_no_tag_is_reported_honestly(self):
+        result = check_tag_consistency("2.6.6", tag=None)
+        assert result.consistent is False
+        assert result.tag_available is False
+        assert result.tag is None
+        assert "no exact git tag" in result.message.lower() or "cannot confirm" in result.message.lower()
+
+    def test_no_tag_is_not_reported_as_pass(self):
+        result = check_tag_consistency("2.6.6", tag=None)
+        assert result.consistent is False
+
+    def test_tag_result_included_in_release_check(self, tmp_path):
+        """run_release_check includes tag_result when package version is known."""
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text(
+            '[project]\nname = "safecode-agent"\nversion = "2.6.6"\n', encoding="utf-8"
+        )
+        result = run_release_check(
+            project_root=tmp_path,
+            pyproject_path=pyproject,
+            runtime_version="2.6.6",
+            git_tag="v2.6.6",
+        )
+        assert result.tag_result is not None
+        assert result.tag_result.consistent is True
+
+    def test_tag_mismatch_in_release_check(self, tmp_path):
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text(
+            '[project]\nname = "safecode-agent"\nversion = "2.6.6"\n', encoding="utf-8"
+        )
+        result = run_release_check(
+            project_root=tmp_path,
+            pyproject_path=pyproject,
+            runtime_version="2.6.6",
+            git_tag="v2.6.5",
+        )
+        assert result.tag_result is not None
+        assert result.tag_result.consistent is False
+
+    def test_render_includes_tag_info(self, tmp_path):
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text(
+            '[project]\nname = "safecode-agent"\nversion = "2.6.6"\n', encoding="utf-8"
+        )
+        result = run_release_check(
+            project_root=tmp_path,
+            pyproject_path=pyproject,
+            runtime_version="2.6.6",
+            git_tag="v2.6.6",
+        )
+        text = render_release_check(result)
+        assert "tag" in text.lower()
+        assert "v2.6.6" in text

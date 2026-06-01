@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import subprocess
 import tomllib
 from dataclasses import dataclass
 from pathlib import Path
@@ -85,5 +86,100 @@ def check_version_consistency(
             f"Version mismatch: pyproject.toml says {pv!r} "
             f"but safecode.__version__ is {rv!r}. "
             f"Update one to match the other before tagging."
+        ),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Tag consistency
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class TagConsistencyResult:
+    """Result of a git-tag vs package-version consistency check."""
+
+    tag: str | None
+    """The exact git tag at HEAD, or None if not at an exact tag."""
+
+    tag_available: bool
+    """True if HEAD is at an exact annotated/lightweight tag."""
+
+    consistent: bool
+    """True only when tag_available and the tag matches the package version."""
+
+    package_version: str
+    message: str
+
+
+def get_exact_git_tag(project_root: Path) -> str | None:
+    """Return the exact git tag at HEAD, or None if none / git unavailable."""
+    try:
+        result = subprocess.run(
+            ["git", "describe", "--exact-match", "--tags", "HEAD"],
+            capture_output=True,
+            text=True,
+            cwd=project_root,
+            timeout=10,
+        )
+        if result.returncode == 0:
+            return result.stdout.strip()
+        return None
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return None
+
+
+_TAG_AUTO = object()  # sentinel: auto-detect tag from git
+
+
+def check_tag_consistency(
+    package_version: str,
+    *,
+    tag: str | None | object = _TAG_AUTO,
+    project_root: Path | None = None,
+) -> TagConsistencyResult:
+    """Check whether the git tag at HEAD matches the package version.
+
+    Args:
+        package_version: expected version string (e.g. "2.6.6").
+        tag: explicit tag string, None (no exact tag), or _TAG_AUTO to detect via git.
+        project_root: directory for git detection when tag is _TAG_AUTO; defaults to cwd.
+    """
+    if tag is _TAG_AUTO:
+        root = project_root or Path.cwd()
+        tag = get_exact_git_tag(root)
+
+    expected_tag = f"v{package_version}"
+
+    if tag is None:
+        return TagConsistencyResult(
+            tag=None,
+            tag_available=False,
+            consistent=False,
+            package_version=package_version,
+            message=(
+                f"No exact git tag at HEAD — cannot confirm tag matches "
+                f"package version {package_version!r}. "
+                f"Tag with: git tag -a {expected_tag} -m '{expected_tag} <summary>'"
+            ),
+        )
+
+    if tag == expected_tag:
+        return TagConsistencyResult(
+            tag=tag,
+            tag_available=True,
+            consistent=True,
+            package_version=package_version,
+            message=f"OK — tag {tag!r} matches package version {package_version!r}",
+        )
+
+    return TagConsistencyResult(
+        tag=tag,
+        tag_available=True,
+        consistent=False,
+        package_version=package_version,
+        message=(
+            f"Tag mismatch: git tag is {tag!r} but package version is "
+            f"{package_version!r} (expected tag {expected_tag!r})."
         ),
     )

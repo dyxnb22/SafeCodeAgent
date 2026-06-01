@@ -6,7 +6,13 @@ import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from safecode.release.version_guard import VersionConsistencyResult, check_version_consistency
+from safecode.release.version_guard import (
+    TagConsistencyResult,
+    VersionConsistencyResult,
+    _TAG_AUTO,
+    check_tag_consistency,
+    check_version_consistency,
+)
 
 
 @dataclass(frozen=True)
@@ -19,11 +25,15 @@ class ReleaseCheckResult:
     version_message: str
     tree_clean: bool | None  # None if git is unavailable
     tree_detail: str
+    tag_result: TagConsistencyResult | None = None
     next_steps: list[str] = field(default_factory=list)
 
     @property
     def ok(self) -> bool:
         return self.version_consistent and (self.tree_clean is not False)
+
+
+_UNSET = object()  # sentinel for auto-detecting git tag
 
 
 def _check_tree_clean(project_root: Path) -> tuple[bool | None, str]:
@@ -53,6 +63,7 @@ def run_release_check(
     project_root: Path | None = None,
     pyproject_path: Path | None = None,
     runtime_version: str | None = None,
+    git_tag: str | None = _UNSET,  # type: ignore[assignment]
 ) -> ReleaseCheckResult:
     """Run a local release readiness check and return a structured result.
 
@@ -60,6 +71,7 @@ def run_release_check(
         project_root: directory to check for git status; defaults to cwd.
         pyproject_path: explicit pyproject.toml path; if None, auto-discovers.
         runtime_version: override runtime version (defaults to safecode.__version__).
+        git_tag: explicit tag string for testing; sentinel _UNSET means auto-detect.
     """
     root = project_root or Path.cwd()
 
@@ -70,6 +82,21 @@ def run_release_check(
 
     tree_clean, tree_detail = _check_tree_clean(root)
 
+    # Tag consistency — only run when package version is readable.
+    # git_tag=_UNSET → auto-detect; git_tag=None → no tag; git_tag="v..." → explicit.
+    if vc.package_version not in ("<not found>", "<read error>"):
+        if git_tag is _UNSET:  # type: ignore[comparison-overlap]
+            tag_arg = _TAG_AUTO  # let check_tag_consistency detect via git
+        else:
+            tag_arg = git_tag  # explicit value (str or None)
+        tag_result: TagConsistencyResult | None = check_tag_consistency(
+            vc.package_version,
+            tag=tag_arg,
+            project_root=root,
+        )
+    else:
+        tag_result = None
+
     next_steps: list[str] = []
     if not vc.ok:
         next_steps.append(
@@ -79,11 +106,17 @@ def run_release_check(
         next_steps.append("Commit or stash pending changes before tagging.")
     if vc.ok and tree_clean is True:
         v = vc.package_version
-        next_steps += [
-            f'Run: PYTHONPATH=src python3 -m pytest -q',
-            f'Then: git commit -m "Bump version to v{v}"',
-            f'Then: git tag -a v{v} -m "v{v} <short summary>"',
-        ]
+        if tag_result is not None and tag_result.consistent:
+            pass  # already correctly tagged — no further action needed
+        elif tag_result is not None and not tag_result.tag_available:
+            next_steps.append(
+                f'git tag -a v{v} -m "v{v} <short summary>"'
+            )
+        elif tag_result is not None and not tag_result.consistent:
+            next_steps.append(
+                f"Tag mismatch: current tag is {tag_result.tag!r}; "
+                f"expected v{v}. Re-tag or fix the version."
+            )
 
     return ReleaseCheckResult(
         package_version=vc.package_version,
@@ -92,6 +125,7 @@ def run_release_check(
         version_message=vc.message,
         tree_clean=tree_clean,
         tree_detail=tree_detail,
+        tag_result=tag_result,
         next_steps=next_steps,
     )
 
@@ -106,12 +140,21 @@ def render_release_check(result: ReleaseCheckResult) -> str:
         f"  version consistent     : {'yes' if result.version_consistent else 'NO'}",
         f"  version detail         : {result.version_message}",
         f"  working tree           : {result.tree_detail}",
-        "",
     ]
+    if result.tag_result is not None:
+        tr = result.tag_result
+        tag_label = tr.tag if tr.tag else "(none)"
+        tag_ok = "yes" if tr.consistent else ("no exact tag" if not tr.tag_available else "NO")
+        lines.append(f"  git tag at HEAD        : {tag_label}")
+        lines.append(f"  tag consistent         : {tag_ok}")
+        lines.append(f"  tag detail             : {tr.message}")
+    lines.append("")
     if result.next_steps:
         lines.append("Next steps:")
         for step in result.next_steps:
             lines.append(f"  {step}")
+    elif result.tag_result is not None and result.tag_result.consistent and result.version_consistent and result.tree_clean is True:
+        lines.append("Ready to release — versions match, tree is clean, and tag is correct.")
     else:
         lines.append("All checks passed.")
     return "\n".join(lines)

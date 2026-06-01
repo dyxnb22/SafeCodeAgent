@@ -10,7 +10,7 @@ from safecode.release.version_guard import check_version_consistency
 
 
 def test_package_version_is_current():
-    assert __version__ == "2.6.5"
+    assert __version__ == "2.6.6"
 
 
 # ---------------------------------------------------------------------------
@@ -86,7 +86,7 @@ def test_doctor_reports_config_and_approval_env(tmp_path, monkeypatch):
 def test_version_cli_runs():
     result = CliRunner().invoke(app, ["version"])
     assert result.exit_code == 0
-    assert "2.6.5" in result.output
+    assert "2.6.6" in result.output
     assert "git pull" in result.output
 
 
