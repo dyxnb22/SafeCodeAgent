@@ -215,7 +215,13 @@ class TestBlockedPaths:
         assert result.executed is False
 
     def test_backend_not_supported_linux_bwrap(self, tmp_path, monkeypatch):
-        """Linux Bubblewrap adapter still returns supports_execution=False."""
+        """v2.4.3: Bubblewrap execution fails closed via hash mismatch.
+
+        As of v2.4.2, LinuxBubblewrapAdapter.supports_execution() returns True.
+        A fake args_preview causes a hash mismatch in LinuxBubblewrapExecutor,
+        blocking execution. If bwrap is not in PATH preflight blocks first.
+        Either way, executed is False.
+        """
         gate = _setup_gate(tmp_path, monkeypatch)
         gate.propose(
             _make_plan(

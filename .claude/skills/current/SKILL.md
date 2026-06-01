@@ -5,13 +5,32 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v2.4.2
+# Current Baseline - v2.4.3
 
 ## Status
-Implemented. Git baseline: tag `v2.4.1` (v2.4.2 is local, not yet tagged).
+Implemented. Git baseline: tag `v2.4.2` (v2.4.3 is local, not yet tagged).
 
 ## Stage
-`v2.4.x` Real Sandbox Backends — All four backends complete. Noop, Docker, macOS Seatbelt, Linux Bubblewrap all support execution.
+`v2.4.x` Real Sandbox Backends — All four backends complete. v2.4.3 adds cross-backend security evaluations; no new execution backend.
+
+## v2.4.3 (Cross-Backend Security Evaluations)
+`tests/test_sandbox_cross_backend_security_evals.py` added — 82 new tests across 11 classes. One stale comment updated in `test_sandbox_execution_security_evals.py`.
+
+Key additions:
+- `TestCrossBackendShellFalse` (6 tests): verifies `shell=False` is passed explicitly for Docker, Seatbelt, and Bubblewrap via recording run functions.
+- `TestCrossBackendHashBeforeBinaryCheck` (6 tests): verifies hash mismatch returns before `DockerDaemonChecker.check()`, `shutil.which("sandbox-exec")`, or `shutil.which("bwrap")` is called.
+- `TestCrossBackendNetworkDisabledDefault` (7 tests): Docker `--network none`, Seatbelt no `network-outbound` in profile, Bubblewrap `--unshare-net`.
+- `TestDockerPrivilegedNeverPresent` (4 tests): `--privileged` must not appear in Docker argv under any option combination.
+- `TestCrossBackendEnvNotLeaked` (4 tests): env values not in generated argv, profile text, or `--env` flags — executor always uses `env={}` when rebuilding the request.
+- `TestCrossBackendFilesystemBoundary` (6 tests): writable paths outside project root rejected and warned by all three plan builders.
+- `TestCrossBackendSensitivePathRejected` (18 tests, parametrized): `.ssh`, `.env`, `.aws`, `credentials`, `token`, `secret` not granted write access in any backend.
+- `TestCrossBackendGateApprovalFirst` (9 tests): when `claim_for_execution` returns False, no executor subprocess.run is called; blocked-claim result record written; pending cleared.
+- `TestCrossBackendGateResultLifecycle` (12 tests): injected successful and blocked-binary runs write result records with correct `backend` field and clear pending for Docker/Seatbelt/Bubblewrap.
+- `TestCrossBackendGateEnvNotInAudit` (6 tests): env values not in audit event messages/metadata or result record JSON for any real backend.
+- `TestCrossBackendPreflightRequired` (4 tests): no-approval blocks all three real backends before subprocess; all three write `sandbox_execution_completed` audit event on injected success.
+- Fixed stale comment: `test_backend_not_supported_linux_bwrap` previously said `supports_execution=False`; updated to document that as of v2.4.2 the block is via hash mismatch (or `bwrap` not in PATH).
+
+No implementation bugs were found — all three executors already satisfied the cross-backend invariants.
 
 ## v2.4.2 (Linux Bubblewrap Real Execution Preview)
 `LinuxBubblewrapExecutor` and `BubblewrapExecutionResult` added to `src/safecode/sandbox/bubblewrap.py`. `LinuxBubblewrapAdapter.supports_execution()` now returns `True`. `SandboxExecutionGate.execute_pending()` routes Linux Bubblewrap proposals through `LinuxBubblewrapExecutor` after the atomic approval claim.

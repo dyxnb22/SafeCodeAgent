@@ -279,7 +279,7 @@
 | `v2.4.0` | `v2.4.0-docker-execution-preview` | `src/safecode/sandbox/docker.py` | opt-in Docker execution path first, because it is most uniform across macOS/Linux/CI; fixed allowlisted image, network forced off, backend-specific eval |
 | `v2.4.1` | `v2.4.1-macos-seatbelt-execution-preview` | `src/safecode/sandbox/seatbelt.py` | opt-in macOS Seatbelt execution path with narrow allowlist and on-host eval |
 | `v2.4.2` | `v2.4.2-linux-bubblewrap-execution-preview` | `src/safecode/sandbox/bubblewrap.py` | opt-in Bubblewrap execution path with filesystem/network containment eval |
-| `v2.4.3` | `v2.4.3-cross-backend-security-evals` | `tests/test_sandbox_*` | backend-specific escape/attack/security eval 全部通过 |
+| `v2.4.3` ✅ | `v2.4.3-cross-backend-security-evals` | `tests/test_sandbox_cross_backend_security_evals.py` | 82 cross-backend security evals pass: shell=False, hash-before-binary, network-off-default, no --privileged, env-not-leaked, filesystem-boundary, sensitive-path-rejected, approval-claimed-first, result-lifecycle, env-not-in-audit |
 
 ## v2.5.x: Reliability and Evaluation
 
