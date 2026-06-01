@@ -5,13 +5,27 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v2.5.0
+# Current Baseline - v2.5.1
 
 ## Status
-Implemented. Git baseline: tag `v2.5.0`.
+Implemented. Git baseline: tag `v2.5.1`.
 
 ## Stage
-`v2.5.x` Reliability and Evaluation — v2.5.0 adds the task eval fixture format under `src/safecode/eval/`. No replay runner yet (v2.5.1).
+`v2.5.x` Reliability and Evaluation — v2.5.1 adds the deterministic replay runner for `TaskEvalFixture` to `src/safecode/eval/runner.py`. The old `EvalRunner`/`EvalCase` behavior is preserved.
+
+## v2.5.1 (Agent Replay Runner)
+`src/safecode/eval/runner.py` extended with `TaskReplayRunner`, `ReplayResult`, `ValidationCommandResult`, and `WorkspaceError`. `tests/test_task_eval_runner.py` adds 68 tests across 18 classes.
+
+Key additions:
+- `TaskReplayRunner.run(fixture)`: materialises a workspace, snapshots initial state, runs `repo.setup_commands` (simulated agent actions), snapshots final state, runs `validation_commands`, evaluates all constraints, returns `ReplayResult`.
+- `ReplayResult` (dataclass): `fixture_name`, `passed`, `failure_reasons`, `validation_details`, `observed_changed_files`, `workspace_diff`, `network_intent`, `forbidden_commands_violated`, `forbidden_file_writes_violated`, `audit_events_status`, `workspace_path`, `error`.
+- `ValidationCommandResult` (frozen dataclass): `command`, `exit_code`, `stdout`, `stderr`, `passed`, `failure_reason`.
+- `WorkspaceError(RuntimeError)`: raised for materialisation/setup failures; caught and converted to a failed `ReplayResult`.
+- Constraint evaluation: `expected_exit_code` (last command), `expected_output_contains` (combined output), `expected_diff_contains` (workspace unified diff), `expected_files_changed` (on `ExpectedOutcome`), `expected_changed_files` (fixture-level), `forbidden_changed_files` (fixture-level).
+- Safety checks: `forbidden_file_writes` matched against observed changed files; `forbidden_commands` matched against validation commands run; `allow_network` represented in `network_intent`; `expect_audit_events` sets `audit_events_status = "pending_no_session_replay_source"` without causing failure (clearly reported, fail-closed design).
+- Inline repos: files written from `repo.files` dict; nested paths created. Local repos: `shutil.copytree` to temp dir — source never mutated.
+- No new dependencies; uses stdlib `difflib`, `shutil`, `subprocess`, `tempfile`.
+- Old `EvalRunner`/`EvalCase`/`EvalResult` preserved verbatim.
 
 ## v2.5.0 (Task Eval Fixture Format)
 `src/safecode/eval/fixtures.py` and `src/safecode/eval/loader.py` added. `tests/test_task_eval_fixtures.py` covers 71 tests across 10 classes.
