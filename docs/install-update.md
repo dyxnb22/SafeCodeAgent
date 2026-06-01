@@ -46,6 +46,16 @@ Use external approval directories rather than project-local approval stores.
 - `sac doctor` verifies Python, uv, project root, config, `.sac/`, and approval env status.
 - `sac version` shows the current package version and a source-checkout update hint.
 
+## Release Checks
+
+Before tagging a release, run:
+
+```bash
+sac release check    # version consistency and working-tree state
+sac release smoke    # fast smoke test: import, CLI, consistency, policy names, docs
+sac release meta     # metadata index: version, tag, notes, SKILL.md baseline
+```
+
 ## Current Enforcement Boundaries
 
 - Sandbox command execution currently runs through Noop plus Docker, macOS Seatbelt, and Linux Bubblewrap preview backends. Docker requires a reachable daemon, macOS Seatbelt requires `sandbox-exec`, and Linux Bubblewrap requires `bwrap`.

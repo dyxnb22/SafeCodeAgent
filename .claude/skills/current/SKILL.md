@@ -5,13 +5,45 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v2.6.5
+# Current Baseline - v2.6.9
 
 ## Status
-Implemented. Git baseline: tag `v2.6.5`.
+Implemented. Git baseline: tag `v2.6.9`.
 
 ## Stage
-`v2.6.x` Product Hardening — v2.6.1 hardened migration behavior around policy names, and v2.6.2-v2.6.5 added release consistency checks, release checklist polish, policy docs hardening, and a release smoke-test workflow.
+`v2.6.x` Product Hardening — v2.6.1–v2.6.9 added release consistency checks, checklist polish, policy docs hardening, smoke tests, tag/version guard, next-step polish, release metadata index, and docs finalization guard.
+
+## v2.6.9 (Release Docs Finalization Guard)
+`src/safecode/release/docs_guard.py` added. `smoke.py` gains `_check_docs_finalized()` case. `docs/install-update.md` updated with release command section.
+
+Key additions:
+- `check_docs_finalized()`: verifies version-note exists, SKILL.md mentions version, README/docs/install-update mentions release commands.
+- Integrated into `run_smoke_tests()` as a fast, local, deterministic check.
+- `tests/test_release_docs_guard.py` adds focused pass/fail tests.
+
+## v2.6.8 (Release Metadata Index)
+`src/safecode/release/metadata.py` added. `src/safecode/cli_ops.py` exposes `sac release meta`.
+
+Key additions:
+- `collect_release_metadata()`: collects package version, runtime version, latest git tag, version-notes entries; reports missing note and stale SKILL.md as issues.
+- `render_release_metadata()`: human-readable metadata snapshot.
+- `tests/test_release_metadata.py` adds 20 tests.
+
+## v2.6.7 (Release Check Next-Step Polish)
+`src/safecode/release/check.py` updated with state-aware `_summarise_state()` and improved next-steps.
+
+Key additions:
+- Ready state only when version, tree, and tag all confirmed good.
+- Tag suggests only what is actually needed; never re-suggests commit/tag when already correct.
+- "Tests passed" never appears in output.
+
+## v2.6.6 (Git Tag/Version Consistency Guard)
+`src/safecode/release/version_guard.py` extended with `TagConsistencyResult`, `get_exact_git_tag()`, `check_tag_consistency()`.
+
+Key additions:
+- `check_tag_consistency()`: tag=None means no tag (not auto-detect); uses `_TAG_AUTO` sentinel for auto-detect.
+- `run_release_check()` accepts injected `git_tag` for testability; includes tag result in output.
+- `render_release_check()` displays tag consistency row.
 
 ## v2.6.5 (Release Smoke-Test Workflow)
 `src/safecode/release/smoke.py` added. `src/safecode/cli_ops.py` exposes `sac release smoke`. `tests/test_release_smoke.py` adds 24 tests.

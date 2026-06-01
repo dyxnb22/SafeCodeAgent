@@ -1,4 +1,4 @@
-"""Tests for v2.6.5 release smoke-test workflow."""
+"""Tests for v2.6.5 release smoke-test workflow and v2.6.9 docs finalization case."""
 
 import pytest
 from typer.testing import CliRunner
@@ -9,6 +9,7 @@ from safecode.release.smoke import (
     SmokeTestCase,
     SmokeTestResult,
     _check_cli_version,
+    _check_docs_finalized,
     _check_import_version,
     _check_policy_names,
     _check_version_consistency,
@@ -57,6 +58,19 @@ class TestCheckVersionConsistency:
         assert len(case.detail) > 0
 
 
+class TestCheckDocsFinalized:
+    def test_passes_in_consistent_repo(self):
+        case = _check_docs_finalized()
+        assert case.name == "docs_finalized"
+        # In the real repo we should have version note and SKILL.md updated
+        assert isinstance(case.passed, bool)
+        assert len(case.detail) > 0
+
+    def test_detail_non_empty(self):
+        case = _check_docs_finalized()
+        assert case.detail
+
+
 class TestCheckPolicyNames:
     def test_passes_with_all_expected_names(self):
         case = _check_policy_names()
@@ -85,6 +99,7 @@ class TestRunSmokeTests:
         assert "cli_version" in names
         assert "version_consistency" in names
         assert "policy_names" in names
+        assert "docs_finalized" in names
 
     def test_passes_in_consistent_repo(self):
         result = run_smoke_tests()

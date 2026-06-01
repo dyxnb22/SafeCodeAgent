@@ -74,6 +74,19 @@ def _check_version_consistency() -> SmokeTestCase:
         return SmokeTestCase("version_consistency", False, f"check raised: {exc}")
 
 
+def _check_docs_finalized() -> SmokeTestCase:
+    try:
+        import safecode
+        from safecode.release.docs_guard import check_docs_finalized
+        result = check_docs_finalized(safecode.__version__)
+        if result.ok:
+            return SmokeTestCase("docs_finalized", True, f"docs finalized for v{safecode.__version__}")
+        summary = "; ".join(result.issues)
+        return SmokeTestCase("docs_finalized", False, summary)
+    except Exception as exc:  # noqa: BLE001
+        return SmokeTestCase("docs_finalized", False, f"check raised: {exc}")
+
+
 def _check_policy_names() -> SmokeTestCase:
     try:
         from safecode.config import KNOWN_POLICY_NAMES
@@ -98,6 +111,7 @@ def run_smoke_tests() -> SmokeTestResult:
     result.cases.append(_check_cli_version())
     result.cases.append(_check_version_consistency())
     result.cases.append(_check_policy_names())
+    result.cases.append(_check_docs_finalized())
     return result
 
 
