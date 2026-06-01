@@ -384,7 +384,7 @@ Package version metadata is synchronized in `pyproject.toml` and `src/safecode/_
 - Release roadmap: `docs/release_roadmap_v0_1_to_v1_0.md`
 - Productization roadmap: `docs/productization-roadmap-to-claude-code.md`
 - Product review follow-up: `docs/product-review-v2.3.4-followup.md`
-- Git baseline: tag `v2.7.3`
+- Git baseline: tag `v2.7.4`
 - Runtime invariants: `.claude/skills/shared/core-runtime.md`
 
 ## Current Capability

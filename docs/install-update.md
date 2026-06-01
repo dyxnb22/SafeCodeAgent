@@ -47,26 +47,34 @@ Use external approval directories rather than project-local approval stores.
 - `sac doctor --release` adds tag/docs/preflight diagnostics for release preparation.
 - `sac version` shows the current package version and a source-checkout update hint.
 
-## Release Checks
+## Release Flow
 
-Use this flow for each release:
+Recommended main path for each release:
 
 ```bash
-sac release bump 2.6.13        # update canonical version files; does not commit or tag
+sac release bump X.Y.Z         # update canonical version files; does not commit or tag
 PYTHONPATH=src python3 -m pytest -q
-git add .
-git commit -m "Implement v2.6.13 <summary>"
-git tag -a v2.6.13 -m "v2.6.13 <summary>"
-sac release check              # package/runtime/tag consistency and clean tree
-sac release smoke              # fast smoke test: import, CLI, consistency, policy names, docs
-sac release meta               # metadata index: version, tag, notes, SKILL.md baseline
-sac release changelog --recent 5
-sac release preflight          # aggregate local release gate: check, smoke, meta, docs
+git add -p                      # stage only version + version-note changes
+git commit -m "Implement vX.Y.Z <summary>"
+git tag -a vX.Y.Z -m "vX.Y.Z <summary>"
+sac release preflight          # aggregate local gate: check, smoke, metadata, docs
+sac release changelog --recent 5   # optional: preview the changelog
 git describe --exact-match --tags HEAD
 ```
 
 The tag version must match `pyproject.toml` and `safecode.__version__`; do not
 create or move a release tag while the package still reports an older version.
+
+Additional commands are available for inspection and troubleshooting, but are
+not required for the standard release path:
+
+```bash
+sac release check              # [advanced] version consistency and working-tree state
+sac release smoke              # [advanced] fast smoke test (subset of preflight)
+sac release meta               # [advanced] metadata index: version, tag, notes, baseline
+sac release checklist vX.Y.Z   # [advanced] render a step-by-step release checklist
+sac release signoff            # [internal] final signoff — not required in standard flow
+```
 
 ## Current Enforcement Boundaries
 

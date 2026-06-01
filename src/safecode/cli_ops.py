@@ -151,13 +151,13 @@ def ide_open_files(query: str, limit: int = typer.Option(5, "--limit", min=1)) -
 
 @release_app.command("checklist")
 def release_checklist(version: str) -> None:
-    """Render a release checklist."""
+    """[advanced] Render a release checklist. Prefer: bump -> pytest -> tag -> preflight."""
     console.print(render_release_checklist(version))
 
 
 @release_app.command("check")
 def release_check() -> None:
-    """Report version consistency and working-tree state for local release preparation."""
+    """[advanced] Report version consistency and working-tree state. Prefer: sac release preflight."""
     result = run_release_check(Path.cwd())
     console.print(render_release_check(result))
     if not result.ok:
@@ -166,7 +166,7 @@ def release_check() -> None:
 
 @release_app.command("smoke")
 def release_smoke() -> None:
-    """Run a fast release smoke test: import, CLI version, consistency, policy names."""
+    """[advanced] Run a fast release smoke test (import, version, policy). Prefer: sac release preflight."""
     result = run_smoke_tests()
     console.print(render_smoke_results(result))
     if not result.ok:
@@ -187,7 +187,7 @@ def release_bump(
 
 @release_app.command("meta")
 def release_meta() -> None:
-    """Show release metadata index: version, tag, notes, and baseline consistency."""
+    """[advanced] Show release metadata index: version, tag, notes, and baseline consistency."""
     meta = collect_release_metadata(Path.cwd())
     console.print(render_release_metadata(meta))
     if not meta.ok:
@@ -225,7 +225,7 @@ def release_changelog(
 
 @release_app.command("signoff")
 def release_signoff() -> None:
-    """Run the final local release signoff."""
+    """[internal] Run the final local release signoff. Not required for the standard release flow."""
     result = run_release_signoff(Path.cwd())
     console.print(render_release_signoff(result))
     if not result.ok:
