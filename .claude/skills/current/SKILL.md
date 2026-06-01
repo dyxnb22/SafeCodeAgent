@@ -5,13 +5,25 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v2.5.2
+# Current Baseline - v2.5.3
 
 ## Status
-Implemented. Git baseline: tag `v2.5.2`.
+Implemented. Git baseline: tag `v2.5.3`.
 
 ## Stage
-`v2.5.x` Reliability and Evaluation — v2.5.2 adds a structured failure taxonomy for task eval replay results. The v2.5.1 runner API is fully preserved.
+`v2.5.x` Reliability and Evaluation — v2.5.3 adds a local-only quality dashboard report generator that renders `ReplayResult` lists into Markdown and HTML.  The v2.5.2 failure taxonomy and v2.5.1 runner API are fully preserved.
+
+## v2.5.3 (Quality Dashboard Report)
+`src/safecode/report/dashboard.py` added. `src/safecode/report/__init__.py` updated. `tests/test_report_dashboard.py` adds 112 tests.
+
+Key additions:
+- `ReportSummary` (frozen dataclass): `total`, `passed`, `failed`, `pass_rate` (float [0.0, 1.0]), `category_counts` (`dict[str, int]` keyed by `FailureCategory` value, in enum declaration order; 1.0 pass_rate when total == 0).
+- `build_summary(results) -> ReportSummary`: aggregates counts from `result.classified_failures` across all results. Deterministic: categories follow `FailureCategory` enum order.
+- `DashboardRenderer.render_markdown(results, title="Eval Report") -> str`: sections — Summary, Failure Categories (omitted when empty), Fixture Results table, Failure Details (omitted when all passing). Pipe characters in Markdown table cells are escaped.
+- `DashboardRenderer.render_html(results, title="Eval Report") -> str`: semantically equivalent HTML with `html.escape()` on all user strings; `.pass`/`.fail` CSS classes on status cells; self-contained (no external stylesheet).
+- Both renderers are deterministic (byte-identical for same inputs) and snapshot-friendly.
+- No new dependencies: uses stdlib `collections.Counter` and `html` only.
+- Backward-compatible: `ReplayResult.classified_failures` defaults to `[]` (v2.5.2); no existing fields removed or renamed.
 
 ## v2.5.2 (Failure Taxonomy)
 `src/safecode/eval/failures.py` added. `ReplayResult` extended with backward-compatible `classified_failures` field. `tests/test_task_eval_failures.py` adds 50 tests.
