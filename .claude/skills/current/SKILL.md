@@ -5,13 +5,21 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v2.7.5
+# Current Baseline - v2.7.6
 
 ## Status
-Implemented. Git baseline: tag `v2.7.5`.
+Implemented. Git baseline: tag `v2.7.6`.
 
 ## Stage
-`v2.7.x` Consolidation — v2.7.0–v2.7.5: audit consolidation, hook approval project binding, versions-json sync, subagent finding redaction/logging, release surface honesty lite, quickstart command.
+`v2.7.x` Consolidation — v2.7.0–v2.7.6: audit consolidation, hook approval project binding, versions-json sync, subagent finding redaction/logging, release surface honesty lite, quickstart command, CLI help surface trim.
+
+## v2.7.6 (CLI Help Surface Trim)
+`src/safecode/cli.py` and `src/safecode/cli_ops.py` updated.
+
+Key additions:
+- `queue`, `memory`, `progress`, `rules`, `tui`, `ide`, `export` hidden from `sac --help` (still callable).
+- Core new-user commands remain visible in root help.
+- 23 new tests in `tests/test_cli_help_surface_trim.py`.
 
 ## v2.7.5 (Quickstart Command)
 `src/safecode/cli_quickstart.py` added. `src/safecode/cli.py` registers `sac quickstart`.

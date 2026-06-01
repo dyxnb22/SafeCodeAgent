@@ -43,7 +43,7 @@ audit_app = typer.Typer(help="Inspect and verify audit logs.")
 hooks_app = typer.Typer(help="Approve and inspect project hooks.")
 
 
-@ops_app.command("rules")
+@ops_app.command("rules", hidden=True)
 def rules(init: bool = typer.Option(False, "--init")) -> None:
     """Show or initialize SAC.md project rules."""
     rules_store = ProjectRules(Path.cwd())
@@ -52,7 +52,7 @@ def rules(init: bool = typer.Option(False, "--init")) -> None:
     console.print(rules_store.read() or "[yellow]No SAC.md found. Run sac rules --init.[/yellow]")
 
 
-@ops_app.command("memory")
+@ops_app.command("memory", hidden=True)
 def memory_set(key: str, value: str) -> None:
     """Remember a low-risk project fact."""
     MemoryStore(Path.cwd()).remember(key, value)
