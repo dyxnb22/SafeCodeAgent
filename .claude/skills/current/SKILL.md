@@ -5,13 +5,22 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v2.6.10
+# Current Baseline - v2.6.11
 
 ## Status
-Implemented. Git baseline: tag `v2.6.10`.
+Implemented. Git baseline: tag `v2.6.11`.
 
 ## Stage
-`v2.6.x` Product Hardening — v2.6.1–v2.6.10 added release consistency checks, checklist polish, policy docs hardening, smoke tests, tag/version guard, next-step polish, release metadata index, docs finalization guard, and release version bump helper.
+`v2.6.x` Product Hardening — v2.6.1–v2.6.11 added release consistency checks, checklist polish, policy docs hardening, smoke tests, tag/version guard, next-step polish, release metadata index, docs finalization guard, release version bump helper, and release preflight aggregation.
+
+## v2.6.11 (Release Preflight)
+`src/safecode/release/preflight.py` added. `src/safecode/cli_ops.py` exposes `sac release preflight`.
+
+Key additions:
+- `run_release_preflight()`: aggregates release check, smoke, metadata, and docs finalization guard.
+- `render_release_preflight()`: concise PASS/FAIL summary with focused failure details.
+- `ReleaseCheckResult.ok` now includes tag consistency when tag information is available.
+- `tests/test_release_preflight.py` adds focused aggregation and CLI tests.
 
 ## v2.6.10 (Release Version Bump Helper)
 `src/safecode/release/bump.py` added. `src/safecode/cli_ops.py` exposes `sac release bump VERSION [--dry-run]`.

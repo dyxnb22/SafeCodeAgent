@@ -54,6 +54,7 @@ Before tagging a release, run:
 sac release check    # version consistency and working-tree state
 sac release smoke    # fast smoke test: import, CLI, consistency, policy names, docs
 sac release meta     # metadata index: version, tag, notes, SKILL.md baseline
+sac release preflight # aggregate local release gate: check, smoke, meta, docs
 ```
 
 ## Current Enforcement Boundaries

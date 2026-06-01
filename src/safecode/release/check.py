@@ -30,7 +30,8 @@ class ReleaseCheckResult:
 
     @property
     def ok(self) -> bool:
-        return self.version_consistent and (self.tree_clean is not False)
+        tag_ok = self.tag_result is None or self.tag_result.consistent
+        return self.version_consistent and (self.tree_clean is not False) and tag_ok
 
 
 _UNSET = object()  # sentinel for auto-detecting git tag
