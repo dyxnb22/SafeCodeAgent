@@ -150,11 +150,13 @@ class MacOSSeatbeltAdapter:
             env_keys=sorted(effective_request.env.keys()),
             timeout_seconds=effective_request.timeout_seconds,
             warnings=adapter_warnings + [
-                "macOS sandbox-exec profile is generated for preview only.",
+                "macOS sandbox-exec profile generated for review.",
+                "v2.4.1 preview: execution requires approval and sandbox-exec on PATH.",
             ],
             limitations=[
-                "v1.7.1 does not execute sandbox-exec.",
-                "Profile is for review purposes only.",
+                "Modern macOS (15+) increasingly restricts sandbox-exec for third-party use.",
+                "Process isolation is limited — sandbox-exec cannot prevent fork-bombs.",
+                "Network and filesystem isolation enforced by the .sb profile.",
             ],
             profile_preview=profile_preview,
             profile_backend=profile_backend,
@@ -162,7 +164,7 @@ class MacOSSeatbeltAdapter:
         )
 
     def supports_execution(self) -> bool:
-        return False
+        return True
 
 
 class LinuxBubblewrapAdapter:

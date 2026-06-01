@@ -585,14 +585,15 @@ class TestDockerAdapterSupportsExecution:
         cap = _make_docker_cap()
         assert DockerSandboxAdapter(cap).supports_execution() is True
 
-    def test_macos_adapter_still_dry_run(self):
+    def test_macos_adapter_supports_execution_v241(self):
+        """v2.4.1: MacOSSeatbeltAdapter now supports execution."""
         cap = SandboxCapability(
             backend=SandboxBackend.MACOS_SEATBELT,
             available=True,
             supported_platforms=["macOS"],
             reason="test",
         )
-        assert MacOSSeatbeltAdapter(cap).supports_execution() is False
+        assert MacOSSeatbeltAdapter(cap).supports_execution() is True
 
     def test_linux_adapter_still_dry_run(self):
         cap = SandboxCapability(

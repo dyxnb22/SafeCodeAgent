@@ -730,6 +730,56 @@ class SandboxExecutionGate:
 
         requested_at = utc_now_iso()
 
+        # v2.4.1: macOS Seatbelt backend executes via MacOSSeatbeltExecutor.
+        if proposal.backend == "macos_seatbelt":
+            from safecode.sandbox.seatbelt import MacOSSeatbeltExecutor  # lazy — avoids circular import
+
+            seatbelt_res = MacOSSeatbeltExecutor(self.project_root, self.config).execute(proposal)
+            audit_type = (
+                "sandbox_execution_completed"
+                if seatbelt_res.executed
+                else "sandbox_execution_blocked"
+            )
+            self._audit(
+                audit_type,
+                proposal.proposal_id,
+                proposal.backend,
+                proposal.purpose,
+                proposal.command[0] if proposal.command else "",
+                proposal.command_hash,
+                seatbelt_res.message,
+            )
+            result_store = SandboxExecutionResultStore(self.project_root, self.config)
+            result_store.save(
+                SandboxExecutionResultRecord(
+                    proposal_id=proposal.proposal_id,
+                    attempted_at=requested_at,
+                    backend=proposal.backend,
+                    executed=seatbelt_res.executed,
+                    exit_code=seatbelt_res.exit_code,
+                    duration_ms=seatbelt_res.duration_ms,
+                    status="completed",
+                    message=seatbelt_res.message,
+                    command_hash_prefix=proposal.command_hash[:16],
+                    command_head=proposal.command[0] if proposal.command else "",
+                    stdout_preview=SandboxExecutionResultStore._truncate(seatbelt_res.stdout),
+                    stderr_preview=SandboxExecutionResultStore._truncate(seatbelt_res.stderr),
+                    stdout_length=len(seatbelt_res.stdout),
+                    stderr_length=len(seatbelt_res.stderr),
+                )
+            )
+            self.store.discard_pending()
+            return SandboxExecutionResult(
+                proposal_id=proposal.proposal_id,
+                executed=seatbelt_res.executed,
+                exit_code=seatbelt_res.exit_code,
+                stdout=seatbelt_res.stdout,
+                stderr=seatbelt_res.stderr,
+                backend=proposal.backend,
+                dry_run=not seatbelt_res.executed,
+                message=seatbelt_res.message,
+            )
+
         # v2.4.0: Docker backend executes via DockerExecutor.
         if proposal.backend == "docker":
             from safecode.sandbox.docker import DockerExecutor  # lazy — avoids circular import

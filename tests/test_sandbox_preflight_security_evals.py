@@ -194,12 +194,12 @@ class TestApprovalExecutionState:
         ad = _approval_dir(tmp_path)
         monkeypatch.setenv("SAFECODE_SANDBOX_APPROVAL_DIR", str(ad))
         gate = _setup_gate(tmp_path, monkeypatch)
-        # v1.8.0: use macOS backend which still returns supports_execution=False
+        # v2.4.1: use Linux Bubblewrap which still returns supports_execution=False.
         gate.propose(
             _make_plan(
-                backend=SandboxBackend.MACOS_SEATBELT,
-                profile_preview="(deny default)",
-                profile_backend="macos_seatbelt",
+                backend=SandboxBackend.LINUX_BUBBLEWRAP,
+                args_preview=["bwrap", "--ro-bind", "/"],
+                args_backend="linux_bubblewrap",
             ),
             "shell",
         )
@@ -410,19 +410,19 @@ class TestRegression:
         anchor = tmp_path.parent / f"anchors-{tmp_path.name}"
         monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor))
         gate = _setup_gate(tmp_path, monkeypatch)
-        # v1.8.0: use macOS backend (still supports_execution=False)
+        # v2.4.1: use Linux Bubblewrap which is still plan-only (supports_execution=False).
         gate.propose(
             _make_plan(
-                backend=SandboxBackend.MACOS_SEATBELT,
-                profile_preview="(deny default)",
-                profile_backend="macos_seatbelt",
+                backend=SandboxBackend.LINUX_BUBBLEWRAP,
+                args_preview=["bwrap", "--ro-bind", "/"],
+                args_backend="linux_bubblewrap",
             ),
             "shell",
         )
         gate.approve()
         result = SandboxExecutionPreflight(tmp_path).run()
         assert result.approval_valid is True
-        assert result.allowed is False  # macOS backend does not support execution yet
+        assert result.allowed is False  # Linux Bubblewrap does not support execution yet
 
     def test_sandbox_approve_execute_still_refuses_unsupported_backend(self, tmp_path, monkeypatch):
         ad = _approval_dir(tmp_path)
@@ -430,12 +430,12 @@ class TestRegression:
         anchor = tmp_path.parent / f"anchors-{tmp_path.name}"
         monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor))
         gate = _setup_gate(tmp_path, monkeypatch)
-        # v1.8.0: macOS backend still does not support execution
+        # v2.4.1: Linux Bubblewrap still does not support execution
         gate.propose(
             _make_plan(
-                backend=SandboxBackend.MACOS_SEATBELT,
-                profile_preview="(deny default)",
-                profile_backend="macos_seatbelt",
+                backend=SandboxBackend.LINUX_BUBBLEWRAP,
+                args_preview=["bwrap", "--ro-bind", "/"],
+                args_backend="linux_bubblewrap",
             ),
             "shell",
         )

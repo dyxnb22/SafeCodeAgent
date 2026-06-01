@@ -172,7 +172,7 @@ class TestBlockedPaths:
         assert result.executed is False
 
     def test_backend_not_supported_macos(self, tmp_path, monkeypatch):
-        """macOS Seatbelt adapter still returns supports_execution=False."""
+        """v2.4.1: macOS Seatbelt supports execution; fake profile → hash mismatch → fail closed."""
         gate = _setup_gate(tmp_path, monkeypatch)
         gate.propose(
             _make_plan(
@@ -184,6 +184,8 @@ class TestBlockedPaths:
         )
         gate.approve()
         result = gate.execute_pending()
+        # Execution attempted but fails closed: fake profile causes hash mismatch or
+        # backend unavailable on non-macOS CI. Either way, executed=False.
         assert result.executed is False
 
     def test_backend_not_supported_linux_bwrap(self, tmp_path, monkeypatch):
@@ -440,11 +442,12 @@ class TestSingleUseApproval:
     def test_blocked_preflight_does_not_consume(self, tmp_path, monkeypatch):
         """Blocked execution (unsupported backend) does NOT consume approval."""
         gate = _setup_gate(tmp_path, monkeypatch)
+        # Linux Bubblewrap is still plan-only in v2.4.x — use it as the unsupported backend.
         gate.propose(
             _make_plan(
-                backend=SandboxBackend.MACOS_SEATBELT,
-                profile_preview="(deny default)",
-                profile_backend="macos_seatbelt",
+                backend=SandboxBackend.LINUX_BUBBLEWRAP,
+                args_preview=["bwrap", "--ro-bind", "/"],
+                args_backend="linux_bubblewrap",
             ),
             "shell",
         )
@@ -521,13 +524,14 @@ class TestSingleUseApproval:
             assert "secret-value-123" not in combined
 
     def test_unsupported_backend_no_claimed_audit(self, tmp_path, monkeypatch):
-        """macOS backend blocked by preflight — no claim audit event written."""
+        """Linux Bubblewrap backend blocked by preflight — no claim audit event written."""
         gate = _setup_gate(tmp_path, monkeypatch)
+        # Linux Bubblewrap is still plan-only in v2.4.x.
         gate.propose(
             _make_plan(
-                backend=SandboxBackend.MACOS_SEATBELT,
-                profile_preview="(deny default)",
-                profile_backend="macos_seatbelt",
+                backend=SandboxBackend.LINUX_BUBBLEWRAP,
+                args_preview=["bwrap", "--ro-bind", "/"],
+                args_backend="linux_bubblewrap",
             ),
             "shell",
         )
@@ -597,11 +601,12 @@ class TestAtomicApprovalClaim:
     def test_blocked_preflight_does_not_call_claim(self, tmp_path, monkeypatch):
         """Blocked preflight returns before claim_for_execution is reached."""
         gate = _setup_gate(tmp_path, monkeypatch)
+        # Linux Bubblewrap is still plan-only in v2.4.x — use it as the unsupported backend.
         gate.propose(
             _make_plan(
-                backend=SandboxBackend.MACOS_SEATBELT,
-                profile_preview="(deny default)",
-                profile_backend="macos_seatbelt",
+                backend=SandboxBackend.LINUX_BUBBLEWRAP,
+                args_preview=["bwrap", "--ro-bind", "/"],
+                args_backend="linux_bubblewrap",
             ),
             "shell",
         )
@@ -849,11 +854,12 @@ class TestExecutionResultLifecycle:
     def test_preflight_blocked_preserves_pending(self, tmp_path, monkeypatch):
         """Preflight blocked does NOT clear pending — user can fix and retry."""
         gate = _setup_gate(tmp_path, monkeypatch)
+        # Linux Bubblewrap is still plan-only in v2.4.x.
         gate.propose(
             _make_plan(
-                backend=SandboxBackend.MACOS_SEATBELT,
-                profile_preview="(deny default)",
-                profile_backend="macos_seatbelt",
+                backend=SandboxBackend.LINUX_BUBBLEWRAP,
+                args_preview=["bwrap", "--ro-bind", "/"],
+                args_backend="linux_bubblewrap",
             ),
             "shell",
         )
@@ -865,11 +871,12 @@ class TestExecutionResultLifecycle:
     def test_preflight_blocked_does_not_consume_approval(self, tmp_path, monkeypatch):
         """Preflight blocked still preserves the approval for retry."""
         gate = _setup_gate(tmp_path, monkeypatch)
+        # Linux Bubblewrap is still plan-only in v2.4.x.
         gate.propose(
             _make_plan(
-                backend=SandboxBackend.MACOS_SEATBELT,
-                profile_preview="(deny default)",
-                profile_backend="macos_seatbelt",
+                backend=SandboxBackend.LINUX_BUBBLEWRAP,
+                args_preview=["bwrap", "--ro-bind", "/"],
+                args_backend="linux_bubblewrap",
             ),
             "shell",
         )
@@ -1662,8 +1669,8 @@ class TestRegression:
             reason="Docker daemon available.",
         )
 
-        assert MacOSSeatbeltAdapter(mac_cap).supports_execution() is False
-        assert LinuxBubblewrapAdapter(linux_cap).supports_execution() is False
+        assert MacOSSeatbeltAdapter(mac_cap).supports_execution() is True   # v2.4.1
+        assert LinuxBubblewrapAdapter(linux_cap).supports_execution() is False  # still plan-only
         assert DockerSandboxAdapter(docker_cap).supports_execution() is True  # v2.4.0
         assert NoopSandboxAdapter().supports_execution() is True
 

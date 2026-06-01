@@ -111,7 +111,7 @@ class SandboxExecutionPreflight:
         if not backend_available:
             reasons.append(f"Backend '{proposal.backend}' is not available on this system.")
         if not backend_supports_execution:
-            reasons.append(f"Backend '{proposal.backend}' does not support execution yet (macOS Seatbelt and Linux Bubblewrap are still plan-only in v2.4.x).")
+            reasons.append(f"Backend '{proposal.backend}' does not support execution yet (Linux Bubblewrap is still plan-only in v2.4.x).")
         if not filesystem_boundary_ok:
             reasons.append("One or more writable paths escape project root.")
 

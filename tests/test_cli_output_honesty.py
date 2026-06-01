@@ -1,7 +1,7 @@
-"""Tests for v2.3.5 honest surface.
+"""Tests for v2.3.5+ honest surface (updated for v2.4.1).
 
 Verifies that CLI output accurately communicates current execution boundaries:
-- sandbox status/plan: Noop is the only executing backend; non-Noop are plan-only.
+- sandbox status/plan: Noop/Docker/macOS Seatbelt execute; Linux Bubblewrap is plan-only.
 - mcp tools: current support is a subprocess JSON shim, not a full JSON-RPC client.
 - subagent: current subagents are read-only context/result collectors.
 """
@@ -86,16 +86,16 @@ class TestSandboxStatusHonesty:
         assert "noop" in output_lower or "none" in output_lower
 
     def test_status_non_noop_labeled_plan_only(self):
-        """Non-Noop backends must be labeled plan-only in the capability table."""
+        """Linux Bubblewrap must be labeled plan-only in the capability table (v2.4.x)."""
         result = self._invoke_status()
         assert "plan-only" in result.output
 
-    def test_status_macos_seatbelt_is_plan_only(self):
-        """macos_seatbelt backend must appear as plan-only, not as executing."""
+    def test_status_macos_seatbelt_is_executing_preview(self):
+        """v2.4.1: macos_seatbelt must appear as executing preview, not plan-only."""
         result = self._invoke_status()
         output = result.output
         assert "macos_seatbelt" in output
-        assert "plan-only" in output
+        assert "executing" in output.lower()
 
     def test_status_docker_is_executing_preview(self):
         """docker backend must appear as executing preview in v2.4.x."""
@@ -125,8 +125,8 @@ class TestSandboxPlanHonesty:
         assert "executing" in result.output.lower()
 
     def test_plan_non_noop_shows_plan_only_in_table(self):
-        """Non-Noop backend plan must show plan-only mode in the plan table."""
-        result = self._invoke_plan_with_backend(SandboxBackend.MACOS_SEATBELT)
+        """Linux Bubblewrap plan must show plan-only mode (still plan-only in v2.4.x)."""
+        result = self._invoke_plan_with_backend(SandboxBackend.LINUX_BUBBLEWRAP)
         assert "plan-only" in result.output
 
     def test_plan_docker_shows_executing_preview_in_table(self):
@@ -134,6 +134,12 @@ class TestSandboxPlanHonesty:
         result = self._invoke_plan_with_backend(SandboxBackend.DOCKER)
         assert "executing" in result.output.lower()
         assert "Docker preview" in result.output
+
+    def test_plan_seatbelt_shows_executing_preview_in_table(self):
+        """macOS Seatbelt plan must show executing preview mode in v2.4.1."""
+        result = self._invoke_plan_with_backend(SandboxBackend.MACOS_SEATBELT)
+        assert "executing" in result.output.lower()
+        assert "Seatbelt preview" in result.output or "sandbox-exec" in result.output
 
     def test_plan_trailing_note_references_v2_4(self):
         """The trailing dry-run note must reference v2.4.x, not v1.7.x."""
@@ -143,12 +149,12 @@ class TestSandboxPlanHonesty:
 
     def test_plan_backend_mode_row_in_output(self):
         """sandbox plan output must contain Backend Mode row."""
-        result = self._invoke_plan_with_backend(SandboxBackend.MACOS_SEATBELT)
+        result = self._invoke_plan_with_backend(SandboxBackend.LINUX_BUBBLEWRAP)
         assert "Backend Mode" in result.output
 
     def test_plan_non_noop_dry_run_wording_not_only_trailing(self):
-        """plan-only wording must appear in the table, not only at the end."""
-        result = self._invoke_plan_with_backend(SandboxBackend.MACOS_SEATBELT)
+        """plan-only wording must appear in the table, not only at the end (Linux Bubblewrap)."""
+        result = self._invoke_plan_with_backend(SandboxBackend.LINUX_BUBBLEWRAP)
         output = result.output
         plan_only_pos = output.find("plan-only")
         dry_run_panel_pos = output.find("Dry Run")

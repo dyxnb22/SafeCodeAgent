@@ -30,13 +30,14 @@ def sandbox_status() -> None:
     project_root = Path.cwd()
     plan = SandboxPlanner(project_root).plan()
 
-    # v2.4.0: Docker backend now supports execution; others remain plan-only.
+    # v2.4.1: Docker and macOS Seatbelt support execution; Linux Bubblewrap remains plan-only.
     console.print(
         Panel.fit(
-            "[bold]v2.4.0 Docker Sandbox Preview[/bold]\n"
+            "[bold]v2.4.1 macOS Seatbelt Sandbox Preview[/bold]\n"
             "Noop backend: [green]executing[/green] (SafeCode logical boundaries)\n"
             "Docker backend: [green]executing[/green] (preview — requires running daemon)\n"
-            "macOS Seatbelt and Linux Bubblewrap: [yellow]plan-only / dry-run[/yellow]",
+            "macOS Seatbelt: [green]executing[/green] (preview — requires sandbox-exec on PATH)\n"
+            "Linux Bubblewrap: [yellow]plan-only / dry-run[/yellow]",
             title="[green]Execution Scope (v2.4.x)[/green]",
         )
     )
@@ -51,6 +52,8 @@ def sandbox_status() -> None:
         if cap.backend == SandboxBackend.NONE:
             mode = "[green]executing[/green]"
         elif cap.backend == SandboxBackend.DOCKER:
+            mode = "[green]executing[/green] (preview)"
+        elif cap.backend == SandboxBackend.MACOS_SEATBELT:
             mode = "[green]executing[/green] (preview)"
         else:
             mode = "[yellow]plan-only[/yellow]"
@@ -135,6 +138,8 @@ def sandbox_plan(
         backend_mode = "[green]executing[/green] (Noop — SafeCode logical boundaries)"
     elif exec_plan.backend == SandboxBackend.DOCKER:
         backend_mode = "[green]executing[/green] (Docker preview — requires approval and daemon)"
+    elif exec_plan.backend == SandboxBackend.MACOS_SEATBELT:
+        backend_mode = "[green]executing[/green] (macOS Seatbelt preview — requires approval and sandbox-exec)"
     else:
         backend_mode = "[bold yellow]plan-only / dry-run[/bold yellow] (no OS-level execution)"
 
@@ -213,12 +218,17 @@ def sandbox_plan(
             cl_lines = [f"- {lim}" for lim in exec_plan.container_limitations]
             console.print(Panel("\n".join(cl_lines), title="[dim]Container Limitations[/dim]"))
 
-    if exec_plan.backend == SandboxBackend.DOCKER:
+    if exec_plan.backend in {SandboxBackend.DOCKER, SandboxBackend.MACOS_SEATBELT}:
+        backend_label = (
+            "Docker container (daemon must be running)"
+            if exec_plan.backend == SandboxBackend.DOCKER
+            else "macOS sandbox-exec (sandbox-exec must be on PATH)"
+        )
         console.print(
             Panel.fit(
                 "[bold yellow]This command was NOT executed.[/bold yellow]\n"
-                "v2.4.0 Docker preview: use 'sac sandbox propose' → 'sac sandbox approve' → 'sac sandbox execute'\n"
-                "to run the command in a Docker container (daemon must be running).",
+                f"v2.4.1 preview: use 'sac sandbox propose' → 'sac sandbox approve' → 'sac sandbox execute'\n"
+                f"to run the command via {backend_label}.",
                 title="Dry Run",
             )
         )
@@ -227,7 +237,7 @@ def sandbox_plan(
             Panel.fit(
                 "[bold yellow]This command was NOT executed.[/bold yellow]\n"
                 "v2.4.x generates sandbox execution plans and backend previews only for\n"
-                "macOS Seatbelt and Linux Bubblewrap (still plan-only / dry-run).",
+                "Linux Bubblewrap (still plan-only / dry-run).",
                 title="Dry Run",
             )
         )
@@ -407,7 +417,7 @@ def sandbox_approve(
             title="Sandbox Execution Approved",
         )
     )
-    console.print("[yellow]This approval does NOT enable execution in v1.7.6.[/yellow]")
+    console.print("[yellow]Run 'sac sandbox execute' to execute the approved proposal.[/yellow]")
 
 
 @sandbox_app.command("approvals")

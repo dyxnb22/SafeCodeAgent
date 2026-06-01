@@ -84,14 +84,15 @@ class TestMacOSSeatbeltAdapter:
         assert plan.backend == SandboxBackend.MACOS_SEATBELT
         assert len(called) == 0
 
-    def test_supports_execution_is_false(self):
+    def test_supports_execution_is_true_v241(self):
+        """v2.4.1: MacOSSeatbeltAdapter now supports execution."""
         cap = SandboxCapability(
             backend=SandboxBackend.MACOS_SEATBELT,
             available=True,
             supported_platforms=["macOS"],
             reason="test",
         )
-        assert MacOSSeatbeltAdapter(cap).supports_execution() is False
+        assert MacOSSeatbeltAdapter(cap).supports_execution() is True
 
 
 class TestLinuxBubblewrapAdapter:

@@ -430,12 +430,9 @@ class TestBackendIsolation:
         assert len(plan.container_preview) == 0
 
     def test_os_adapters_supports_execution(self):
-        # v2.4.0: Docker now supports execution; macOS/Linux remain plan-only.
-        for adapter in [
-            MacOSSeatbeltAdapter(_cap(SandboxBackend.MACOS_SEATBELT)),
-            LinuxBubblewrapAdapter(_cap(SandboxBackend.LINUX_BUBBLEWRAP)),
-        ]:
-            assert adapter.supports_execution() is False
+        # v2.4.1: Docker and macOS Seatbelt support execution; Linux Bubblewrap is plan-only.
+        assert MacOSSeatbeltAdapter(_cap(SandboxBackend.MACOS_SEATBELT)).supports_execution() is True
+        assert LinuxBubblewrapAdapter(_cap(SandboxBackend.LINUX_BUBBLEWRAP)).supports_execution() is False
         assert DockerSandboxAdapter(_cap(SandboxBackend.DOCKER)).supports_execution() is True
         assert NoopSandboxAdapter().supports_execution() is True
 

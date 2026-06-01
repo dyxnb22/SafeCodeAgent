@@ -1,17 +1,26 @@
-"""macOS Seatbelt (sandbox-exec) profile plan generation.
+"""macOS Seatbelt (sandbox-exec) profile plan generation and execution.
 
-Generates a conservative .sb profile text from a SandboxExecutionRequest.
-This is profile preview only — sandbox-exec is never invoked.
+v1.7.1: Profile preview only — sandbox-exec was never invoked.
+v2.4.1: MacOSSeatbeltExecutor rebuilds the profile, verifies preview_hash,
+        and runs sandbox-exec via subprocess.run(shell=False).
 """
 
 from __future__ import annotations
 
+import hashlib
+import shutil
+import subprocess
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import TYPE_CHECKING, Any, Callable
 
 from safecode.config import SafeCodeConfig
 from safecode.sandbox.adapter import SandboxExecutionRequest
 from safecode.sandbox.filesystem import FilesystemBoundary
+
+if TYPE_CHECKING:
+    from safecode.sandbox.execution import SandboxExecutionProposal
 
 SYSTEM_READ_PATHS = [
     "/usr",
@@ -207,3 +216,167 @@ class SeatbeltProfileBuilder:
             return True
         except ValueError:
             return False
+
+
+# ── v2.4.1: macOS Seatbelt execution ─────────────────────────────────────
+
+
+@dataclass(frozen=True)
+class SeatbeltExecutionResult:
+    """Result of a macOS Seatbelt execution attempt."""
+
+    executed: bool
+    exit_code: int | None
+    stdout: str
+    stderr: str
+    duration_ms: int
+    message: str
+
+
+class MacOSSeatbeltExecutor:
+    """Execute a pending sandbox proposal via macOS sandbox-exec for v2.4.1.
+
+    Reconstructs the Seatbelt profile from stored proposal fields, verifies
+    the preview hash, checks sandbox-exec availability, then runs the command
+    using ``subprocess.run`` with ``shell=False``.
+
+    Injectable ``run_fn`` allows full testing without a real sandbox-exec.
+    """
+
+    _SANDBOX_EXEC = "sandbox-exec"
+    _TIMEOUT_SECONDS = 30
+
+    def __init__(
+        self,
+        project_root: Path,
+        config: SafeCodeConfig,
+        run_fn: Callable[..., Any] | None = None,
+    ) -> None:
+        self.project_root = project_root
+        self.config = config
+        self._run = run_fn or subprocess.run
+
+    def execute(self, proposal: SandboxExecutionProposal) -> SeatbeltExecutionResult:
+        """Rebuild profile, verify hash, check binary, then run. Never raises."""
+        start_ms = int(time.monotonic() * 1000)
+
+        try:
+            request = SandboxExecutionRequest(
+                command=list(proposal.command),
+                cwd=Path(proposal.cwd),
+                purpose=proposal.purpose,
+                allow_network=proposal.network_enabled,
+                readonly_filesystem=proposal.readonly_filesystem,
+                writable_paths=[Path(p) for p in proposal.writable_paths],
+                env={},
+                timeout_seconds=self._TIMEOUT_SECONDS,
+            )
+            profile_plan = SeatbeltProfileBuilder(self.project_root, self.config).build(request)
+        except Exception as exc:
+            msg = f"Seatbelt profile reconstruction failed: {exc}"
+            return SeatbeltExecutionResult(
+                executed=False,
+                exit_code=None,
+                stdout="",
+                stderr=msg,
+                duration_ms=int(time.monotonic() * 1000) - start_ms,
+                message=msg,
+            )
+
+        if proposal.preview_hash is not None:
+            actual_hash = hashlib.sha256(
+                profile_plan.profile_text.encode("utf-8")
+            ).hexdigest()
+            if actual_hash != proposal.preview_hash:
+                msg = (
+                    "Seatbelt profile hash mismatch — profile changed since "
+                    "the proposal was created."
+                )
+                return SeatbeltExecutionResult(
+                    executed=False,
+                    exit_code=None,
+                    stdout="",
+                    stderr=msg,
+                    duration_ms=int(time.monotonic() * 1000) - start_ms,
+                    message=msg,
+                )
+
+        if shutil.which(self._SANDBOX_EXEC) is None:
+            msg = "sandbox-exec not found in PATH."
+            return SeatbeltExecutionResult(
+                executed=False,
+                exit_code=None,
+                stdout="",
+                stderr=msg,
+                duration_ms=int(time.monotonic() * 1000) - start_ms,
+                message=msg,
+            )
+
+        argv = [self._SANDBOX_EXEC, "-p", profile_plan.profile_text] + list(proposal.command)
+        timeout = self._TIMEOUT_SECONDS
+        try:
+            proc = self._run(
+                argv,
+                capture_output=True,
+                timeout=timeout,
+                shell=False,
+            )
+            elapsed_ms = int(time.monotonic() * 1000) - start_ms
+            stdout = (
+                proc.stdout.decode("utf-8", errors="replace")
+                if isinstance(proc.stdout, bytes)
+                else (proc.stdout or "")
+            )
+            stderr = (
+                proc.stderr.decode("utf-8", errors="replace")
+                if isinstance(proc.stderr, bytes)
+                else (proc.stderr or "")
+            )
+            return SeatbeltExecutionResult(
+                executed=True,
+                exit_code=proc.returncode,
+                stdout=stdout,
+                stderr=stderr,
+                duration_ms=elapsed_ms,
+                message=f"Seatbelt execution completed. Exit code: {proc.returncode}.",
+            )
+        except subprocess.TimeoutExpired:
+            msg = f"Seatbelt execution timed out after {timeout}s."
+            return SeatbeltExecutionResult(
+                executed=False,
+                exit_code=None,
+                stdout="",
+                stderr=msg,
+                duration_ms=int(time.monotonic() * 1000) - start_ms,
+                message=msg,
+            )
+        except FileNotFoundError:
+            msg = "sandbox-exec not found in PATH."
+            return SeatbeltExecutionResult(
+                executed=False,
+                exit_code=None,
+                stdout="",
+                stderr=msg,
+                duration_ms=int(time.monotonic() * 1000) - start_ms,
+                message=msg,
+            )
+        except OSError as exc:
+            msg = f"Seatbelt execution failed: {exc}"
+            return SeatbeltExecutionResult(
+                executed=False,
+                exit_code=None,
+                stdout="",
+                stderr=msg,
+                duration_ms=int(time.monotonic() * 1000) - start_ms,
+                message=msg,
+            )
+        except Exception as exc:
+            msg = f"Seatbelt execution failed: {exc}"
+            return SeatbeltExecutionResult(
+                executed=False,
+                exit_code=None,
+                stdout="",
+                stderr=msg,
+                duration_ms=int(time.monotonic() * 1000) - start_ms,
+                message=msg,
+            )

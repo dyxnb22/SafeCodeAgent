@@ -5,13 +5,26 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v2.4.0
+# Current Baseline - v2.4.1
 
 ## Status
-Implemented. Git baseline: tag `v2.3.7` (v2.4.0 is local, not yet tagged).
+Implemented. Git baseline: tag `v2.4.0` (v2.4.1 is local, not yet tagged).
 
 ## Stage
-`v2.4.x` Real Sandbox Backends — Docker preview complete. Next: macOS Seatbelt real execution, then Linux Bubblewrap.
+`v2.4.x` Real Sandbox Backends — Docker and macOS Seatbelt previews complete. Next: Linux Bubblewrap real execution.
+
+## v2.4.1 (macOS Seatbelt Real Execution Preview)
+`MacOSSeatbeltExecutor` and `SeatbeltExecutionResult` added to `src/safecode/sandbox/seatbelt.py`. `MacOSSeatbeltAdapter.supports_execution()` now returns `True`. `SandboxExecutionGate.execute_pending()` routes macOS Seatbelt proposals through `MacOSSeatbeltExecutor` after the atomic approval claim.
+
+Key changes:
+- `MacOSSeatbeltExecutor.execute(proposal)` rebuilds the sandbox profile deterministically via `SeatbeltProfileBuilder`, verifies `preview_hash` (`sha256(profile_text)`), checks `shutil.which("sandbox-exec")`, then calls `subprocess.run(["sandbox-exec", "-p", profile_text, *command], capture_output=True, shell=False)`. Returns `SeatbeltExecutionResult` (frozen dataclass). Never raises — all failure paths return `executed=False`.
+- `SandboxExecutionGate.execute_pending()`: added `"macos_seatbelt"` routing block before Docker; writes `sandbox_execution_completed` / `sandbox_execution_blocked` audit event; writes result record and clears pending for all paths.
+- `MacOSSeatbeltAdapter.build_plan()` warnings updated to v2.4.1 language.
+- `SandboxExecutionPreflight` error message updated: only Linux Bubblewrap is now plan-only.
+- `sac sandbox status` scope panel and macOS Seatbelt Mode column updated to v2.4.1.
+- `sac sandbox plan` trailing note distinguishes Docker and macOS Seatbelt (propose→execute flow) from Linux Bubblewrap (plan-only).
+- 29 new tests in `test_seatbelt_executor.py`. 14 existing tests updated for `supports_execution=True` and v2.4.1 text/version strings.
+- macOS 15+ note: `sandbox-exec` with user profiles causes SIGABRT (exit_code=-6); this is treated as `executed=True` with non-zero exit.
 
 ## v2.4.0 (Docker Sandbox Backend Preview)
 `DockerExecutor` and `DockerDaemonChecker` added to `src/safecode/sandbox/docker.py`. `DockerSandboxAdapter.supports_execution()` now returns `True`. `SandboxExecutionGate.execute_pending()` routes Docker proposals through `DockerExecutor` after the atomic approval claim.
@@ -21,7 +34,7 @@ Key changes:
 - `DockerExecutor.execute(proposal)` rebuilds the docker run argv from stored proposal fields, verifies `preview_hash` integrity, checks daemon availability, then calls `subprocess.run(argv, capture_output=True, shell=False)`. Returns `DockerExecutionResult` (frozen dataclass).
 - `SandboxExecutionGate.execute_pending()`: after atomic approval claim, if `proposal.backend == "docker"` delegates to `DockerExecutor`; writes audit event (`sandbox_execution_completed` if ran, `sandbox_execution_blocked` if daemon unavailable/hash mismatch/timeout); writes result record and clears pending for all paths.
 - `DockerSandboxAdapter.build_plan()` warnings updated to v2.4.0 language.
-- `SandboxExecutionPreflight` error message updated (macOS/Linux still plan-only).
+- `SandboxExecutionPreflight` error message updated (macOS Seatbelt and Linux Bubblewrap plan-only at v2.4.0; macOS graduated to executing in v2.4.1).
 - `sac sandbox status` scope panel and Docker Mode column updated to v2.4.0.
 - `sac sandbox plan` trailing note distinguishes Docker (propose→execute flow) from macOS/Linux (plan-only).
 - 26 new tests across `test_docker_container_plan.py` and `test_sandbox_execution_gate.py`. 4 existing tests updated for `supports_execution=True` and v2.4 text.
@@ -251,7 +264,7 @@ uv run sac --help
 - Keep sandbox execution disabled unless proposal, approval, policy, and preflight checks all allow it.
 - Preserve diff review, checkpoint, audit, rollback, command policy, filesystem containment, network deny-by-default, and approval binding.
 - Project-local configuration must not weaken user-level safety policy.
-- Noop and Docker adapters support execution; macOS Seatbelt and Linux Bubblewrap remain plan-only.
+- Noop, Docker, and macOS Seatbelt adapters support execution; Linux Bubblewrap remains plan-only.
 - New historical details belong in docs and Git tags, not in additional `.claude/skills/v*` files.
 - Real LLM calls must keep network policy and API key requirements explicit; mock mode must remain available for keyless tests.
 - Context collection must remain bounded and redacted; budget metadata should explain truncation without exposing hidden content.

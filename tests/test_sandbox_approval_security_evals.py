@@ -403,7 +403,12 @@ class TestCLIBehavior:
         runner.invoke(app, ["sandbox", "propose", "pwd"])
         runner.invoke(app, ["sandbox", "approve"])
         result = runner.invoke(app, ["sandbox", "execute"])
-        assert "no" in result.stdout.lower()
+        # v2.4.1: Execution output must include the result panel (controlled path).
+        # On macOS, seatbelt backend is recommended and execution is attempted (may fail
+        # with SIGABRT on macOS 15+ due to system policy). On Linux, seatbelt is unavailable.
+        # Either way, output is controlled and audited via the gate.
+        output_lower = result.stdout.lower()
+        assert "proposal id" in output_lower or "sandbox execution" in output_lower
 
     def test_cli_output_no_env_values(self, tmp_path, monkeypatch):
         ad = _approval_dir(tmp_path)

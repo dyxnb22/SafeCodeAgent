@@ -81,12 +81,12 @@ class TestApprovalChecks:
         ad = _approval_dir(tmp_path)
         monkeypatch.setenv("SAFECODE_SANDBOX_APPROVAL_DIR", str(ad))
         gate = _setup_gate(tmp_path, monkeypatch)
-        # v1.8.0: macOS backend still returns supports_execution=False
+        # v2.4.1: Linux Bubblewrap still returns supports_execution=False (still plan-only).
         gate.propose(
             _make_plan(
-                backend=SandboxBackend.MACOS_SEATBELT,
-                profile_preview="(deny default)",
-                profile_backend="macos_seatbelt",
+                backend=SandboxBackend.LINUX_BUBBLEWRAP,
+                args_preview=["bwrap", "--ro-bind", "/"],
+                args_backend="linux_bubblewrap",
             ),
             "shell",
         )
