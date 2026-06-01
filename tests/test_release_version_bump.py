@@ -100,8 +100,8 @@ class TestBumpVersionsHappyPath:
         assert result.new_version == "2.7.0"
 
     def test_old_version_not_present_after_bump(self, tmp_path: Path) -> None:
-        pyproj, init, _ = _write_files(tmp_path)
-        bump_versions("3.0.0", pyproject_path=pyproj, init_path=init, test_path=None)
+        pyproj, init, test = _write_files(tmp_path)
+        bump_versions("3.0.0", pyproject_path=pyproj, init_path=init, test_path=test)
         assert '2.6.9' not in pyproj.read_text()
         assert '2.6.9' not in init.read_text()
 
@@ -161,11 +161,20 @@ class TestBumpVersionsMissingFiles:
         assert result.ok
         assert str(missing) in result.skipped_files
 
-    def test_test_path_explicit_none_uses_default(self, tmp_path: Path) -> None:
+    def test_project_root_scopes_default_test_path(self, tmp_path: Path) -> None:
         pyproj, init, _ = _write_files(tmp_path)
-        # test_path=None causes default resolution; just confirm no errors.
-        result = bump_versions("2.6.10", pyproject_path=pyproj, init_path=init, test_path=None)
+        repo_test = tmp_path / "tests" / "test_install_update_polish.py"
+        repo_test.parent.mkdir()
+        repo_test.write_text(_TEST_TEMPLATE, encoding="utf-8")
+        result = bump_versions(
+            "2.6.10",
+            project_root=tmp_path,
+            pyproject_path=pyproj,
+            init_path=init,
+            test_path=None,
+        )
         assert result.ok
+        assert 'assert __version__ == "2.6.10"' in repo_test.read_text()
 
 
 # ---------------------------------------------------------------------------
@@ -186,8 +195,8 @@ class TestRenderBumpResult:
         assert "Errors" in text or "Invalid" in text
 
     def test_render_includes_updated_file_paths(self, tmp_path: Path) -> None:
-        pyproj, init, _ = _write_files(tmp_path)
-        result = bump_versions("2.6.10", pyproject_path=pyproj, init_path=init, test_path=None)
+        pyproj, init, test = _write_files(tmp_path)
+        result = bump_versions("2.6.10", pyproject_path=pyproj, init_path=init, test_path=test)
         text = render_bump_result(result)
         assert "pyproject.toml" in text or str(pyproj) in text
 

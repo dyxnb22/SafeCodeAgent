@@ -5,13 +5,21 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v2.6.17
+# Current Baseline - v2.6.18
 
 ## Status
-Implemented. Git baseline: tag `v2.6.17`.
+Implemented. Git baseline: tag `v2.6.18`.
 
 ## Stage
-`v2.6.x` Product Hardening — v2.6.1–v2.6.17 added release consistency checks, checklist polish, policy docs hardening, smoke tests, tag/version guard, next-step polish, release metadata index, docs finalization guard, release version bump helper, release preflight aggregation, version-note index validation, release workflow documentation, release command UX polish, release changelog generation, release checklist upgrade, and a CI workflow draft.
+`v2.6.x` Product Hardening — v2.6.1–v2.6.18 added release consistency checks, checklist polish, policy docs hardening, smoke tests, tag/version guard, next-step polish, release metadata index, docs finalization guard, release version bump helper, release preflight aggregation, version-note index validation, release workflow documentation, release command UX polish, release changelog generation, release checklist upgrade, CI workflow draft, and Doctor release diagnostics.
+
+## v2.6.18 (Doctor Release Diagnostics)
+`src/safecode/doctor.py` updated.
+
+Key additions:
+- `sac doctor` now reports `release_version`, `release_tag`, `release_docs`, and `release_preflight`.
+- Release diagnostics reuse the existing release guard/preflight helpers and remain read-only.
+- `tests/test_doctor_release_diagnostics.py` adds focused Doctor and CLI coverage.
 
 ## v2.6.17 (CI Workflow Draft)
 `.github/workflows/ci.yml` added.
