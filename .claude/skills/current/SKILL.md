@@ -5,13 +5,23 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v2.7.6
+# Current Baseline - v2.7.7
 
 ## Status
-Implemented. Git baseline: tag `v2.7.6`.
+Implemented. Git baseline: tag `v2.7.7`.
 
 ## Stage
-`v2.7.x` Consolidation — v2.7.0–v2.7.6: audit consolidation, hook approval project binding, versions-json sync, subagent finding redaction/logging, release surface honesty lite, quickstart command, CLI help surface trim.
+`v2.7.x` Consolidation — v2.7.0–v2.7.7: audit consolidation, hook approval project binding, versions-json sync, subagent finding redaction/logging, release surface honesty lite, quickstart command, CLI help surface trim, agent loop stub eval mode.
+
+## v2.7.7 (Agent Loop Stub Eval Mode)
+`src/safecode/eval/loop_runner.py` added. `src/safecode/agent/loop.py`, `src/safecode/agent/orchestrator.py`, `src/safecode/cli_ops.py` updated.
+
+Key additions:
+- `ScriptedLLMClient`: step-indexed scripted sequences, not keyword matching; `LLMContractViolation` on exhaustion.
+- Two default fixtures: `docs-edit` and `python-function-fix`.
+- `AgentLoop` and `AgentOrchestrator` accept optional `llm_client` injection.
+- `sac eval --mode loop` CLI option.
+- 13 new tests in `tests/test_agent_loop_eval_mode.py`.
 
 ## v2.7.6 (CLI Help Surface Trim)
 `src/safecode/cli.py` and `src/safecode/cli_ops.py` updated.

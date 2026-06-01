@@ -62,11 +62,11 @@ class RollbackResult:
 class AgentOrchestrator:
     """High-level workflow entrypoint for v0.1 commands."""
 
-    def __init__(self, project_root: Path) -> None:
+    def __init__(self, project_root: Path, llm_client: object | None = None) -> None:
         self.project_root = project_root
         self.config = SafeCodeConfig.load(project_root)
         self.context_collector = ContextCollector(project_root, self.config)
-        self.llm_client = create_llm_client(self.config)
+        self.llm_client = llm_client if llm_client is not None else create_llm_client(self.config)
         self.audit_logger = AuditLogger(project_root, self.config)
         self.trace_logger = TraceLogger(project_root)
 

@@ -49,11 +49,11 @@ class AgentRunResult:
 class AgentLoop:
     """Deterministic stepping loop used before model-driven autonomy."""
 
-    def __init__(self, project_root: Path) -> None:
+    def __init__(self, project_root: Path, llm_client: object | None = None) -> None:
         self.project_root = project_root
         self.config = SafeCodeConfig.load(project_root)
         self.context_collector = ContextCollector(project_root, self.config)
-        self.llm_client = create_llm_client(self.config)
+        self.llm_client = llm_client if llm_client is not None else create_llm_client(self.config)
         self.store = AgentSessionStore(project_root)
         self.journal = AgentJournalStore(project_root)
 
@@ -335,7 +335,7 @@ class AgentLoop:
             return AgentStepResult(state=saved, observation=observation, stopped_for_approval=True)
 
         try:
-            edit_result = AgentOrchestrator(self.project_root).edit(state.goal)
+            edit_result = AgentOrchestrator(self.project_root, llm_client=self.llm_client).edit(state.goal)
         except Exception as exc:
             observation = f"Patch proposal failed: {exc}"
             err_action: dict[str, object] = {
