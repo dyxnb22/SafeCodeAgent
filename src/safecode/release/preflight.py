@@ -10,6 +10,7 @@ from safecode.release.check import ReleaseCheckResult, run_release_check
 from safecode.release.docs_guard import DocsGuardResult, check_docs_finalized
 from safecode.release.metadata import ReleaseMetadata, collect_release_metadata
 from safecode.release.smoke import SmokeTestResult, run_smoke_tests
+from safecode.release.ux import header, next_steps
 
 
 @dataclass(frozen=True)
@@ -64,9 +65,7 @@ def _status(ok: bool) -> str:
 
 def render_release_preflight(result: ReleasePreflightResult) -> str:
     """Render a concise release preflight summary."""
-    lines = [
-        "SafeCode Release Preflight",
-        "==========================",
+    lines = header("SafeCode Release Preflight", result.ok) + [
         f"  [{_status(result.release_check.ok)}] release check",
         f"  [{_status(result.smoke.ok)}] smoke",
         f"  [{_status(result.metadata.ok)}] metadata",
@@ -75,6 +74,7 @@ def render_release_preflight(result: ReleasePreflightResult) -> str:
     ]
     if result.ok:
         lines.append("Release preflight passed.")
+        lines.extend(next_steps([], ok_message="Release is ready for publication."))
         return "\n".join(lines)
 
     lines.append("Failures:")
@@ -92,4 +92,5 @@ def render_release_preflight(result: ReleasePreflightResult) -> str:
     if not result.docs.ok:
         for issue in result.docs.issues:
             lines.append(f"  docs: {issue}")
+    lines.extend(next_steps(["Fix failed preflight checks, then rerun sac release preflight."]))
     return "\n".join(lines)

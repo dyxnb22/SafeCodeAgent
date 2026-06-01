@@ -27,6 +27,7 @@ from safecode.release.checklist import render_release_checklist
 from safecode.release.metadata import collect_release_metadata, render_release_metadata
 from safecode.release.preflight import render_release_preflight, run_release_preflight
 from safecode.release.smoke import render_smoke_results, run_smoke_tests
+from safecode.release.ux import exit_code
 from safecode.report.render import ReportRenderer
 
 ops_app = typer.Typer()
@@ -157,7 +158,7 @@ def release_check() -> None:
     result = run_release_check(Path.cwd())
     console.print(render_release_check(result))
     if not result.ok:
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=exit_code(result.ok))
 
 
 @release_app.command("smoke")
@@ -166,7 +167,7 @@ def release_smoke() -> None:
     result = run_smoke_tests()
     console.print(render_smoke_results(result))
     if not result.ok:
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=exit_code(result.ok))
 
 
 @release_app.command("bump")
@@ -178,7 +179,7 @@ def release_bump(
     result = bump_versions(version, project_root=Path.cwd(), dry_run=dry_run)
     console.print(render_bump_result(result))
     if not result.ok:
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=exit_code(result.ok))
 
 
 @release_app.command("meta")
@@ -187,7 +188,7 @@ def release_meta() -> None:
     meta = collect_release_metadata(Path.cwd())
     console.print(render_release_metadata(meta))
     if not meta.ok:
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=exit_code(meta.ok))
 
 
 @release_app.command("preflight")
@@ -196,7 +197,7 @@ def release_preflight() -> None:
     result = run_release_preflight(Path.cwd())
     console.print(render_release_preflight(result))
     if not result.ok:
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=exit_code(result.ok))
 
 
 @ops_app.command("doctor")

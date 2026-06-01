@@ -6,6 +6,8 @@ import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from safecode.release.ux import header, next_steps
+
 
 @dataclass(frozen=True)
 class ReleaseMetadata:
@@ -167,9 +169,7 @@ def collect_release_metadata(
 
 def render_release_metadata(meta: ReleaseMetadata) -> str:
     """Render ReleaseMetadata as human-readable text."""
-    lines = [
-        "SafeCode Release Metadata",
-        "=========================",
+    lines = header("SafeCode Release Metadata", meta.ok) + [
         f"  package version        : {meta.package_version}",
         f"  runtime version        : {meta.runtime_version}",
         f"  latest git tag         : {meta.latest_git_tag or '(none)'}",
@@ -184,6 +184,8 @@ def render_release_metadata(meta: ReleaseMetadata) -> str:
         lines.append("Issues:")
         for issue in meta.issues:
             lines.append(f"  {issue}")
+        lines.extend(next_steps(["Fix metadata issues, then rerun sac release meta."]))
     else:
         lines.append("Metadata index looks good.")
+        lines.extend(next_steps([], ok_message="Metadata is ready."))
     return "\n".join(lines)

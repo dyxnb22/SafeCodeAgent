@@ -13,6 +13,7 @@ from safecode.release.version_guard import (
     check_tag_consistency,
     check_version_consistency,
 )
+from safecode.release.ux import header, next_steps
 
 
 @dataclass(frozen=True)
@@ -150,9 +151,7 @@ def _summarise_state(result: ReleaseCheckResult) -> str:
 
 def render_release_check(result: ReleaseCheckResult) -> str:
     """Render a ReleaseCheckResult as human-readable text."""
-    lines: list[str] = [
-        "SafeCode Release Check",
-        "======================",
+    lines: list[str] = header("SafeCode Release Check", result.ok) + [
         f"  pyproject.toml version : {result.package_version}",
         f"  safecode.__version__   : {result.runtime_version}",
         f"  version consistent     : {'yes' if result.version_consistent else 'NO'}",
@@ -167,10 +166,8 @@ def render_release_check(result: ReleaseCheckResult) -> str:
         lines.append(f"  tag consistent         : {tag_ok}")
         lines.append(f"  tag detail             : {tr.message}")
     lines.append("")
-    if result.next_steps:
-        lines.append("Next steps:")
-        for step in result.next_steps:
-            lines.append(f"  {step}")
-        lines.append("")
+    lines.append("")
+    lines.extend(next_steps(result.next_steps, ok_message="Release check is ready."))
+    lines.append("")
     lines.append(_summarise_state(result))
     return "\n".join(lines)

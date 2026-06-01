@@ -5,13 +5,21 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v2.6.13
+# Current Baseline - v2.6.14
 
 ## Status
-Implemented. Git baseline: tag `v2.6.13`.
+Implemented. Git baseline: tag `v2.6.14`.
 
 ## Stage
-`v2.6.x` Product Hardening — v2.6.1–v2.6.13 added release consistency checks, checklist polish, policy docs hardening, smoke tests, tag/version guard, next-step polish, release metadata index, docs finalization guard, release version bump helper, release preflight aggregation, version-note index validation, and release workflow documentation.
+`v2.6.x` Product Hardening — v2.6.1–v2.6.14 added release consistency checks, checklist polish, policy docs hardening, smoke tests, tag/version guard, next-step polish, release metadata index, docs finalization guard, release version bump helper, release preflight aggregation, version-note index validation, release workflow documentation, and release command UX polish.
+
+## v2.6.14 (Release Command UX Polish)
+`src/safecode/release/ux.py` added. Release command renderers now share status labels, next-step formatting, and exit-code semantics.
+
+Key additions:
+- `status_label()`, `exit_code()`, `header()`, and `next_steps()` centralize release command output conventions.
+- `sac release check/smoke/meta/preflight/bump` outputs now include a common `Status: PASS/FAIL` line.
+- `tests/test_release_ux.py` adds focused UX helper coverage.
 
 ## v2.6.13 (Release Workflow Documentation)
 `README.md`, `docs/install-update.md`, and `src/safecode/release/docs_guard.py` updated.

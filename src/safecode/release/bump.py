@@ -6,6 +6,8 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from safecode.release.ux import header, next_steps
+
 # Semver-ish: digits and dots only, no leading zeros in segments.
 _VERSION_RE = re.compile(r"^\d+\.\d+\.\d+$")
 
@@ -128,9 +130,7 @@ def bump_versions(
 
 def render_bump_result(result: BumpResult) -> str:
     """Render a BumpResult as human-readable text."""
-    lines = [
-        "SafeCode Release Version Bump",
-        "==============================",
+    lines = header("SafeCode Release Version Bump", result.ok) + [
         f"  target version  : {result.new_version}",
     ]
     if result.errors:
@@ -138,6 +138,7 @@ def render_bump_result(result: BumpResult) -> str:
         lines.append("Errors:")
         for err in result.errors:
             lines.append(f"  {err}")
+        lines.extend(next_steps(["Use a numeric X.Y.Z version, then rerun sac release bump."]))
         return "\n".join(lines)
     lines.append(f"  updated files   : {len(result.updated_files)}")
     for f in result.updated_files:
@@ -150,4 +151,5 @@ def render_bump_result(result: BumpResult) -> str:
     lines.append(
         "Version bumped successfully." if result.ok else "Bump completed with errors."
     )
+    lines.extend(next_steps(["Review the diff, run tests, commit, and tag the release."]))
     return "\n".join(lines)

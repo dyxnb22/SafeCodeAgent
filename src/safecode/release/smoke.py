@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from safecode.release.ux import header, next_steps
+
 
 EXPECTED_POLICY_NAMES: frozenset[str] = frozenset(
     {"strict", "balanced", "experimental", "normal", "learning"}
@@ -117,14 +119,16 @@ def run_smoke_tests() -> SmokeTestResult:
 
 def render_smoke_results(result: SmokeTestResult) -> str:
     """Render smoke-test results as human-readable text."""
-    lines: list[str] = ["SafeCode Release Smoke Test", "=========================="]
+    lines: list[str] = header("SafeCode Release Smoke Test", result.ok)
     for case in result.cases:
         status = "PASS" if case.passed else "FAIL"
         lines.append(f"  [{status}] {case.name}: {case.detail}")
     lines.append("")
     if result.ok:
         lines.append("All smoke tests passed.")
+        lines.extend(next_steps([], ok_message="No smoke-test follow-up needed."))
     else:
         failed_names = ", ".join(c.name for c in result.failed)
         lines.append(f"FAILED: {failed_names}")
+        lines.extend(next_steps(["Fix failing smoke checks, then rerun sac release smoke."]))
     return "\n".join(lines)
