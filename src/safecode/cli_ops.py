@@ -23,6 +23,7 @@ from safecode.project.rules import ProjectRules
 from safecode.queue.store import QueueStore
 from safecode.release.check import render_release_check, run_release_check
 from safecode.release.checklist import render_release_checklist
+from safecode.release.smoke import render_smoke_results, run_smoke_tests
 from safecode.report.render import ReportRenderer
 
 ops_app = typer.Typer()
@@ -152,6 +153,15 @@ def release_check() -> None:
     """Report version consistency and working-tree state for local release preparation."""
     result = run_release_check(Path.cwd())
     console.print(render_release_check(result))
+    if not result.ok:
+        raise typer.Exit(code=1)
+
+
+@release_app.command("smoke")
+def release_smoke() -> None:
+    """Run a fast release smoke test: import, CLI version, consistency, policy names."""
+    result = run_smoke_tests()
+    console.print(render_smoke_results(result))
     if not result.ok:
         raise typer.Exit(code=1)
 
