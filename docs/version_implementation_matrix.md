@@ -297,6 +297,23 @@
 |---|---|---|---|
 | `v2.6.0` ✅ | `v2.6.0-policy-presets` | `src/safecode/config.py` | `POLICY_PRESETS`, `normalize_policy_name()`, `apply_policy_preset()` added; POLICY_ORDER updated for all five names; `PYTHONPATH=src python3 -m pytest tests/test_policy_presets.py tests/test_security_hardening.py::test_project_config_cannot_lower_user_security -q` → 75 tests pass |
 | `v2.6.1` ✅ | `v2.6.1-migration-hardening` | `src/safecode/config.py`, `src/safecode/setup.py` | `KNOWN_POLICY_NAMES`, `is_known_policy_name()` added; `_stricter_policy()` hardened (unknown right never overrides known left); `load()` warns+skips unknown `SAFECODE_POLICY`; `write_setup()` accepts all 5 names; `PYTHONPATH=src python3 -m pytest tests/test_migration_hardening.py tests/test_policy_presets.py tests/test_setup_wizard.py -q` → 39+75+5 tests pass |
-| `v2.6.2` | `v2.6.2-release-signoff` | `src/safecode/release/` | release checklist 覆盖 tests/docs/tags/security eval |
-| `v2.6.3` | `v2.6.3-team-trust-boundaries` | `docs/security/`、`src/safecode/config.py` | project/user/team trust boundary 文档和 enforcement 明确 |
-| `v2.6.4` | `v2.6.4-product-security-review` | `docs/security/`、`tests/` | prompts/tools/state/sandbox/install-update 完成产品级安全 review |
+| `v2.6.2` ✅ | `v2.6.2-release-version-consistency` | `src/safecode/release/version_guard.py` | `check_version_consistency()` guards pyproject/runtime drift |
+| `v2.6.3` ✅ | `v2.6.3-release-checklist-polish` | `src/safecode/release/check.py` | `sac release check` reports version and working-tree state |
+| `v2.6.4` ✅ | `v2.6.4-policy-docs-hardening` | `README.md`, `docs/install-update.md` | policy preset docs clarify canonical names, aliases, and unknown-policy behavior |
+| `v2.6.5` ✅ | `v2.6.5-release-smoke-test` | `src/safecode/release/smoke.py` | `sac release smoke` validates import, CLI version, version consistency, policy names, and docs |
+| `v2.6.6` ✅ | `v2.6.6-tag-version-consistency` | `src/safecode/release/version_guard.py` | exact git tag must match package version |
+| `v2.6.7` ✅ | `v2.6.7-release-check-next-steps` | `src/safecode/release/check.py` | release check next-step output avoids duplicate commit/tag advice |
+| `v2.6.8` ✅ | `v2.6.8-release-metadata-index` | `src/safecode/release/metadata.py` | `sac release meta` audits version notes, tags, and SKILL baseline |
+| `v2.6.9` ✅ | `v2.6.9-release-docs-guard` | `src/safecode/release/docs_guard.py` | docs guard verifies version note, SKILL baseline, and release command docs |
+| `v2.6.10` ✅ | `v2.6.10-release-version-bump-helper` | `src/safecode/release/bump.py` | `sac release bump` updates canonical version files without committing/tagging |
+| `v2.6.11` ✅ | `v2.6.11-release-preflight` | `src/safecode/release/preflight.py` | `sac release preflight` aggregates release check, smoke, metadata, and docs |
+| `v2.6.12` ✅ | `v2.6.12-version-note-index-validation` | `src/safecode/release/metadata.py` | version-note heading and duplicate-note validation |
+| `v2.6.13` ✅ | `v2.6.13-release-workflow-docs` | `README.md`, `docs/install-update.md` | release flow documents bump/test/commit/tag/gate order |
+| `v2.6.14` ✅ | `v2.6.14-release-command-ux-polish` | `src/safecode/release/ux.py` | release commands share PASS/FAIL status and next-step output |
+| `v2.6.15` ✅ | `v2.6.15-release-changelog-generator` | `src/safecode/release/changelog.py` | `sac release changelog` renders Markdown from version notes |
+| `v2.6.16` ✅ | `v2.6.16-release-checklist-upgrade` | `src/safecode/release/checklist.py` | release checklist mirrors bump/test/commit/tag/preflight flow |
+| `v2.6.17` ✅ | `v2.6.17-ci-workflow-draft` | `.github/workflows/ci.yml` | CI draft runs pytest plus non-exact-tag release smoke/meta/changelog |
+| `v2.6.18` ✅ | `v2.6.18-doctor-release-diagnostics` | `src/safecode/doctor.py` | `sac doctor` reports release version/tag/docs/preflight status |
+| `v2.6.19` ✅ | `v2.6.19-policy-audit-command` | `src/safecode/policy/audit.py` | `sac config policy-audit` audits policy names, aliases, unknown values, and invariants |
+| `v2.6.20` ✅ | `v2.6.20-security-review-documentation` | `docs/security/product-security-review-v2.6.md` | product security review covers config, sandbox, hooks, release gates, and trust boundaries |
+| `v2.6.21` ✅ | `v2.6.21-final-signoff` | `src/safecode/release/signoff.py` | final signoff verifies exact tag, release check, and preflight |

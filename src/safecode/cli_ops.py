@@ -27,6 +27,7 @@ from safecode.release.checklist import render_release_checklist
 from safecode.release.changelog import generate_changelog, render_changelog
 from safecode.release.metadata import collect_release_metadata, render_release_metadata
 from safecode.release.preflight import render_release_preflight, run_release_preflight
+from safecode.release.signoff import render_release_signoff, run_release_signoff
 from safecode.release.smoke import render_smoke_results, run_smoke_tests
 from safecode.release.ux import exit_code
 from safecode.report.render import ReportRenderer
@@ -213,6 +214,15 @@ def release_changelog(
         version_notes_dir=Path.cwd() / "docs" / "version-notes",
     )
     console.print(render_changelog(result))
+    if not result.ok:
+        raise typer.Exit(code=exit_code(result.ok))
+
+
+@release_app.command("signoff")
+def release_signoff() -> None:
+    """Run the final local release signoff."""
+    result = run_release_signoff(Path.cwd())
+    console.print(render_release_signoff(result))
     if not result.ok:
         raise typer.Exit(code=exit_code(result.ok))
 

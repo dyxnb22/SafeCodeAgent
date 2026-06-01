@@ -5,13 +5,21 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v2.6.20
+# Current Baseline - v2.6.21
 
 ## Status
-Implemented. Git baseline: tag `v2.6.20`.
+Implemented. Git baseline: tag `v2.6.21`.
 
 ## Stage
-`v2.6.x` Product Hardening — v2.6.1–v2.6.20 added release consistency checks, checklist polish, policy docs hardening, smoke tests, tag/version guard, next-step polish, release metadata index, docs finalization guard, release version bump helper, release preflight aggregation, version-note index validation, release workflow documentation, release command UX polish, release changelog generation, release checklist upgrade, CI workflow draft, Doctor release diagnostics, policy audit command, and product security review documentation.
+`v2.6.x` Product Hardening — v2.6.1–v2.6.21 added release consistency checks, checklist polish, policy docs hardening, smoke tests, tag/version guard, next-step polish, release metadata index, docs finalization guard, release version bump helper, release preflight aggregation, version-note index validation, release workflow documentation, release command UX polish, release changelog generation, release checklist upgrade, CI workflow draft, Doctor release diagnostics, policy audit command, product security review documentation, and final signoff.
+
+## v2.6.21 (v2.6 Final Signoff)
+`src/safecode/release/signoff.py` added. `src/safecode/cli_ops.py` exposes `sac release signoff`.
+
+Key additions:
+- `sac release signoff` verifies exact tag, release check, and preflight together.
+- `docs/version_implementation_matrix.md` now records the completed v2.6.0-v2.6.21 line.
+- `tests/test_release_signoff.py` adds focused signoff coverage.
 
 ## v2.6.20 (Security Review Documentation)
 `docs/security/product-security-review-v2.6.md` added.
