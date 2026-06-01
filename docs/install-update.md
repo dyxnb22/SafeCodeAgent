@@ -15,6 +15,21 @@ sac doctor
 sac version
 ```
 
+To choose a policy preset at setup time:
+
+```bash
+sac setup --policy strict       # highest safety
+sac setup --policy balanced     # default (same as --yes)
+sac setup --policy experimental # widest allowed commands
+```
+
+Canonical policy names: `strict`, `balanced`, `experimental`.
+Legacy aliases `normal` (= `balanced`) and `learning` (= `experimental`) are also accepted.
+
+An unknown `SAFECODE_POLICY` env var value issues a `UserWarning` and is silently
+ignored — the effective policy stays unchanged.  An unknown project-config policy
+name cannot override a known user-level policy.
+
 ## Approval Directories
 
 `sac setup` writes `.sac/setup.env` with:

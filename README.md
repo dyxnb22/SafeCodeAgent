@@ -64,6 +64,46 @@ sac doctor
 - Audit events include trace ids for task reconstruction.
 - Runtime errors are written to `.sac/logs/runtime.jsonl` for debugging.
 
+## Policy Presets
+
+SafeCode ships three canonical safety presets and two legacy aliases.
+
+| Name | Type | Description |
+|---|---|---|
+| `strict` | canonical | Highest safety: minimal allowed commands, all confirmations required |
+| `balanced` | canonical | Default balance: standard allowed commands, medium-risk confirmations |
+| `experimental` | canonical | Wider allowed commands, fewer confirmations (local exploration) |
+| `normal` | legacy alias | Identical to `balanced` |
+| `learning` | legacy alias | Identical to `experimental` |
+
+**Choosing a preset:**
+
+Via `sac setup`:
+```bash
+sac setup --policy strict
+sac setup --policy balanced
+sac setup --policy experimental
+```
+
+Via `.sac/config.toml` (project config):
+```toml
+policy = "balanced"
+```
+
+Via environment variable:
+```bash
+export SAFECODE_POLICY=strict
+```
+
+**Safety invariants:**
+- `block_high_risk` is `True` in every preset.
+- `sandbox.restrict_to_project_root` is `True` in every preset.
+- `network_enabled` is `False` in every preset.
+- `SAFECODE_POLICY` can only raise effective policy, never lower it.
+- An unknown `SAFECODE_POLICY` value issues a warning and is ignored.
+- An unknown project config policy name cannot override a known user policy.
+- Project config cannot lower user-level policy.
+
 ## Debug Runtime Logs
 
 When a command fails, inspect recent runtime logs:
