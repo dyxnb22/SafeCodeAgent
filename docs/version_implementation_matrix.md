@@ -285,7 +285,7 @@
 
 | 版本 | 分支 | 主要入口 | 验收命令 |
 |---|---|---|---|
-| `v2.5.0` | `v2.5.0-task-eval-format` | `src/safecode/eval/` | task eval fixture 包含 repo、goal、expected outcome、safety expectations |
+| `v2.5.0` ✅ | `v2.5.0-task-eval-format` | `src/safecode/eval/fixtures.py`, `src/safecode/eval/loader.py` | 71 tests pass: TaskEvalFixture (RepoFixture, ExpectedOutcome, SafetyExpectations), FixtureLoadError, load_fixture/load_fixture_from_dict/load_fixtures_from_dir, schema versioning, stable JSON round-trip |
 | `v2.5.1` | `v2.5.1-agent-replay-runner` | `src/safecode/eval/runner.py` | 保存的 session 可 replay 并比较 action/diff/command/outcome |
 | `v2.5.2` | `v2.5.2-failure-taxonomy` | `src/safecode/eval/failures.py` | context miss、patch parse、validation、command block、test failure、model error 可分类 |
 | `v2.5.3` | `v2.5.3-quality-dashboard-report` | `src/safecode/report/` | eval 结果渲染为 Markdown/HTML dashboard |

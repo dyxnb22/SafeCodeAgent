@@ -5,13 +5,28 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v2.4.3
+# Current Baseline - v2.5.0
 
 ## Status
-Implemented. Git baseline: tag `v2.4.2` (v2.4.3 is local, not yet tagged).
+Implemented. Git baseline: tag `v2.5.0`.
 
 ## Stage
-`v2.4.x` Real Sandbox Backends — All four backends complete. v2.4.3 adds cross-backend security evaluations; no new execution backend.
+`v2.5.x` Reliability and Evaluation — v2.5.0 adds the task eval fixture format under `src/safecode/eval/`. No replay runner yet (v2.5.1).
+
+## v2.5.0 (Task Eval Fixture Format)
+`src/safecode/eval/fixtures.py` and `src/safecode/eval/loader.py` added. `tests/test_task_eval_fixtures.py` covers 71 tests across 10 classes.
+
+Key additions:
+- `TaskEvalFixture` (Pydantic `BaseModel`): top-level fixture with `name`, `goal`, `repo`, `expected`, `safety`; optional `description`, `tags`, `timeout_seconds`, `validation_commands`, `expected_changed_files`, `forbidden_changed_files`. `schema_version` field validated against `SUPPORTED_FIXTURE_SCHEMA_VERSIONS = frozenset({1})`.
+- `RepoFixture`: `kind="local"` (requires `path`) or `kind="inline"` (uses `files: dict[str, str]`). `setup_commands` for materialisation. Model validator enforces kind/path invariants.
+- `ExpectedOutcome`: `kind` in `{"patch", "command", "any"}`. Optional `expected_exit_code`, `expected_output_contains`, `expected_diff_contains`, `expected_files_changed`.
+- `SafetyExpectations`: boolean flags (`expect_diff_review`, `expect_checkpoint`, `expect_approval_gate`, `allow_network`) default to conservative values. `forbidden_commands`, `forbidden_file_writes`, `expect_audit_events` are validated-to-be-lists.
+- `FixtureLoadError(ValueError)`: raised for all load/validation failures — consistent with project error hierarchy.
+- `load_fixture(path)`: checks existence, suffix (`.json` only), reads text, parses JSON, validates dict, calls `_validate()`.
+- `load_fixture_from_dict(data)`: validates dict, calls `_validate()`.
+- `load_fixtures_from_dir(directory)`: globs `*.json`, collects all errors into one `FixtureLoadError`, returns sorted by fixture name.
+- JSON is the canonical format (no new dependencies; consistent with state-file conventions).
+- Stable round-trip: `TaskEvalFixture.model_validate_json(fixture.model_dump_json())`.
 
 ## v2.4.3 (Cross-Backend Security Evaluations)
 `tests/test_sandbox_cross_backend_security_evals.py` added — 82 new tests across 11 classes. One stale comment updated in `test_sandbox_execution_security_evals.py`.
