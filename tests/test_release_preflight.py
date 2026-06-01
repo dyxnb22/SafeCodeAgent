@@ -12,6 +12,7 @@ from safecode.release.preflight import (
 )
 from safecode.release.smoke import SmokeTestCase, SmokeTestResult
 from safecode.release.version_guard import TagConsistencyResult
+from safecode.release.versions_governance import VersionsGovernanceResult
 
 
 def _release_check(ok: bool = True) -> ReleaseCheckResult:
@@ -57,6 +58,17 @@ def _metadata(ok: bool = True) -> ReleaseMetadata:
     )
 
 
+def _governance(ok: bool = True) -> VersionsGovernanceResult:
+    return VersionsGovernanceResult(
+        versions_json_ok=ok,
+        skill_ok=ok,
+        current_git_tag="v2.6.11",
+        implemented_tag="v2.6.11" if ok else "v2.6.10",
+        skill_baseline_tags=["v2.6.11"] if ok else [],
+        issues=[] if ok else ["versions.json stale"],
+    )
+
+
 def _docs(ok: bool = True) -> DocsGuardResult:
     return DocsGuardResult(
         has_version_note=ok,
@@ -74,6 +86,7 @@ class TestRunReleasePreflight:
             smoke_runner=lambda: _smoke(True),
             metadata_runner=lambda root: _metadata(True),
             docs_runner=lambda version, root: _docs(True),
+            versions_governance_runner=lambda root: _governance(True),
         )
         assert result.ok is True
 
@@ -84,6 +97,7 @@ class TestRunReleasePreflight:
             smoke_runner=lambda: _smoke(True),
             metadata_runner=lambda root: _metadata(True),
             docs_runner=lambda version, root: _docs(True),
+            versions_governance_runner=lambda root: _governance(True),
         )
         assert result.ok is False
 
@@ -94,6 +108,7 @@ class TestRunReleasePreflight:
             smoke_runner=lambda: _smoke(False),
             metadata_runner=lambda root: _metadata(True),
             docs_runner=lambda version, root: _docs(True),
+            versions_governance_runner=lambda root: _governance(True),
         )
         assert result.ok is False
 
@@ -104,6 +119,7 @@ class TestRunReleasePreflight:
             smoke_runner=lambda: _smoke(True),
             metadata_runner=lambda root: _metadata(False),
             docs_runner=lambda version, root: _docs(True),
+            versions_governance_runner=lambda root: _governance(True),
         )
         assert result.ok is False
 
@@ -114,6 +130,7 @@ class TestRunReleasePreflight:
             smoke_runner=lambda: _smoke(True),
             metadata_runner=lambda root: _metadata(True),
             docs_runner=lambda version, root: _docs(False),
+            versions_governance_runner=lambda root: _governance(True),
         )
         assert result.ok is False
 
@@ -130,6 +147,7 @@ class TestRunReleasePreflight:
             smoke_runner=lambda: _smoke(True),
             metadata_runner=lambda root: _metadata(True),
             docs_runner=_docs_runner,
+            versions_governance_runner=lambda root: _governance(True),
         )
         assert seen == ["2.6.11"]
 
@@ -142,6 +160,7 @@ class TestRenderReleasePreflight:
             smoke_runner=lambda: _smoke(True),
             metadata_runner=lambda root: _metadata(True),
             docs_runner=lambda version, root: _docs(True),
+            versions_governance_runner=lambda root: _governance(True),
         )
         text = render_release_preflight(result)
         assert "Release preflight passed" in text
@@ -154,6 +173,7 @@ class TestRenderReleasePreflight:
             smoke_runner=lambda: _smoke(False),
             metadata_runner=lambda root: _metadata(False),
             docs_runner=lambda version, root: _docs(False),
+            versions_governance_runner=lambda root: _governance(False),
         )
         text = render_release_preflight(result)
         assert "Failures:" in text
@@ -176,6 +196,7 @@ class TestReleasePreflightCLI:
                 smoke_runner=lambda: _smoke(True),
                 metadata_runner=lambda _root: _metadata(True),
                 docs_runner=lambda version, _root: _docs(True),
+                versions_governance_runner=lambda _root: _governance(True),
             ),
         )
         result = CliRunner().invoke(app, ["release", "preflight"])
@@ -194,6 +215,7 @@ class TestReleasePreflightCLI:
                 smoke_runner=lambda: _smoke(True),
                 metadata_runner=lambda _root: _metadata(True),
                 docs_runner=lambda version, _root: _docs(True),
+                versions_governance_runner=lambda _root: _governance(True),
             ),
         )
         result = CliRunner().invoke(app, ["release", "preflight"])

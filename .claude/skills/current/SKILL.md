@@ -5,13 +5,23 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v2.7.7
+# Current Baseline - v2.7.8
 
 ## Status
-Implemented. Git baseline: tag `v2.7.7`.
+Implemented. Git baseline: tag `v2.7.8`.
 
 ## Stage
-`v2.7.x` Consolidation — v2.7.0–v2.7.7: audit consolidation, hook approval project binding, versions-json sync, subagent finding redaction/logging, release surface honesty lite, quickstart command, CLI help surface trim, agent loop stub eval mode.
+`v2.7.x` Consolidation — v2.7.0–v2.7.8: audit consolidation, hook approval project binding, versions-json sync, subagent finding redaction/logging, release surface honesty lite, quickstart command, CLI help surface trim, agent loop stub eval mode, versions governance preflight.
+
+## v2.7.8 (Versions Governance Preflight)
+`src/safecode/release/versions_governance.py` added. `src/safecode/release/preflight.py` updated.
+
+Key additions:
+- `check_versions_governance()`: verifies versions.json current_implemented_tag matches latest git tag; verifies SKILL.md has exactly one `Implemented. Git baseline: tag` entry.
+- Integrated into `run_release_preflight` as `versions_governance` field.
+- `render_release_preflight` shows `[PASS/FAIL] versions governance`.
+- Stale versions.json issues include `sac release sync-versions-json` next-step hint.
+- 11 new tests in `tests/test_versions_governance_preflight.py`.
 
 ## v2.7.7 (Agent Loop Stub Eval Mode)
 `src/safecode/eval/loop_runner.py` added. `src/safecode/agent/loop.py`, `src/safecode/agent/orchestrator.py`, `src/safecode/cli_ops.py` updated.

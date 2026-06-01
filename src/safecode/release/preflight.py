@@ -11,6 +11,7 @@ from safecode.release.docs_guard import DocsGuardResult, check_docs_finalized
 from safecode.release.metadata import ReleaseMetadata, collect_release_metadata
 from safecode.release.smoke import SmokeTestResult, run_smoke_tests
 from safecode.release.ux import header, next_steps
+from safecode.release.versions_governance import VersionsGovernanceResult, check_versions_governance
 
 
 @dataclass(frozen=True)
@@ -21,14 +22,17 @@ class ReleasePreflightResult:
     smoke: SmokeTestResult
     metadata: ReleaseMetadata
     docs: DocsGuardResult
+    versions_governance: VersionsGovernanceResult | None = None
 
     @property
     def ok(self) -> bool:
+        governance_ok = self.versions_governance.ok if self.versions_governance is not None else True
         return (
             self.release_check.ok
             and self.smoke.ok
             and self.metadata.ok
             and self.docs.ok
+            and governance_ok
         )
 
 
@@ -39,6 +43,7 @@ def run_release_preflight(
     smoke_runner: Callable[[], SmokeTestResult] | None = None,
     metadata_runner: Callable[[Path], ReleaseMetadata] | None = None,
     docs_runner: Callable[[str, Path], DocsGuardResult] | None = None,
+    versions_governance_runner: Callable[[Path], VersionsGovernanceResult] | None = None,
 ) -> ReleasePreflightResult:
     """Run fast local release checks and return a structured aggregate result."""
     root = project_root or Path.cwd()
@@ -50,12 +55,16 @@ def run_release_preflight(
         docs = docs_runner(metadata.package_version, root)
     else:
         docs = check_docs_finalized(metadata.package_version, project_root=root)
+    governance = (
+        versions_governance_runner(root) if versions_governance_runner else check_versions_governance(root)
+    )
 
     return ReleasePreflightResult(
         release_check=rc,
         smoke=smoke,
         metadata=metadata,
         docs=docs,
+        versions_governance=governance,
     )
 
 
@@ -65,11 +74,13 @@ def _status(ok: bool) -> str:
 
 def render_release_preflight(result: ReleasePreflightResult) -> str:
     """Render a concise release preflight summary."""
+    governance_ok = result.versions_governance.ok if result.versions_governance else True
     lines = header("SafeCode Release Preflight", result.ok) + [
         f"  [{_status(result.release_check.ok)}] release check",
         f"  [{_status(result.smoke.ok)}] smoke",
         f"  [{_status(result.metadata.ok)}] metadata",
         f"  [{_status(result.docs.ok)}] docs",
+        f"  [{_status(governance_ok)}] versions governance",
         "",
     ]
     if result.ok:
@@ -92,5 +103,8 @@ def render_release_preflight(result: ReleasePreflightResult) -> str:
     if not result.docs.ok:
         for issue in result.docs.issues:
             lines.append(f"  docs: {issue}")
+    if result.versions_governance and not result.versions_governance.ok:
+        for issue in result.versions_governance.issues:
+            lines.append(f"  versions governance: {issue}")
     lines.extend(next_steps(["Fix failed preflight checks, then rerun sac release preflight."]))
     return "\n".join(lines)
