@@ -414,6 +414,13 @@ PYTHONPATH=src python3 -m safecode.cli release preflight     # local only
 
 ## 9. Next-Stage Roadmap Recommendation
 
+> Update after v2.7.9: this section is historical audit output. The completed
+> v2.7.x work closed or reframed the immediate findings below. The active
+> v2.8-v3.0 product and architecture plan is
+> `docs/version-plans/v2.8-to-v3.0-product-architecture-roadmap.md`.
+> In particular, v3.0 is now scoped as a stable local safety runtime, not a
+> broad freeze of every experimental API.
+
 ### Strategic call
 - v2.6.x should be **declared complete** as of v2.6.21.
 - v2.7.x theme: **"Consolidation: Honesty, Onboarding, and Wiring."** No new sandbox backends. No new MCP capabilities. No new release tooling. The next phase fixes things that are *claimed but not wired* (presets), *grown but misshapen* (release surface, doctor), and *visible but inaccurate* (version banners).
@@ -508,13 +515,12 @@ PYTHONPATH=src python3 -m safecode.cli release preflight     # local only
 
 | Area | Phase | Why wait |
 |---|---|---|
-| Unified `Diagnostic` / `CheckResult` substrate across doctor/release/policy/audit | v2.8.0 | Touches too many files for one patch; needs v2.7.4 surface trim first. |
-| Sandbox backend strategy split (one module per backend, `execute_pending` ≤ 100 LOC) | v2.8.1 | Cleanup, not user-visible. |
-| Real MCP JSON-RPC client (full `tools/list`, `tools/call`, capability negotiation) | v2.8.x | Major engineering; needs schema-driven classification. |
-| Real subagent dispatch with bounded LLM calls and merge-review | v2.8.x | Needs real LLM contract evidence (v2.7.7). |
-| TUI rewrite with prompt-toolkit | v3.0 | Current TUI is one panel; full TUI is large scope. |
-| Public Python API (`SafeCodeLocalAPI` documented) with semver guarantees | v3.0 | Requires public contract freeze on config, audit schema, tool registry. |
-| Signed audit anchors (key material in keychain) | v3.0 | Cross-platform key storage is significant work. |
+| Unified `Diagnostic` substrate across doctor/release/policy/audit | v2.8.0-v2.8.1 | Land core first, then migrate doctor/release while preserving CLI output compatibility. |
+| Sandbox backend strategy and CLI module split | v2.8.2/v2.8.6 | Cleanup and consistency work; preserve command names and backend semantics. |
+| MCP static schema shim and arg validation | v2.8.4/v2.9.4-v2.9.5 | Schema-aware classification is useful before real JSON-RPC; real JSON-RPC stays post-v3.0. |
+| Subagent redaction and payload versioning | v2.8.7/v2.9.6 | Redact at the journal boundary first; add tolerant versioned payload parsing before any richer subagent promises. |
+| Deterministic loop evidence and snapshots | v2.9.0-v2.9.3 | Prove behavior locally before expanding live-provider expectations. |
+| Stable local safety runtime contracts | v3.0.0 | Freeze only documented/tested local contracts; keep broad `SafeCodeLocalAPI`, live-provider behavior, MCP JSON-RPC, full TUI/IDE, and concurrent subagents experimental or post-v3.0. |
 
 ### Directions that should *not* be pursued now
 1. **More release tooling.** Stop. The release surface is already over-engineered for a single-tag-per-week cadence.
@@ -601,7 +607,7 @@ PYTHONPATH=src python3 -m safecode.cli release preflight     # local only
 ### Not recommended right now (3 categories)
 1. **Any new sandbox backend (gVisor, Firecracker, podman, etc.).**
 2. **Any new `sac release …` subcommand or aggregation layer.**
-3. **Real MCP JSON-RPC client, real concurrent subagents, full TUI/IDE plugin** — defer to v2.8.x / v3.0 after consolidation.
+3. **Real MCP JSON-RPC client, real concurrent subagents, full TUI/IDE plugin** — defer until after v3.0 stable local safety runtime contracts.
 
 ### Draft prompt for Claude Code / Codex to implement the first batch of fixes
 

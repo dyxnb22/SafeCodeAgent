@@ -74,6 +74,7 @@ There is no Makefile in this repository.
 ## Source Of Truth
 - Version index: `docs/version_implementation_matrix.md`
 - Release roadmap: `docs/release_roadmap_v0_1_to_v1_0.md`
+- Active v2.8-v3.0 product/architecture roadmap: `docs/version-plans/v2.8-to-v3.0-product-architecture-roadmap.md`
 - Current runtime summary: `.claude/skills/shared/core-runtime.md`
 - Current implementation baseline: `.claude/skills/current/SKILL.md`
 - Implemented tag index: `.claude/versions.json`
@@ -83,9 +84,10 @@ There is no Makefile in this repository.
 When asked to implement `vX.Y.Z`:
 1. Read `.claude/skills/current/SKILL.md` and `.claude/skills/shared/core-runtime.md`.
 2. Check the base tag and version history in `.claude/versions.json`, `docs/version_implementation_matrix.md`, and Git tags.
-3. Use the previous tag as the code baseline and preserve backward-compatible safety behavior unless the version plan explicitly says otherwise.
-4. Add or update tests for every security, sandbox, policy, patch, audit, or approval change.
-5. Update docs/version notes and `.claude/skills/current/SKILL.md` when the version is completed.
+3. For planned v2.8.x, v2.9.x, or v3.0.0 work, also read `docs/version-plans/v2.8-to-v3.0-product-architecture-roadmap.md`.
+4. Use the previous tag as the code baseline and preserve backward-compatible safety behavior unless the version plan explicitly says otherwise.
+5. Add or update tests for every security, sandbox, policy, patch, audit, or approval change.
+6. Update docs/version notes and `.claude/skills/current/SKILL.md` when the version is completed.
 
 Keep this file small. Put historical details in `docs/` and Git tags, not in `.claude`.
 

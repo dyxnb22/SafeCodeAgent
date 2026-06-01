@@ -6,6 +6,7 @@
   "runtime_summary": ".claude/skills/shared/core-runtime.md",
   "version_index": "docs/version_implementation_matrix.md",
   "release_roadmap": "docs/release_roadmap_v0_1_to_v1_0.md",
+  "active_planning_roadmap": "docs/version-plans/v2.8-to-v3.0-product-architecture-roadmap.md",
   "version_notes": "docs/version-notes/",
   "git_history_source": "git tag --sort=v:refname && git log --oneline --decorate",
   "branch_prefix_policy": "Do not use codex/ for this repository.",
@@ -176,6 +177,24 @@
       "name": "Audit Consolidation",
       "depends_on": "v2.6.x",
       "notes": "Closes product-audit-v2.6.21 findings: policy preset application, doctor opt-in release diagnostics, honest Noop wording, schema-scoped hook approvals, project-bound approvals, versions.json sync, subagent redaction."
+    },
+    {
+      "range": "v2.8.x",
+      "name": "Consolidation and CLI Honesty",
+      "depends_on": "v2.7.x",
+      "notes": "Planned in docs/version-plans/v2.8-to-v3.0-product-architecture-roadmap.md: diagnostic substrate, release surface collapse, sandbox CLI/module cleanup, typed agent actions, MCP schema prep, subagent journal-boundary redaction, shell exit-code honesty, audit/hook dedup."
+    },
+    {
+      "range": "v2.9.x",
+      "name": "Deterministic Evidence and Contract Preparation",
+      "depends_on": "v2.8.x",
+      "notes": "Planned: loop fixture expansion, bounded retry, typed trace snapshots, CI gate, MCP static schema classification and validation, subagent payload versioning, local ToolSpec versioning, narrowed public-contract snapshots."
+    },
+    {
+      "range": "v3.0.0",
+      "name": "Stable Local Safety Runtime",
+      "depends_on": "v2.9.x",
+      "notes": "Planned: freeze documented local safety contracts only; keep SafeCodeLocalAPI expansion, live-provider behavior, MCP shim, subagent payload evolution, TUI, and IDE surfaces experimental."
     }
   ],
   "latest_tags": [

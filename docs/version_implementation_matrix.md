@@ -332,3 +332,42 @@
 | `v2.7.7` ✅ | `v2.7.7-agent-loop-stub-eval-mode` | `src/safecode/eval/loop_runner.py`, `src/safecode/agent/loop.py`, `src/safecode/agent/orchestrator.py`, `src/safecode/cli_ops.py` | ScriptedLLMClient with explicit scripted sequences (not keyword matching); LLMContractViolation fail-closed; docs-edit and python-function-fix fixtures; `sac eval --mode loop`; 13 new tests; `PYTHONPATH=src python3 -m pytest -q` → 1949 tests pass |
 | `v2.7.8` ✅ | `v2.7.8-versions-governance-preflight` | `src/safecode/release/versions_governance.py`, `src/safecode/release/preflight.py` | check_versions_governance: versions.json staleness + SKILL.md baseline tag contradiction detection; integrated into release preflight; next-step hint for sync-versions-json; injectable git_tags for fixture-based tests; 11 new tests; `PYTHONPATH=src python3 -m pytest -q` → 1960 tests pass |
 | `v2.7.9` ✅ | `v2.7.9-release-surface-collapse-lite` | `src/safecode/release/signoff.py`, `src/safecode/release/checklist.py`, `docs/install-update.md` | signoff runtime output labelled deprecated; checklist runtime output labelled planning helper/not a release gate; docs main flow adds sync-versions-json; 10 new tests; `PYTHONPATH=src python3 -m pytest -q` → 1970 tests pass |
+
+## v2.8.x: Consolidation and CLI Honesty (planned)
+
+Active plan: `docs/version-plans/v2.8-to-v3.0-product-architecture-roadmap.md`.
+
+| 版本 | 分支 | 主要入口 | 验收命令 |
+|---|---|---|---|
+| `v2.8.0` | `v2.8.0-diagnostic-core` | `src/safecode/core/diagnostic.py` | Diagnostic model/status/aggregation/renderer exists; no user-facing behavior change yet |
+| `v2.8.1` | `v2.8.1-diagnostic-migration-doctor-release` | `src/safecode/doctor.py`, `src/safecode/release/*`, `src/safecode/policy/audit.py` | doctor/release checks emit diagnostics internally while CLI compatibility is preserved |
+| `v2.8.2` | `v2.8.2-sandbox-backend-strategy-split` | `src/safecode/sandbox/`, `src/safecode/cli_sandbox.py` | backend detection/recommendation separated from proposal/execution logic; sandbox tests pass |
+| `v2.8.3` | `v2.8.3-agent-loop-typed-actions` | `src/safecode/agent/loop.py` | pending agent actions become typed objects; CLI owns rendering |
+| `v2.8.4` | `v2.8.4-mcp-shim-schema-prep` | `src/safecode/mcp/` | typed MCP metadata prep with keyword fallback unchanged when schema is absent |
+| `v2.8.5` | `v2.8.5-release-surface-collapse-full` | `src/safecode/cli_ops.py`, `src/safecode/release/*`, `docs/install-update.md` | `sac release --help` shows only preflight/bump/changelog; hidden helpers remain callable |
+| `v2.8.6` | `v2.8.6-cli-sandbox-module-split` | `src/safecode/cli_sandbox*.py` | sandbox CLI split by command ownership with no command rename/argument reorder |
+| `v2.8.7` | `v2.8.7-subagent-finding-redaction-at-journal-boundary` | `src/safecode/subagents/journal_adapter.py`, `src/safecode/subagents/merge_policy.py`, `src/safecode/agent/loop.py` | subagent journal content is redacted before merge/context injection; consumer redaction stays defense-in-depth |
+| `v2.8.8` | `v2.8.8-shell-exit-code-honesty` | `src/safecode/cli_core.py` | `sac run` returns 125 for approval-required and 126 for policy-blocked; one-cycle legacy env opt-out documented |
+| `v2.8.9` | `v2.8.9-audit-and-hook-event-dedup` | `src/safecode/hooks/runner.py`, `src/safecode/audit/models.py` | skipped hooks emit distinct additive event types; audit verify remains backward-compatible |
+
+## v2.9.x: Deterministic Evidence and Contract Preparation (planned)
+
+Active plan: `docs/version-plans/v2.8-to-v3.0-product-architecture-roadmap.md`.
+
+| 版本 | 分支 | 主要入口 | 验收命令 |
+|---|---|---|---|
+| `v2.9.0` | `v2.9.0-agent-loop-fixture-expansion` | `src/safecode/eval/loop_runner.py`, `examples/eval/loop/` | `sac eval --mode loop` runs six local scripted fixtures |
+| `v2.9.1` | `v2.9.1-agent-loop-error-recovery` | `src/safecode/agent/loop.py`, `src/safecode/state/journal.py` | bounded retry for recoverable contract-shaped failures; retry event journaled |
+| `v2.9.2` | `v2.9.2-eval-replay-baseline-snapshot` | `tests/test_agent_loop_stub_eval.py`, `tests/snapshots/loop/` | typed traces are snapshotted without LLM prose |
+| `v2.9.3` | `v2.9.3-eval-loop-mode-ci-gate` | `.github/workflows/ci.yml` | loop eval appears in CI, advisory first if needed |
+| `v2.9.4` | `v2.9.4-mcp-tools-list-schema-shim` | `src/safecode/mcp/` | optional static schema metadata classifies MCP tools; fallback unchanged |
+| `v2.9.5` | `v2.9.5-mcp-call-schema-arg-validation` | `src/safecode/mcp/runner.py`, `src/safecode/mcp/proposal.py` | schema-present calls reject invalid/extra args; schema-less workloads still pass |
+| `v2.9.6` | `v2.9.6-subagent-journal-payload-versioning` | `src/safecode/state/journal.py`, `src/safecode/subagents/` | old journals parse; new subagent payloads are versioned and tolerant |
+| `v2.9.8` | `v2.9.8-tool-spec-registry-versioning` | `src/safecode/tools/registry.py` | local ToolSpec registry is versioned and snapshot-tested |
+| `v2.9.9` | `v2.9.9-public-contract-snapshot-tests` | `tests/snapshots/contracts/` | snapshots cover only supported v3.0 local safety contracts |
+
+## v3.0.0: Stable Local Safety Runtime (planned)
+
+| 版本 | 分支 | 主要入口 | 验收命令 |
+|---|---|---|---|
+| `v3.0.0` | `v3.0.0-public-contract-stabilization` | `docs/public-contracts.md`, `README.md`, contract snapshot tests | freeze documented config, pending patch, audit, sandbox lifecycle, local tool registry, eval trace, and recommended CLI workflow contracts; mark broad API/live-provider/MCP/TUI/IDE surfaces experimental |

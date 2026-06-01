@@ -1,5 +1,20 @@
 # SafeCode Agent Productization Roadmap to a Claude Code-like Runtime
 
+## Planning Revision
+
+As of baseline `v2.7.9`, the active product and architecture plan for v2.8.x,
+v2.9.x, and v3.0.0 is:
+
+- `docs/version-plans/v2.8-to-v3.0-product-architecture-roadmap.md`
+
+This document remains useful as historical productization context, but its
+older "Recommended Next Move" and v2.6-era projections are superseded by the
+v2.8-v3.0 roadmap. The current stance is narrower: v3.0 should stabilize the
+local safety runtime contracts that are already tested and documented, while
+keeping live-provider behavior, broad `SafeCodeLocalAPI` expansion, MCP
+JSON-RPC, concurrent subagents, TUI, and IDE surfaces experimental or
+post-v3.0.
+
 ## Current Readiness
 
 SafeCode Agent is already useful as a safety-first local runtime for controlled
@@ -67,6 +82,46 @@ Estimated distance:
    context misses, tool errors, and regression replay.
 
 ## Product Line
+
+### v2.8.x: Consolidation and CLI Honesty
+
+Goal: make the existing local runtime smaller, clearer, and easier to trust
+before adding new product surface.
+
+Planned themes:
+
+- Diagnostic substrate for doctor/release/policy checks.
+- Release surface collapse to `preflight`, `bump`, and `changelog`.
+- Sandbox CLI/module split without command renames.
+- Typed agent pending actions.
+- MCP static schema prep without real JSON-RPC.
+- Subagent redaction at the journal boundary.
+- Honest shell exit codes for blocked/approval-required commands.
+- Audit/hook event deduplication.
+
+### v2.9.x: Deterministic Evidence and Contract Preparation
+
+Goal: prove local agent behavior and prepare only the contracts that v3.0 will
+actually support.
+
+Planned themes:
+
+- Expanded scripted loop fixtures and bounded contract-error recovery.
+- Typed eval trace snapshots and CI gate.
+- MCP static schema classification and argument validation.
+- Subagent journal payload versioning plus adversarial merge tests.
+- Local `ToolSpec` registry versioning.
+- Narrow contract snapshots for supported v3.0 surfaces.
+
+### v3.0.0: Stable Local Safety Runtime
+
+Goal: ship a stable local runtime, not a broad public API freeze.
+
+v3.0 should freeze documented config, pending patch, audit, sandbox lifecycle,
+local tool registry, eval trace, and recommended CLI workflow contracts. It
+should explicitly label `SafeCodeLocalAPI` expansion, live-provider LLM
+behavior, MCP schema shim, subagent payload evolution, TUI, and IDE surfaces as
+experimental.
 
 ### v1.9.x: Interactive Agent Loop
 
@@ -256,8 +311,14 @@ Subtasks:
 
 ## Recommended Next Move
 
-Start with `v2.3.5-honest-surface`. The v2.3.4 product review found that the
-security substrate is stronger than the product surface: sandbox, MCP, and
-subagent wording can overstate what is currently enforced. Make those
-boundaries explicit first, then wire agent-loop patch generation and universal
-tool gating before enabling real sandbox backends.
+From baseline `v2.7.9`, use
+`docs/version-plans/v2.8-to-v3.0-product-architecture-roadmap.md` as the active
+plan. The recommended next short batch is:
+
+1. `v2.8.5-release-surface-collapse-full`
+2. `v2.8.8-shell-exit-code-honesty`
+3. `v2.8.9-audit-and-hook-event-dedup`
+
+Start diagnostic migration only when the session is explicitly scoped for
+architecture work; a partial diagnostic substrate is more confusing than the
+current stable behavior.

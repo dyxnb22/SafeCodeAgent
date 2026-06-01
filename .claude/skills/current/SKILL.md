@@ -13,6 +13,15 @@ Implemented. Git baseline: tag `v2.7.9`.
 ## Stage
 `v2.7.x` Consolidation — v2.7.0–v2.7.9: audit consolidation, hook approval project binding, versions-json sync, subagent finding redaction/logging, release surface honesty lite, quickstart command, CLI help surface trim, agent loop stub eval mode, versions governance preflight, release surface collapse lite.
 
+## Active Forward Plan
+The active plan for v2.8.x, v2.9.x, and v3.0.0 is `docs/version-plans/v2.8-to-v3.0-product-architecture-roadmap.md`.
+
+Planning stance:
+- v2.8.x is consolidation and CLI honesty: diagnostic substrate, sandbox split, typed agent actions, MCP schema prep, release surface collapse, sandbox CLI split, subagent redaction at the journal boundary, shell exit-code honesty, and audit/hook event deduplication.
+- v2.9.x is deterministic evidence and contract preparation: loop fixture expansion, bounded retry, replay snapshots, CI gate, MCP static schema classification/arg validation, subagent payload versioning, local ToolSpec versioning, and narrowed contract snapshots.
+- v3.0.0 is a stable local safety runtime release, not a broad freeze of every experimental API. Freeze documented config, pending patch, audit, sandbox lifecycle, local tool registry, eval trace, and recommended CLI workflow contracts. Keep `SafeCodeLocalAPI` beyond `ask()`/`report()`, live-provider LLM behavior, MCP schema shim, subagent payload evolution, TUI, and IDE surfaces explicitly experimental.
+- Prefer the next short user-visible batch: v2.8.5 `release-surface-collapse-full`, v2.8.8 `shell-exit-code-honesty`, then v2.8.9 `audit-and-hook-event-dedup`.
+
 ## v2.7.9 (Release Surface Collapse Lite)
 `src/safecode/release/signoff.py` and `src/safecode/release/checklist.py` updated. `docs/install-update.md` updated.
 
@@ -26,7 +35,7 @@ Key additions:
 `src/safecode/release/versions_governance.py` added. `src/safecode/release/preflight.py` updated.
 
 Key additions:
-- `check_versions_governance()`: verifies versions.json current_implemented_tag matches latest git tag; verifies SKILL.md has exactly one `Implemented. Git baseline: tag` entry.
+- `check_versions_governance()`: verifies versions.json current_implemented_tag matches latest git tag; verifies SKILL.md has exactly one implemented-baseline entry.
 - Integrated into `run_release_preflight` as `versions_governance` field.
 - `render_release_preflight` shows `[PASS/FAIL] versions governance`.
 - Stale versions.json issues include `sac release sync-versions-json` next-step hint.
@@ -455,8 +464,9 @@ Package version metadata is synchronized in `pyproject.toml` and `src/safecode/_
 - Version index: `docs/version_implementation_matrix.md`
 - Release roadmap: `docs/release_roadmap_v0_1_to_v1_0.md`
 - Productization roadmap: `docs/productization-roadmap-to-claude-code.md`
+- Active v2.8-v3.0 roadmap: `docs/version-plans/v2.8-to-v3.0-product-architecture-roadmap.md`
 - Product review follow-up: `docs/product-review-v2.3.4-followup.md`
-- Git baseline: tag `v2.7.4`
+- Git baseline: tag `v2.7.9`
 - Runtime invariants: `.claude/skills/shared/core-runtime.md`
 
 ## Current Capability
