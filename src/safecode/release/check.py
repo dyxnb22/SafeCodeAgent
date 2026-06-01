@@ -130,6 +130,23 @@ def run_release_check(
     )
 
 
+def _summarise_state(result: ReleaseCheckResult) -> str:
+    """Return a one-line summary of the overall release state."""
+    if (
+        result.version_consistent
+        and result.tree_clean is True
+        and result.tag_result is not None
+        and result.tag_result.consistent
+    ):
+        return "Ready to release — versions match, tree is clean, and tag is correct."
+    if result.tree_clean is None:
+        return (
+            "Version consistent; working-tree and tag state unknown "
+            "(git unavailable — run from a git checkout)."
+        )
+    return "One or more checks need attention — see next steps above."
+
+
 def render_release_check(result: ReleaseCheckResult) -> str:
     """Render a ReleaseCheckResult as human-readable text."""
     lines: list[str] = [
@@ -153,8 +170,6 @@ def render_release_check(result: ReleaseCheckResult) -> str:
         lines.append("Next steps:")
         for step in result.next_steps:
             lines.append(f"  {step}")
-    elif result.tag_result is not None and result.tag_result.consistent and result.version_consistent and result.tree_clean is True:
-        lines.append("Ready to release — versions match, tree is clean, and tag is correct.")
-    else:
-        lines.append("All checks passed.")
+        lines.append("")
+    lines.append(_summarise_state(result))
     return "\n".join(lines)
