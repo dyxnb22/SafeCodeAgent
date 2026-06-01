@@ -5,13 +5,21 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v2.6.15
+# Current Baseline - v2.6.16
 
 ## Status
-Implemented. Git baseline: tag `v2.6.15`.
+Implemented. Git baseline: tag `v2.6.16`.
 
 ## Stage
-`v2.6.x` Product Hardening — v2.6.1–v2.6.15 added release consistency checks, checklist polish, policy docs hardening, smoke tests, tag/version guard, next-step polish, release metadata index, docs finalization guard, release version bump helper, release preflight aggregation, version-note index validation, release workflow documentation, release command UX polish, and release changelog generation.
+`v2.6.x` Product Hardening — v2.6.1–v2.6.16 added release consistency checks, checklist polish, policy docs hardening, smoke tests, tag/version guard, next-step polish, release metadata index, docs finalization guard, release version bump helper, release preflight aggregation, version-note index validation, release workflow documentation, release command UX polish, release changelog generation, and release checklist upgrade.
+
+## v2.6.16 (Release Checklist Upgrade)
+`src/safecode/release/checklist.py` updated.
+
+Key additions:
+- `sac release checklist VERSION` now reflects the canonical bump, docs, focused/full test, release gate, commit, tag, and exact-tag flow.
+- Version inputs are normalized to `vX.Y.Z`.
+- `tests/test_release_checklist_upgrade.py` adds renderer and CLI coverage.
 
 ## v2.6.15 (Release Changelog Generator)
 `src/safecode/release/changelog.py` added. `src/safecode/cli_ops.py` exposes `sac release changelog --from X.Y.Z --to X.Y.Z`.
