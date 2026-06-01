@@ -57,8 +57,9 @@ PYTHONPATH=src python3 -m pytest -q
 git add -p                      # stage only version + version-note changes
 git commit -m "Implement vX.Y.Z <summary>"
 git tag -a vX.Y.Z -m "vX.Y.Z <summary>"
-sac release preflight          # aggregate local gate: check, smoke, metadata, docs
+sac release preflight          # aggregate local gate: check, smoke, metadata, docs, versions governance
 sac release changelog --recent 5   # optional: preview the changelog
+sac release sync-versions-json     # if versions.json is stale after tagging
 git describe --exact-match --tags HEAD
 ```
 

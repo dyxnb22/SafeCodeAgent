@@ -5,13 +5,22 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v2.7.8
+# Current Baseline - v2.7.9
 
 ## Status
-Implemented. Git baseline: tag `v2.7.8`.
+Implemented. Git baseline: tag `v2.7.9`.
 
 ## Stage
-`v2.7.x` Consolidation — v2.7.0–v2.7.8: audit consolidation, hook approval project binding, versions-json sync, subagent finding redaction/logging, release surface honesty lite, quickstart command, CLI help surface trim, agent loop stub eval mode, versions governance preflight.
+`v2.7.x` Consolidation — v2.7.0–v2.7.9: audit consolidation, hook approval project binding, versions-json sync, subagent finding redaction/logging, release surface honesty lite, quickstart command, CLI help surface trim, agent loop stub eval mode, versions governance preflight, release surface collapse lite.
+
+## v2.7.9 (Release Surface Collapse Lite)
+`src/safecode/release/signoff.py` and `src/safecode/release/checklist.py` updated. `docs/install-update.md` updated.
+
+Key additions:
+- `render_release_signoff()` prepends `[deprecated] Use sac release preflight instead.`
+- `render_release_checklist()` prepends `[planning helper] ... not a release gate` after heading.
+- `docs/install-update.md` main flow adds `sac release sync-versions-json` step.
+- 10 new tests in `tests/test_release_surface_collapse.py`.
 
 ## v2.7.8 (Versions Governance Preflight)
 `src/safecode/release/versions_governance.py` added. `src/safecode/release/preflight.py` updated.

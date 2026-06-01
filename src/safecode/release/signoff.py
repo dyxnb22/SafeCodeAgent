@@ -42,6 +42,13 @@ def run_release_signoff(project_root: Path | None = None) -> ReleaseSignoffResul
 def render_release_signoff(result: ReleaseSignoffResult) -> str:
     """Render final signoff output."""
     lines = header("SafeCode Release Signoff", result.ok)
+    lines.extend(
+        [
+            "  [deprecated] Use `sac release preflight` instead.",
+            "  This command is kept for backward compatibility only.",
+            "",
+        ]
+    )
     expected_tag = f"v{result.version}"
     lines.extend(
         [

@@ -9,6 +9,9 @@ def render_release_checklist(version: str) -> str:
         [
             f"# SafeCode Release Checklist {normalized}",
             "",
+            "> [planning helper] This checklist is a human-readable guide, not a release gate.",
+            "> The authoritative gate is: `sac release preflight`.",
+            "",
             "## Version And Docs",
             "",
             f"- [ ] `sac release bump {bare}` updated all canonical version files",
