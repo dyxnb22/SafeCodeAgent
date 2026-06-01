@@ -18,6 +18,8 @@ class ReleaseMetadata:
     has_version_note: bool
     skill_mentions_version: bool
     issues: list[str]
+    version_note_heading_ok: bool = True
+    duplicate_version_note_files: list[str] = field(default_factory=list)
 
     @property
     def ok(self) -> bool:
@@ -51,6 +53,22 @@ def _list_version_notes(version_notes_dir: Path) -> list[str]:
 def _note_exists_for_version(version: str, note_files: list[str]) -> bool:
     prefix = f"v{version}-"
     return any(name.startswith(prefix) for name in note_files)
+
+
+def _notes_for_version(version: str, note_files: list[str]) -> list[str]:
+    prefix = f"v{version}-"
+    return [name for name in note_files if name.startswith(prefix)]
+
+
+def _first_heading_mentions_version(note_path: Path, version: str) -> bool:
+    try:
+        for line in note_path.read_text(encoding="utf-8").splitlines():
+            stripped = line.strip()
+            if stripped.startswith("#"):
+                return f"v{version}" in stripped
+        return False
+    except OSError:
+        return False
 
 
 def _skill_mentions_version(skill_path: Path, version: str) -> bool:
@@ -103,6 +121,14 @@ def collect_release_metadata(
     notes_dir = version_notes_dir or (root / "docs" / "version-notes")
     note_files = _list_version_notes(notes_dir)
     has_note = _note_exists_for_version(package_version, note_files)
+    matching_notes = _notes_for_version(package_version, note_files)
+    duplicate_notes = matching_notes[1:] if len(matching_notes) > 1 else []
+    heading_ok = True
+    if matching_notes:
+        heading_ok = _first_heading_mentions_version(
+            notes_dir / matching_notes[0],
+            package_version,
+        )
 
     sk_path = skill_path or (root / ".claude" / "skills" / "current" / "SKILL.md")
     skill_ok = _skill_mentions_version(sk_path, package_version)
@@ -111,6 +137,15 @@ def collect_release_metadata(
     if not has_note:
         issues.append(
             f"No version-note file found for v{package_version} in {notes_dir}."
+        )
+    elif not heading_ok:
+        issues.append(
+            f"Version-note heading for v{package_version} does not mention v{package_version}."
+        )
+    if duplicate_notes:
+        issues.append(
+            f"Duplicate version-note files found for v{package_version}: "
+            f"{', '.join(matching_notes)}."
         )
     if not skill_ok:
         issues.append(
@@ -125,6 +160,8 @@ def collect_release_metadata(
         has_version_note=has_note,
         skill_mentions_version=skill_ok,
         issues=issues,
+        version_note_heading_ok=heading_ok,
+        duplicate_version_note_files=duplicate_notes,
     )
 
 
@@ -137,6 +174,8 @@ def render_release_metadata(meta: ReleaseMetadata) -> str:
         f"  runtime version        : {meta.runtime_version}",
         f"  latest git tag         : {meta.latest_git_tag or '(none)'}",
         f"  version-note present   : {'yes' if meta.has_version_note else 'NO'}",
+        f"  version-note heading   : {'yes' if meta.version_note_heading_ok else 'NO'}",
+        f"  duplicate notes        : {len(meta.duplicate_version_note_files)}",
         f"  SKILL.md mentions ver  : {'yes' if meta.skill_mentions_version else 'NO'}",
         f"  version-note count     : {len(meta.version_note_files)}",
         "",

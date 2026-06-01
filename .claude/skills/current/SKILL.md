@@ -5,13 +5,21 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v2.6.11
+# Current Baseline - v2.6.12
 
 ## Status
-Implemented. Git baseline: tag `v2.6.11`.
+Implemented. Git baseline: tag `v2.6.12`.
 
 ## Stage
-`v2.6.x` Product Hardening — v2.6.1–v2.6.11 added release consistency checks, checklist polish, policy docs hardening, smoke tests, tag/version guard, next-step polish, release metadata index, docs finalization guard, release version bump helper, and release preflight aggregation.
+`v2.6.x` Product Hardening — v2.6.1–v2.6.12 added release consistency checks, checklist polish, policy docs hardening, smoke tests, tag/version guard, next-step polish, release metadata index, docs finalization guard, release version bump helper, release preflight aggregation, and version-note index validation.
+
+## v2.6.12 (Version-Note Index Validation)
+`src/safecode/release/metadata.py` updated. `sac release meta` and `sac release preflight` inherit stricter metadata validation.
+
+Key additions:
+- Version-note files for the current version must have a first Markdown heading that mentions `vX.Y.Z`.
+- Duplicate `docs/version-notes/vX.Y.Z-*.md` files are reported as metadata issues.
+- `tests/test_release_metadata.py` adds focused heading and duplicate-note coverage.
 
 ## v2.6.11 (Release Preflight)
 `src/safecode/release/preflight.py` added. `src/safecode/cli_ops.py` exposes `sac release preflight`.

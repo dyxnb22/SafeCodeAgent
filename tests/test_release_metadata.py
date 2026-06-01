@@ -30,6 +30,11 @@ class _Env:
         p.write_text(f"# {fname}\n", encoding="utf-8")
         return p
 
+    def write_note_with_heading(self, name: str, heading: str) -> Path:
+        p = self.notes_dir / name
+        p.write_text(f"{heading}\n\nBody.\n", encoding="utf-8")
+        return p
+
     def write_skill(self, mention_version: bool = True) -> Path:
         p = self.skill_dir / "SKILL.md"
         content = f"# Baseline\nCurrent version: {self.version}\n" if mention_version else "# Baseline\n"
@@ -174,6 +179,52 @@ class TestCollectReleaseMetadata:
         assert "v2.6.7-previous.md" in meta.version_note_files
         assert "v2.6.8-feature.md" in meta.version_note_files
 
+    def test_version_note_heading_must_mention_version(self, tmp_path):
+        env = _Env(tmp_path)
+        env.write_note_with_heading("v2.6.8-feature.md", "# Release Notes")
+        env.write_skill()
+        meta = collect_release_metadata(
+            tmp_path,
+            package_version="2.6.8",
+            runtime_version="2.6.8",
+            latest_git_tag=None,
+            version_notes_dir=env.notes_dir,
+            skill_path=env.skill_dir / "SKILL.md",
+        )
+        assert meta.version_note_heading_ok is False
+        assert any("heading" in issue.lower() for issue in meta.issues)
+
+    def test_version_note_heading_with_version_passes(self, tmp_path):
+        env = _Env(tmp_path)
+        env.write_note_with_heading("v2.6.8-feature.md", "# v2.6.8 — Feature")
+        env.write_skill()
+        meta = collect_release_metadata(
+            tmp_path,
+            package_version="2.6.8",
+            runtime_version="2.6.8",
+            latest_git_tag=None,
+            version_notes_dir=env.notes_dir,
+            skill_path=env.skill_dir / "SKILL.md",
+        )
+        assert meta.version_note_heading_ok is True
+        assert meta.ok is True
+
+    def test_duplicate_version_note_files_reported(self, tmp_path):
+        env = _Env(tmp_path)
+        env.write_note_with_heading("v2.6.8-a.md", "# v2.6.8 — A")
+        env.write_note_with_heading("v2.6.8-b.md", "# v2.6.8 — B")
+        env.write_skill()
+        meta = collect_release_metadata(
+            tmp_path,
+            package_version="2.6.8",
+            runtime_version="2.6.8",
+            latest_git_tag=None,
+            version_notes_dir=env.notes_dir,
+            skill_path=env.skill_dir / "SKILL.md",
+        )
+        assert meta.duplicate_version_note_files == ["v2.6.8-b.md"]
+        assert any("duplicate" in issue.lower() for issue in meta.issues)
+
 
 # ---------------------------------------------------------------------------
 # render_release_metadata
@@ -238,6 +289,25 @@ class TestRenderReleaseMetadata:
         )
         text = render_release_metadata(meta)
         assert "2" in text  # count of notes
+
+    def test_render_includes_heading_and_duplicate_rows(self):
+        meta = self._make_meta(
+            issues=["Duplicate version-note files found for v2.6.8."],
+        )
+        meta = ReleaseMetadata(
+            package_version=meta.package_version,
+            runtime_version=meta.runtime_version,
+            latest_git_tag=meta.latest_git_tag,
+            version_note_files=meta.version_note_files,
+            has_version_note=True,
+            skill_mentions_version=True,
+            issues=meta.issues,
+            version_note_heading_ok=False,
+            duplicate_version_note_files=["v2.6.8-other.md"],
+        )
+        text = render_release_metadata(meta)
+        assert "version-note heading" in text
+        assert "duplicate notes" in text
 
 
 # ---------------------------------------------------------------------------
