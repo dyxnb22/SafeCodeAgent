@@ -35,7 +35,7 @@ from safecode.sandbox.adapter import (
     SandboxExecutionPlan,
 )
 from safecode.sandbox.approvals import SandboxExecutionApprovalStore
-from safecode.sandbox.capabilities import SandboxCapability
+from safecode.sandbox.capabilities import SandboxCapability, SandboxCapabilityDetector
 from safecode.sandbox.execution import (
     SandboxExecutionGate,
     SandboxExecutionProposalStore,
@@ -90,6 +90,32 @@ def _make_result_record(proposal_id: str = "record-1", attempted_at: str = "2026
         stdout_length=0,
         stderr_length=0,
     )
+
+
+def _force_bubblewrap_unavailable(monkeypatch):
+    """Make Bubblewrap unavailable so preflight-blocked tests are platform-stable."""
+    original_detect_all = SandboxCapabilityDetector.detect_all
+
+    def patched(self):
+        caps = original_detect_all(self)
+        return [
+            SandboxCapability(
+                backend=cap.backend,
+                available=False,
+                supported_platforms=cap.supported_platforms,
+                reason="mocked unavailable",
+                network_isolation_supported=cap.network_isolation_supported,
+                filesystem_isolation_supported=cap.filesystem_isolation_supported,
+                process_isolation_supported=cap.process_isolation_supported,
+                recommended_for=cap.recommended_for,
+                limitations=cap.limitations,
+            )
+            if cap.backend == SandboxBackend.LINUX_BUBBLEWRAP
+            else cap
+            for cap in caps
+        ]
+
+    monkeypatch.setattr(SandboxCapabilityDetector, "detect_all", patched)
 
 
 # ── A. Execution Gate ───────────────────────────────────────────────────
@@ -440,9 +466,9 @@ class TestSingleUseApproval:
         assert "No pending" in r2.message
 
     def test_blocked_preflight_does_not_consume(self, tmp_path, monkeypatch):
-        """Blocked execution (unsupported backend) does NOT consume approval."""
+        """Blocked execution (unavailable backend) does NOT consume approval."""
         gate = _setup_gate(tmp_path, monkeypatch)
-        # Linux Bubblewrap is still plan-only in v2.4.x — use it as the unsupported backend.
+        _force_bubblewrap_unavailable(monkeypatch)
         gate.propose(
             _make_plan(
                 backend=SandboxBackend.LINUX_BUBBLEWRAP,
@@ -524,9 +550,9 @@ class TestSingleUseApproval:
             assert "secret-value-123" not in combined
 
     def test_unsupported_backend_no_claimed_audit(self, tmp_path, monkeypatch):
-        """Linux Bubblewrap backend blocked by preflight — no claim audit event written."""
+        """Unavailable backend blocked by preflight — no claim audit event written."""
         gate = _setup_gate(tmp_path, monkeypatch)
-        # Linux Bubblewrap is still plan-only in v2.4.x.
+        _force_bubblewrap_unavailable(monkeypatch)
         gate.propose(
             _make_plan(
                 backend=SandboxBackend.LINUX_BUBBLEWRAP,
@@ -601,7 +627,7 @@ class TestAtomicApprovalClaim:
     def test_blocked_preflight_does_not_call_claim(self, tmp_path, monkeypatch):
         """Blocked preflight returns before claim_for_execution is reached."""
         gate = _setup_gate(tmp_path, monkeypatch)
-        # Linux Bubblewrap is still plan-only in v2.4.x — use it as the unsupported backend.
+        _force_bubblewrap_unavailable(monkeypatch)
         gate.propose(
             _make_plan(
                 backend=SandboxBackend.LINUX_BUBBLEWRAP,
@@ -854,7 +880,7 @@ class TestExecutionResultLifecycle:
     def test_preflight_blocked_preserves_pending(self, tmp_path, monkeypatch):
         """Preflight blocked does NOT clear pending — user can fix and retry."""
         gate = _setup_gate(tmp_path, monkeypatch)
-        # Linux Bubblewrap is still plan-only in v2.4.x.
+        _force_bubblewrap_unavailable(monkeypatch)
         gate.propose(
             _make_plan(
                 backend=SandboxBackend.LINUX_BUBBLEWRAP,
@@ -871,7 +897,7 @@ class TestExecutionResultLifecycle:
     def test_preflight_blocked_does_not_consume_approval(self, tmp_path, monkeypatch):
         """Preflight blocked still preserves the approval for retry."""
         gate = _setup_gate(tmp_path, monkeypatch)
-        # Linux Bubblewrap is still plan-only in v2.4.x.
+        _force_bubblewrap_unavailable(monkeypatch)
         gate.propose(
             _make_plan(
                 backend=SandboxBackend.LINUX_BUBBLEWRAP,
@@ -1670,7 +1696,7 @@ class TestRegression:
         )
 
         assert MacOSSeatbeltAdapter(mac_cap).supports_execution() is True   # v2.4.1
-        assert LinuxBubblewrapAdapter(linux_cap).supports_execution() is False  # still plan-only
+        assert LinuxBubblewrapAdapter(linux_cap).supports_execution() is True  # v2.4.2
         assert DockerSandboxAdapter(docker_cap).supports_execution() is True  # v2.4.0
         assert NoopSandboxAdapter().supports_execution() is True
 

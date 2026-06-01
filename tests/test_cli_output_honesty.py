@@ -1,7 +1,7 @@
-"""Tests for v2.3.5+ honest surface (updated for v2.4.1).
+"""Tests for v2.3.5+ honest surface (updated for v2.4.2).
 
 Verifies that CLI output accurately communicates current execution boundaries:
-- sandbox status/plan: Noop/Docker/macOS Seatbelt execute; Linux Bubblewrap is plan-only.
+- sandbox status/plan: Noop/Docker/macOS Seatbelt/Linux Bubblewrap execute.
 - mcp tools: current support is a subprocess JSON shim, not a full JSON-RPC client.
 - subagent: current subagents are read-only context/result collectors.
 """
@@ -85,10 +85,11 @@ class TestSandboxStatusHonesty:
         output_lower = result.output.lower()
         assert "noop" in output_lower or "none" in output_lower
 
-    def test_status_non_noop_labeled_plan_only(self):
-        """Linux Bubblewrap must be labeled plan-only in the capability table (v2.4.x)."""
+    def test_status_bubblewrap_now_executing_in_v242(self):
+        """v2.4.2: Linux Bubblewrap must be labeled executing (preview) in the capability table."""
         result = self._invoke_status()
-        assert "plan-only" in result.output
+        assert "linux_bubblewrap" in result.output
+        assert "executing" in result.output.lower()
 
     def test_status_macos_seatbelt_is_executing_preview(self):
         """v2.4.1: macos_seatbelt must appear as executing preview, not plan-only."""
@@ -124,10 +125,11 @@ class TestSandboxPlanHonesty:
         result = self._invoke_plan_with_backend(SandboxBackend.NONE)
         assert "executing" in result.output.lower()
 
-    def test_plan_non_noop_shows_plan_only_in_table(self):
-        """Linux Bubblewrap plan must show plan-only mode (still plan-only in v2.4.x)."""
+    def test_plan_bubblewrap_shows_executing_preview_in_table(self):
+        """v2.4.2: Linux Bubblewrap plan must show executing preview mode in the table."""
         result = self._invoke_plan_with_backend(SandboxBackend.LINUX_BUBBLEWRAP)
-        assert "plan-only" in result.output
+        assert "executing" in result.output.lower()
+        assert "Bubblewrap preview" in result.output or "bwrap" in result.output.lower()
 
     def test_plan_docker_shows_executing_preview_in_table(self):
         """Docker backend plan must show executing preview mode."""
@@ -152,16 +154,14 @@ class TestSandboxPlanHonesty:
         result = self._invoke_plan_with_backend(SandboxBackend.LINUX_BUBBLEWRAP)
         assert "Backend Mode" in result.output
 
-    def test_plan_non_noop_dry_run_wording_not_only_trailing(self):
-        """plan-only wording must appear in the table, not only at the end (Linux Bubblewrap)."""
+    def test_plan_bubblewrap_dry_run_wording_references_bwrap(self):
+        """v2.4.2: Linux Bubblewrap dry-run note must reference bwrap execution path."""
         result = self._invoke_plan_with_backend(SandboxBackend.LINUX_BUBBLEWRAP)
         output = result.output
-        plan_only_pos = output.find("plan-only")
         dry_run_panel_pos = output.find("Dry Run")
-        assert plan_only_pos != -1
         assert dry_run_panel_pos != -1
-        # plan-only must appear before the trailing Dry Run panel
-        assert plan_only_pos < dry_run_panel_pos
+        # Executing-preview text must appear after the table (near Dry Run panel)
+        assert "bwrap" in output.lower() or "Bubblewrap" in output
 
 
 class TestMCPHonesty:

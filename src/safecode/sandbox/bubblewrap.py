@@ -1,17 +1,27 @@
-"""Linux Bubblewrap (bwrap) argv plan generation.
+"""Linux Bubblewrap (bwrap) argv plan generation and execution.
 
-Generates conservative bwrap arguments from a SandboxExecutionRequest.
-This is argv preview only — bwrap is never invoked.
+v1.7.2: argv preview only — bwrap was never invoked.
+v2.4.2: LinuxBubblewrapExecutor rebuilds the argv, verifies preview_hash,
+        and runs bwrap via subprocess.run(shell=False).
 """
 
 from __future__ import annotations
 
+import hashlib
+import json
+import shutil
+import subprocess
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import TYPE_CHECKING, Any, Callable
 
 from safecode.config import SafeCodeConfig
 from safecode.sandbox.adapter import SandboxExecutionRequest
 from safecode.sandbox.filesystem import FilesystemBoundary
+
+if TYPE_CHECKING:
+    from safecode.sandbox.execution import SandboxExecutionProposal
 
 SYSTEM_RO_BIND_PATHS = [
     "/usr",
@@ -186,3 +196,167 @@ class BubblewrapArgsBuilder:
             if path_str == blocked:
                 return blocked
         return None
+
+
+# ── v2.4.2: Linux Bubblewrap execution ───────────────────────────────────
+
+
+@dataclass(frozen=True)
+class BubblewrapExecutionResult:
+    """Result of a Linux Bubblewrap execution attempt."""
+
+    executed: bool
+    exit_code: int | None
+    stdout: str
+    stderr: str
+    duration_ms: int
+    message: str
+
+
+class LinuxBubblewrapExecutor:
+    """Execute a pending sandbox proposal via Linux bwrap for v2.4.2.
+
+    Reconstructs the bwrap argv from stored proposal fields, verifies the
+    preview hash, checks bwrap availability, then runs the command using
+    ``subprocess.run`` with ``shell=False``.
+
+    Injectable ``run_fn`` allows full testing without a real bwrap binary.
+    """
+
+    _BWRAP = "bwrap"
+    _TIMEOUT_SECONDS = 30
+
+    def __init__(
+        self,
+        project_root: Path,
+        config: SafeCodeConfig,
+        run_fn: Callable[..., Any] | None = None,
+    ) -> None:
+        self.project_root = project_root
+        self.config = config
+        self._run = run_fn or subprocess.run
+
+    def execute(self, proposal: SandboxExecutionProposal) -> BubblewrapExecutionResult:
+        """Rebuild argv, verify hash, check binary, then run. Never raises."""
+        start_ms = int(time.monotonic() * 1000)
+
+        try:
+            request = SandboxExecutionRequest(
+                command=list(proposal.command),
+                cwd=Path(proposal.cwd),
+                purpose=proposal.purpose,
+                allow_network=proposal.network_enabled,
+                readonly_filesystem=proposal.readonly_filesystem,
+                writable_paths=[Path(p) for p in proposal.writable_paths],
+                env={},
+                timeout_seconds=self._TIMEOUT_SECONDS,
+            )
+            bwrap_plan = BubblewrapArgsBuilder(self.project_root, self.config).build(request)
+            argv = list(bwrap_plan.argv)
+        except Exception as exc:
+            msg = f"Bubblewrap argv reconstruction failed: {exc}"
+            return BubblewrapExecutionResult(
+                executed=False,
+                exit_code=None,
+                stdout="",
+                stderr=msg,
+                duration_ms=int(time.monotonic() * 1000) - start_ms,
+                message=msg,
+            )
+
+        if proposal.preview_hash is not None:
+            actual_hash = hashlib.sha256(
+                json.dumps(argv, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+            ).hexdigest()
+            if actual_hash != proposal.preview_hash:
+                msg = (
+                    "Bubblewrap argv hash mismatch — bwrap args changed since "
+                    "the proposal was created."
+                )
+                return BubblewrapExecutionResult(
+                    executed=False,
+                    exit_code=None,
+                    stdout="",
+                    stderr=msg,
+                    duration_ms=int(time.monotonic() * 1000) - start_ms,
+                    message=msg,
+                )
+
+        if shutil.which(self._BWRAP) is None:
+            msg = "bwrap not found in PATH."
+            return BubblewrapExecutionResult(
+                executed=False,
+                exit_code=None,
+                stdout="",
+                stderr=msg,
+                duration_ms=int(time.monotonic() * 1000) - start_ms,
+                message=msg,
+            )
+
+        timeout = self._TIMEOUT_SECONDS
+        try:
+            proc = self._run(
+                argv,
+                capture_output=True,
+                timeout=timeout,
+                shell=False,
+            )
+            elapsed_ms = int(time.monotonic() * 1000) - start_ms
+            stdout = (
+                proc.stdout.decode("utf-8", errors="replace")
+                if isinstance(proc.stdout, bytes)
+                else (proc.stdout or "")
+            )
+            stderr = (
+                proc.stderr.decode("utf-8", errors="replace")
+                if isinstance(proc.stderr, bytes)
+                else (proc.stderr or "")
+            )
+            return BubblewrapExecutionResult(
+                executed=True,
+                exit_code=proc.returncode,
+                stdout=stdout,
+                stderr=stderr,
+                duration_ms=elapsed_ms,
+                message=f"Bubblewrap execution completed. Exit code: {proc.returncode}.",
+            )
+        except subprocess.TimeoutExpired:
+            msg = f"Bubblewrap execution timed out after {timeout}s."
+            return BubblewrapExecutionResult(
+                executed=False,
+                exit_code=None,
+                stdout="",
+                stderr=msg,
+                duration_ms=int(time.monotonic() * 1000) - start_ms,
+                message=msg,
+            )
+        except FileNotFoundError:
+            msg = "bwrap not found in PATH."
+            return BubblewrapExecutionResult(
+                executed=False,
+                exit_code=None,
+                stdout="",
+                stderr=msg,
+                duration_ms=int(time.monotonic() * 1000) - start_ms,
+                message=msg,
+            )
+        except OSError as exc:
+            msg = f"Bubblewrap execution failed: {exc}"
+            return BubblewrapExecutionResult(
+                executed=False,
+                exit_code=None,
+                stdout="",
+                stderr=msg,
+                duration_ms=int(time.monotonic() * 1000) - start_ms,
+                message=msg,
+            )
+        except Exception as exc:
+            msg = f"Bubblewrap execution failed: {exc}"
+            return BubblewrapExecutionResult(
+                executed=False,
+                exit_code=None,
+                stdout="",
+                stderr=msg,
+                duration_ms=int(time.monotonic() * 1000) - start_ms,
+                message=msg,
+            )

@@ -730,6 +730,56 @@ class SandboxExecutionGate:
 
         requested_at = utc_now_iso()
 
+        # v2.4.2: Linux Bubblewrap backend executes via LinuxBubblewrapExecutor.
+        if proposal.backend == "linux_bubblewrap":
+            from safecode.sandbox.bubblewrap import LinuxBubblewrapExecutor  # lazy — avoids circular import
+
+            bwrap_res = LinuxBubblewrapExecutor(self.project_root, self.config).execute(proposal)
+            audit_type = (
+                "sandbox_execution_completed"
+                if bwrap_res.executed
+                else "sandbox_execution_blocked"
+            )
+            self._audit(
+                audit_type,
+                proposal.proposal_id,
+                proposal.backend,
+                proposal.purpose,
+                proposal.command[0] if proposal.command else "",
+                proposal.command_hash,
+                bwrap_res.message,
+            )
+            result_store = SandboxExecutionResultStore(self.project_root, self.config)
+            result_store.save(
+                SandboxExecutionResultRecord(
+                    proposal_id=proposal.proposal_id,
+                    attempted_at=requested_at,
+                    backend=proposal.backend,
+                    executed=bwrap_res.executed,
+                    exit_code=bwrap_res.exit_code,
+                    duration_ms=bwrap_res.duration_ms,
+                    status="completed",
+                    message=bwrap_res.message,
+                    command_hash_prefix=proposal.command_hash[:16],
+                    command_head=proposal.command[0] if proposal.command else "",
+                    stdout_preview=SandboxExecutionResultStore._truncate(bwrap_res.stdout),
+                    stderr_preview=SandboxExecutionResultStore._truncate(bwrap_res.stderr),
+                    stdout_length=len(bwrap_res.stdout),
+                    stderr_length=len(bwrap_res.stderr),
+                )
+            )
+            self.store.discard_pending()
+            return SandboxExecutionResult(
+                proposal_id=proposal.proposal_id,
+                executed=bwrap_res.executed,
+                exit_code=bwrap_res.exit_code,
+                stdout=bwrap_res.stdout,
+                stderr=bwrap_res.stderr,
+                backend=proposal.backend,
+                dry_run=not bwrap_res.executed,
+                message=bwrap_res.message,
+            )
+
         # v2.4.1: macOS Seatbelt backend executes via MacOSSeatbeltExecutor.
         if proposal.backend == "macos_seatbelt":
             from safecode.sandbox.seatbelt import MacOSSeatbeltExecutor  # lazy — avoids circular import

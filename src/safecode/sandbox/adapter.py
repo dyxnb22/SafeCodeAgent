@@ -211,11 +211,12 @@ class LinuxBubblewrapAdapter:
             timeout_seconds=effective_request.timeout_seconds,
             warnings=adapter_warnings + [
                 "bwrap requires user namespace support in the kernel.",
-                "v1.7.2 generates bwrap args for preview only.",
+                "v2.4.2 preview: execution requires approval and bwrap on PATH.",
             ],
             limitations=[
-                "v1.7.2 does not execute bubblewrap.",
-                "Args are for review purposes only.",
+                "bwrap user namespace support varies by kernel and distro configuration.",
+                "Network and filesystem isolation enforced by bwrap flags.",
+                "Network is disabled by default unless SafeCodeConfig.sandbox.network_enabled is True.",
             ],
             args_preview=args_preview,
             args_backend=args_backend,
@@ -223,7 +224,7 @@ class LinuxBubblewrapAdapter:
         )
 
     def supports_execution(self) -> bool:
-        return False
+        return True
 
 
 class DockerSandboxAdapter:

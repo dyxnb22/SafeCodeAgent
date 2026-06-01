@@ -4,7 +4,7 @@
 
 Do not move directly from `v2.3.4` into real sandbox backends. The product review found that SafeCode Agent has a strong safety substrate, but the user-facing product surface still overstates or blurs several boundaries:
 
-- Sandbox execution is currently real only through the Noop backend; macOS Seatbelt, Linux Bubblewrap, and Docker are still plan-only/dry-run surfaces.
+- At the time of this review, sandbox execution was real only through the Noop backend; macOS Seatbelt, Linux Bubblewrap, and Docker were still plan-only/dry-run surfaces. This was addressed across v2.4.0-v2.4.2.
 - MCP support is currently a subprocess JSON shim, not a full MCP JSON-RPC client.
 - Subagents are read-only context/result collectors, not independent LLM investigations.
 - The interactive `AgentLoop` does not yet produce patches end-to-end.
@@ -31,11 +31,10 @@ Before enabling real sandbox backends, complete:
 
 After stabilization:
 
-1. `v2.4.0-sandbox-backend-contract-v2`
-2. `v2.4.1-docker-execution-preview`
-3. `v2.4.2-macos-seatbelt-execution-preview`
-4. `v2.4.3-linux-bubblewrap-execution-preview`
-5. `v2.4.4-cross-backend-security-evals`
+1. `v2.4.0-docker-execution-preview`
+2. `v2.4.1-macos-seatbelt-execution-preview`
+3. `v2.4.2-linux-bubblewrap-execution-preview`
+4. `v2.4.3-cross-backend-security-evals`
 
 Docker moves first because it is the most uniform across macOS, Linux, and CI. Seatbelt and Bubblewrap need more host-specific validation and should follow once the backend execution contract is proven.
 

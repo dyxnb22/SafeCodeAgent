@@ -207,15 +207,13 @@ stabilization closes the biggest product-trust and architecture gaps.
 
 Subtasks:
 
-- `v2.4.0-sandbox-backend-contract-v2`
-  Split dry-run planning, preflight, and execution contracts per backend.
-- `v2.4.1-docker-execution-preview`
+- `v2.4.0-docker-execution-preview`
   Enable opt-in Docker execution for isolated command runs.
-- `v2.4.2-macos-seatbelt-execution-preview`
+- `v2.4.1-macos-seatbelt-execution-preview`
   Enable an opt-in macOS Seatbelt execution path with narrow allowlists.
-- `v2.4.3-linux-bubblewrap-execution-preview`
+- `v2.4.2-linux-bubblewrap-execution-preview`
   Enable an opt-in Bubblewrap path with filesystem/network containment tests.
-- `v2.4.4-cross-backend-security-evals`
+- `v2.4.3-cross-backend-security-evals`
   Add backend-specific attack and escape evaluations.
 
 ### v2.5.x: Reliability and Evaluation

@@ -111,14 +111,15 @@ class TestLinuxBubblewrapAdapter:
         assert plan.backend == SandboxBackend.LINUX_BUBBLEWRAP
         assert len(called) == 0
 
-    def test_supports_execution_is_false(self):
+    def test_supports_execution_is_true_in_v242(self):
+        """v2.4.2: Linux Bubblewrap now supports real execution."""
         cap = SandboxCapability(
             backend=SandboxBackend.LINUX_BUBBLEWRAP,
             available=True,
             supported_platforms=["Linux"],
             reason="test",
         )
-        assert LinuxBubblewrapAdapter(cap).supports_execution() is False
+        assert LinuxBubblewrapAdapter(cap).supports_execution() is True
 
 
 class TestDockerAdapter:

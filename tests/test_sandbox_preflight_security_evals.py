@@ -21,6 +21,7 @@ from safecode.audit.logger import AuditLogger
 from safecode.config import SafeCodeConfig
 from safecode.cli import app
 from safecode.sandbox.adapter import SandboxBackend, SandboxExecutionPlan
+from safecode.sandbox.capabilities import SandboxCapability, SandboxCapabilityDetector
 from safecode.sandbox.execution import SandboxExecutionGate
 from safecode.sandbox.preflight import SandboxExecutionPreflight
 
@@ -68,6 +69,32 @@ def _mock_supports_execution_true(monkeypatch):
         lambda self: True,
     )
     return original
+
+
+def _force_bubblewrap_unavailable(monkeypatch):
+    """Make Bubblewrap unavailable so backend-block tests are platform-stable."""
+    original_detect_all = SandboxCapabilityDetector.detect_all
+
+    def patched(self):
+        caps = original_detect_all(self)
+        return [
+            SandboxCapability(
+                backend=cap.backend,
+                available=False,
+                supported_platforms=cap.supported_platforms,
+                reason="mocked unavailable",
+                network_isolation_supported=cap.network_isolation_supported,
+                filesystem_isolation_supported=cap.filesystem_isolation_supported,
+                process_isolation_supported=cap.process_isolation_supported,
+                recommended_for=cap.recommended_for,
+                limitations=cap.limitations,
+            )
+            if cap.backend == SandboxBackend.LINUX_BUBBLEWRAP
+            else cap
+            for cap in caps
+        ]
+
+    monkeypatch.setattr(SandboxCapabilityDetector, "detect_all", patched)
 
 
 # ── A. Proposal integrity ─────────────────────────────────────────────
@@ -410,7 +437,7 @@ class TestRegression:
         anchor = tmp_path.parent / f"anchors-{tmp_path.name}"
         monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor))
         gate = _setup_gate(tmp_path, monkeypatch)
-        # v2.4.1: use Linux Bubblewrap which is still plan-only (supports_execution=False).
+        _force_bubblewrap_unavailable(monkeypatch)
         gate.propose(
             _make_plan(
                 backend=SandboxBackend.LINUX_BUBBLEWRAP,
@@ -422,7 +449,8 @@ class TestRegression:
         gate.approve()
         result = SandboxExecutionPreflight(tmp_path).run()
         assert result.approval_valid is True
-        assert result.allowed is False  # Linux Bubblewrap does not support execution yet
+        assert result.backend_available is False
+        assert result.allowed is False
 
     def test_sandbox_approve_execute_still_refuses_unsupported_backend(self, tmp_path, monkeypatch):
         ad = _approval_dir(tmp_path)
@@ -430,7 +458,7 @@ class TestRegression:
         anchor = tmp_path.parent / f"anchors-{tmp_path.name}"
         monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor))
         gate = _setup_gate(tmp_path, monkeypatch)
-        # v2.4.1: Linux Bubblewrap still does not support execution
+        _force_bubblewrap_unavailable(monkeypatch)
         gate.propose(
             _make_plan(
                 backend=SandboxBackend.LINUX_BUBBLEWRAP,

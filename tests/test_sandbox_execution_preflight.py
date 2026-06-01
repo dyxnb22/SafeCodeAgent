@@ -17,6 +17,7 @@ import pytest
 from safecode.audit.logger import AuditLogger
 from safecode.config import SafeCodeConfig
 from safecode.sandbox.adapter import SandboxBackend, SandboxExecutionPlan
+from safecode.sandbox.capabilities import SandboxCapability, SandboxCapabilityDetector
 from safecode.sandbox.execution import SandboxExecutionGate
 from safecode.sandbox.preflight import SandboxExecutionPreflight
 
@@ -51,6 +52,32 @@ def _approval_dir(tmp_path):
     return tmp_path.parent / f"approvals-{tmp_path.name}"
 
 
+def _force_bubblewrap_unavailable(monkeypatch):
+    """Make Bubblewrap unavailable so this preflight block is platform-stable."""
+    original_detect_all = SandboxCapabilityDetector.detect_all
+
+    def patched(self):
+        caps = original_detect_all(self)
+        return [
+            SandboxCapability(
+                backend=cap.backend,
+                available=False,
+                supported_platforms=cap.supported_platforms,
+                reason="mocked unavailable",
+                network_isolation_supported=cap.network_isolation_supported,
+                filesystem_isolation_supported=cap.filesystem_isolation_supported,
+                process_isolation_supported=cap.process_isolation_supported,
+                recommended_for=cap.recommended_for,
+                limitations=cap.limitations,
+            )
+            if cap.backend == SandboxBackend.LINUX_BUBBLEWRAP
+            else cap
+            for cap in caps
+        ]
+
+    monkeypatch.setattr(SandboxCapabilityDetector, "detect_all", patched)
+
+
 # ── A. No proposal ────────────────────────────────────────────────────
 
 
@@ -77,11 +104,11 @@ class TestApprovalChecks:
         assert result.approval_valid is False
         assert result.allowed is False
 
-    def test_approved_but_adapter_supports_execution_false(self, tmp_path, monkeypatch):
+    def test_approved_but_backend_unavailable(self, tmp_path, monkeypatch):
         ad = _approval_dir(tmp_path)
         monkeypatch.setenv("SAFECODE_SANDBOX_APPROVAL_DIR", str(ad))
         gate = _setup_gate(tmp_path, monkeypatch)
-        # v2.4.1: Linux Bubblewrap still returns supports_execution=False (still plan-only).
+        _force_bubblewrap_unavailable(monkeypatch)
         gate.propose(
             _make_plan(
                 backend=SandboxBackend.LINUX_BUBBLEWRAP,
@@ -93,6 +120,7 @@ class TestApprovalChecks:
         gate.approve()
         result = SandboxExecutionPreflight(tmp_path).run()
         assert result.approval_valid is True
+        assert result.backend_available is False
         assert result.backend_supports_execution is False
         assert result.allowed is False
 

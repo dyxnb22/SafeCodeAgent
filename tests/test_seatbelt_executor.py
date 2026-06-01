@@ -557,7 +557,8 @@ class TestMacOSSeatbeltAdapterSupportsExecution:
         adapter = MacOSSeatbeltAdapter(cap)
         assert adapter.supports_execution() is True
 
-    def test_linux_bubblewrap_still_plan_only(self):
+    def test_linux_bubblewrap_supports_execution_in_v242(self):
+        """v2.4.2: Linux Bubblewrap now supports real execution."""
         from safecode.sandbox.adapter import LinuxBubblewrapAdapter
         cap = SandboxCapability(
             backend=SandboxBackend.LINUX_BUBBLEWRAP,
@@ -566,7 +567,7 @@ class TestMacOSSeatbeltAdapterSupportsExecution:
             reason="test",
         )
         adapter = LinuxBubblewrapAdapter(cap)
-        assert adapter.supports_execution() is False
+        assert adapter.supports_execution() is True
 
     def test_preflight_error_message_no_longer_says_seatbelt(self, tmp_path, monkeypatch):
         """preflight error message should not say 'macOS Seatbelt' is plan-only."""

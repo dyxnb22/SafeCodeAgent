@@ -595,14 +595,15 @@ class TestDockerAdapterSupportsExecution:
         )
         assert MacOSSeatbeltAdapter(cap).supports_execution() is True
 
-    def test_linux_adapter_still_dry_run(self):
+    def test_linux_adapter_supports_execution_in_v242(self):
+        """v2.4.2: Linux Bubblewrap now supports real execution."""
         cap = SandboxCapability(
             backend=SandboxBackend.LINUX_BUBBLEWRAP,
             available=True,
             supported_platforms=["Linux"],
             reason="test",
         )
-        assert LinuxBubblewrapAdapter(cap).supports_execution() is False
+        assert LinuxBubblewrapAdapter(cap).supports_execution() is True
 
     def test_noop_adapter_supports_execution(self):
         assert NoopSandboxAdapter().supports_execution() is True

@@ -5,13 +5,25 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v2.4.1
+# Current Baseline - v2.4.2
 
 ## Status
-Implemented. Git baseline: tag `v2.4.0` (v2.4.1 is local, not yet tagged).
+Implemented. Git baseline: tag `v2.4.1` (v2.4.2 is local, not yet tagged).
 
 ## Stage
-`v2.4.x` Real Sandbox Backends — Docker and macOS Seatbelt previews complete. Next: Linux Bubblewrap real execution.
+`v2.4.x` Real Sandbox Backends — All four backends complete. Noop, Docker, macOS Seatbelt, Linux Bubblewrap all support execution.
+
+## v2.4.2 (Linux Bubblewrap Real Execution Preview)
+`LinuxBubblewrapExecutor` and `BubblewrapExecutionResult` added to `src/safecode/sandbox/bubblewrap.py`. `LinuxBubblewrapAdapter.supports_execution()` now returns `True`. `SandboxExecutionGate.execute_pending()` routes Linux Bubblewrap proposals through `LinuxBubblewrapExecutor` after the atomic approval claim.
+
+Key changes:
+- `LinuxBubblewrapExecutor.execute(proposal)` rebuilds the bwrap argv via `BubblewrapArgsBuilder`, verifies `preview_hash` (`sha256(stable_json(argv))`), checks `shutil.which("bwrap")`, then calls `subprocess.run(argv, capture_output=True, shell=False)`. Returns `BubblewrapExecutionResult` (frozen dataclass). Never raises — all failure paths return `executed=False`.
+- `SandboxExecutionGate.execute_pending()`: added `"linux_bubblewrap"` routing block before macOS Seatbelt; writes `sandbox_execution_completed` / `sandbox_execution_blocked` audit event; writes result record and clears pending for all paths.
+- `LinuxBubblewrapAdapter.build_plan()` warnings and limitations updated to v2.4.2 language.
+- `SandboxExecutionPreflight` error message updated: no backend is plan-only now.
+- `sac sandbox status` scope panel updated to v2.4.2; Linux Bubblewrap Mode column changed from `plan-only` to `executing (preview)`.
+- `sac sandbox plan` backend_mode mapping adds `LINUX_BUBBLEWRAP`; trailing dry-run panel covers all three executing preview backends.
+- 34 new tests in `test_bubblewrap_executor.py`. 10 existing tests updated for `supports_execution=True` and v2.4.2 text/version strings.
 
 ## v2.4.1 (macOS Seatbelt Real Execution Preview)
 `MacOSSeatbeltExecutor` and `SeatbeltExecutionResult` added to `src/safecode/sandbox/seatbelt.py`. `MacOSSeatbeltAdapter.supports_execution()` now returns `True`. `SandboxExecutionGate.execute_pending()` routes macOS Seatbelt proposals through `MacOSSeatbeltExecutor` after the atomic approval claim.
@@ -20,9 +32,9 @@ Key changes:
 - `MacOSSeatbeltExecutor.execute(proposal)` rebuilds the sandbox profile deterministically via `SeatbeltProfileBuilder`, verifies `preview_hash` (`sha256(profile_text)`), checks `shutil.which("sandbox-exec")`, then calls `subprocess.run(["sandbox-exec", "-p", profile_text, *command], capture_output=True, shell=False)`. Returns `SeatbeltExecutionResult` (frozen dataclass). Never raises — all failure paths return `executed=False`.
 - `SandboxExecutionGate.execute_pending()`: added `"macos_seatbelt"` routing block before Docker; writes `sandbox_execution_completed` / `sandbox_execution_blocked` audit event; writes result record and clears pending for all paths.
 - `MacOSSeatbeltAdapter.build_plan()` warnings updated to v2.4.1 language.
-- `SandboxExecutionPreflight` error message updated: only Linux Bubblewrap is now plan-only.
+- `SandboxExecutionPreflight` error message updated: only Linux Bubblewrap was plan-only at v2.4.1 (graduated at v2.4.2).
 - `sac sandbox status` scope panel and macOS Seatbelt Mode column updated to v2.4.1.
-- `sac sandbox plan` trailing note distinguishes Docker and macOS Seatbelt (propose→execute flow) from Linux Bubblewrap (plan-only).
+- `sac sandbox plan` trailing note distinguished Docker and macOS Seatbelt (propose→execute) from Linux Bubblewrap (plan-only at v2.4.1).
 - 29 new tests in `test_seatbelt_executor.py`. 14 existing tests updated for `supports_execution=True` and v2.4.1 text/version strings.
 - macOS 15+ note: `sandbox-exec` with user profiles causes SIGABRT (exit_code=-6); this is treated as `executed=True` with non-zero exit.
 
@@ -260,11 +272,20 @@ uv run sac --help
 - Network defaults to disabled (`--network none`) unless `proposal.network_enabled=True`.
 - The Noop path in `execute_pending()` is unchanged after the Docker branch — no Noop behavior is altered.
 
+## Compatibility Requirements (v2.4.2 additions)
+- `LinuxBubblewrapExecutor.execute()` never raises — all failure paths return `BubblewrapExecutionResult(executed=False, ...)`.
+- Preview hash verification is enforced before `shutil.which` check and before subprocess; a hash mismatch always blocks execution.
+- `shell=False` is mandatory in all `subprocess.run()` calls in `LinuxBubblewrapExecutor`.
+- Network defaults to disabled (`--unshare-net` in bwrap argv) unless `proposal.network_enabled=True`.
+- Filesystem boundary validation via `BubblewrapArgsBuilder` (sensitive path detection, project root containment, blocked writable roots).
+- No env value leakage: `env={}` passed when reconstructing `SandboxExecutionRequest`.
+- The Noop, Docker, and macOS Seatbelt paths in `execute_pending()` are unchanged after the Bubblewrap branch.
+
 ## Compatibility Requirements
 - Keep sandbox execution disabled unless proposal, approval, policy, and preflight checks all allow it.
 - Preserve diff review, checkpoint, audit, rollback, command policy, filesystem containment, network deny-by-default, and approval binding.
 - Project-local configuration must not weaken user-level safety policy.
-- Noop, Docker, and macOS Seatbelt adapters support execution; Linux Bubblewrap remains plan-only.
+- All four backends (Noop, Docker, macOS Seatbelt, Linux Bubblewrap) support execution as of v2.4.2.
 - New historical details belong in docs and Git tags, not in additional `.claude/skills/v*` files.
 - Real LLM calls must keep network policy and API key requirements explicit; mock mode must remain available for keyless tests.
 - Context collection must remain bounded and redacted; budget metadata should explain truncation without exposing hidden content.
