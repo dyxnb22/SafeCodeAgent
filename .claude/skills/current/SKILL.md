@@ -5,13 +5,21 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v2.6.12
+# Current Baseline - v2.6.13
 
 ## Status
-Implemented. Git baseline: tag `v2.6.12`.
+Implemented. Git baseline: tag `v2.6.13`.
 
 ## Stage
-`v2.6.x` Product Hardening — v2.6.1–v2.6.12 added release consistency checks, checklist polish, policy docs hardening, smoke tests, tag/version guard, next-step polish, release metadata index, docs finalization guard, release version bump helper, release preflight aggregation, and version-note index validation.
+`v2.6.x` Product Hardening — v2.6.1–v2.6.13 added release consistency checks, checklist polish, policy docs hardening, smoke tests, tag/version guard, next-step polish, release metadata index, docs finalization guard, release version bump helper, release preflight aggregation, version-note index validation, and release workflow documentation.
+
+## v2.6.13 (Release Workflow Documentation)
+`README.md`, `docs/install-update.md`, and `src/safecode/release/docs_guard.py` updated.
+
+Key additions:
+- README and install/update docs now show the intended bump, test, commit, tag, verify, and preflight sequence.
+- Docs explicitly warn that tag version must match `pyproject.toml` and `safecode.__version__`.
+- Docs guard recognizes `sac release bump` and `sac release preflight` as release commands.
 
 ## v2.6.12 (Version-Note Index Validation)
 `src/safecode/release/metadata.py` updated. `sac release meta` and `sac release preflight` inherit stricter metadata validation.

@@ -169,3 +169,25 @@ docker run --rm -it -v "$PWD:/workspace" -w /workspace safecode-agent sac doctor
 ```bash
 PYTHONPATH=src python3 -m pytest -q
 ```
+
+## Release Flow
+
+For each release, keep the package version, runtime version, docs, and git tag
+in lockstep:
+
+```bash
+sac release bump 2.6.13
+PYTHONPATH=src python3 -m pytest -q
+git add .
+git commit -m "Implement v2.6.13 <summary>"
+git tag -a v2.6.13 -m "v2.6.13 <summary>"
+sac release check
+sac release smoke
+sac release meta
+sac release preflight
+git describe --exact-match --tags HEAD
+```
+
+Never tag a release while `pyproject.toml` or `safecode.__version__` still
+reports an older version. `sac release preflight` is the final local gate; it
+aggregates the release check, smoke checks, metadata audit, and docs guard.

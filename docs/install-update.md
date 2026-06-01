@@ -48,14 +48,23 @@ Use external approval directories rather than project-local approval stores.
 
 ## Release Checks
 
-Before tagging a release, run:
+Use this flow for each release:
 
 ```bash
-sac release check    # version consistency and working-tree state
-sac release smoke    # fast smoke test: import, CLI, consistency, policy names, docs
-sac release meta     # metadata index: version, tag, notes, SKILL.md baseline
-sac release preflight # aggregate local release gate: check, smoke, meta, docs
+sac release bump 2.6.13        # update canonical version files; does not commit or tag
+PYTHONPATH=src python3 -m pytest -q
+git add .
+git commit -m "Implement v2.6.13 <summary>"
+git tag -a v2.6.13 -m "v2.6.13 <summary>"
+sac release check              # package/runtime/tag consistency and clean tree
+sac release smoke              # fast smoke test: import, CLI, consistency, policy names, docs
+sac release meta               # metadata index: version, tag, notes, SKILL.md baseline
+sac release preflight          # aggregate local release gate: check, smoke, meta, docs
+git describe --exact-match --tags HEAD
 ```
+
+The tag version must match `pyproject.toml` and `safecode.__version__`; do not
+create or move a release tag while the package still reports an older version.
 
 ## Current Enforcement Boundaries
 

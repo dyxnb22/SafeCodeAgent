@@ -6,7 +6,13 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 
-RELEASE_COMMANDS: tuple[str, ...] = ("sac release check", "sac release smoke", "sac release meta")
+RELEASE_COMMANDS: tuple[str, ...] = (
+    "sac release bump",
+    "sac release check",
+    "sac release smoke",
+    "sac release meta",
+    "sac release preflight",
+)
 
 _README_CANDIDATES = ("README.md", "README.rst", "README.txt")
 _INSTALL_CANDIDATES = ("docs/install-update.md", "docs/install-update.rst")

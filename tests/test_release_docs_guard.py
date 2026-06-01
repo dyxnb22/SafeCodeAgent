@@ -159,3 +159,7 @@ class TestCheckDocsFinalized:
     def test_release_commands_constant_non_empty(self):
         assert len(RELEASE_COMMANDS) > 0
         assert any("sac release" in cmd for cmd in RELEASE_COMMANDS)
+
+    def test_release_commands_include_bump_and_preflight(self):
+        assert "sac release bump" in RELEASE_COMMANDS
+        assert "sac release preflight" in RELEASE_COMMANDS
