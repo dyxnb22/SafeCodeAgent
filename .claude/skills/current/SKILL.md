@@ -5,13 +5,21 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v2.6.19
+# Current Baseline - v2.6.20
 
 ## Status
-Implemented. Git baseline: tag `v2.6.19`.
+Implemented. Git baseline: tag `v2.6.20`.
 
 ## Stage
-`v2.6.x` Product Hardening — v2.6.1–v2.6.19 added release consistency checks, checklist polish, policy docs hardening, smoke tests, tag/version guard, next-step polish, release metadata index, docs finalization guard, release version bump helper, release preflight aggregation, version-note index validation, release workflow documentation, release command UX polish, release changelog generation, release checklist upgrade, CI workflow draft, Doctor release diagnostics, and policy audit command.
+`v2.6.x` Product Hardening — v2.6.1–v2.6.20 added release consistency checks, checklist polish, policy docs hardening, smoke tests, tag/version guard, next-step polish, release metadata index, docs finalization guard, release version bump helper, release preflight aggregation, version-note index validation, release workflow documentation, release command UX polish, release changelog generation, release checklist upgrade, CI workflow draft, Doctor release diagnostics, policy audit command, and product security review documentation.
+
+## v2.6.20 (Security Review Documentation)
+`docs/security/product-security-review-v2.6.md` added.
+
+Key additions:
+- Documents configuration policy, sandbox defaults, hooks, release gates, and trust boundaries.
+- Explicitly calls out project-local config not being allowed to lower user-level safety.
+- `tests/test_security_review_docs.py` guards required review sections.
 
 ## v2.6.19 (Policy Audit Command)
 `src/safecode/policy/audit.py` added. `src/safecode/cli_project.py` exposes `sac config policy-audit`.
