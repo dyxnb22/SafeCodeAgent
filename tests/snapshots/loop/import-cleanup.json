@@ -1,0 +1,21 @@
+{
+  "fixture_name": "import-cleanup",
+  "steps": [
+    {
+      "step_index": 0,
+      "tool_intent_type": "read",
+      "tool_intent_target": "src/app.py",
+      "is_stop_for_user": false,
+      "is_first_fail_recoverable": false
+    },
+    {
+      "step_index": 1,
+      "tool_intent_type": "patch",
+      "tool_intent_target": "src/app.py",
+      "is_stop_for_user": false,
+      "is_first_fail_recoverable": false
+    }
+  ],
+  "expected_pending_patch": true,
+  "patch_hash": "84e948fb0df0d87895661bfc9ee39c1423358bd06bd0279d7d6b02fca8976197"
+}

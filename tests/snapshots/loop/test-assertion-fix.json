@@ -1,0 +1,21 @@
+{
+  "fixture_name": "test-assertion-fix",
+  "steps": [
+    {
+      "step_index": 0,
+      "tool_intent_type": "read",
+      "tool_intent_target": "tests/test_math.py",
+      "is_stop_for_user": false,
+      "is_first_fail_recoverable": false
+    },
+    {
+      "step_index": 1,
+      "tool_intent_type": "patch",
+      "tool_intent_target": "tests/test_math.py",
+      "is_stop_for_user": false,
+      "is_first_fail_recoverable": false
+    }
+  ],
+  "expected_pending_patch": true,
+  "patch_hash": "0a40c6b3df099a642a2433b08a9d7b39028136de8111f84ad9950797e4a42b01"
+}

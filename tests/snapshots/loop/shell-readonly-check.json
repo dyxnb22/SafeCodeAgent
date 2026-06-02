@@ -1,0 +1,21 @@
+{
+  "fixture_name": "shell-readonly-check",
+  "steps": [
+    {
+      "step_index": 0,
+      "tool_intent_type": "read",
+      "tool_intent_target": "README.md",
+      "is_stop_for_user": false,
+      "is_first_fail_recoverable": false
+    },
+    {
+      "step_index": 1,
+      "tool_intent_type": "stop_for_user",
+      "tool_intent_target": null,
+      "is_stop_for_user": true,
+      "is_first_fail_recoverable": false
+    }
+  ],
+  "expected_pending_patch": false,
+  "patch_hash": null
+}

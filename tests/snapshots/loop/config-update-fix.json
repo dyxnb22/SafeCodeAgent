@@ -1,0 +1,21 @@
+{
+  "fixture_name": "config-update-fix",
+  "steps": [
+    {
+      "step_index": 0,
+      "tool_intent_type": "read",
+      "tool_intent_target": ".sac/config.toml",
+      "is_stop_for_user": false,
+      "is_first_fail_recoverable": false
+    },
+    {
+      "step_index": 1,
+      "tool_intent_type": "patch",
+      "tool_intent_target": ".sac/config.toml",
+      "is_stop_for_user": false,
+      "is_first_fail_recoverable": false
+    }
+  ],
+  "expected_pending_patch": true,
+  "patch_hash": "6e4338003d3bb0d25cbc5a63cb1189644e6a1b5519e5885d04085dc5829c8a38"
+}

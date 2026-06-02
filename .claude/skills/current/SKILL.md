@@ -5,13 +5,23 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v2.9.1
+# Current Baseline - v2.9.2
 
 ## Status
-Implemented. Git baseline: tag `v2.9.0`. Local working version: `v2.9.1`.
+Implemented. Git baseline: tag `v2.9.1`. Local working version: `v2.9.2`.
 
 ## Stage
-`v2.9.x` Deterministic Evidence and Contract Preparation — v2.9.0 expanded loop fixtures and added typed failure categories; v2.9.1 adds one bounded retry for recoverable contract-shaped failures, journals the retry event, and wires the full first-fail/second-pass flow.
+`v2.9.x` Deterministic Evidence and Contract Preparation — v2.9.0 expanded loop fixtures and added typed failure categories; v2.9.1 adds one bounded retry for recoverable contract-shaped failures; v2.9.2 adds deterministic typed trace snapshots for all six loop fixtures.
+
+## v2.9.2 (Eval Replay Baseline Snapshot)
+`src/safecode/eval/loop_runner.py`, `tests/snapshots/loop/` (6 JSON files), and `tests/test_eval_replay_baseline_snapshot.py` updated.
+
+Key additions:
+- `LoopStepTrace(frozen dataclass)`: `step_index`, `tool_intent_type`, `tool_intent_target`, `is_stop_for_user`, `is_first_fail_recoverable`. No prose, no timestamps, no absolute paths.
+- `LoopEvalTrace(frozen dataclass)`: `fixture_name`, `steps: tuple[LoopStepTrace, ...]`, `expected_pending_patch`, `patch_hash` (SHA-256 of `expected_patch_contains` fragments). `as_dict()` is JSON-serializable and byte-stable.
+- `build_loop_eval_trace(fixture)`: derives a deterministic trace from the fixture definition alone — no runtime LLM calls needed.
+- 6 snapshot files in `tests/snapshots/loop/` (one per fixture): `docs-edit.json`, `python-function-fix.json`, `config-update-fix.json`, `test-assertion-fix.json`, `shell-readonly-check.json`, `import-cleanup.json`.
+- 30 new tests in `tests/test_eval_replay_baseline_snapshot.py`: type tests, determinism checks, and parametrized snapshot comparisons.
 
 ## v2.9.1 (Agent Loop Error Recovery)
 `src/safecode/agent/schemas.py`, `src/safecode/agent/loop.py`, `src/safecode/state/journal.py`, and `tests/test_agent_loop_error_recovery.py` updated.

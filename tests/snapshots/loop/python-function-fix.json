@@ -1,0 +1,21 @@
+{
+  "fixture_name": "python-function-fix",
+  "steps": [
+    {
+      "step_index": 0,
+      "tool_intent_type": "read",
+      "tool_intent_target": "src/utils.py",
+      "is_stop_for_user": false,
+      "is_first_fail_recoverable": false
+    },
+    {
+      "step_index": 1,
+      "tool_intent_type": "patch",
+      "tool_intent_target": "src/utils.py",
+      "is_stop_for_user": false,
+      "is_first_fail_recoverable": false
+    }
+  ],
+  "expected_pending_patch": true,
+  "patch_hash": "f6a8c08af7ab7e502043e0a63a7fee9767c674fbf42ceb8e9d1d3e71ded61bff"
+}

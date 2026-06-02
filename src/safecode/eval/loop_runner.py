@@ -16,6 +16,7 @@ This module provides:
 from __future__ import annotations
 
 import enum
+import hashlib
 import shutil
 import tempfile
 from dataclasses import dataclass, field
@@ -29,6 +30,7 @@ from safecode.agent.schemas import (
     AgentPlanResponse,
     AgentStopForUserResponse,
     AgentToolIntentResponse,
+    RecoverableContractFailure,
 )
 from safecode.agent.tools import ToolIntent
 
@@ -39,20 +41,6 @@ from safecode.agent.tools import ToolIntent
 @dataclass(frozen=True)
 class LLMContractViolation:
     """Raised (as a value, not an exception) when scripted sequence is exhausted."""
-
-    step: int
-    method: str
-    message: str
-
-
-@dataclass(frozen=True)
-class RecoverableContractFailure:
-    """A transient contract-shaped failure that the agent loop may retry once.
-
-    Unlike ``LLMContractViolation``, this is not fail-closed on first occurrence:
-    the loop journals a retry event and calls ``choose_tool()`` again exactly once.
-    Only explicitly scripted recoverable steps should produce this value.
-    """
 
     step: int
     method: str
@@ -209,6 +197,96 @@ class LoopEvalResult:
     @property
     def ok(self) -> bool:
         return self.passed and not self.violations
+
+
+# ── Deterministic trace for snapshot tests ───────────────────────────────
+
+
+@dataclass(frozen=True)
+class LoopStepTrace:
+    """Deterministic, snapshot-friendly record of one scripted agent step.
+
+    Contains only typed fields — no LLM prose, no timestamps, no absolute paths.
+    """
+
+    step_index: int
+    tool_intent_type: str
+    tool_intent_target: str | None
+    is_stop_for_user: bool = False
+    is_first_fail_recoverable: bool = False
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "step_index": self.step_index,
+            "tool_intent_type": self.tool_intent_type,
+            "tool_intent_target": self.tool_intent_target,
+            "is_stop_for_user": self.is_stop_for_user,
+            "is_first_fail_recoverable": self.is_first_fail_recoverable,
+        }
+
+
+@dataclass(frozen=True)
+class LoopEvalTrace:
+    """Deterministic typed trace for one loop eval fixture.
+
+    Snapshot-safe: no LLM prose, no timestamps, no unstable absolute paths.
+    Patch hash is a SHA-256 of the serialized patch text; absent when no patch.
+    """
+
+    fixture_name: str
+    steps: tuple[LoopStepTrace, ...]
+    expected_pending_patch: bool
+    patch_hash: str | None  # sha256 of expected patch text fragments, or None
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "fixture_name": self.fixture_name,
+            "steps": [s.as_dict() for s in self.steps],
+            "expected_pending_patch": self.expected_pending_patch,
+            "patch_hash": self.patch_hash,
+        }
+
+
+def build_loop_eval_trace(fixture: LoopEvalFixture) -> LoopEvalTrace:
+    """Build a deterministic trace from a fixture's scripted steps.
+
+    The trace is derived from the fixture definition alone (no runtime LLM
+    calls), so it is byte-identical across repeated runs for the same fixture.
+    Patch hash is computed from ``expected_patch_contains`` fragments joined
+    in order — stable as long as fixture definitions are stable.
+    """
+    steps: list[LoopStepTrace] = []
+    for idx, step in enumerate(fixture.scripted_steps):
+        choice = step.tool_choice
+        if isinstance(choice, AgentStopForUserResponse):
+            steps.append(LoopStepTrace(
+                step_index=idx,
+                tool_intent_type="stop_for_user",
+                tool_intent_target=None,
+                is_stop_for_user=True,
+                is_first_fail_recoverable=step.first_fail_recoverable,
+            ))
+        else:
+            intent = choice.intent
+            steps.append(LoopStepTrace(
+                step_index=idx,
+                tool_intent_type=intent.type,
+                tool_intent_target=intent.target,
+                is_stop_for_user=False,
+                is_first_fail_recoverable=step.first_fail_recoverable,
+            ))
+
+    patch_hash: str | None = None
+    if fixture.expected_patch_contains:
+        combined = "\n".join(fixture.expected_patch_contains)
+        patch_hash = hashlib.sha256(combined.encode()).hexdigest()
+
+    return LoopEvalTrace(
+        fixture_name=fixture.name,
+        steps=tuple(steps),
+        expected_pending_patch=fixture.expected_pending_patch,
+        patch_hash=patch_hash,
+    )
 
 
 # ── Failure classifier ────────────────────────────────────────────────────

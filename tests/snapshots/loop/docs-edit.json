@@ -1,0 +1,21 @@
+{
+  "fixture_name": "docs-edit",
+  "steps": [
+    {
+      "step_index": 0,
+      "tool_intent_type": "read",
+      "tool_intent_target": "docs/usage.md",
+      "is_stop_for_user": false,
+      "is_first_fail_recoverable": false
+    },
+    {
+      "step_index": 1,
+      "tool_intent_type": "patch",
+      "tool_intent_target": "docs/usage.md",
+      "is_stop_for_user": false,
+      "is_first_fail_recoverable": false
+    }
+  ],
+  "expected_pending_patch": true,
+  "patch_hash": "f9301d60d70f47c74cd595e8f4d8e4932aa2cd93190d2c93439c8d74b941034e"
+}
