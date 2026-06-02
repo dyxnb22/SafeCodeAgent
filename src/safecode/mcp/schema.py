@@ -9,7 +9,7 @@ implementing real MCP JSON-RPC. Schema metadata is optional — when absent,
 
 Usage::
 
-    from safecode.mcp.schema import MCPToolSchema, classify_with_schema
+    from safecode.mcp.schema import MCPToolSchema, MCPSchemaArg, classify_with_schema
 
     schema = MCPToolSchema(server="myserver", tool="sync_files", classification="write")
     classify_with_schema("sync_files", [schema])  # returns "write" from schema
@@ -19,11 +19,35 @@ Usage::
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Literal
+from typing import Any, Literal
 
 
 # Classification values mirror those returned by classify_mcp_tool.
 MCPClassification = Literal["read", "write", "unknown"]
+
+
+@dataclass(frozen=True)
+class MCPSchemaArg:
+    """Typed metadata for one argument of an MCP tool.
+
+    When ``arg_schemas`` is non-empty on the parent ``MCPToolSchema``,
+    ``validate_call_args`` uses these to enforce required args and reject
+    extra args.  Schema-less callers are never affected.
+
+    Fields
+    ------
+    name:
+        Argument name as expected by the tool.
+    type_name:
+        Expected type as a string (``"string"``, ``"integer"``, ``"boolean"``,
+        ``"object"``, ``"array"``). Used for informational validation only.
+    required:
+        Whether the argument must be present in every call.
+    """
+
+    name: str
+    type_name: str = "string"
+    required: bool = False
 
 
 @dataclass(frozen=True)
@@ -45,7 +69,10 @@ class MCPToolSchema:
     description:
         Optional human-readable description of the tool.
     args:
-        Optional list of argument names the tool accepts.
+        Optional list of argument names the tool accepts (legacy string form).
+    arg_schemas:
+        Optional typed argument metadata. When non-empty, ``validate_call_args``
+        enforces required args and rejects extra args.
     """
 
     server: str
@@ -53,6 +80,7 @@ class MCPToolSchema:
     classification: MCPClassification
     description: str = ""
     args: tuple[str, ...] = field(default_factory=tuple)
+    arg_schemas: tuple[MCPSchemaArg, ...] = field(default_factory=tuple)
 
 
 @dataclass(frozen=True)
@@ -144,3 +172,50 @@ def classify_with_schema(
     if explicit is not None:
         return explicit
     return classify_mcp_tool(tool_name)
+
+
+def validate_call_args(
+    tool_schema: MCPToolSchema,
+    call_args: dict[str, Any],
+) -> str | None:
+    """Validate *call_args* against *tool_schema.arg_schemas*.
+
+    Returns an error string when validation fails, or ``None`` when
+    the call is valid (or when *arg_schemas* is empty, meaning no validation
+    is performed).
+
+    Rules when ``arg_schemas`` is non-empty:
+    - Required args must be present in *call_args*.
+    - Extra args (keys not declared in ``arg_schemas``) are rejected.
+
+    Schema-less workloads (``arg_schemas == ()``) are never affected.
+
+    Parameters
+    ----------
+    tool_schema:
+        Schema to validate against.
+    call_args:
+        Argument dict from the caller.
+
+    Returns
+    -------
+    str | None
+        Error message if invalid; ``None`` if valid or no arg schema.
+    """
+    if not tool_schema.arg_schemas:
+        return None
+
+    declared_names = {a.name for a in tool_schema.arg_schemas}
+    required_names = {a.name for a in tool_schema.arg_schemas if a.required}
+
+    missing = required_names - call_args.keys()
+    if missing:
+        names = ", ".join(sorted(missing))
+        return f"Missing required argument(s): {names}"
+
+    extra = call_args.keys() - declared_names
+    if extra:
+        names = ", ".join(sorted(extra))
+        return f"Unexpected argument(s) not in schema: {names}"
+
+    return None

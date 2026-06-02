@@ -17,7 +17,7 @@ from safecode.context.redactor import redact_secrets
 from safecode.logs.runtime import RuntimeLogger
 from safecode.mcp.config import MCPConfigStore, MCPServerConfig
 from safecode.mcp.proposal import MCPWriteProposal, MCPWriteProposalStore
-from safecode.mcp.schema import MCPToolSchema, classify_with_schema
+from safecode.mcp.schema import MCPToolSchema, classify_with_schema, validate_call_args
 from safecode.policy.commands import CommandDecision, CommandPolicy
 from safecode.sandbox.filesystem import FilesystemBoundary
 from safecode.sandbox.network import NetworkPolicy
@@ -117,6 +117,13 @@ class MCPReadOnlyRunner:
 
         if classification != "read":
             return self._blocked(server, tool, classification, "MCP tool is not classified as read-only.", trace_id)
+
+        schema = next((s for s in self._schemas if s.tool == tool and (not s.server or s.server == server)), None)
+        if schema is not None:
+            arg_error = validate_call_args(schema, input_data or {})
+            if arg_error is not None:
+                self.runtime_logger.error("mcp.runner", f"MCP arg validation failed: {arg_error}", trace_id=trace_id)
+                return self._blocked(server, tool, classification, f"MCP arg validation failed: {arg_error}", trace_id)
 
         server_config = self._get_server(server)
         if not server_config:

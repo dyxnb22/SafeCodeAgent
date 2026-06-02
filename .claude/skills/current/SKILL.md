@@ -5,13 +5,24 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v2.9.4
+# Current Baseline - v2.9.5
 
 ## Status
-Implemented. Git baseline: tag `v2.9.3`. Local working version: `v2.9.4`.
+Implemented. Git baseline: tag `v2.9.4`. Local working version: `v2.9.5`.
 
 ## Stage
-`v2.9.x` Deterministic Evidence and Contract Preparation — v2.9.0 expanded loop fixtures and added typed failure categories; v2.9.1 adds one bounded retry for recoverable contract-shaped failures; v2.9.2 adds deterministic typed trace snapshots for all six loop fixtures; v2.9.3 adds loop eval as an advisory CI job; v2.9.4 wires static schema classification into the MCP runner and executor pipelines.
+`v2.9.x` Deterministic Evidence and Contract Preparation — v2.9.0 expanded loop fixtures and added typed failure categories; v2.9.1 adds one bounded retry for recoverable contract-shaped failures; v2.9.2 adds deterministic typed trace snapshots for all six loop fixtures; v2.9.3 adds loop eval as an advisory CI job; v2.9.4 wires static schema classification into the MCP runner and executor pipelines; v2.9.5 adds typed arg metadata and call arg validation to the schema shim.
+
+## v2.9.5 (MCP Call Schema Arg Validation)
+`src/safecode/mcp/schema.py` and `src/safecode/mcp/runner.py` updated.
+
+Key additions:
+- `MCPSchemaArg(frozen dataclass)`: `name`, `type_name` (default `"string"`), `required` (default `False`). Provides typed metadata for one tool argument.
+- `MCPToolSchema.arg_schemas: tuple[MCPSchemaArg, ...]` — new optional field (default empty). Distinct from legacy `args: tuple[str, ...]`.
+- `validate_call_args(tool_schema, call_args) -> str | None`: returns error message when required args are missing or extra undeclared args are present; returns `None` when `arg_schemas` is empty (no-op for schema-less workloads).
+- `MCPReadOnlyRunner.call_readonly` validates args after classification, before server config lookup. Invalid calls are logged via `RuntimeLogger` and returned as a blocked result.
+- Schema-less workloads (no `arg_schemas`) are completely unaffected.
+- 29 new tests in `tests/test_mcp_call_schema_arg_validation.py`.
 
 ## v2.9.4 (MCP Tools-List Schema Shim)
 `src/safecode/mcp/schema.py`, `src/safecode/mcp/runner.py`, and `src/safecode/mcp/loop_executor.py` updated.
