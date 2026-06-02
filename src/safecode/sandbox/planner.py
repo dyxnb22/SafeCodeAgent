@@ -13,6 +13,7 @@ from safecode.sandbox.capabilities import (
     SandboxCapability,
     SandboxCapabilityDetector,
 )
+from safecode.sandbox.strategy import SandboxBackendStrategy
 from safecode.utils.time import utc_now_iso
 
 
@@ -34,6 +35,7 @@ class SandboxPlanner:
         self.project_root = project_root
         self.config = config or SafeCodeConfig.load(project_root)
         self.detector = SandboxCapabilityDetector()
+        self.strategy = SandboxBackendStrategy()
         self.audit_logger = AuditLogger(project_root, self.config)
 
     def plan(self) -> SandboxPlan:
@@ -41,7 +43,7 @@ class SandboxPlanner:
         import platform as _platform
 
         capabilities = self.detector.detect_all()
-        backend = self._recommend(capabilities)
+        backend = self.strategy.recommend(capabilities)
         boundaries = self._active_boundaries()
         plan = SandboxPlan(
             platform=_platform.system(),
@@ -58,23 +60,6 @@ class SandboxPlanner:
         )
         self._audit(plan)
         return plan
-
-    def _recommend(self, capabilities: list[SandboxCapability]) -> SandboxBackend:
-        by_backend = {cap.backend: cap for cap in capabilities}
-
-        bubblewrap = by_backend.get(SandboxBackend.LINUX_BUBBLEWRAP)
-        if bubblewrap and bubblewrap.available:
-            return SandboxBackend.LINUX_BUBBLEWRAP
-
-        seatbelt = by_backend.get(SandboxBackend.MACOS_SEATBELT)
-        if seatbelt and seatbelt.available:
-            return SandboxBackend.MACOS_SEATBELT
-
-        docker = by_backend.get(SandboxBackend.DOCKER)
-        if docker and docker.available:
-            return SandboxBackend.DOCKER
-
-        return SandboxBackend.NONE
 
     def _active_boundaries(self) -> list[str]:
         boundaries = [

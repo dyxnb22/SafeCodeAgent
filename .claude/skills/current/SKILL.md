@@ -5,13 +5,21 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v2.8.1
+# Current Baseline - v2.8.2
 
 ## Status
-Implemented. Git baseline: tag `v2.7.9`. Local working version: `v2.8.1`.
+Implemented. Git baseline: tag `v2.7.9`. Local working version: `v2.8.2`.
 
 ## Stage
-`v2.8.x` Consolidation and CLI Honesty — v2.8.0–v2.8.1 implement the typed diagnostic substrate and migrate doctor/release/policy internal checks to emit it while preserving the legacy CLI surface and dataclass shapes.
+`v2.8.x` Consolidation and CLI Honesty — v2.8.0–v2.8.2 implement the typed diagnostic substrate, migrate doctor/release/policy checks, and split sandbox backend strategy from planner logic.
+
+## v2.8.2 (Sandbox Backend Strategy Split)
+`src/safecode/sandbox/strategy.py` added. `src/safecode/sandbox/planner.py` updated.
+
+Key additions:
+- `SandboxBackendStrategy`: pure class with `recommend(capabilities)`, `available_backends(capabilities)`, `describe(backend, capabilities)`. No I/O, no audit, no subprocess.
+- `SandboxPlanner` delegates recommendation to `self.strategy`; `_recommend()` method removed.
+- 20 new tests in `tests/test_sandbox_backend_strategy.py` proving strategy is independently testable.
 
 ## Active Forward Plan
 The active plan for v2.8.x, v2.9.x, and v3.0.0 is `docs/version-plans/v2.8-to-v3.0-product-architecture-roadmap.md`.
