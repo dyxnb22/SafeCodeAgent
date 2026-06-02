@@ -5,15 +5,23 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v3.1.0
+# Current Baseline - v3.1.1
 
 ## Status
-Implemented. Git baseline: tag `v3.1.0`. Local working version: `v3.1.0`.
+Implemented. Git baseline: tag `v3.1.1`. Local working version: `v3.1.1`.
 
 ## Stage
-`v3.1.0` Autopilot + JSON Output — adds structured `--json` output to all daily CLI commands and confirms `sac agent run` as the autopilot entry point. Builds on v3.0.0 stable safety substrate without weakening any gate.
+`v3.1.1` Resume + Retry-From-Failure — adds `sac agent resume <session_id>` with ID verification and contract_failed guard; adds `AgentSessionStore.load_by_id()`; adds focused tests for `--retry-from-last-failure` and `get_last_failure_context()`.
 
-Previous v3.0.x: v3.0.0 froze 8 stable local safety contracts and labelled 6 surfaces as experimental.
+Previous v3.1.x: v3.1.0 added structured --json output to all daily CLI commands and confirmed sac agent run as the autopilot entry point.
+
+## v3.1.1 (Resume + Retry-From-Failure)
+`src/safecode/agent/session.py` and `src/safecode/cli_agent.py` updated.
+
+Key additions:
+- `AgentSessionStore.load_by_id(session_id)`: returns current session if session_id matches, else None.
+- `agent_resume` gains optional `session_id: str = typer.Argument("")`: verifies match, refuses contract_failed status, falls through to existing `resume()`.
+- 17 new tests: `tests/test_agent_resume.py` (9) + `tests/test_edit_retry.py` (8).
 
 ## v3.1.0 (Autopilot + JSON Output)
 `src/safecode/cli_shared_json.py` added. `cli_core.py`, `cli_ops.py`, `cli_agent.py`, `state/journal.py` updated.

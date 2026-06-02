@@ -80,10 +80,21 @@ def agent_abort(reason: str = typer.Option("aborted by user", "--reason")) -> No
 
 
 @agent_app.command("resume")
-def agent_resume() -> None:
+def agent_resume(
+    session_id: str = typer.Argument("", help="Session ID to resume. Defaults to current session."),
+) -> None:
     """Resume an existing non-completed interactive agent session."""
+    store = AgentSessionStore(Path.cwd())
+    if session_id:
+        state = store.load_by_id(session_id)
+        if state is None:
+            console.print(f"[red]Session '{session_id}' not found or does not match the current session.[/red]")
+            raise typer.Exit(code=1)
+        if state.status == "contract_failed":
+            console.print(f"[red]Session '{session_id}' has a contract failure and cannot be resumed.[/red]")
+            raise typer.Exit(code=1)
     try:
-        state = AgentSessionStore(Path.cwd()).resume()
+        state = store.resume()
     except (FileNotFoundError, ValueError) as exc:
         console.print(f"[red]{exc}[/red]")
         raise typer.Exit(code=1) from exc

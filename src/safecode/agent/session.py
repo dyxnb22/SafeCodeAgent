@@ -69,6 +69,13 @@ class AgentSessionStore:
         except (json.JSONDecodeError, OSError, TypeError, ValueError):
             return None
 
+    def load_by_id(self, session_id: str) -> AgentSessionState | None:
+        """Load the current session only if its session_id matches."""
+        state = self.load()
+        if state is None:
+            return None
+        return state if state.session_id == session_id else None
+
     def save(self, state: AgentSessionState) -> AgentSessionState:
         """Persist session state atomically."""
         self.path.parent.mkdir(parents=True, exist_ok=True)
