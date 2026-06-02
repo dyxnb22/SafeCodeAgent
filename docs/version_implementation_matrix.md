@@ -391,3 +391,9 @@ Active plan: `docs/version-plans/v2.8-to-v3.0-product-architecture-roadmap.md`.
 | `v3.2.4` ✅ | `main` | `src/safecode/config.py`, `src/safecode/llm/factory.py` | `LLMConfig` gains `fallback_provider/model/base_url`; `FanOutLLMClient` routes `RuntimeError` to fallback, preserves policy/contract gates; `_log_fanout` redacts prompts; 24 new tests in `tests/test_llm_provider_fanout.py`; full regression 2596 pass |
 | `v3.2.5` ✅ | `main` | `.github/workflows/ci.yml`, `tests/live/`, `tests/test_ci_live_lane.py` | Advisory `live-provider` CI job gated by `ENABLE_LIVE_LLM_TESTS` repo var; `tests/live/conftest.py` skips without `SAFECODE_LIVE_TESTS=1`; 21 new tests in `tests/test_ci_live_lane.py`; 2 live tests skipped in baseline; full regression 2617 pass, 2 skipped |
 | `v3.2.6` ✅ | `main` | `docs/providers.md`, `docs/public-contracts.md`, `tests/snapshots/contracts/provider_contract_schema.json`, `tests/test_provider_contract_snapshot.py`, `README.md` | Provider layer promoted to stable documented contract; `docs/providers.md` full reference; section 9 added to `public-contracts.md`; machine-readable snapshot with all contract invariants; 66 new tests in `tests/test_provider_contract_snapshot.py`; no runtime changes; full regression 2683 pass, 2 skipped |
+
+## v3.3.x: MCP stdio Transport (experimental)
+
+| 版本 | 分支 | 主要入口 | 验收命令 |
+|---|---|---|---|
+| `v3.3.0` ✅ | `main` | `src/safecode/mcp/transport_stdio.py` | `call_stdio(argv, method, params, ...)` — one-shot stdio JSON-RPC; argv-only/no shell; timeout kill; max-output-bytes limit; fail-closed on malformed JSON/id-mismatch/timeout/no-output; stderr truncated; params not in error text; returns `StdioTransportResult`; not wired into runner; MCP remains experimental; 45 new tests in `tests/test_mcp_transport_stdio.py`; `PYTHONPATH=src python3 -m pytest tests/test_mcp_transport_stdio.py -q` → 45 pass |

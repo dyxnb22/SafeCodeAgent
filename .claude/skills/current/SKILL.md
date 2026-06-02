@@ -5,15 +5,31 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v3.2.6
+# Current Baseline - v3.3.0
 
 ## Status
-Implemented. Git baseline: tag `v3.2.6`. Local working version: `v3.2.6`.
+Implemented. Git baseline: tag `v3.3.0`. Local working version: `v3.3.0`.
 
 ## Stage
-`v3.2.6` Providers Docs + Provider Contract Promotion — promotes LLM provider layer to documented stable contract; adds `docs/providers.md` full reference; extends `docs/public-contracts.md` with section 9; adds machine-readable snapshot + 66 snapshot tests. No runtime changes.
+`v3.3.0` MCP stdio Transport — adds a tightly-bounded stdio JSON-RPC client in `src/safecode/mcp/transport_stdio.py`; tested against local stub servers only; not wired into existing MCP runner; MCP remains experimental.
 
-Previous: v3.2.5 added advisory live-provider CI lane; v3.2.4 added fan-out config; v3.2.3 added Anthropic; v3.2.2 added structured output validation; v3.2.1 added streaming.
+Previous: v3.2.6 promoted LLM provider layer to documented stable contract; v3.2.5 added advisory live-provider CI lane; v3.2.4 added fan-out config; v3.2.3 added Anthropic; v3.2.2 added structured output validation.
+
+## v3.3.0 (MCP stdio Transport)
+`src/safecode/mcp/transport_stdio.py` (new), `tests/test_mcp_transport_stdio.py` (new).
+
+Key additions:
+- `call_stdio(argv, method, params, *, call_id, timeout_seconds, max_output_bytes) -> StdioTransportResult`: one-shot stdio JSON-RPC call.
+- `StdioTransportResult(frozen dataclass)`: `success`, `result`, `error`, `exit_code`, `stderr`.
+- argv list only; `shell=False` always enforced.
+- Timeout enforced with process kill; exit code 124 on timeout.
+- Max output size enforced; exit code 126 on overflow.
+- Fails closed on: malformed JSON, id mismatch, timeout, process exit without output.
+- stderr captured and truncated to `_MAX_STDERR_BYTES` (4096); never injected into `error` field.
+- Caller-supplied `params` content never copied into error text.
+- Never raises; all failure paths return `StdioTransportResult(success=False, ...)`.
+- 45 new tests in `tests/test_mcp_transport_stdio.py`.
+- No existing MCP runner behavior changed; no MCP contract promoted.
 
 ## v3.2.6 (Providers Docs + Provider Contract Promotion)
 `docs/providers.md`, `docs/public-contracts.md`, `tests/snapshots/contracts/provider_contract_schema.json`, `tests/test_provider_contract_snapshot.py`, `README.md` added/updated.
