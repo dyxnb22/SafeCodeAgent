@@ -116,13 +116,16 @@ class AgentJournalStore:
         message: str,
         dispatch_summary: dict[str, object],
     ) -> AgentJournalEvent:
+        payload_data = dict(dispatch_summary)
+        # Always include payload_version for forward-compatible tolerant loading (v2.9.6).
+        payload_data.setdefault("payload_version", 1)
         return self.append(
             AgentJournalEvent(
                 session_id=session_id,
                 type="subagent_dispatch",
                 step=step,
                 message=message,
-                payload={"subagent_dispatch": dict(dispatch_summary)},
+                payload={"subagent_dispatch": payload_data},
             )
         )
 

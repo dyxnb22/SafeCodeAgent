@@ -5,13 +5,24 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v2.9.5
+# Current Baseline - v2.9.6
 
 ## Status
-Implemented. Git baseline: tag `v2.9.4`. Local working version: `v2.9.5`.
+Implemented. Git baseline: tag `v2.9.5`. Local working version: `v2.9.6`.
 
 ## Stage
-`v2.9.x` Deterministic Evidence and Contract Preparation — v2.9.0 expanded loop fixtures and added typed failure categories; v2.9.1 adds one bounded retry for recoverable contract-shaped failures; v2.9.2 adds deterministic typed trace snapshots for all six loop fixtures; v2.9.3 adds loop eval as an advisory CI job; v2.9.4 wires static schema classification into the MCP runner and executor pipelines; v2.9.5 adds typed arg metadata and call arg validation to the schema shim.
+`v2.9.x` Deterministic Evidence and Contract Preparation — v2.9.0 expanded loop fixtures and added typed failure categories; v2.9.1 adds one bounded retry for recoverable contract-shaped failures; v2.9.2 adds deterministic typed trace snapshots for all six loop fixtures; v2.9.3 adds loop eval as an advisory CI job; v2.9.4 wires static schema classification into the MCP runner and executor pipelines; v2.9.5 adds typed arg metadata and call arg validation to the schema shim; v2.9.6 adds versioned subagent journal payload with tolerant loading and adversarial tests (v2.9.7 folded in).
+
+## v2.9.6 (Subagent Journal Payload Versioning + Adversarial Tests)
+`src/safecode/subagents/payload.py` (new), `src/safecode/subagents/journal_adapter.py`, and `src/safecode/state/journal.py` updated.
+
+Key additions:
+- `SubagentDispatchPayload(BaseModel)`: `payload_version: int = 1` (default), all existing fields (`task_id`, `summary`, `observations`, `files_inspected`, `errors`, `blocked`, `success`), `extra="ignore"`. `SUPPORTED_PAYLOAD_VERSIONS = frozenset({1})`.
+- `_event_to_finding` in `journal_adapter.py` uses `SubagentDispatchPayload.model_validate` for typed, tolerant loading. Emits `RuntimeWarning` (not a crash) for parse failures or unsupported future versions.
+- `AgentJournalStore.record_subagent_dispatch` always includes `"payload_version": 1` via `setdefault` — does not override caller-provided value.
+- Old journals (no `payload_version`) parse via Pydantic default — full backward compat.
+- Adversarial tests (v2.9.7 folded in): duplicate task IDs, conflicting observations, near-secret content redaction, malformed payloads, blocked-task merge exclusion, max-cap enforcement, mixed-event lists.
+- 30 new tests in `tests/test_subagent_journal_payload_versioning.py`.
 
 ## v2.9.5 (MCP Call Schema Arg Validation)
 `src/safecode/mcp/schema.py` and `src/safecode/mcp/runner.py` updated.
