@@ -1,7 +1,8 @@
-"""Convert subagent_dispatch journal events to SubagentFinding (v2.2.6)."""
+"""Convert subagent_dispatch journal events to SubagentFinding (v2.2.6 / v2.8.7)."""
 
 from __future__ import annotations
 
+from safecode.context.redactor import redact_secrets
 from safecode.state.journal import AgentJournalEvent
 from safecode.subagents.merge_policy import (
     MergedSubagentContext,
@@ -32,12 +33,14 @@ def _event_to_finding(event: AgentJournalEvent) -> SubagentFinding | None:
             return None
         blocked = bool(payload.get("blocked", False))
         success = bool(payload.get("success", False))
-        observations = [str(o) for o in raw_obs]
+        # Producer-side redaction: secrets are removed at the journal boundary
+        # before merged context can reach agent loop prompts (v2.8.7).
+        observations = [redact_secrets(str(o)) for o in raw_obs]
         files_inspected = [str(f) for f in raw_files]
-        errors = [str(e) for e in raw_errors]
+        errors = [redact_secrets(str(e)) for e in raw_errors]
         return SubagentFinding(
             task_id=task_id,
-            summary=summary,
+            summary=redact_secrets(summary),
             observations=observations,
             files_inspected=files_inspected,
             errors=errors,

@@ -486,13 +486,29 @@ class AgentLoop:
             events = self.journal.read(session_id)
             merged = merge_journal_subagent_findings(events)
             if merged.source_task_ids or merged.blocked_task_ids or merged.errors:
+                # Consumer-side redaction is defense-in-depth (producer-side is primary).
+                # Warn if consumer pass still changes text, indicating a gap upstream.
+                redacted_summary = redact_secrets(merged.summary)
+                redacted_observations = [redact_secrets(o) for o in merged.observations]
+                redacted_errors = [redact_secrets(e) for e in merged.errors]
+                if (
+                    redacted_summary != merged.summary
+                    or redacted_observations != list(merged.observations)
+                    or redacted_errors != list(merged.errors)
+                ):
+                    warnings.warn(
+                        "consumer-side redaction changed merged subagent text; "
+                        "producer-side redaction may have missed a secret",
+                        RuntimeWarning,
+                        stacklevel=2,
+                    )
                 context["subagent_findings"] = {
-                    "summary": redact_secrets(merged.summary),
-                    "observations": [redact_secrets(o) for o in merged.observations],
+                    "summary": redacted_summary,
+                    "observations": redacted_observations,
                     "files_inspected": merged.files_inspected,
                     "source_task_ids": merged.source_task_ids,
                     "blocked_task_ids": merged.blocked_task_ids,
-                    "errors": [redact_secrets(e) for e in merged.errors],
+                    "errors": redacted_errors,
                 }
         except Exception as exc:
             warnings.warn(

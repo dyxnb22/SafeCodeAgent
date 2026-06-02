@@ -82,12 +82,12 @@ def sync_versions_json(
     old_tags: list[str] = payload.get("latest_tags", [])
     old_tag_set = set(old_tags)
 
-    # Append any git tags not yet listed, preserving order
+    # Merge git tags not yet listed, then sort by semver so latest_tags[-1] == new_current.
     new_tags_to_add = [t for t in git_tags if t not in old_tag_set]
-    merged_tags = old_tags + new_tags_to_add
+    merged_tags = sorted(set(old_tags) | set(new_tags_to_add), key=_version_tuple)
 
     current_changed = old_current != new_current
-    tags_changed = bool(new_tags_to_add)
+    tags_changed = bool(new_tags_to_add) or (merged_tags != old_tags)
     changed = current_changed or tags_changed
 
     if not dry_run and changed:

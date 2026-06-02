@@ -5,13 +5,38 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v2.8.9
+# Current Baseline - v2.8.7
 
 ## Status
-Implemented. Git baseline: tag `v2.7.9`. Local working version: `v2.8.9`.
+Implemented. Git baseline: tag `v2.7.9`. Local working version: `v2.8.7`.
 
 ## Stage
-`v2.8.x` Consolidation and CLI Honesty — v2.8.0–v2.8.9 implement the typed diagnostic substrate, migrate doctor/release/policy checks, split sandbox backend strategy, introduce typed pending-action objects, add MCP schema shim metadata, collapse the release help surface, document shell exit-code honesty, and deduplicate hook audit events.
+`v2.8.x` Consolidation and CLI Honesty — v2.8.0–v2.8.9 implement the typed diagnostic substrate, migrate doctor/release/policy checks, split sandbox backend strategy, introduce typed pending-action objects, add MCP schema shim metadata, collapse the release help surface, sandbox CLI module split, subagent redaction at journal boundary, document shell exit-code honesty, and deduplicate hook audit events.
+
+## v2.8.7 (Subagent Finding Redaction at Journal Boundary)
+`src/safecode/subagents/journal_adapter.py` and `src/safecode/agent/loop.py` updated.
+`tests/test_subagent_redaction.py` extended with 10 new tests.
+
+Key additions:
+- Producer-side redaction in `_event_to_finding()`: `summary`, `observations`, and `errors` are passed through `redact_secrets()` before `SubagentFinding` is constructed.
+- `files_inspected` is not redacted (file paths are metadata, not secret content).
+- Merge remains idempotent under already-clean input.
+- Consumer-side redaction in `AgentLoop._enrich_with_subagent_findings()` remains as defense in depth.
+- Agent loop now emits a `RuntimeWarning` if consumer-side redaction still changes merged text (indicates a producer-side gap).
+- `sync_versions_json` sorts `merged_tags` by semver so `latest_tags[-1]` always equals the newest tag.
+- 10 new tests: `TestJournalBoundaryRedaction` (8 cases) and `TestConsumerSideRedactionWarning` (2 cases).
+
+## v2.8.6 (CLI Sandbox Module Split)
+`src/safecode/cli_sandbox.py` rewritten as thin registry.
+`src/safecode/cli_sandbox_status.py`, `src/safecode/cli_sandbox_proposal.py`, `src/safecode/cli_sandbox_executions.py` added.
+
+Key additions:
+- `cli_sandbox_status.py` (242 LOC): `sandbox_status`, `sandbox_plan`
+- `cli_sandbox_proposal.py` (267 LOC): `sandbox_propose`, `sandbox_pending`, `sandbox_discard`, `sandbox_execute`, `sandbox_approve`, `sandbox_approvals`, `sandbox_revoke`, `sandbox_preflight`
+- `cli_sandbox_executions.py` (239 LOC): `executions_app` sub-Typer (callback, stats, prune), `sandbox_last_execution`, `sandbox_execution_show`
+- `cli_sandbox.py` (42 LOC): thin registry that imports and registers all commands
+- No command renamed, no argument reordered, no safety gate weakened.
+- Existing 434 sandbox tests pass after updating 2 mock patch targets to the correct sub-modules.
 
 ## v2.8.9 (Audit and Hook Event Dedup)
 `src/safecode/hooks/runner.py` updated.
