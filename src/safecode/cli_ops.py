@@ -220,9 +220,30 @@ def release_meta() -> None:
 
 
 @release_app.command("preflight")
-def release_preflight() -> None:
+def release_preflight(
+    json_output: bool = typer.Option(False, "--json", help="Output result as JSON."),
+) -> None:
     """Run the fast local release gate: check, smoke, metadata, and docs."""
+    from safecode.cli_shared_json import CLIJSONResponse, render_json as _render_json
+
     result = run_release_preflight(Path.cwd())
+    if json_output:
+        gov = result.versions_governance
+        print(_render_json(CLIJSONResponse(
+            command="release preflight",
+            status="pass" if result.ok else "fail",
+            data={
+                "ok": result.ok,
+                "release_check": result.release_check.ok,
+                "smoke": result.smoke.ok,
+                "metadata": result.metadata.ok,
+                "docs": result.docs.ok,
+                "versions_governance": gov.ok if gov is not None else True,
+            },
+        )))
+        if not result.ok:
+            raise typer.Exit(code=exit_code(result.ok))
+        return
     console.print(render_release_preflight(result))
     if not result.ok:
         raise typer.Exit(code=exit_code(result.ok))
@@ -275,20 +296,41 @@ def release_sync_versions_json(
 
 
 @ops_app.command("doctor")
-def doctor(release: bool = typer.Option(False, "--release", help="Include release tag/docs/preflight diagnostics.")) -> None:
+def doctor(
+    release: bool = typer.Option(False, "--release", help="Include release tag/docs/preflight diagnostics."),
+    json_output: bool = typer.Option(False, "--json", help="Output result as JSON."),
+) -> None:
     """Check local install and project environment."""
+    from safecode.cli_shared_json import CLIJSONResponse, render_json
+
+    checks = Doctor(Path.cwd()).run(release=release)
+    if json_output:
+        all_passed = all(c.passed for c in checks)
+        print(render_json(CLIJSONResponse(
+            command="doctor",
+            status="pass" if all_passed else "fail",
+            data={"checks": [{"name": c.name, "passed": c.passed, "detail": c.detail} for c in checks]},
+        )))
+        return
     table = Table(title="SafeCode Doctor")
     table.add_column("Check")
     table.add_column("Passed")
     table.add_column("Detail")
-    for check in Doctor(Path.cwd()).run(release=release):
+    for check in checks:
         table.add_row(check.name, "yes" if check.passed else "no", check.detail)
     console.print(table)
 
 
 @ops_app.command("version")
-def version() -> None:
+def version(
+    json_output: bool = typer.Option(False, "--json", help="Output result as JSON."),
+) -> None:
     """Show SafeCode package version and update hints."""
+    from safecode.cli_shared_json import CLIJSONResponse, render_json
+
+    if json_output:
+        print(render_json(CLIJSONResponse(command="version", status="success", data={"version": __version__})))
+        return
     console.print(f"SafeCode Agent {__version__}")
     console.print("Update source checkout: git pull --ff-only && python -m pytest -q")
 

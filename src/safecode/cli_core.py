@@ -8,6 +8,7 @@ from rich.syntax import Syntax
 from rich.table import Table
 
 from safecode.cli_shared import console, log_cli_error, runtime_logger, show_human_checkpoint
+from safecode.cli_shared_json import CLIJSONResponse, render_json
 
 from safecode.agent.approvals import HumanCheckpointPresenter
 from safecode.agent.orchestrator import AgentOrchestrator
@@ -23,38 +24,75 @@ core_app = typer.Typer()
 
 
 @core_app.command()
-def ask(question: str) -> None:
+def ask(
+    question: str,
+    json_output: bool = typer.Option(False, "--json", help="Output result as JSON."),
+) -> None:
     """Ask a read-only question about the current project."""
     project_root = Path.cwd()
     try:
         answer = AgentOrchestrator(project_root).ask(question)
     except Exception as exc:
         log_cli_error("cli.ask", "ask command failed", exc)
-        console.print(f"[red]Ask failed:[/red] {exc}")
+        if json_output:
+            print(render_json(CLIJSONResponse(command="ask", status="error", error=str(exc))))
+        else:
+            console.print(f"[red]Ask failed:[/red] {exc}")
         raise typer.Exit(code=1) from exc
+    if json_output:
+        print(render_json(CLIJSONResponse(command="ask", status="success", data={"answer": str(answer.content)})))
+        return
     console.print(answer)
 
 
 @core_app.command()
-def edit(task: str) -> None:
+def edit(
+    task: str,
+    json_output: bool = typer.Option(False, "--json", help="Output result as JSON."),
+    retry_from_last_failure: bool = typer.Option(False, "--retry-from-last-failure", help="Prepend last failure context from the journal."),
+) -> None:
     """Create a pending patch proposal without modifying files."""
     project_root = Path.cwd()
     # Gate: patch.propose is write-class; the user invoking sac edit is the approval gesture.
     gate_result = ToolCallGate().check_intent("patch.propose", approved=True)
     if not gate_result.allowed:
-        console.print(f"[red]Blocked by tool gate:[/red] {gate_result.reason}")
+        if json_output:
+            print(render_json(CLIJSONResponse(command="edit", status="error", error=gate_result.reason)))
+        else:
+            console.print(f"[red]Blocked by tool gate:[/red] {gate_result.reason}")
         raise typer.Exit(code=1)
+
+    effective_task = task
+    if retry_from_last_failure:
+        effective_task = _inject_last_failure_context(project_root, task)
+
     try:
-        result = AgentOrchestrator(project_root).edit(task)
+        result = AgentOrchestrator(project_root).edit(effective_task)
     except (PatchParseError, PatchValidationError) as exc:
         log_cli_error("cli.edit", "patch proposal failed", exc)
-        console.print(f"[red]Patch proposal failed:[/red] {exc}")
+        if json_output:
+            print(render_json(CLIJSONResponse(command="edit", status="error", error=str(exc))))
+        else:
+            console.print(f"[red]Patch proposal failed:[/red] {exc}")
         raise typer.Exit(code=1) from exc
     except Exception as exc:
         log_cli_error("cli.edit", "edit command failed", exc)
-        console.print(f"[red]Edit failed:[/red] {exc}")
+        if json_output:
+            print(render_json(CLIJSONResponse(command="edit", status="error", error=str(exc))))
+        else:
+            console.print(f"[red]Edit failed:[/red] {exc}")
         raise typer.Exit(code=1) from exc
 
+    if json_output:
+        print(render_json(CLIJSONResponse(
+            command="edit",
+            status="success",
+            data={
+                "pending_patch_path": str(result.pending_patch_path),
+                "diff_text": result.diff_text,
+            },
+        )))
+        return
     console.print(Panel.fit(f"Pending patch saved: {result.pending_patch_path}", title="SafeCode"))
     console.print(Syntax(result.diff_text, "diff", theme="ansi_dark"))
     if result.scope_result and result.scope_result.warning:
@@ -62,7 +100,9 @@ def edit(task: str) -> None:
 
 
 @core_app.command()
-def apply() -> None:
+def apply(
+    json_output: bool = typer.Option(False, "--json", help="Output result as JSON."),
+) -> None:
     """Apply the latest pending patch after review."""
     project_root = Path.cwd()
     orchestrator = AgentOrchestrator(project_root)
@@ -71,7 +111,10 @@ def apply() -> None:
         preview = orchestrator.preview_apply()
     except (FileNotFoundError, PatchValidationError) as exc:
         log_cli_error("cli.apply", "apply preview failed", exc)
-        console.print(f"[red]Apply failed:[/red] {exc}")
+        if json_output:
+            print(render_json(CLIJSONResponse(command="apply", status="error", error=str(exc))))
+        else:
+            console.print(f"[red]Apply failed:[/red] {exc}")
         raise typer.Exit(code=1) from exc
 
     console.print(Syntax(preview.diff_text, "diff", theme="ansi_dark"))
@@ -90,7 +133,10 @@ def apply() -> None:
     show_human_checkpoint(checkpoint)
     approved = typer.confirm(checkpoint.prompt, default=False)
     if not approved:
-        console.print("[yellow]Patch was not applied.[/yellow]")
+        if json_output:
+            print(render_json(CLIJSONResponse(command="apply", status="cancelled", data={"patch_id": preview.proposal.id})))
+        else:
+            console.print("[yellow]Patch was not applied.[/yellow]")
         raise typer.Exit(code=0)
 
     # Gate: human confirmed above — validate the apply tool call before side effects.
@@ -98,20 +144,40 @@ def apply() -> None:
         "patch.apply", {"patch_id": preview.proposal.id}, approved=True
     )
     if not gate_result.allowed:
-        console.print(f"[red]Blocked by tool gate:[/red] {gate_result.reason}")
+        if json_output:
+            print(render_json(CLIJSONResponse(command="apply", status="error", error=gate_result.reason)))
+        else:
+            console.print(f"[red]Blocked by tool gate:[/red] {gate_result.reason}")
         raise typer.Exit(code=1)
 
     try:
         result = orchestrator.apply(preview.proposal)
     except PatchValidationError as exc:
         log_cli_error("cli.apply", "apply command failed", exc)
-        console.print(f"[red]Apply failed:[/red] {exc}")
+        if json_output:
+            print(render_json(CLIJSONResponse(command="apply", status="error", error=str(exc))))
+        else:
+            console.print(f"[red]Apply failed:[/red] {exc}")
         raise typer.Exit(code=1) from exc
     except Exception as exc:
         log_cli_error("cli.apply", "apply command failed", exc)
-        console.print(f"[red]Apply failed:[/red] {exc}")
+        if json_output:
+            print(render_json(CLIJSONResponse(command="apply", status="error", error=str(exc))))
+        else:
+            console.print(f"[red]Apply failed:[/red] {exc}")
         raise typer.Exit(code=1) from exc
 
+    if json_output:
+        print(render_json(CLIJSONResponse(
+            command="apply",
+            status="success",
+            data={
+                "patch_id": result.proposal.id,
+                "checkpoint_id": result.checkpoint.checkpoint_id,
+                "files": list(result.files),
+            },
+        )))
+        return
     console.print(
         Panel.fit(
             f"Applied patch {result.proposal.id}\n"
@@ -189,12 +255,17 @@ def history() -> None:
 
 
 @core_app.command("run")
-def run_command(command: str, yes: bool = typer.Option(False, "--yes", "-y", help="Approve medium/high risk commands.")) -> None:
+def run_command(
+    command: str,
+    yes: bool = typer.Option(False, "--yes", "-y", help="Approve medium/high risk commands."),
+    json_output: bool = typer.Option(False, "--json", help="Output result as JSON."),
+) -> None:
     """Run a shell command through SafeCode risk checks."""
     project_root = Path.cwd()
     runner = ShellRunner(project_root)
     risk = runner.assess(command)
-    console.print(Panel.fit("\n".join([f"Risk: {risk.level}", *risk.reasons]), title="Shell Risk"))
+    if not json_output:
+        console.print(Panel.fit("\n".join([f"Risk: {risk.level}", *risk.reasons]), title="Shell Risk"))
 
     approved = yes
     if risk.level == RiskLevel.MEDIUM and not yes:
@@ -210,13 +281,16 @@ def run_command(command: str, yes: bool = typer.Option(False, "--yes", "-y", hel
                 "reason_count": str(len(risk.reasons)),
             },
         )
-        show_human_checkpoint(checkpoint)
+        if not json_output:
+            show_human_checkpoint(checkpoint)
         approved = typer.confirm(checkpoint.prompt, default=False)
     if risk.level == RiskLevel.HIGH and not yes:
-        console.print("[red]High-risk command blocked by policy.[/red]")
+        if not json_output:
+            console.print("[red]High-risk command blocked by policy.[/red]")
         approved = False
     elif risk.level == RiskLevel.HIGH and yes:
-        console.print("[red]High-risk command remains blocked even with --yes.[/red]")
+        if not json_output:
+            console.print("[red]High-risk command remains blocked even with --yes.[/red]")
 
     # Gate: only call when the command will actually execute (approved is True).
     # For unapproved/blocked commands the existing risk logic handles the outcome.
@@ -225,7 +299,10 @@ def run_command(command: str, yes: bool = typer.Option(False, "--yes", "-y", hel
             "shell.run", {"command": command, "approved": True}, approved=True
         )
         if not gate_result.allowed:
-            console.print(f"[red]Blocked by tool gate:[/red] {gate_result.reason}")
+            if json_output:
+                print(render_json(CLIJSONResponse(command="run", status="error", error=gate_result.reason)))
+            else:
+                console.print(f"[red]Blocked by tool gate:[/red] {gate_result.reason}")
             raise typer.Exit(code=1)
 
     result = runner.run(command, approved=approved)
@@ -247,14 +324,51 @@ def run_command(command: str, yes: bool = typer.Option(False, "--yes", "-y", hel
             message=f"risk={result.risk.level}; duration_ms={result.duration_ms}",
         )
     )
-    if result.stdout:
-        console.print(result.stdout)
-    if result.stderr:
-        console.print(f"[red]{result.stderr}[/red]")
+
+    if json_output:
+        status = "success" if result.executed and result.exit_code == 0 else "error"
+        print(render_json(CLIJSONResponse(
+            command="run",
+            status=status,
+            data={
+                "executed": result.executed,
+                "exit_code": result.exit_code,
+                "stdout": result.stdout or "",
+                "stderr": result.stderr or "",
+                "risk": str(result.risk.level),
+            },
+        )))
+    else:
+        if result.stdout:
+            console.print(result.stdout)
+        if result.stderr:
+            console.print(f"[red]{result.stderr}[/red]")
 
     # Honest exit codes: 125=approval required, 126=policy blocked.
     # Set SAFECODE_RUN_LEGACY_EXIT_CODE=1 for one migration cycle to get exit code 1 instead.
     if not result.executed and os.environ.get("SAFECODE_RUN_LEGACY_EXIT_CODE") == "1":
         raise typer.Exit(code=1)
     raise typer.Exit(code=result.exit_code)
+
+
+def _inject_last_failure_context(project_root: Path, task: str) -> str:
+    """Prepend last failure context from the journal to the task string."""
+    from safecode.agent.session import AgentSessionStore
+    from safecode.context.redactor import redact_secrets
+    from safecode.state.journal import AgentJournalStore
+
+    store = AgentSessionStore(project_root)
+    journal = AgentJournalStore(project_root)
+    state = store.load()
+    if state is None:
+        console.print("[yellow]No agent session found; proceeding without failure context.[/yellow]")
+        return task
+
+    failure_ctx = journal.get_last_failure_context(state.session_id)
+    if failure_ctx is None:
+        console.print("[yellow]No failure context found in journal; proceeding normally.[/yellow]")
+        return task
+
+    redacted = redact_secrets(failure_ctx)
+    return f"[Previous failure context]\n{redacted}\n\n[Task]\n{task}"
 

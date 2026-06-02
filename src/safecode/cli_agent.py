@@ -146,13 +146,33 @@ def agent_step(goal: str = typer.Argument("", help="Goal to start or replace the
 def agent_run(
     goal: str = typer.Argument("", help="Goal to start or replace the session with."),
     max_steps: int = typer.Option(5, "--max-steps", min=1, help="Maximum steps to advance."),
+    json_output: bool = typer.Option(False, "--json", help="Output result as JSON."),
 ) -> None:
     """Advance a bounded interactive agent loop."""
+    from safecode.cli_shared_json import CLIJSONResponse, render_json
+
     try:
         result = AgentLoop(Path.cwd()).run(goal or None, max_steps=max_steps)
     except (FileNotFoundError, ValueError) as exc:
-        console.print(f"[red]{exc}[/red]")
+        if json_output:
+            print(render_json(CLIJSONResponse(command="agent run", status="error", error=str(exc))))
+        else:
+            console.print(f"[red]{exc}[/red]")
         raise typer.Exit(code=1) from exc
+
+    if json_output:
+        status = result.stopped_reason if result.stopped_reason in ("completed", "approval_required") else "stopped"
+        print(render_json(CLIJSONResponse(
+            command="agent run",
+            status=status,
+            data={
+                "session_id": result.state.session_id,
+                "stopped_reason": result.stopped_reason,
+                "steps_count": len(result.steps),
+                "status": result.state.status,
+            },
+        )))
+        return
 
     table = Table(title="SafeCode Agent Run")
     table.add_column("Step")

@@ -372,3 +372,9 @@ Active plan: `docs/version-plans/v2.8-to-v3.0-product-architecture-roadmap.md`.
 | 版本 | 分支 | 主要入口 | 验收命令 |
 |---|---|---|---|
 | `v3.0.0` ✅ | `v3.0.0-public-contract-stabilization` | `docs/public-contracts.md`, `README.md` | 8 stable contracts documented (config precedence, pending patch, audit hash-chain, sandbox lifecycle, tool registry, eval trace, CLI workflows, release command policy); 6 experimental surfaces explicitly labeled; all v2.9.9 snapshot tests pass |
+
+## v3.1.x: Autopilot + JSON Output
+
+| 版本 | 分支 | 主要入口 | 验收命令 |
+|---|---|---|---|
+| `v3.1.0` ✅ | `main` | `src/safecode/cli_shared_json.py`, `src/safecode/cli_core.py`, `src/safecode/cli_ops.py`, `src/safecode/cli_agent.py` | `--json` flag on ask/edit/apply/run/doctor/version/release preflight/agent run; `CLIJSONResponse`/`render_json()` in `cli_shared_json.py`; `get_last_failure_context()` in journal; `--retry-from-last-failure` on edit; 35 new tests in `tests/test_cli_json_output.py` + `tests/test_agent_autopilot.py`; `PYTHONPATH=src python3 -m pytest tests/test_cli_json_output.py tests/test_agent_autopilot.py -q` → 35 pass; full regression 2429 pass |

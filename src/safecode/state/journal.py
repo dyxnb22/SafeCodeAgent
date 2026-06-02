@@ -283,6 +283,21 @@ class AgentJournalStore:
                 except OSError:
                     pass
 
+    def get_last_failure_context(self, session_id: str) -> str | None:
+        """Return the message from the most recent failure event in the journal.
+
+        Returns None when no failure event is found.
+        Used by ``sac edit --retry-from-last-failure`` to inject prior error context.
+        """
+        try:
+            events = self.read(session_id)
+        except Exception:
+            return None
+        for event in reversed(events):
+            if event.type == "failure":
+                return event.message
+        return None
+
     def _validate_session_id(self, session_id: str) -> None:
         if not self._is_valid_session_id(session_id):
             raise ValueError("Invalid agent session id.")

@@ -5,15 +5,26 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v3.0.0
+# Current Baseline - v3.1.0
 
 ## Status
-Implemented. Git baseline: tag `v3.0.0`. Local working version: `v3.0.0`.
+Implemented. Git baseline: tag `v3.1.0`. Local working version: `v3.1.0`.
 
 ## Stage
-`v3.0.0` Stable Local Safety Runtime — documents and freezes the 8 supported local safety contracts; labels 6 surfaces as explicitly experimental. No new runtime features. All v2.9.9 contract snapshot tests pass.
+`v3.1.0` Autopilot + JSON Output — adds structured `--json` output to all daily CLI commands and confirms `sac agent run` as the autopilot entry point. Builds on v3.0.0 stable safety substrate without weakening any gate.
 
-Previous v2.9.x stage: v2.9.0 expanded loop fixtures; v2.9.1 bounded retry; v2.9.2 deterministic typed trace snapshots; v2.9.3 loop eval CI gate; v2.9.4 MCP static schema classification; v2.9.5 MCP call arg validation; v2.9.6 versioned subagent journal payload (v2.9.7 folded in); v2.9.8 ToolSpec version field and registry snapshot; v2.9.9 public contract snapshot tests.
+Previous v3.0.x: v3.0.0 froze 8 stable local safety contracts and labelled 6 surfaces as experimental.
+
+## v3.1.0 (Autopilot + JSON Output)
+`src/safecode/cli_shared_json.py` added. `cli_core.py`, `cli_ops.py`, `cli_agent.py`, `state/journal.py` updated.
+
+Key additions:
+- `CLIJSONResponse(BaseModel)`: fields `command`, `status`, `data`, `error|None`. `render_json()` emits sorted-keys indent=2 JSON; null error omitted.
+- `--json` on `ask`, `edit`, `apply`, `run`, `doctor`, `version`, `release preflight`, `agent run`.
+- `--retry-from-last-failure` on `edit`: reads last failure event from session journal, redacts via `redact_secrets()`, prepends to task context.
+- `get_last_failure_context(session_id)` added to `AgentJournalStore`.
+- 35 new tests: `tests/test_cli_json_output.py` (25) + `tests/test_agent_autopilot.py` (10).
+- All non-JSON output paths byte-compatible with v3.0.0. No safety gate weakened.
 
 ## v3.0.0 (Public Contract Stabilization)
 `docs/public-contracts.md` added. `README.md` updated with link.
