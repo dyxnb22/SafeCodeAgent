@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from typing import Optional
 
@@ -250,5 +251,10 @@ def run_command(command: str, yes: bool = typer.Option(False, "--yes", "-y", hel
         console.print(result.stdout)
     if result.stderr:
         console.print(f"[red]{result.stderr}[/red]")
+
+    # Honest exit codes: 125=approval required, 126=policy blocked.
+    # Set SAFECODE_RUN_LEGACY_EXIT_CODE=1 for one migration cycle to get exit code 1 instead.
+    if not result.executed and os.environ.get("SAFECODE_RUN_LEGACY_EXIT_CODE") == "1":
+        raise typer.Exit(code=1)
     raise typer.Exit(code=result.exit_code)
 

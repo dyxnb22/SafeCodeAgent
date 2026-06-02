@@ -5,13 +5,22 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v2.8.5
+# Current Baseline - v2.8.8
 
 ## Status
-Implemented. Git baseline: tag `v2.7.9`. Local working version: `v2.8.5`.
+Implemented. Git baseline: tag `v2.7.9`. Local working version: `v2.8.8`.
 
 ## Stage
-`v2.8.x` Consolidation and CLI Honesty — v2.8.0–v2.8.5 implement the typed diagnostic substrate, migrate doctor/release/policy checks, split sandbox backend strategy, introduce typed pending-action objects, add MCP schema shim metadata, and collapse the release help surface.
+`v2.8.x` Consolidation and CLI Honesty — v2.8.0–v2.8.8 implement the typed diagnostic substrate, migrate doctor/release/policy checks, split sandbox backend strategy, introduce typed pending-action objects, add MCP schema shim metadata, collapse the release help surface, and document shell exit-code honesty.
+
+## v2.8.8 (Shell Exit Code Honesty)
+`src/safecode/cli_core.py` and `docs/install-update.md` updated.
+
+Key additions:
+- `sac run` exits with `125` for approval-required and `126` for policy-blocked commands.
+- `SAFECODE_RUN_LEGACY_EXIT_CODE=1` opt-out: non-executed commands exit with `1` instead.
+- Legacy opt-out documented in `docs/install-update.md` with migration guidance.
+- 13 new tests in `tests/test_shell_exit_code_honesty.py`.
 
 ## v2.8.5 (Release Surface Collapse Full)
 `src/safecode/cli_ops.py` and `docs/install-update.md` updated.

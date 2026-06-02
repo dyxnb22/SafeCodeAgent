@@ -77,6 +77,22 @@ sac release checklist vX.Y.Z   # [advanced] planning helper — not a release ga
 sac release signoff            # [internal] deprecated; use sac release preflight instead
 ```
 
+## sac run Exit Codes
+
+`sac run` returns these exit codes when a command is not executed:
+
+- `125` — approval required (medium-risk command, no `--yes` or stored approval)
+- `126` — policy blocked (high-risk command or disallowed executable)
+
+If your scripts relied on `sac run` returning `1` for all blocked cases, set the
+one-cycle opt-out for the migration cycle:
+
+```bash
+SAFECODE_RUN_LEGACY_EXIT_CODE=1 sac run "..."
+```
+
+This opt-out will be removed in a future version.
+
 ## Current Enforcement Boundaries
 
 - Sandbox command execution currently runs through Noop plus Docker, macOS Seatbelt, and Linux Bubblewrap preview backends. Docker requires a reachable daemon, macOS Seatbelt requires `sandbox-exec`, and Linux Bubblewrap requires `bwrap`.

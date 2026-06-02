@@ -347,7 +347,7 @@ Active plan: `docs/version-plans/v2.8-to-v3.0-product-architecture-roadmap.md`.
 | `v2.8.5` ✅ | `v2.8.5-release-surface-collapse-full` | `src/safecode/cli_ops.py`, `docs/install-update.md` | `sac release --help` shows only preflight/bump/changelog; checklist/check/smoke/meta/signoff hidden but callable; signoff emits RuntimeWarning; 25 new tests |
 | `v2.8.6` | `v2.8.6-cli-sandbox-module-split` | `src/safecode/cli_sandbox*.py` | sandbox CLI split by command ownership with no command rename/argument reorder |
 | `v2.8.7` | `v2.8.7-subagent-finding-redaction-at-journal-boundary` | `src/safecode/subagents/journal_adapter.py`, `src/safecode/subagents/merge_policy.py`, `src/safecode/agent/loop.py` | subagent journal content is redacted before merge/context injection; consumer redaction stays defense-in-depth |
-| `v2.8.8` | `v2.8.8-shell-exit-code-honesty` | `src/safecode/cli_core.py` | `sac run` returns 125 for approval-required and 126 for policy-blocked; one-cycle legacy env opt-out documented |
+| `v2.8.8` ✅ | `v2.8.8-shell-exit-code-honesty` | `src/safecode/cli_core.py`, `docs/install-update.md` | `sac run` returns 125 for approval-required and 126 for policy-blocked; `SAFECODE_RUN_LEGACY_EXIT_CODE=1` opt-out; 13 new tests |
 | `v2.8.9` | `v2.8.9-audit-and-hook-event-dedup` | `src/safecode/hooks/runner.py`, `src/safecode/audit/models.py` | skipped hooks emit distinct additive event types; audit verify remains backward-compatible |
 
 ## v2.9.x: Deterministic Evidence and Contract Preparation (planned)
