@@ -1,10 +1,14 @@
-"""Tests for the v2.2.0 tool schema registry."""
+"""Tests for the tool schema registry (v2.2.0 base; v2.9.8 versioning)."""
 
 from __future__ import annotations
+
+import json
+from pathlib import Path
 
 import pytest
 
 from safecode.tools.registry import (
+    REGISTRY_SCHEMA_VERSION,
     AuditEventRef,
     PermissionCategory,
     ToolArgSchema,
@@ -12,6 +16,8 @@ from safecode.tools.registry import (
     ToolRiskLevel,
     ToolSpec,
 )
+
+_SNAPSHOT_PATH = Path(__file__).parent / "snapshots" / "registry" / "tool_registry_v1.json"
 
 
 # ── ToolSpec and model validation ─────────────────────────────────────────
@@ -317,3 +323,121 @@ class TestToolsCLI:
 
         result = CliRunner().invoke(app, ["tools", "list", "--risk", "extreme"])
         assert result.exit_code != 0
+
+
+# ── v2.9.8: ToolSpec version field ────────────────────────────────────────
+
+
+class TestToolSpecVersion:
+    def test_all_specs_have_version(self):
+        for spec in ToolRegistry().list():
+            assert isinstance(spec.version, str), f"{spec.name} missing version string"
+            assert len(spec.version) > 0, f"{spec.name} has empty version"
+
+    def test_version_is_semantic(self):
+        for spec in ToolRegistry().list():
+            parts = spec.version.split(".")
+            assert len(parts) >= 2, f"{spec.name} version {spec.version!r} is not semver-like"
+            for part in parts:
+                assert part.isdigit(), f"{spec.name} version part {part!r} is not numeric"
+
+    def test_default_version_is_stable(self):
+        spec = ToolSpec(
+            name="test.tool",
+            description="desc",
+            risk=ToolRiskLevel.LOW,
+            permission_category=PermissionCategory.READ,
+            requires_human_approval=False,
+        )
+        assert spec.version == "1.0.0"
+
+    def test_registry_schema_version_exported(self):
+        assert isinstance(REGISTRY_SCHEMA_VERSION, str)
+        assert len(REGISTRY_SCHEMA_VERSION) > 0
+
+    def test_registry_schema_version_is_numeric_string(self):
+        assert REGISTRY_SCHEMA_VERSION.isdigit()
+
+    def test_version_field_survives_round_trip(self):
+        spec = ToolRegistry().get("patch.propose")
+        data = spec.model_dump()
+        assert "version" in data
+        restored = ToolSpec(**data)
+        assert restored.version == spec.version
+
+
+# ── v2.9.8: Registry snapshot ─────────────────────────────────────────────
+
+
+def _build_registry_snapshot() -> dict:
+    """Build the narrow deterministic snapshot (no prose descriptions)."""
+    registry = ToolRegistry()
+    tools = registry.list()
+    return {
+        "registry_schema_version": REGISTRY_SCHEMA_VERSION,
+        "tools": [
+            {
+                "name": t.name,
+                "version": t.version,
+                "permission_category": t.permission_category,
+                "risk": t.risk,
+                "requires_human_approval": t.requires_human_approval,
+                "args": [
+                    {"name": a.name, "type": a.type, "required": a.required}
+                    for a in t.args
+                ],
+            }
+            for t in tools
+        ],
+    }
+
+
+class TestRegistrySnapshot:
+    def test_snapshot_file_exists(self):
+        assert _SNAPSHOT_PATH.exists(), f"snapshot missing at {_SNAPSHOT_PATH}"
+
+    def test_snapshot_is_valid_json(self):
+        data = json.loads(_SNAPSHOT_PATH.read_text())
+        assert isinstance(data, dict)
+        assert "tools" in data
+
+    def test_snapshot_matches_live_registry(self):
+        expected = json.loads(_SNAPSHOT_PATH.read_text())
+        actual = _build_registry_snapshot()
+        assert actual == expected, (
+            "Live registry differs from snapshot. "
+            "If the change is intentional, regenerate with:\n"
+            "  PYTHONPATH=src python3 -m pytest tests/test_tool_schema_registry.py "
+            "::TestRegistrySnapshot::test_snapshot_matches_live_registry -v\n"
+            "and update tests/snapshots/registry/tool_registry_v1.json."
+        )
+
+    def test_snapshot_is_deterministic(self):
+        snap_a = _build_registry_snapshot()
+        snap_b = _build_registry_snapshot()
+        assert json.dumps(snap_a, sort_keys=True) == json.dumps(snap_b, sort_keys=True)
+
+    def test_snapshot_sorted_keys(self):
+        raw = _SNAPSHOT_PATH.read_text()
+        data = json.loads(raw)
+        regenerated = json.dumps(data, indent=2, sort_keys=True)
+        assert raw.strip() == regenerated.strip(), "Snapshot keys must be sorted"
+
+    def test_snapshot_tool_names_are_sorted(self):
+        data = json.loads(_SNAPSHOT_PATH.read_text())
+        names = [t["name"] for t in data["tools"]]
+        assert names == sorted(names)
+
+    def test_snapshot_has_version_for_all_tools(self):
+        data = json.loads(_SNAPSHOT_PATH.read_text())
+        for tool in data["tools"]:
+            assert "version" in tool
+            assert isinstance(tool["version"], str)
+            assert len(tool["version"]) > 0
+
+    def test_snapshot_no_prose_descriptions(self):
+        data = json.loads(_SNAPSHOT_PATH.read_text())
+        for tool in data["tools"]:
+            assert "description" not in tool
+            for arg in tool.get("args", []):
+                assert "description" not in arg

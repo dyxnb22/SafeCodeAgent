@@ -1,4 +1,4 @@
-"""Internal tool schema registry for SafeCode Agent (v2.2.0)."""
+"""Internal tool schema registry for SafeCode Agent (v2.9.8)."""
 
 from __future__ import annotations
 
@@ -6,6 +6,9 @@ from enum import StrEnum
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
+
+# Increment when the ToolSpec schema (fields, types, or stable semantics) changes.
+REGISTRY_SCHEMA_VERSION: str = "1"
 
 
 class ToolRiskLevel(StrEnum):
@@ -54,6 +57,7 @@ class ToolSpec(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     name: str
+    version: str = "1.0.0"
     description: str
     risk: ToolRiskLevel
     permission_category: PermissionCategory

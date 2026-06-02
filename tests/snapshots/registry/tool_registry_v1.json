@@ -1,0 +1,282 @@
+{
+  "registry_schema_version": "1",
+  "tools": [
+    {
+      "args": [],
+      "name": "audit.verify",
+      "permission_category": "audit",
+      "requires_human_approval": false,
+      "risk": "low",
+      "version": "1.0.0"
+    },
+    {
+      "args": [
+        {
+          "name": "checkpoint_id",
+          "required": false,
+          "type": "str"
+        }
+      ],
+      "name": "checkpoint.rollback",
+      "permission_category": "write",
+      "requires_human_approval": true,
+      "risk": "medium",
+      "version": "1.0.0"
+    },
+    {
+      "args": [
+        {
+          "name": "query",
+          "required": true,
+          "type": "str"
+        },
+        {
+          "name": "limit",
+          "required": false,
+          "type": "int"
+        }
+      ],
+      "name": "context.collect",
+      "permission_category": "read",
+      "requires_human_approval": false,
+      "risk": "low",
+      "version": "1.0.0"
+    },
+    {
+      "args": [
+        {
+          "name": "target",
+          "required": true,
+          "type": "path"
+        }
+      ],
+      "name": "context.read",
+      "permission_category": "read",
+      "requires_human_approval": false,
+      "risk": "low",
+      "version": "1.0.0"
+    },
+    {
+      "args": [
+        {
+          "name": "tool_name",
+          "required": true,
+          "type": "str"
+        },
+        {
+          "name": "input_json",
+          "required": false,
+          "type": "dict"
+        }
+      ],
+      "name": "mcp.call_readonly",
+      "permission_category": "mcp",
+      "requires_human_approval": false,
+      "risk": "low",
+      "version": "1.0.0"
+    },
+    {
+      "args": [
+        {
+          "name": "tool_name",
+          "required": true,
+          "type": "str"
+        },
+        {
+          "name": "input_json",
+          "required": false,
+          "type": "dict"
+        }
+      ],
+      "name": "mcp.propose_write",
+      "permission_category": "mcp",
+      "requires_human_approval": true,
+      "risk": "medium",
+      "version": "1.0.0"
+    },
+    {
+      "args": [
+        {
+          "name": "patch_id",
+          "required": true,
+          "type": "str"
+        }
+      ],
+      "name": "patch.apply",
+      "permission_category": "write",
+      "requires_human_approval": true,
+      "risk": "medium",
+      "version": "1.0.0"
+    },
+    {
+      "args": [
+        {
+          "name": "target",
+          "required": true,
+          "type": "path"
+        },
+        {
+          "name": "patch_text",
+          "required": true,
+          "type": "str"
+        }
+      ],
+      "name": "patch.propose",
+      "permission_category": "write",
+      "requires_human_approval": true,
+      "risk": "medium",
+      "version": "1.0.0"
+    },
+    {
+      "args": [
+        {
+          "name": "session_id",
+          "required": false,
+          "type": "str"
+        }
+      ],
+      "name": "report.render",
+      "permission_category": "audit",
+      "requires_human_approval": false,
+      "risk": "low",
+      "version": "1.0.0"
+    },
+    {
+      "args": [
+        {
+          "name": "proposal_id",
+          "required": true,
+          "type": "str"
+        }
+      ],
+      "name": "sandbox.execute",
+      "permission_category": "sandbox",
+      "requires_human_approval": true,
+      "risk": "high",
+      "version": "1.0.0"
+    },
+    {
+      "args": [
+        {
+          "name": "command",
+          "required": true,
+          "type": "str"
+        }
+      ],
+      "name": "sandbox.plan",
+      "permission_category": "sandbox",
+      "requires_human_approval": false,
+      "risk": "low",
+      "version": "1.0.0"
+    },
+    {
+      "args": [
+        {
+          "name": "command",
+          "required": true,
+          "type": "str"
+        },
+        {
+          "name": "backend",
+          "required": false,
+          "type": "str"
+        }
+      ],
+      "name": "sandbox.propose",
+      "permission_category": "sandbox",
+      "requires_human_approval": true,
+      "risk": "medium",
+      "version": "1.0.0"
+    },
+    {
+      "args": [
+        {
+          "name": "command",
+          "required": true,
+          "type": "str"
+        }
+      ],
+      "name": "shell.propose",
+      "permission_category": "shell",
+      "requires_human_approval": true,
+      "risk": "medium",
+      "version": "1.0.0"
+    },
+    {
+      "args": [
+        {
+          "name": "command",
+          "required": true,
+          "type": "str"
+        },
+        {
+          "name": "approved",
+          "required": false,
+          "type": "bool"
+        }
+      ],
+      "name": "shell.run",
+      "permission_category": "shell",
+      "requires_human_approval": true,
+      "risk": "medium",
+      "version": "1.0.0"
+    },
+    {
+      "args": [
+        {
+          "name": "task",
+          "required": true,
+          "type": "str"
+        },
+        {
+          "name": "scope",
+          "required": true,
+          "type": "str"
+        },
+        {
+          "name": "max_steps",
+          "required": true,
+          "type": "int"
+        }
+      ],
+      "name": "subagent.dispatch",
+      "permission_category": "subagent",
+      "requires_human_approval": false,
+      "risk": "low",
+      "version": "1.0.0"
+    },
+    {
+      "args": [
+        {
+          "name": "task_id",
+          "required": true,
+          "type": "str"
+        }
+      ],
+      "name": "subagent.inspect",
+      "permission_category": "subagent",
+      "requires_human_approval": false,
+      "risk": "low",
+      "version": "1.0.0"
+    },
+    {
+      "args": [
+        {
+          "name": "task_id",
+          "required": true,
+          "type": "str"
+        },
+        {
+          "name": "goal",
+          "required": true,
+          "type": "str"
+        }
+      ],
+      "name": "subagent.run_readonly",
+      "permission_category": "subagent",
+      "requires_human_approval": false,
+      "risk": "low",
+      "version": "1.0.0"
+    }
+  ]
+}
