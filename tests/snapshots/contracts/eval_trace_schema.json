@@ -1,0 +1,32 @@
+{
+  "contract": "EvalTrace",
+  "contract_status": "supported",
+  "determinism_invariants": [
+    "build_loop_eval_trace() produces byte-identical output for the same fixture",
+    "patch_hash is SHA-256 of expected_patch_contains fragments joined",
+    "steps tuple order matches scripted step order in the fixture"
+  ],
+  "models": {
+    "LoopEvalTrace": {
+      "fields": [
+        "expected_pending_patch",
+        "fixture_name",
+        "patch_hash",
+        "steps"
+      ],
+      "notes": "deterministic: derived from fixture definition alone, no LLM calls"
+    },
+    "LoopStepTrace": {
+      "fields": [
+        "is_first_fail_recoverable",
+        "is_stop_for_user",
+        "step_index",
+        "tool_intent_target",
+        "tool_intent_type"
+      ],
+      "notes": "no prose, no timestamps, no absolute paths"
+    }
+  },
+  "schema_version": "1",
+  "snapshot_files": "tests/snapshots/loop/*.json (one per fixture)"
+}

@@ -1,0 +1,48 @@
+{
+  "contract": "AuditEvent",
+  "contract_status": "supported",
+  "fields": [
+    "checkpoint_id",
+    "command",
+    "error",
+    "event_hash",
+    "exit_code",
+    "files",
+    "message",
+    "metadata",
+    "patch_id",
+    "previous_hash",
+    "status",
+    "timestamp",
+    "trace_id",
+    "type"
+  ],
+  "hash_chain_invariants": [
+    "each event carries previous_hash linking it to the prior event's event_hash",
+    "event_hash is SHA-256 of the event JSON with event_hash set to null, keys sorted",
+    "first event previous_hash is null",
+    "AuditAnchorStore writes line_count and latest event_hash outside the project root",
+    "anchor missing for non-empty log is treated as an integrity failure"
+  ],
+  "known_event_types_from_tool_registry": [
+    "audit_verified",
+    "command_proposed",
+    "command_run",
+    "context_collected",
+    "file_read",
+    "mcp_call_readonly",
+    "mcp_write_proposed",
+    "patch_applied",
+    "patch_proposed",
+    "report_rendered",
+    "rollback",
+    "sandbox_executed",
+    "sandbox_plan",
+    "sandbox_proposed",
+    "subagent_dispatched",
+    "subagent_inspect",
+    "subagent_run"
+  ],
+  "persistence": "append-only JSONL at sac_dir/logs/events.jsonl",
+  "schema_version": "1"
+}

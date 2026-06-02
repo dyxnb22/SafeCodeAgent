@@ -1,0 +1,47 @@
+{
+  "contract": "PendingPatch",
+  "contract_status": "supported",
+  "models": {
+    "PatchBlock": {
+      "field_types": {
+        "content": "str|null",
+        "file_path": "path",
+        "operation": "str",
+        "replace": "str|null",
+        "search": "str|null"
+      },
+      "fields": [
+        "content",
+        "file_path",
+        "operation",
+        "replace",
+        "search"
+      ]
+    },
+    "PatchProposal": {
+      "field_types": {
+        "blocks": "list[PatchBlock]",
+        "created_at": "str",
+        "id": "str",
+        "model": "str",
+        "status": "str",
+        "task": "str"
+      },
+      "fields": [
+        "blocks",
+        "created_at",
+        "id",
+        "model",
+        "status",
+        "task"
+      ],
+      "status_values": [
+        "applied",
+        "pending",
+        "rejected"
+      ]
+    }
+  },
+  "persistence": "pending_patch.json inside sac_dir; removed after apply or rollback",
+  "schema_version": "1"
+}

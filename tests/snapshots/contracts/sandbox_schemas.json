@@ -1,0 +1,74 @@
+{
+  "approval_invariants": [
+    "approvals are single-use: consumed flag set to true after claim",
+    "approvals are project-bound: project_key derived from project root path",
+    "approvals live outside the project root",
+    "claim is atomic: uses lock file and os.replace",
+    "expired approvals are treated as unapproved"
+  ],
+  "contract": "SandboxLifecycle",
+  "contract_status": "supported",
+  "lifecycle": "propose -> preflight -> approve (user-level, single-use, atomic) -> execute -> result_record",
+  "models": {
+    "SandboxExecutionApproval": {
+      "fields": [
+        "approved_at",
+        "approved_by",
+        "backend",
+        "command_hash",
+        "consumed",
+        "expires_at",
+        "policy_version",
+        "preview_hash",
+        "project_key",
+        "project_root",
+        "proposal_id"
+      ]
+    },
+    "SandboxExecutionProposal": {
+      "fields": [
+        "backend",
+        "command",
+        "command_hash",
+        "created_at",
+        "cwd",
+        "env_keys",
+        "network_enabled",
+        "preview_hash",
+        "preview_kind",
+        "proposal_id",
+        "purpose",
+        "readonly_filesystem",
+        "risk_reason",
+        "status",
+        "writable_paths"
+      ],
+      "status_values": [
+        "pending"
+      ]
+    },
+    "SandboxExecutionResultRecord": {
+      "fields": [
+        "attempted_at",
+        "backend",
+        "command_hash_prefix",
+        "command_head",
+        "duration_ms",
+        "executed",
+        "exit_code",
+        "message",
+        "proposal_id",
+        "status",
+        "stderr_length",
+        "stderr_preview",
+        "stdout_length",
+        "stdout_preview"
+      ],
+      "status_values": [
+        "blocked_claim",
+        "completed"
+      ]
+    }
+  },
+  "schema_version": "1"
+}

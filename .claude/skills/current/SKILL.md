@@ -5,13 +5,28 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v2.9.8
+# Current Baseline - v2.9.9
 
 ## Status
-Implemented. Git baseline: tag `v2.9.8`. Local working version: `v2.9.8`.
+Implemented. Git baseline: tag `v2.9.9`. Local working version: `v2.9.9`.
 
 ## Stage
-`v2.9.x` Deterministic Evidence and Contract Preparation — v2.9.0 expanded loop fixtures and added typed failure categories; v2.9.1 adds one bounded retry for recoverable contract-shaped failures; v2.9.2 adds deterministic typed trace snapshots for all six loop fixtures; v2.9.3 adds loop eval as an advisory CI job; v2.9.4 wires static schema classification into the MCP runner and executor pipelines; v2.9.5 adds typed arg metadata and call arg validation to the schema shim; v2.9.6 adds versioned subagent journal payload with tolerant loading and adversarial tests (v2.9.7 folded in); v2.9.8 adds `version` field to every `ToolSpec` and deterministic registry snapshot tests.
+`v2.9.x` Deterministic Evidence and Contract Preparation — v2.9.0 expanded loop fixtures and added typed failure categories; v2.9.1 adds one bounded retry for recoverable contract-shaped failures; v2.9.2 adds deterministic typed trace snapshots for all six loop fixtures; v2.9.3 adds loop eval as an advisory CI job; v2.9.4 wires static schema classification into the MCP runner and executor pipelines; v2.9.5 adds typed arg metadata and call arg validation to the schema shim; v2.9.6 adds versioned subagent journal payload with tolerant loading and adversarial tests (v2.9.7 folded in); v2.9.8 adds `version` field to every `ToolSpec` and deterministic registry snapshot tests; v2.9.9 adds 5 public contract snapshot files and 51 snapshot tests covering config, pending patch, audit event, sandbox lifecycle, and eval trace.
+
+## v2.9.9 (Public Contract Snapshot Tests)
+`tests/snapshots/contracts/` (5 new JSON files) and `tests/test_public_contract_snapshots.py` added.
+
+Key additions:
+- `config_defaults.json`: SafeCodeConfig field defaults, known policy names, and lowering rules.
+- `pending_patch_schema.json`: PatchProposal and PatchBlock field names/types.
+- `audit_event_schema.json`: AuditEvent field names, hash-chain invariants, event types from ToolSpec registry.
+- `sandbox_schemas.json`: SandboxExecutionProposal/Approval/ResultRecord fields and approval invariants.
+- `eval_trace_schema.json`: LoopStepTrace/LoopEvalTrace field names and determinism invariants.
+- All snapshots: sorted keys, no prose, no timestamps, no absolute paths.
+- Tool registry snapshot (`tests/snapshots/registry/tool_registry_v1.json`) reused from v2.9.8.
+- Loop snapshots (`tests/snapshots/loop/*.json`) reused from v2.9.2.
+- `TestToolRegistryContract` reuses v2.9.8 snapshot proving cross-version consistency.
+- 51 new tests across 7 test classes in `tests/test_public_contract_snapshots.py`.
 
 ## v2.9.8 (Tool Spec Registry Versioning)
 `src/safecode/tools/registry.py`, `tests/snapshots/registry/tool_registry_v1.json`, and

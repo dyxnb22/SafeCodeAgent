@@ -1,0 +1,62 @@
+{
+  "contract": "SafeCodeConfig",
+  "contract_status": "supported",
+  "defaults": {
+    "hooks": {
+      "after_apply": [],
+      "allow_medium_after_apply": false
+    },
+    "llm": {
+      "base_url": "https://api.openai.com/v1/chat/completions",
+      "model": "gpt-4.1-mini",
+      "provider": "mock"
+    },
+    "max_context_chars": 40000,
+    "max_file_bytes": 200000,
+    "max_file_lines": 300,
+    "max_tree_files": 200,
+    "policy": "balanced",
+    "sac_dir": ".sac",
+    "sandbox": {
+      "network_allowlist": [],
+      "network_enabled": false,
+      "restrict_to_project_root": true,
+      "sensitive_names": [
+        ".aws",
+        ".env",
+        ".ssh",
+        "credentials",
+        "id_dsa",
+        "id_rsa",
+        "token"
+      ]
+    },
+    "shell": {
+      "allow_readonly_without_confirm": true,
+      "allowed_commands": [
+        "echo",
+        "git",
+        "ls",
+        "pwd"
+      ],
+      "block_high_risk": true,
+      "default_timeout_seconds": 30,
+      "require_confirm_for_medium": true
+    }
+  },
+  "known_policy_names": [
+    "balanced",
+    "experimental",
+    "learning",
+    "normal",
+    "strict"
+  ],
+  "lowering_rules": [
+    "project-local config may not set block_high_risk=false when user config has it true",
+    "project-local config may not set restrict_to_project_root=false when user config has it true",
+    "project-local config may not enable network_enabled when user config has it disabled",
+    "unknown policy names in project config are treated conservatively (balanced precedence)",
+    "SAFECODE_POLICY env var with an unknown value is ignored with a UserWarning"
+  ],
+  "schema_version": "1"
+}
