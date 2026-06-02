@@ -66,15 +66,15 @@ git describe --exact-match --tags HEAD
 The tag version must match `pyproject.toml` and `safecode.__version__`; do not
 create or move a release tag while the package still reports an older version.
 
-Additional commands are available for inspection and troubleshooting, but are
-not required for the standard release path:
+These internal helpers are hidden from `sac release --help` but remain callable for
+troubleshooting and compatibility:
 
 ```bash
 sac release check              # [advanced] version consistency and working-tree state
 sac release smoke              # [advanced] fast smoke test (subset of preflight)
 sac release meta               # [advanced] metadata index: version, tag, notes, baseline
-sac release checklist vX.Y.Z   # [advanced] render a step-by-step release checklist
-sac release signoff            # [internal] final signoff — not required in standard flow
+sac release checklist vX.Y.Z   # [advanced] planning helper — not a release gate
+sac release signoff            # [internal] deprecated; use sac release preflight instead
 ```
 
 ## Current Enforcement Boundaries

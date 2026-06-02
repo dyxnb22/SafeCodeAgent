@@ -5,13 +5,24 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v2.8.4
+# Current Baseline - v2.8.5
 
 ## Status
-Implemented. Git baseline: tag `v2.7.9`. Local working version: `v2.8.4`.
+Implemented. Git baseline: tag `v2.7.9`. Local working version: `v2.8.5`.
 
 ## Stage
-`v2.8.x` Consolidation and CLI Honesty — v2.8.0–v2.8.4 implement the typed diagnostic substrate, migrate doctor/release/policy checks, split sandbox backend strategy, introduce typed pending-action objects, and add MCP schema shim metadata.
+`v2.8.x` Consolidation and CLI Honesty — v2.8.0–v2.8.5 implement the typed diagnostic substrate, migrate doctor/release/policy checks, split sandbox backend strategy, introduce typed pending-action objects, add MCP schema shim metadata, and collapse the release help surface.
+
+## v2.8.5 (Release Surface Collapse Full)
+`src/safecode/cli_ops.py` and `docs/install-update.md` updated.
+
+Key additions:
+- `hidden=True` on `checklist`, `check`, `smoke`, `meta`, `signoff` commands in `release_app`.
+- `sac release --help` now shows only `preflight`, `bump`, `changelog`.
+- Hidden commands remain callable for backward compatibility.
+- `release_signoff()` emits `RuntimeWarning` pointing to `sac release preflight`.
+- `docs/install-update.md` notes helpers are hidden from help, signoff deprecated.
+- 25 new tests in `tests/test_release_surface_collapse_full.py`.
 
 ## v2.8.4 (MCP Shim Schema Prep — experimental)
 `src/safecode/mcp/schema.py` added.

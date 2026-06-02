@@ -1,3 +1,4 @@
+import warnings
 from pathlib import Path
 from typing import Optional
 
@@ -173,13 +174,13 @@ def ide_open_files(query: str, limit: int = typer.Option(5, "--limit", min=1)) -
         console.print(f"{target.uri}\n{target.path}")
 
 
-@release_app.command("checklist")
+@release_app.command("checklist", hidden=True)
 def release_checklist(version: str) -> None:
     """[advanced] Render a release checklist. Prefer: bump -> pytest -> tag -> preflight."""
     console.print(render_release_checklist(version))
 
 
-@release_app.command("check")
+@release_app.command("check", hidden=True)
 def release_check() -> None:
     """[advanced] Report version consistency and working-tree state. Prefer: sac release preflight."""
     result = run_release_check(Path.cwd())
@@ -188,7 +189,7 @@ def release_check() -> None:
         raise typer.Exit(code=exit_code(result.ok))
 
 
-@release_app.command("smoke")
+@release_app.command("smoke", hidden=True)
 def release_smoke() -> None:
     """[advanced] Run a fast release smoke test (import, version, policy). Prefer: sac release preflight."""
     result = run_smoke_tests()
@@ -209,7 +210,7 @@ def release_bump(
         raise typer.Exit(code=exit_code(result.ok))
 
 
-@release_app.command("meta")
+@release_app.command("meta", hidden=True)
 def release_meta() -> None:
     """[advanced] Show release metadata index: version, tag, notes, and baseline consistency."""
     meta = collect_release_metadata(Path.cwd())
@@ -247,9 +248,14 @@ def release_changelog(
         raise typer.Exit(code=exit_code(result.ok))
 
 
-@release_app.command("signoff")
+@release_app.command("signoff", hidden=True)
 def release_signoff() -> None:
     """[internal] Run the final local release signoff. Not required for the standard release flow."""
+    warnings.warn(
+        "sac release signoff is deprecated. Use `sac release preflight` instead.",
+        RuntimeWarning,
+        stacklevel=2,
+    )
     result = run_release_signoff(Path.cwd())
     console.print(render_release_signoff(result))
     if not result.ok:

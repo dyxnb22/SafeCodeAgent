@@ -344,7 +344,7 @@ Active plan: `docs/version-plans/v2.8-to-v3.0-product-architecture-roadmap.md`.
 | `v2.8.2` | `v2.8.2-sandbox-backend-strategy-split` | `src/safecode/sandbox/`, `src/safecode/cli_sandbox.py` | backend detection/recommendation separated from proposal/execution logic; sandbox tests pass |
 | `v2.8.3` | `v2.8.3-agent-loop-typed-actions` | `src/safecode/agent/loop.py` | pending agent actions become typed objects; CLI owns rendering |
 | `v2.8.4` | `v2.8.4-mcp-shim-schema-prep` | `src/safecode/mcp/` | typed MCP metadata prep with keyword fallback unchanged when schema is absent |
-| `v2.8.5` | `v2.8.5-release-surface-collapse-full` | `src/safecode/cli_ops.py`, `src/safecode/release/*`, `docs/install-update.md` | `sac release --help` shows only preflight/bump/changelog; hidden helpers remain callable |
+| `v2.8.5` ✅ | `v2.8.5-release-surface-collapse-full` | `src/safecode/cli_ops.py`, `docs/install-update.md` | `sac release --help` shows only preflight/bump/changelog; checklist/check/smoke/meta/signoff hidden but callable; signoff emits RuntimeWarning; 25 new tests |
 | `v2.8.6` | `v2.8.6-cli-sandbox-module-split` | `src/safecode/cli_sandbox*.py` | sandbox CLI split by command ownership with no command rename/argument reorder |
 | `v2.8.7` | `v2.8.7-subagent-finding-redaction-at-journal-boundary` | `src/safecode/subagents/journal_adapter.py`, `src/safecode/subagents/merge_policy.py`, `src/safecode/agent/loop.py` | subagent journal content is redacted before merge/context injection; consumer redaction stays defense-in-depth |
 | `v2.8.8` | `v2.8.8-shell-exit-code-honesty` | `src/safecode/cli_core.py` | `sac run` returns 125 for approval-required and 126 for policy-blocked; one-cycle legacy env opt-out documented |
