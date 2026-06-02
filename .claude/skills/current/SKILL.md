@@ -5,15 +5,28 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v3.2.2
+# Current Baseline - v3.2.3
 
 ## Status
-Implemented. Git baseline: tag `v3.2.2`. Local working version: `v3.2.2`.
+Implemented. Git baseline: tag `v3.2.3`. Local working version: `v3.2.3`.
 
 ## Stage
-`v3.2.2` Structured Output Validation — adds `validate_provider_json()` to `agent/schemas.py` that returns `RecoverableContractFailure` for invalid JSON, missing type, missing required fields, and Pydantic type errors. `_chat_agent_json` wired to use it; `choose_tool()` returns `RecoverableContractFailure` on soft failures.
+`v3.2.3` Anthropic Provider — adds `AnthropicLLMClient` with the `anthropic` factory key; implements the full 4-method contract plus `stream_chat()`; reuses retry, cost, streaming, and structured-output validation infrastructure. Provider behavior is experimental.
 
-Previous: v3.2.1 added LLM streaming with `stream_chat()` and SSE parsing; v3.2.0 added bounded retry and cost accounting.
+Previous: v3.2.2 added `validate_provider_json()` for structured output validation; v3.2.1 added `stream_chat()` and SSE parsing; v3.2.0 added retry and cost accounting.
+
+## v3.2.3 (Anthropic Provider)
+`src/safecode/llm/anthropic_client.py` (new), `src/safecode/llm/factory.py` updated.
+
+Key additions:
+- `AnthropicLLMClient`: implements `ask`, `plan`, `choose_tool`, `propose_patch`, and `stream_chat`. Uses Anthropic Messages API (`x-api-key`, `anthropic-version` headers; `system` top-level field; `content[].text` extraction; `input_tokens`/`output_tokens` usage).
+- `_extract_text(data)`: extracts text from Anthropic content block list.
+- `_parse_anthropic_sse(lines)`: handles `content_block_delta`, `message_delta`, `message_stop` SSE event types.
+- `_ANTHROPIC_API_VERSION = "2023-06-01"`, `_DEFAULT_MAX_TOKENS = 4096`.
+- Factory gains `anthropic` provider key with lazy import.
+- Reuses: `retry_call`, `SessionCostAccumulator`, `validate_provider_json`, `parse_sse_stream`, `StreamChunk`.
+- Prompt caching: usage metadata recorded when present; `cache_control` headers deferred.
+- 30 new tests in `tests/test_llm_anthropic_client.py`.
 
 ## v3.2.2 (Structured Output Validation)
 `src/safecode/agent/schemas.py`, `src/safecode/llm/openai_client.py` updated.
