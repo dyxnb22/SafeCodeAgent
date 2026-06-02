@@ -171,6 +171,45 @@ release workflow. The recommended release sequence is:
 
 ---
 
+### 9. LLM Provider Contract
+
+**Where:** `src/safecode/llm/`, `src/safecode/config.py` (`LLMConfig`).
+
+**Full reference:** [docs/providers.md](providers.md)
+
+**Contract:** The LLM provider layer has a stable set of semantics around provider
+selection, retry, structured-output validation, streaming, cost accounting, and
+fan-out routing.
+
+**Supported provider keys:** `mock`, `openai`, `openai-compatible`, `anthropic`.
+
+**`LLMConfig` fields:** `provider`, `model`, `base_url`, `fallback_provider`,
+`fallback_model`, `fallback_base_url`.
+
+**Retry invariants:**
+- HTTP 429 and 503 are retried with bounded jitter; `URLError` is also retried.
+- Other 4xx/5xx, policy blocks (`PermissionError`), contract violations (`ValueError`),
+  and `RecoverableContractFailure` values are never retried.
+
+**Structured-output validation invariants:**
+- `validate_provider_json()` returns `RecoverableContractFailure` for soft parse failures.
+- Hard contract violations raise `ValueError` (fail-closed).
+- `parse_agent_contract_response()` is unchanged for non-provider paths.
+
+**Fan-out invariants:**
+- Only `RuntimeError` (transport failure) triggers fallback routing.
+- `PermissionError` (network policy) is never routed around.
+- `RecoverableContractFailure` (returned value) is not a trigger for fallback.
+- Fan-out log is redacted — no prompt or context content.
+
+**Streaming invariants:**
+- `StreamError` is raised on hard stream failures; partial output is discarded.
+- Cancellation must not mutate session cost state.
+
+**Snapshot:** `tests/snapshots/contracts/provider_contract_schema.json`
+
+---
+
 ## Experimental Surfaces
 
 The following are explicitly experimental in v3.0. They may change, be removed, or be

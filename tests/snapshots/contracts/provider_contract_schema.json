@@ -1,0 +1,107 @@
+{
+  "contract": "LLMProvider",
+  "contract_status": "supported",
+  "schema_version": "1",
+  "supported_provider_keys": [
+    "anthropic",
+    "mock",
+    "openai",
+    "openai-compatible"
+  ],
+  "config_fields": {
+    "llm_config_fields": [
+      "base_url",
+      "fallback_base_url",
+      "fallback_model",
+      "fallback_provider",
+      "model",
+      "provider"
+    ],
+    "required": [
+      "provider"
+    ],
+    "defaults": {
+      "base_url": "https://api.openai.com/v1/chat/completions",
+      "fallback_base_url": null,
+      "fallback_model": null,
+      "fallback_provider": null,
+      "model": "gpt-4.1-mini",
+      "provider": "mock"
+    }
+  },
+  "retry_semantics": {
+    "retryable_http_statuses": [429, 503],
+    "retryable_errors": ["URLError"],
+    "max_attempts": 3,
+    "base_delay_seconds": 0.5,
+    "jitter": "uniform(0.5, 1.5) * base_delay * 2^attempt",
+    "retry_after_header": "honored when present",
+    "not_retried": [
+      "non-429/503 4xx responses",
+      "non-503 5xx responses",
+      "policy blocks (PermissionError)",
+      "hard contract violations (ValueError)",
+      "RecoverableContractFailure values"
+    ]
+  },
+  "streaming_semantics": {
+    "protocol": "SupportsStreaming",
+    "chunk_type": "StreamChunk",
+    "result_type": "StreamResult",
+    "error_type": "StreamError",
+    "chunk_fields": ["delta", "finish_reason"],
+    "result_fields": ["finish_reason", "text"],
+    "format": "Server-Sent Events (SSE)",
+    "cancel_behavior": "fail_closed; partial output discarded; no session state mutation"
+  },
+  "structured_output_validation": {
+    "function": "validate_provider_json",
+    "soft_failures": [
+      "invalid_json",
+      "missing_type_field",
+      "missing_required_fields",
+      "pydantic_validation_errors"
+    ],
+    "soft_failure_type": "RecoverableContractFailure",
+    "hard_failures": [
+      "structurally_valid_response_with_wrong_contract_type"
+    ],
+    "hard_failure_type": "ValueError",
+    "agent_loop_retry": "choose_tool may be retried once on RecoverableContractFailure"
+  },
+  "cost_accounting": {
+    "model": "TokenUsage",
+    "fields": ["completion_tokens", "cost_usd", "prompt_tokens", "total_tokens"],
+    "persistence_path": ".sac/sessions/<session_id>/cost.json",
+    "accumulator": "SessionCostAccumulator",
+    "cost_usd": "always null until pricing is wired"
+  },
+  "fanout_config": {
+    "config_fields": [
+      "fallback_base_url",
+      "fallback_model",
+      "fallback_provider"
+    ],
+    "trigger": "RuntimeError from primary provider",
+    "not_triggered_by": [
+      "PermissionError (network policy block)",
+      "ValueError (hard contract violation)",
+      "RecoverableContractFailure (returned value, handled by loop)"
+    ],
+    "log": "RuntimeWarning with method name and exception type; no prompt or context content"
+  },
+  "experimental_features": [
+    "prompt_caching_headers_cache_control",
+    "additional_cloud_providers_beyond_tested_set",
+    "provider_specific_advanced_options",
+    "live_provider_ci_lane_blocking_gate",
+    "anthropic_tool_use",
+    "streaming_fanout_mid_stream_recovery"
+  ],
+  "live_ci_lane": {
+    "status": "advisory",
+    "gate": "ENABLE_LIVE_LLM_TESTS repository variable",
+    "skipped_by_default": true,
+    "blocks_merges": false
+  }
+}

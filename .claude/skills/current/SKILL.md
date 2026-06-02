@@ -5,15 +5,26 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v3.2.5
+# Current Baseline - v3.2.6
 
 ## Status
-Implemented. Git baseline: tag `v3.2.5`. Local working version: `v3.2.5`.
+Implemented. Git baseline: tag `v3.2.6`. Local working version: `v3.2.6`.
 
 ## Stage
-`v3.2.5` Live-Provider CI Lane — adds advisory `live-provider` CI job gated by `ENABLE_LIVE_LLM_TESTS`; `tests/live/conftest.py` skips without env var; no credentials in repository.
+`v3.2.6` Providers Docs + Provider Contract Promotion — promotes LLM provider layer to documented stable contract; adds `docs/providers.md` full reference; extends `docs/public-contracts.md` with section 9; adds machine-readable snapshot + 66 snapshot tests. No runtime changes.
 
-Previous: v3.2.4 added fan-out config; v3.2.3 added Anthropic; v3.2.2 added structured output validation; v3.2.1 added streaming.
+Previous: v3.2.5 added advisory live-provider CI lane; v3.2.4 added fan-out config; v3.2.3 added Anthropic; v3.2.2 added structured output validation; v3.2.1 added streaming.
+
+## v3.2.6 (Providers Docs + Provider Contract Promotion)
+`docs/providers.md`, `docs/public-contracts.md`, `tests/snapshots/contracts/provider_contract_schema.json`, `tests/test_provider_contract_snapshot.py`, `README.md` added/updated.
+
+Key additions:
+- `docs/providers.md`: full reference for supported keys, config, retry, streaming, structured output, cost accounting, fan-out, live CI lane, experimental features.
+- `docs/public-contracts.md` section 9: "LLM Provider Contract" with snapshot reference, invariant list, supported provider keys.
+- `tests/snapshots/contracts/provider_contract_schema.json`: machine-readable snapshot (sorted keys, no prose, no timestamps).
+- `tests/test_provider_contract_snapshot.py`: 66 tests across 10 classes verifying snapshot integrity, top-level fields, config defaults, retry/streaming/structured-output/cost/fanout invariants, experimental features, live CI lane, and live code imports.
+- `README.md`: link to `docs/providers.md` added alongside `docs/public-contracts.md`.
+- No runtime behavior changes; all v3.2.5 tests pass unmodified.
 
 ## v3.2.5 (Live-Provider CI Lane)
 `.github/workflows/ci.yml`, `tests/live/`, `tests/test_ci_live_lane.py` updated/added.

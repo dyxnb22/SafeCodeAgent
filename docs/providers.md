@@ -1,0 +1,146 @@
+# SafeCode Agent LLM Providers (v3.2)
+
+This document describes the supported LLM provider contract introduced in v3.2.
+The contract covers provider selection, configuration, retry semantics, streaming,
+structured-output validation, cost accounting, and fan-out/fallback routing.
+
+For the full list of stable local safety contracts, see
+[docs/public-contracts.md](public-contracts.md).
+
+---
+
+## Supported Provider Keys
+
+| Key | Type | Notes |
+|---|---|---|
+| `mock` | Stable default | Deterministic mock client; no network; used in all local tests |
+| `openai` | Supported | OpenAI-compatible chat completions endpoint |
+| `openai-compatible` | Supported | Any OpenAI-compatible endpoint (local models, proxies) |
+| `anthropic` | Supported | Anthropic Messages API |
+
+Set via `config.toml` or the `SAFECODE_LLM_PROVIDER` environment variable.
+Both override the default `mock` provider.
+
+---
+
+## Config Reference
+
+`LLMConfig` fields in `.sac/config.toml` under `[llm]`:
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `provider` | string | `"mock"` | Primary provider key |
+| `model` | string | `"gpt-4.1-mini"` | Model name for the primary provider |
+| `base_url` | string | `"https://api.openai.com/v1/chat/completions"` | Endpoint URL |
+| `fallback_provider` | string or null | `null` | Optional fallback provider key |
+| `fallback_model` | string or null | `null` | Model for the fallback provider |
+| `fallback_base_url` | string or null | `null` | Endpoint URL for the fallback provider |
+
+Environment variable overrides: `SAFECODE_LLM_PROVIDER`, `SAFECODE_LLM_MODEL`.
+
+---
+
+## Retry Semantics
+
+All real providers (`openai`, `openai-compatible`, `anthropic`) wrap requests in
+`retry_call()` with bounded retry and jitter:
+
+- **Retryable**: HTTP 429 (Too Many Requests), HTTP 503 (Service Unavailable), `URLError`
+  (connection-level failures).
+- **Not retried**: other 4xx/5xx, policy blocks (`PermissionError`), hard contract
+  violations (`ValueError`), `RecoverableContractFailure` values.
+- **Parameters**: `max_attempts=3`, `base_delay=0.5s`, jitter = `uniform(0.5, 1.5) * base_delay * 2^attempt`.
+- **Retry-After**: honored when the `Retry-After` header is present on 429 responses.
+
+---
+
+## Structured Output Validation
+
+Provider JSON responses are parsed through `validate_provider_json()` before
+they are cast to agent contract models:
+
+- **Soft failures** → `RecoverableContractFailure` (returned, not raised):
+  invalid JSON, missing `type` field, missing required fields, Pydantic validation errors.
+- **Hard failures** → `ValueError` (raised, fail-closed):
+  structurally valid JSON with a wrong contract type.
+- The agent loop may retry `choose_tool` once on `RecoverableContractFailure`.
+- `parse_agent_contract_response()` is unchanged for non-provider code paths.
+
+---
+
+## Streaming
+
+Providers that implement `SupportsStreaming` expose `stream_chat(messages)`:
+
+- Returns an `Iterator[StreamChunk]`. Each chunk has `delta: str` and
+  `finish_reason: str | None`.
+- `aggregate_chunks()` collects chunks into a `StreamResult(text, finish_reason)`.
+- SSE parsing: `parse_sse_line()` / `parse_sse_stream()` for OpenAI SSE format;
+  `_parse_anthropic_sse()` for Anthropic event types.
+- Cancellation is fail-closed: partial output is discarded, session state is not
+  mutated if the stream is abandoned mid-way.
+- `StreamError` is raised on hard stream failures (malformed JSON, connection errors).
+
+---
+
+## Cost Accounting
+
+After each successful API call, token usage is persisted to
+`.sac/sessions/<session_id>/cost.json`:
+
+- `TokenUsage` fields: `prompt_tokens`, `completion_tokens`, `total_tokens`, `cost_usd`.
+- `cost_usd` is always `null` until pricing is wired.
+- `SessionCostAccumulator` accumulates across calls for the same session atomically.
+- OpenAI usage: `usage.prompt_tokens`, `usage.completion_tokens`.
+- Anthropic usage: `usage.input_tokens` → `prompt_tokens`, `usage.output_tokens` → `completion_tokens`.
+
+---
+
+## Fan-out / Fallback Config
+
+When `fallback_provider` is set, the factory returns a `FanOutLLMClient`:
+
+- **Trigger**: `RuntimeError` from any primary method (transport/network failures).
+- **Not triggered by**: `PermissionError` (network policy block), `ValueError`
+  (hard contract violation), `RecoverableContractFailure` (returned value).
+- **Behavior on trigger**: emits a `RuntimeWarning` with method name and exception
+  type (no prompt content), then delegates to the fallback.
+- **Fallback failure**: raises the fallback's error (fail-closed; no silent data loss).
+- **Network policy**: both primary and fallback must pass `NetworkPolicy.assert_allowed()`
+  at init time.
+- **No nesting**: the fallback client has its own `fallback_*` fields cleared to
+  prevent recursive fan-out.
+
+---
+
+## Live CI Lane
+
+A `live-provider` CI job is available but **advisory and opt-in**:
+
+- Gated by the repository variable `ENABLE_LIVE_LLM_TESTS=true`.
+- Set `SAFECODE_LIVE_TESTS=1` locally to run `tests/live/` tests.
+- Does not block merges (`continue-on-error: true`).
+- No API keys in any repository file; injected via GitHub Actions secrets at runtime.
+
+---
+
+## Experimental Features
+
+The following are not part of the supported contract and may change:
+
+- **Prompt caching headers** (`cache_control`): Anthropic caching metadata recorded
+  when present, but `cache_control` request headers are not yet sent.
+- **Additional cloud providers**: only `mock`, `openai`, `openai-compatible`, and
+  `anthropic` are tested.
+- **Provider-specific advanced options**: tool use, vision, system prompts beyond
+  the SafeCode contract prompt.
+- **Live CI lane blocking gate**: currently advisory; may become blocking in future.
+- **Streaming fan-out mid-stream**: `FanOutLLMClient.stream_chat()` proxies to the
+  primary only; mid-stream recovery to fallback is not implemented.
+
+---
+
+## Contract Snapshot
+
+See `tests/snapshots/contracts/provider_contract_schema.json` for the machine-readable
+contract snapshot used by `tests/test_provider_contract_snapshot.py`.
