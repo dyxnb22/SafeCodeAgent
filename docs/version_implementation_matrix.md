@@ -371,4 +371,4 @@ Active plan: `docs/version-plans/v2.8-to-v3.0-product-architecture-roadmap.md`.
 
 | 版本 | 分支 | 主要入口 | 验收命令 |
 |---|---|---|---|
-| `v3.0.0` | `v3.0.0-public-contract-stabilization` | `docs/public-contracts.md`, `README.md`, contract snapshot tests | freeze documented config, pending patch, audit, sandbox lifecycle, local tool registry, eval trace, and recommended CLI workflow contracts; mark broad API/live-provider/MCP/TUI/IDE surfaces experimental |
+| `v3.0.0` ✅ | `v3.0.0-public-contract-stabilization` | `docs/public-contracts.md`, `README.md` | 8 stable contracts documented (config precedence, pending patch, audit hash-chain, sandbox lifecycle, tool registry, eval trace, CLI workflows, release command policy); 6 experimental surfaces explicitly labeled; all v2.9.9 snapshot tests pass |
