@@ -1,5 +1,7 @@
 """Deterministic mock LLM client for local development and tests."""
 
+from typing import Iterator
+
 from safecode.agent.schemas import (
     AgentAnswer,
     AgentPatchResponse,
@@ -7,6 +9,7 @@ from safecode.agent.schemas import (
     AgentToolIntentResponse,
 )
 from safecode.agent.tools import ToolIntent
+from safecode.llm.stream import StreamChunk
 
 
 class MockLLMClient:
@@ -45,6 +48,11 @@ class MockLLMClient:
             ),
             rationale="Mock client always starts with a read-only inspection.",
         )
+
+    def stream_chat(self, messages: list[dict], **kwargs: object) -> Iterator[StreamChunk]:
+        """Return mock answer as a single chunk, mimicking a real stream."""
+        answer = "SafeCode Agent is a safety-first terminal coding assistant."
+        yield StreamChunk(delta=answer, finish_reason="stop")
 
     def propose_patch(self, task: str, context: dict) -> AgentPatchResponse:
         if "calculator" in task.lower():

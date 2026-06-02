@@ -5,15 +5,30 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v3.2.0
+# Current Baseline - v3.2.1
 
 ## Status
-Implemented. Git baseline: tag `v3.2.0`. Local working version: `v3.2.0`.
+Implemented. Git baseline: tag `v3.2.1`. Local working version: `v3.2.1`.
 
 ## Stage
-`v3.2.0` LLM Retry + Cost Accounting — adds bounded retry with jitter for transient LLM transport errors (429/503/URLError); adds `SessionCostAccumulator` writing per-session token usage to `.sac/sessions/<id>/cost.json`; wires both into `OpenAICompatibleLLMClient`; adds `last_session_cost` diagnostic to `sac doctor`.
+`v3.2.1` LLM Streaming — adds `src/safecode/llm/stream.py` with `StreamChunk`, `StreamResult`, `StreamError`, `aggregate_chunks()`, `parse_sse_line()`, `parse_sse_stream()`, and `SupportsStreaming` protocol. `OpenAICompatibleLLMClient` gains `stream_chat()` with injectable `_lines_fn` for tests. `MockLLMClient` gains a single-chunk `stream_chat()`. Provider streaming behavior remains experimental.
 
-Previous v3.1.x: v3.1.1 added session resume with ID verification; v3.1.0 added --json output to all daily CLI commands.
+Previous: v3.2.0 added bounded retry with jitter and `SessionCostAccumulator`; v3.1.x added --json output and session resume.
+
+## v3.2.1 (LLM Streaming)
+`src/safecode/llm/stream.py` (new), `src/safecode/llm/openai_client.py`, `src/safecode/llm/mock.py` updated.
+
+Key additions:
+- `StreamChunk(frozen dataclass)`: `delta: str`, `finish_reason: str | None`.
+- `StreamResult(frozen dataclass)`: `text: str`, `finish_reason: str | None`.
+- `StreamError(RuntimeError)`: raised on non-recoverable stream failures.
+- `aggregate_chunks(chunks)`: exhausts Iterator[StreamChunk] into StreamResult.
+- `parse_sse_line(line)`: parses one SSE `data:` line; returns None for [DONE]/blanks; raises ValueError for malformed JSON.
+- `parse_sse_stream(lines)`: parses SSE line iterator into StreamChunk iterator.
+- `SupportsStreaming` Protocol: optional `stream_chat(messages)` capability extension.
+- `OpenAICompatibleLLMClient.stream_chat(messages, *, _lines_fn=None)`: real SSE path or injected mock; fails closed on malformed events.
+- `MockLLMClient.stream_chat()`: yields one chunk with stable answer text.
+- 31 new tests in `tests/test_llm_streaming.py`.
 
 ## v3.2.0 (LLM Retry + Cost Accounting)
 `src/safecode/llm/retry.py` (new), `src/safecode/llm/cost.py` (new), `src/safecode/llm/openai_client.py`, `src/safecode/doctor.py` updated.

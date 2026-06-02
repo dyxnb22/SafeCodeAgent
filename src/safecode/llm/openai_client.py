@@ -10,6 +10,7 @@ import urllib.error
 import urllib.request
 import warnings
 from pathlib import Path
+from typing import Callable, Iterator
 
 from safecode.agent.schemas import (
     AgentAnswer,
@@ -24,6 +25,7 @@ from safecode.agent.prompts import SYSTEM_PROMPT
 from safecode.config import SafeCodeConfig
 from safecode.llm.cost import SessionCostAccumulator, TokenUsage
 from safecode.llm.retry import retry_call
+from safecode.llm.stream import StreamChunk, StreamError, aggregate_chunks, parse_sse_stream
 from safecode.sandbox.network import NetworkPolicy
 
 
@@ -159,6 +161,53 @@ class OpenAICompatibleLLMClient:
 
         self._record_usage(data)
         return data["choices"][0]["message"]["content"]
+
+    def stream_chat(
+        self,
+        messages: list[dict[str, str]],
+        *,
+        _lines_fn: Callable[[list[dict[str, str]]], Iterator[str]] | None = None,
+    ) -> Iterator[StreamChunk]:
+        """Stream a chat response as SSE chunks.
+
+        ``_lines_fn`` is injectable for tests: given messages, return an
+        iterator of raw SSE lines. When omitted, a real HTTPS request is made.
+
+        Fails closed on malformed events and connection errors — partial output
+        is discarded, session state is not mutated.
+        """
+        if _lines_fn is not None:
+            lines = _lines_fn(messages)
+        else:
+            lines = self._http_stream_lines(messages)
+        try:
+            yield from parse_sse_stream(lines)
+        except ValueError as exc:
+            raise StreamError(f"Malformed stream event: {exc}") from exc
+
+    def _http_stream_lines(self, messages: list[dict[str, str]]) -> Iterator[str]:
+        """Open an SSE stream and yield raw text lines."""
+        payload = json.dumps({
+            "model": self.model,
+            "messages": messages,
+            "temperature": 0,
+            "stream": True,
+        }).encode("utf-8")
+        request = urllib.request.Request(
+            self.base_url,
+            data=payload,
+            headers={
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json",
+            },
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=120) as response:
+                for raw_line in response:
+                    yield raw_line.decode("utf-8").rstrip("\n\r")
+        except urllib.error.URLError as exc:
+            raise StreamError(f"LLM stream request failed: {exc}") from exc
 
     def _record_usage(self, data: dict) -> None:
         if self._session_id is None or self._sac_dir is None:
