@@ -1,18 +1,21 @@
-"""Agent loop eval mode with scripted LLM responses (v2.7.7).
+"""Agent loop eval mode with scripted LLM responses (v2.9.0).
 
 This module provides:
 - ``ScriptedLLMClient`` — a test-only LLM stub driven by explicit scripted
   sequences, not keyword matching. Contract violations fail closed.
 - ``LoopEvalFixture`` — a lightweight in-memory eval fixture for loop-mode evals.
 - ``LoopEvalResult`` — a typed, snapshot-friendly result object.
+- ``LoopFailureCategory`` — typed reason categories for loop eval failures.
+- ``ClassifiedLoopFailure`` — a single classified failure with category and reason.
 - ``LoopModeEvalRunner`` — runs the agent loop in a tmp workspace with a
   scripted LLM; no real network calls are made.
-- ``default_loop_fixtures`` — two realistic scripted fixtures (docs-edit and
-  python-function-fix).
+- ``default_loop_fixtures`` — six realistic scripted fixtures.
+- ``RecoverableContractFailure`` — a failure value that the loop may retry once.
 """
 
 from __future__ import annotations
 
+import enum
 import shutil
 import tempfile
 from dataclasses import dataclass, field
@@ -42,16 +45,60 @@ class LLMContractViolation:
     message: str
 
 
+@dataclass(frozen=True)
+class RecoverableContractFailure:
+    """A transient contract-shaped failure that the agent loop may retry once.
+
+    Unlike ``LLMContractViolation``, this is not fail-closed on first occurrence:
+    the loop journals a retry event and calls ``choose_tool()`` again exactly once.
+    Only explicitly scripted recoverable steps should produce this value.
+    """
+
+    step: int
+    method: str
+    message: str
+
+
+# ── Typed failure categories ──────────────────────────────────────────────
+
+
+class LoopFailureCategory(str, enum.Enum):
+    """Typed reason categories for loop eval failures."""
+
+    contract_violation = "contract_violation"
+    patch_missing = "patch_missing"
+    patch_content_mismatch = "patch_content_mismatch"
+    loop_error = "loop_error"
+    unknown = "unknown"
+
+
+@dataclass(frozen=True)
+class ClassifiedLoopFailure:
+    """A single classified loop eval failure."""
+
+    category: LoopFailureCategory
+    reason: str
+
+    def as_dict(self) -> dict[str, str]:
+        return {"category": self.category.value, "reason": self.reason}
+
+
 # ── Scripted LLM client ───────────────────────────────────────────────────
 
 
 @dataclass(frozen=True)
 class ScriptedStep:
-    """One scripted agent step: a tool choice and an optional patch response."""
+    """One scripted agent step: a tool choice and an optional patch response.
+
+    Set ``first_fail_recoverable=True`` to make ``choose_tool()`` return a
+    ``RecoverableContractFailure`` on the first call and the real ``tool_choice``
+    on the subsequent retry. Used for v2.9.1 bounded-retry fixtures.
+    """
 
     tool_choice: AgentToolIntentResponse | AgentStopForUserResponse
     patch_response: AgentPatchResponse | None = None
     plan: AgentPlanResponse | None = None
+    first_fail_recoverable: bool = False
 
 
 class ScriptedLLMClient:
@@ -60,12 +107,17 @@ class ScriptedLLMClient:
     When the script is exhausted or a contract is violated the client returns a
     ``LLMContractViolation`` descriptor. Callers that receive this must treat it
     as a hard failure (fail closed).
+
+    When a step has ``first_fail_recoverable=True``, ``choose_tool()`` returns a
+    ``RecoverableContractFailure`` on the first call. The next call (retry) returns
+    the real ``tool_choice`` and advances the step index.
     """
 
     def __init__(self, steps: list[ScriptedStep], plan: AgentPlanResponse | None = None) -> None:
         self._steps = steps
         self._default_plan = plan
         self._step_index = 0
+        self._pending_retry: int | None = None  # step index awaiting retry
         self.violations: list[LLMContractViolation] = []
 
     def _violation(self, method: str, msg: str) -> LLMContractViolation:
@@ -89,10 +141,31 @@ class ScriptedLLMClient:
 
     def choose_tool(
         self, goal: str, context: dict
-    ) -> AgentToolIntentResponse | AgentStopForUserResponse | LLMContractViolation:
+    ) -> AgentToolIntentResponse | AgentStopForUserResponse | LLMContractViolation | RecoverableContractFailure:
+        # Retry path: a prior call returned RecoverableContractFailure; now deliver the real choice.
+        if self._pending_retry is not None:
+            retry_idx = self._pending_retry
+            self._pending_retry = None
+            if retry_idx >= len(self._steps):
+                return self._violation("choose_tool", f"Retry index {retry_idx} out of range.")
+            choice = self._steps[retry_idx].tool_choice
+            self._step_index += 1
+            return choice
+
         if self._step_index >= len(self._steps):
             return self._violation("choose_tool", f"Script exhausted after {len(self._steps)} step(s).")
-        choice = self._steps[self._step_index].tool_choice
+
+        step = self._steps[self._step_index]
+        if step.first_fail_recoverable:
+            # Return a recoverable failure without advancing the index; mark pending retry.
+            self._pending_retry = self._step_index
+            return RecoverableContractFailure(
+                step=self._step_index,
+                method="choose_tool",
+                message="Scripted first-fail recoverable contract failure.",
+            )
+
+        choice = step.tool_choice
         self._step_index += 1
         return choice
 
@@ -131,10 +204,65 @@ class LoopEvalResult:
     violations: list[LLMContractViolation] = field(default_factory=list)
     pending_patch_text: str | None = None
     stopped_reason: str = ""
+    classified_failures: list[ClassifiedLoopFailure] = field(default_factory=list)
 
     @property
     def ok(self) -> bool:
         return self.passed and not self.violations
+
+
+# ── Failure classifier ────────────────────────────────────────────────────
+
+
+def _classify_loop_result(result: LoopEvalResult) -> list[ClassifiedLoopFailure]:
+    """Classify failure reasons into typed ``ClassifiedLoopFailure`` entries.
+
+    Returns an empty list for passing results.
+    """
+    if result.passed:
+        return []
+
+    classified: list[ClassifiedLoopFailure] = []
+
+    for v in result.violations:
+        classified.append(ClassifiedLoopFailure(
+            category=LoopFailureCategory.contract_violation,
+            reason=f"LLM contract violation in {v.method}: {v.message}",
+        ))
+
+    for reason in result.failure_reasons:
+        lower = reason.lower()
+        # Skip reasons already captured via violations to avoid duplication.
+        if "contract violation" in lower:
+            continue
+        if "pending patch" in lower and ("type=" in lower or "path=" in lower):
+            classified.append(ClassifiedLoopFailure(
+                category=LoopFailureCategory.patch_missing,
+                reason=reason,
+            ))
+        elif "missing expected fragment" in lower:
+            classified.append(ClassifiedLoopFailure(
+                category=LoopFailureCategory.patch_content_mismatch,
+                reason=reason,
+            ))
+        elif "exception" in lower or "raised" in lower or "no result" in lower:
+            classified.append(ClassifiedLoopFailure(
+                category=LoopFailureCategory.loop_error,
+                reason=reason,
+            ))
+        else:
+            classified.append(ClassifiedLoopFailure(
+                category=LoopFailureCategory.unknown,
+                reason=reason,
+            ))
+
+    if not classified:
+        classified.append(ClassifiedLoopFailure(
+            category=LoopFailureCategory.unknown,
+            reason="Fixture failed with no specific reason recorded.",
+        ))
+
+    return classified
 
 
 # ── Runner ────────────────────────────────────────────────────────────────
@@ -176,13 +304,15 @@ class LoopModeEvalRunner:
 
         # Evaluate result after workspace is cleaned up.
         if loop_error or run_result is None:
-            return LoopEvalResult(
+            result = LoopEvalResult(
                 fixture_name=fixture.name,
                 passed=False,
                 failure_reasons=[loop_error or "Loop returned no result."],
                 violations=list(llm_client.violations),
                 stopped_reason="error",
             )
+            result.classified_failures = _classify_loop_result(result)
+            return result
 
         result = LoopEvalResult(
             fixture_name=fixture.name,
@@ -195,6 +325,7 @@ class LoopModeEvalRunner:
             result.passed = False
             for v in llm_client.violations:
                 result.failure_reasons.append(f"LLM contract violation in {v.method}: {v.message}")
+            result.classified_failures = _classify_loop_result(result)
             return result
 
         state = run_result.state
@@ -220,6 +351,7 @@ class LoopModeEvalRunner:
                             f"Pending patch missing expected fragment: {fragment!r}"
                         )
 
+        result.classified_failures = _classify_loop_result(result)
         return result
 
     def run_all(self, fixtures: list[LoopEvalFixture]) -> list[LoopEvalResult]:
@@ -239,8 +371,15 @@ class LoopModeEvalRunner:
 
 
 def default_loop_fixtures() -> list[LoopEvalFixture]:
-    """Return two realistic scripted loop-mode eval fixtures."""
-    return [_docs_edit_fixture(), _python_function_fix_fixture()]
+    """Return six realistic scripted loop-mode eval fixtures (v2.9.0)."""
+    return [
+        _docs_edit_fixture(),
+        _python_function_fix_fixture(),
+        _config_update_fix_fixture(),
+        _test_assertion_fix_fixture(),
+        _shell_readonly_check_fixture(),
+        _import_cleanup_fixture(),
+    ]
 
 
 def _docs_edit_fixture() -> LoopEvalFixture:
@@ -331,4 +470,170 @@ def _python_function_fix_fixture() -> LoopEvalFixture:
         scripted_steps=[read_step, patch_step],
         expected_pending_patch=True,
         expected_patch_contains=["return a * b", "src/utils.py"],
+    )
+
+
+def _config_update_fix_fixture() -> LoopEvalFixture:
+    """Config update: agent reads a TOML config, proposes adding a timeout field."""
+    read_step = ScriptedStep(
+        tool_choice=AgentToolIntentResponse(
+            intent=ToolIntent(type="read", target=".sac/config.toml", description="Inspect project config"),
+            rationale="Read config to identify the missing timeout field.",
+        )
+    )
+    patch_step = ScriptedStep(
+        tool_choice=AgentToolIntentResponse(
+            intent=ToolIntent(
+                type="patch",
+                target=".sac/config.toml",
+                description="Add missing timeout_seconds to LLM config",
+                requires_approval=True,
+            ),
+            rationale="Propose config patch to add the timeout field.",
+        ),
+        patch_response=AgentPatchResponse(
+            patch_text=(
+                "*** Begin Patch\n"
+                "*** Update File: .sac/config.toml\n"
+                "@@\n"
+                "SEARCH:\n"
+                'provider = "mock"\n'
+                "REPLACE:\n"
+                'provider = "mock"\n'
+                "timeout_seconds = 30\n"
+                "*** End Patch"
+            ),
+            explanation="Scripted config update adding timeout_seconds.",
+        ),
+    )
+    return LoopEvalFixture(
+        name="config-update-fix",
+        goal="Add the missing timeout_seconds field to .sac/config.toml",
+        files={
+            ".sac/config.toml": '[llm]\nprovider = "mock"\n',
+        },
+        scripted_steps=[read_step, patch_step],
+        expected_pending_patch=True,
+        expected_patch_contains=["timeout_seconds", "config.toml"],
+    )
+
+
+def _test_assertion_fix_fixture() -> LoopEvalFixture:
+    """Test fix: agent reads a failing test, proposes correcting an off-by-one assertion."""
+    read_step = ScriptedStep(
+        tool_choice=AgentToolIntentResponse(
+            intent=ToolIntent(type="read", target="tests/test_math.py", description="Inspect failing test"),
+            rationale="Read the test to understand the wrong expected value.",
+        )
+    )
+    patch_step = ScriptedStep(
+        tool_choice=AgentToolIntentResponse(
+            intent=ToolIntent(
+                type="patch",
+                target="tests/test_math.py",
+                description="Fix off-by-one: expected value should be 6, not 5",
+                requires_approval=True,
+            ),
+            rationale="Propose patch to correct the test assertion.",
+        ),
+        patch_response=AgentPatchResponse(
+            patch_text=(
+                "*** Begin Patch\n"
+                "*** Update File: tests/test_math.py\n"
+                "@@\n"
+                "SEARCH:\n"
+                "    assert add(2, 3) == 5\n"
+                "REPLACE:\n"
+                "    assert add(2, 4) == 6\n"
+                "*** End Patch"
+            ),
+            explanation="Scripted fix for off-by-one test assertion.",
+        ),
+    )
+    return LoopEvalFixture(
+        name="test-assertion-fix",
+        goal="Fix the off-by-one error in the add() test in tests/test_math.py",
+        files={
+            "src/math_utils.py": "def add(a: int, b: int) -> int:\n    return a + b\n",
+            "tests/test_math.py": "from src.math_utils import add\n\ndef test_add():\n    assert add(2, 3) == 5\n",
+            ".sac/config.toml": '[llm]\nprovider = "mock"\n',
+        },
+        scripted_steps=[read_step, patch_step],
+        expected_pending_patch=True,
+        expected_patch_contains=["assert add", "test_math.py"],
+    )
+
+
+def _shell_readonly_check_fixture() -> LoopEvalFixture:
+    """Shell check: agent reads project state, stops for user (no patch expected)."""
+    read_step = ScriptedStep(
+        tool_choice=AgentToolIntentResponse(
+            intent=ToolIntent(type="read", target="README.md", description="Inspect README for project info"),
+            rationale="Read README before deciding on next action.",
+        )
+    )
+    stop_step = ScriptedStep(
+        tool_choice=AgentStopForUserResponse(
+            reason="needs_user_input",
+            message="Project README reviewed. Please confirm the target branch before proceeding.",
+            requires_approval=True,
+        ),
+    )
+    return LoopEvalFixture(
+        name="shell-readonly-check",
+        goal="Review the README and confirm next steps with the user",
+        files={
+            "README.md": "# My Project\n\nRun `sac doctor` to check your setup.\n",
+            ".sac/config.toml": '[llm]\nprovider = "mock"\n',
+        },
+        scripted_steps=[read_step, stop_step],
+        expected_pending_patch=False,
+    )
+
+
+def _import_cleanup_fixture() -> LoopEvalFixture:
+    """Import cleanup: agent reads a Python file with unused imports, proposes removing them."""
+    read_step = ScriptedStep(
+        tool_choice=AgentToolIntentResponse(
+            intent=ToolIntent(type="read", target="src/app.py", description="Inspect app module for unused imports"),
+            rationale="Read app.py to identify unused imports.",
+        )
+    )
+    patch_step = ScriptedStep(
+        tool_choice=AgentToolIntentResponse(
+            intent=ToolIntent(
+                type="patch",
+                target="src/app.py",
+                description="Remove unused import of os and sys",
+                requires_approval=True,
+            ),
+            rationale="Propose patch to remove unused imports.",
+        ),
+        patch_response=AgentPatchResponse(
+            patch_text=(
+                "*** Begin Patch\n"
+                "*** Update File: src/app.py\n"
+                "@@\n"
+                "SEARCH:\n"
+                "import os\n"
+                "import sys\n"
+                "\n"
+                "def run() -> None:\n"
+                "REPLACE:\n"
+                "def run() -> None:\n"
+                "*** End Patch"
+            ),
+            explanation="Scripted removal of unused imports.",
+        ),
+    )
+    return LoopEvalFixture(
+        name="import-cleanup",
+        goal="Remove unused imports from src/app.py",
+        files={
+            "src/app.py": "import os\nimport sys\n\ndef run() -> None:\n    print('hello')\n",
+            ".sac/config.toml": '[llm]\nprovider = "mock"\n',
+        },
+        scripted_steps=[read_step, patch_step],
+        expected_pending_patch=True,
+        expected_patch_contains=["import os", "src/app.py"],
     )

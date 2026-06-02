@@ -5,13 +5,26 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v2.8.10
+# Current Baseline - v2.9.0
 
 ## Status
-Implemented. Git baseline: tag `v2.7.9`. Local working version: `v2.8.10`.
+Implemented. Git baseline: tag `v2.8.10`. Local working version: `v2.9.0`.
 
 ## Stage
-`v2.8.x` Consolidation and CLI Honesty — v2.8.0–v2.8.10 implement the typed diagnostic substrate, migrate doctor/release/policy checks, split sandbox backend strategy, introduce typed pending-action objects, add MCP schema shim metadata, collapse the release help surface, sandbox CLI module split, subagent redaction at journal boundary, document shell exit-code honesty, deduplicate hook audit events, and establish a final v2.8 baseline after the out-of-order cleanup tags.
+`v2.9.x` Deterministic Evidence and Contract Preparation — v2.9.0 begins the evidence batch with fixture expansion, typed failure categories, and the `RecoverableContractFailure` type stub for bounded retry.
+
+## v2.9.0 (Agent Loop Fixture Expansion)
+`src/safecode/eval/loop_runner.py` and `tests/test_agent_loop_fixture_expansion.py` updated.
+
+Key additions:
+- Six realistic scripted fixtures in `default_loop_fixtures()` (was two): `docs-edit`, `python-function-fix`, `config-update-fix`, `test-assertion-fix`, `shell-readonly-check`, `import-cleanup`.
+- `LoopFailureCategory(str, Enum)`: `contract_violation`, `patch_missing`, `patch_content_mismatch`, `loop_error`, `unknown`.
+- `ClassifiedLoopFailure(frozen dataclass)`: `category`, `reason`, `as_dict()`.
+- `_classify_loop_result()` populates `LoopEvalResult.classified_failures` for every failing result.
+- `RecoverableContractFailure(frozen dataclass)` added as a value type for bounded retry (v2.9.1).
+- `ScriptedStep.first_fail_recoverable: bool = False` — backward-compatible field.
+- `ScriptedLLMClient` tracks `_pending_retry` to deliver the real tool choice after a recoverable failure.
+- 31 new tests in `tests/test_agent_loop_fixture_expansion.py`.
 
 ## v2.8.10 (Final v2.8 Baseline Sync)
 Metadata-only release marker after the v2.8.6/v2.8.7 cleanup landed on top of v2.8.8/v2.8.9.
