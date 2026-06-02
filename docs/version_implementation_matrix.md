@@ -349,6 +349,7 @@ Active plan: `docs/version-plans/v2.8-to-v3.0-product-architecture-roadmap.md`.
 | `v2.8.7` ✅ | `v2.8.7-subagent-finding-redaction-at-journal-boundary` | `src/safecode/subagents/journal_adapter.py`, `src/safecode/agent/loop.py` | producer-side redaction in `_event_to_finding()` (summary, observations, errors); consumer-side `RuntimeWarning` on producer gap; `sync_versions_json` sorts merged_tags by semver; 10 new tests; 2158 tests pass |
 | `v2.8.8` ✅ | `v2.8.8-shell-exit-code-honesty` | `src/safecode/cli_core.py`, `docs/install-update.md` | `sac run` returns 125 for approval-required and 126 for policy-blocked; `SAFECODE_RUN_LEGACY_EXIT_CODE=1` opt-out; 13 new tests |
 | `v2.8.9` ✅ | `v2.8.9-audit-and-hook-event-dedup` | `src/safecode/hooks/runner.py` | `hook_skipped_by_policy` no longer produces duplicate `hook_approval_required`; distinct event type; backward-compatible verification; 13 new tests |
+| `v2.8.10` ✅ | `v2.8.10-final-v28-baseline-sync` | `pyproject.toml`, `src/safecode/__init__.py`, `uv.lock`, `.claude/versions.json`, `.claude/skills/current/SKILL.md` | metadata-only final v2.8 baseline after out-of-order v2.8.6/v2.8.7 cleanup; package/runtime/current tag synchronized to v2.8.10 |
 
 ## v2.9.x: Deterministic Evidence and Contract Preparation (planned)
 

@@ -5,13 +5,22 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v2.8.7
+# Current Baseline - v2.8.10
 
 ## Status
-Implemented. Git baseline: tag `v2.7.9`. Local working version: `v2.8.7`.
+Implemented. Git baseline: tag `v2.7.9`. Local working version: `v2.8.10`.
 
 ## Stage
-`v2.8.x` Consolidation and CLI Honesty — v2.8.0–v2.8.9 implement the typed diagnostic substrate, migrate doctor/release/policy checks, split sandbox backend strategy, introduce typed pending-action objects, add MCP schema shim metadata, collapse the release help surface, sandbox CLI module split, subagent redaction at journal boundary, document shell exit-code honesty, and deduplicate hook audit events.
+`v2.8.x` Consolidation and CLI Honesty — v2.8.0–v2.8.10 implement the typed diagnostic substrate, migrate doctor/release/policy checks, split sandbox backend strategy, introduce typed pending-action objects, add MCP schema shim metadata, collapse the release help surface, sandbox CLI module split, subagent redaction at journal boundary, document shell exit-code honesty, deduplicate hook audit events, and establish a final v2.8 baseline after the out-of-order cleanup tags.
+
+## v2.8.10 (Final v2.8 Baseline Sync)
+Metadata-only release marker after the v2.8.6/v2.8.7 cleanup landed on top of v2.8.8/v2.8.9.
+
+Key additions:
+- Package/runtime version synchronized to `2.8.10`.
+- `.claude/versions.json` current tag and local version synchronized to `v2.8.10`.
+- `uv.lock` project version synchronized to `2.8.10`.
+- No runtime behavior changes.
 
 ## v2.8.7 (Subagent Finding Redaction at Journal Boundary)
 `src/safecode/subagents/journal_adapter.py` and `src/safecode/agent/loop.py` updated.
