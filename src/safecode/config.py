@@ -43,6 +43,13 @@ class LLMConfig(BaseModel):
     model: str = "gpt-4.1-mini"
     base_url: str = "https://api.openai.com/v1/chat/completions"
 
+    # Optional fallback provider activated on hard transport failures from the primary.
+    # Both primary and fallback are subject to the same network policy checks.
+    # Recoverable contract failures and policy blocks do not trigger the fallback.
+    fallback_provider: str | None = None
+    fallback_model: str | None = None
+    fallback_base_url: str | None = None
+
 
 class SafeCodeConfig(BaseModel):
     """Runtime configuration with safe defaults."""

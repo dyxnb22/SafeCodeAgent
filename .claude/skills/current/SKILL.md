@@ -5,15 +5,26 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v3.2.3
+# Current Baseline - v3.2.4
 
 ## Status
-Implemented. Git baseline: tag `v3.2.3`. Local working version: `v3.2.3`.
+Implemented. Git baseline: tag `v3.2.4`. Local working version: `v3.2.4`.
 
 ## Stage
-`v3.2.3` Anthropic Provider — adds `AnthropicLLMClient` with the `anthropic` factory key; implements the full 4-method contract plus `stream_chat()`; reuses retry, cost, streaming, and structured-output validation infrastructure. Provider behavior is experimental.
+`v3.2.4` Provider Fan-out Config — adds `fallback_provider/model/base_url` to `LLMConfig`; adds `FanOutLLMClient` in factory that routes `RuntimeError` from primary to fallback while preserving policy/contract gates; `_log_fanout` redacts prompts.
 
-Previous: v3.2.2 added `validate_provider_json()` for structured output validation; v3.2.1 added `stream_chat()` and SSE parsing; v3.2.0 added retry and cost accounting.
+Previous: v3.2.3 added `AnthropicLLMClient`; v3.2.2 added structured output validation; v3.2.1 added streaming; v3.2.0 added retry and cost accounting.
+
+## v3.2.4 (Provider Fan-out Config)
+`src/safecode/config.py`, `src/safecode/llm/factory.py` updated.
+
+Key additions:
+- `LLMConfig.fallback_provider: str | None = None`, `fallback_model`, `fallback_base_url`.
+- `FanOutLLMClient(primary, fallback=None)`: proxies `ask/plan/choose_tool/propose_patch`; on `RuntimeError` from primary → `_log_fanout` warning + fallback; `PermissionError`/`ValueError` propagate; `RecoverableContractFailure` (value) passes through.
+- `_log_fanout(method, exc)`: `RuntimeWarning` with method name + exception type only; no prompt/context content.
+- `_create_single_client(config)`: extracted from `create_llm_client` for reuse.
+- `create_llm_client` returns `FanOutLLMClient` when `fallback_provider` is set; fallback config has its own fallback fields cleared.
+- 24 new tests in `tests/test_llm_provider_fanout.py`.
 
 ## v3.2.3 (Anthropic Provider)
 `src/safecode/llm/anthropic_client.py` (new), `src/safecode/llm/factory.py` updated.
