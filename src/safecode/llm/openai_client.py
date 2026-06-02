@@ -19,7 +19,9 @@ from safecode.agent.schemas import (
     AgentPlanResponse,
     AgentStopForUserResponse,
     AgentToolIntentResponse,
+    RecoverableContractFailure,
     parse_agent_contract_response,
+    validate_provider_json,
 )
 from safecode.agent.prompts import SYSTEM_PROMPT
 from safecode.config import SafeCodeConfig
@@ -68,20 +70,33 @@ class OpenAICompatibleLLMClient:
             [
                 {"role": "system", "content": self._contract_prompt("plan")},
                 {"role": "user", "content": f"Goal: {goal}\nContext: {json.dumps(context)[:12000]}"},
-            ]
+            ],
+            method="plan",
         )
+        if isinstance(response, RecoverableContractFailure):
+            raise ValueError(f"Provider plan response failed validation: {response.message}")
         if not isinstance(response, AgentPlanResponse):
             raise ValueError(f"Expected plan response, got {response.type}.")
         return response
 
-    def choose_tool(self, goal: str, context: dict) -> AgentToolIntentResponse | AgentStopForUserResponse:
-        """Return the next structured tool intent or a user stop."""
+    def choose_tool(
+        self, goal: str, context: dict, *, step: int = 0
+    ) -> AgentToolIntentResponse | AgentStopForUserResponse | RecoverableContractFailure:
+        """Return the next structured tool intent, user stop, or a recoverable failure.
+
+        ``RecoverableContractFailure`` is returned (not raised) so the agent loop
+        can journal the event and retry exactly once without crashing.
+        """
         response = self._chat_agent_json(
             [
                 {"role": "system", "content": self._contract_prompt("tool_intent or stop_for_user")},
                 {"role": "user", "content": f"Goal: {goal}\nContext: {json.dumps(context)[:12000]}"},
-            ]
+            ],
+            step=step,
+            method="choose_tool",
         )
+        if isinstance(response, RecoverableContractFailure):
+            return response
         if not isinstance(response, (AgentToolIntentResponse, AgentStopForUserResponse)):
             raise ValueError(f"Expected tool_intent or stop_for_user response, got {response.type}.")
         return response
@@ -103,7 +118,11 @@ class OpenAICompatibleLLMClient:
         return AgentPatchResponse(patch_text=content, explanation="OpenAI-compatible patch response.")
 
     def _chat_agent_json(
-        self, messages: list[dict[str, str]]
+        self,
+        messages: list[dict[str, str]],
+        *,
+        step: int = 0,
+        method: str = "choose_tool",
     ) -> (
         AgentAnswer
         | AgentPlanResponse
@@ -111,8 +130,10 @@ class OpenAICompatibleLLMClient:
         | AgentPatchResponse
         | AgentStopForUserResponse
         | AgentError
+        | RecoverableContractFailure
     ):
-        return parse_agent_contract_response(self._chat(messages))
+        raw = self._chat(messages)
+        return validate_provider_json(raw, step=step, method=method)
 
     def _contract_prompt(self, expected_type: str) -> str:
         return (

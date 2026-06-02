@@ -89,6 +89,67 @@ AgentContractResponse = Annotated[
 
 _AGENT_CONTRACT_ADAPTER = TypeAdapter(AgentContractResponse)
 
+_REQUIRED_FIELDS_BY_TYPE: dict[str, frozenset[str]] = {
+    "answer": frozenset({"content"}),
+    "plan": frozenset({"goal", "steps"}),
+    "tool_intent": frozenset({"intent"}),
+    "patch": frozenset({"patch_text"}),
+    "stop_for_user": frozenset({"reason", "message"}),
+    "error": frozenset({"message"}),
+}
+
+
+def validate_provider_json(
+    raw: str | dict,
+    *,
+    step: int = 0,
+    method: str = "choose_tool",
+) -> "AgentContractResponse | RecoverableContractFailure":
+    """Parse and validate a provider JSON response.
+
+    Returns the parsed ``AgentContractResponse`` on success.
+    Returns ``RecoverableContractFailure`` for soft failures:
+      - invalid JSON
+      - top-level value is not an object
+      - missing ``type`` field
+      - missing required fields for the declared type
+      - wrong field types (Pydantic validation errors)
+
+    Hard ``LLMContractViolation``-class issues that indicate a fundamental
+    protocol mismatch still propagate as ``ValueError`` — callers that catch
+    this and want fail-closed behavior should let it propagate.
+    """
+    try:
+        data = _coerce_agent_json(raw)
+    except ValueError as exc:
+        return RecoverableContractFailure(step=step, method=method, message=str(exc))
+
+    response_type = data.get("type")
+    if not isinstance(response_type, str) or not response_type:
+        return RecoverableContractFailure(
+            step=step,
+            method=method,
+            message="Provider response missing required 'type' field.",
+        )
+
+    required = _REQUIRED_FIELDS_BY_TYPE.get(response_type, frozenset())
+    missing = required - data.keys()
+    if missing:
+        return RecoverableContractFailure(
+            step=step,
+            method=method,
+            message=f"Provider response type '{response_type}' missing fields: {sorted(missing)}.",
+        )
+
+    try:
+        return _AGENT_CONTRACT_ADAPTER.validate_python(data)
+    except ValidationError as exc:
+        return RecoverableContractFailure(
+            step=step,
+            method=method,
+            message=f"Provider response failed schema validation: {exc}",
+        )
+
 
 def parse_agent_contract_response(raw: str | dict) -> AgentContractResponse:
     """Parse and validate one structured agent response."""

@@ -5,15 +5,27 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v3.2.1
+# Current Baseline - v3.2.2
 
 ## Status
-Implemented. Git baseline: tag `v3.2.1`. Local working version: `v3.2.1`.
+Implemented. Git baseline: tag `v3.2.2`. Local working version: `v3.2.2`.
 
 ## Stage
-`v3.2.1` LLM Streaming — adds `src/safecode/llm/stream.py` with `StreamChunk`, `StreamResult`, `StreamError`, `aggregate_chunks()`, `parse_sse_line()`, `parse_sse_stream()`, and `SupportsStreaming` protocol. `OpenAICompatibleLLMClient` gains `stream_chat()` with injectable `_lines_fn` for tests. `MockLLMClient` gains a single-chunk `stream_chat()`. Provider streaming behavior remains experimental.
+`v3.2.2` Structured Output Validation — adds `validate_provider_json()` to `agent/schemas.py` that returns `RecoverableContractFailure` for invalid JSON, missing type, missing required fields, and Pydantic type errors. `_chat_agent_json` wired to use it; `choose_tool()` returns `RecoverableContractFailure` on soft failures.
 
-Previous: v3.2.0 added bounded retry with jitter and `SessionCostAccumulator`; v3.1.x added --json output and session resume.
+Previous: v3.2.1 added LLM streaming with `stream_chat()` and SSE parsing; v3.2.0 added bounded retry and cost accounting.
+
+## v3.2.2 (Structured Output Validation)
+`src/safecode/agent/schemas.py`, `src/safecode/llm/openai_client.py` updated.
+
+Key additions:
+- `validate_provider_json(raw, *, step, method)`: returns `AgentContractResponse | RecoverableContractFailure`. Soft failures (invalid JSON, missing type, missing required fields, Pydantic validation errors) return `RecoverableContractFailure`. Hard violations (structurally valid wrong type) raise `ValueError`.
+- `_REQUIRED_FIELDS_BY_TYPE`: maps each contract response type to its required field set.
+- `OpenAICompatibleLLMClient._chat_agent_json` uses `validate_provider_json` instead of `parse_agent_contract_response`.
+- `choose_tool()` returns `RecoverableContractFailure` on soft failures (agent loop handles retry).
+- `plan()` raises `ValueError` for soft failures (plan failures are not loop-retryable).
+- `parse_agent_contract_response` unchanged — existing callers unaffected.
+- 38 new tests in `tests/test_llm_structured_output.py`.
 
 ## v3.2.1 (LLM Streaming)
 `src/safecode/llm/stream.py` (new), `src/safecode/llm/openai_client.py`, `src/safecode/llm/mock.py` updated.
