@@ -5,13 +5,23 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v2.8.2
+# Current Baseline - v2.8.3
 
 ## Status
-Implemented. Git baseline: tag `v2.7.9`. Local working version: `v2.8.2`.
+Implemented. Git baseline: tag `v2.7.9`. Local working version: `v2.8.3`.
 
 ## Stage
-`v2.8.x` Consolidation and CLI Honesty — v2.8.0–v2.8.2 implement the typed diagnostic substrate, migrate doctor/release/policy checks, and split sandbox backend strategy from planner logic.
+`v2.8.x` Consolidation and CLI Honesty — v2.8.0–v2.8.3 implement the typed diagnostic substrate, migrate doctor/release/policy checks, split sandbox backend strategy, and introduce typed pending-action objects in the agent loop.
+
+## v2.8.3 (Agent Loop Typed Actions)
+`src/safecode/agent/pending_action.py` added. `src/safecode/agent/loop.py` updated.
+
+Key additions:
+- `StopForUserAction`, `PatchPendingAction`, `ToolPendingAction` dataclasses with `to_dict()` for session-state serialization.
+- `pending_action_from_dict()` reconstructs typed objects from stored dicts.
+- `render_pending_action()` for CLI rendering.
+- Loop no longer uses boolean stringification (`"true"`/`"false"`); `requires_approval` and `executable_now` are proper booleans.
+- 27 new tests in `tests/test_agent_loop_typed_actions.py`.
 
 ## v2.8.2 (Sandbox Backend Strategy Split)
 `src/safecode/sandbox/strategy.py` added. `src/safecode/sandbox/planner.py` updated.

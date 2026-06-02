@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from safecode.agent.orchestrator import AgentOrchestrator
+from safecode.agent.pending_action import PatchPendingAction, StopForUserAction, ToolPendingAction
 from safecode.agent.schemas import AgentStopForUserResponse, AgentToolIntentResponse
 from safecode.agent.session import AgentSessionState, AgentSessionStore
 from safecode.agent.tools import RoutedToolIntent, ToolIntentRouter
@@ -97,14 +98,14 @@ class AgentLoop:
         context = self._enrich_with_subagent_findings(state.session_id, context)
         tool_choice = self.llm_client.choose_tool(state.goal, context)
         if isinstance(tool_choice, AgentStopForUserResponse):
+            stop_action = StopForUserAction(
+                reason=tool_choice.reason,
+                message=tool_choice.message,
+                requires_approval=tool_choice.requires_approval,
+            )
             updated = state.model_copy(
                 update={
-                    "pending_action": {
-                        "type": tool_choice.type,
-                        "reason": tool_choice.reason,
-                        "message": tool_choice.message,
-                        "requires_approval": str(tool_choice.requires_approval).lower(),
-                    },
+                    "pending_action": stop_action.to_dict(),
                     "last_observation": tool_choice.message,
                     "status": "waiting_for_user",
                     "last_error": None,
@@ -133,12 +134,17 @@ class AgentLoop:
         if routed.route == "patch.propose" and not routed.executable_now:
             return self._execute_patch_proposal_step(plan_item, state, routed)
 
-        pending_action = {
-            **routed.intent.model_dump(exclude_none=True),
-            "route": routed.route,
-            "executable_now": str(routed.executable_now).lower(),
-            "reason": routed.reason,
-        }
+        tool_action = ToolPendingAction(
+            type=routed.intent.type,
+            route=routed.route,
+            executable_now=routed.executable_now,
+            requires_approval=routed.intent.requires_approval,
+            reason=routed.reason,
+            tool_name=routed.intent.tool_name or "",
+            description=routed.intent.description or "",
+            intent_fields=routed.intent.model_dump(exclude_none=True),
+        )
+        pending_action = tool_action.to_dict()
         observation = f"Step {state.current_step + 1}: {plan_item}"
         updated = state.model_copy(
             update={
@@ -309,14 +315,14 @@ class AgentLoop:
                 "can be created. Run 'sac apply' to review and apply it, or "
                 "'sac rollback' to discard it."
             )
-            pending_action: dict[str, object] = {
-                "type": "patch",
-                "route": routed.route,
-                "target": str(routed.intent.target or ""),
-                "requires_approval": "true",
-                "reason": "pending_patch_already_exists",
-                "pending_patch_path": str(pending_patch_path),
-            }
+            existing_patch_action = PatchPendingAction(
+                route=routed.route,
+                requires_approval=True,
+                reason="pending_patch_already_exists",
+                pending_patch_path=str(pending_patch_path),
+                target=str(routed.intent.target or ""),
+            )
+            pending_action: dict[str, object] = existing_patch_action.to_dict()
             updated = state.model_copy(
                 update={
                     "pending_action": pending_action,
@@ -338,13 +344,13 @@ class AgentLoop:
             edit_result = AgentOrchestrator(self.project_root, llm_client=self.llm_client).edit(state.goal)
         except Exception as exc:
             observation = f"Patch proposal failed: {exc}"
-            err_action: dict[str, object] = {
-                "type": "patch",
-                "route": routed.route,
-                "target": str(routed.intent.target or ""),
-                "requires_approval": "true",
-                "reason": "patch_proposal_failed",
-            }
+            failed_patch_action = PatchPendingAction(
+                route=routed.route,
+                requires_approval=True,
+                reason="patch_proposal_failed",
+                target=str(routed.intent.target or ""),
+            )
+            err_action: dict[str, object] = failed_patch_action.to_dict()
             updated = state.model_copy(
                 update={
                     "pending_action": err_action,
@@ -358,15 +364,15 @@ class AgentLoop:
             return AgentStepResult(state=saved, observation=observation, stopped_for_approval=False)
 
         patch_files = [block.file_path.as_posix() for block in edit_result.proposal.blocks]
-        pending_action = {
-            "type": "patch",
-            "route": routed.route,
-            "patch_id": edit_result.proposal.id,
-            "pending_patch_path": str(edit_result.pending_patch_path),
-            "files": patch_files,
-            "requires_approval": "true",
-            "reason": "patch_proposal_awaiting_approval",
-        }
+        approved_patch_action = PatchPendingAction(
+            route=routed.route,
+            requires_approval=True,
+            reason="patch_proposal_awaiting_approval",
+            patch_id=edit_result.proposal.id,
+            pending_patch_path=str(edit_result.pending_patch_path),
+            files=tuple(patch_files),
+        )
+        pending_action = approved_patch_action.to_dict()
         observation = (
             f"Patch proposal created: {edit_result.pending_patch_path.name} "
             f"(patch_id={edit_result.proposal.id}). "

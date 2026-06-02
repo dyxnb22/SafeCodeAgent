@@ -61,7 +61,7 @@ class TestAgentLoopPatchPath:
         action = result.state.pending_action
         assert action is not None
         assert action["type"] == "patch"
-        assert action.get("requires_approval") == "true"
+        assert action.get("requires_approval") is True
         assert "pending_patch_path" in action
         assert "patch_id" in action
 

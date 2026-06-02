@@ -104,7 +104,7 @@ class TestAgentStep:
         assert data["current_step"] == 1
         assert data["pending_action"]["type"] == "read"
         assert data["pending_action"]["route"] == "context.read"
-        assert data["pending_action"]["executable_now"] == "true"
+        assert data["pending_action"]["executable_now"] is True
 
 
 class TestAgentRun:
