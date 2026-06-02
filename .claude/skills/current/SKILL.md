@@ -5,13 +5,23 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v2.9.2
+# Current Baseline - v2.9.3
 
 ## Status
-Implemented. Git baseline: tag `v2.9.1`. Local working version: `v2.9.2`.
+Implemented. Git baseline: tag `v2.9.2`. Local working version: `v2.9.3`.
 
 ## Stage
-`v2.9.x` Deterministic Evidence and Contract Preparation — v2.9.0 expanded loop fixtures and added typed failure categories; v2.9.1 adds one bounded retry for recoverable contract-shaped failures; v2.9.2 adds deterministic typed trace snapshots for all six loop fixtures.
+`v2.9.x` Deterministic Evidence and Contract Preparation — v2.9.0 expanded loop fixtures and added typed failure categories; v2.9.1 adds one bounded retry for recoverable contract-shaped failures; v2.9.2 adds deterministic typed trace snapshots for all six loop fixtures; v2.9.3 adds loop eval as an advisory CI job.
+
+## v2.9.3 (Eval Loop Mode CI Gate)
+`.github/workflows/ci.yml`, `pyproject.toml`, and `tests/test_eval_loop_mode_ci_gate.py` updated.
+
+Key additions:
+- New `loop-eval` job in CI: runs `sac eval --mode loop` on every push/PR.
+- `continue-on-error: true` — advisory initially (will be made blocking after one clean cycle).
+- No live provider credentials or network calls required by the job.
+- `pyyaml>=6.0.0` added to dev dependencies so test_eval_loop_mode_ci_gate.py can parse the workflow.
+- 13 new tests in `tests/test_eval_loop_mode_ci_gate.py`: job presence, advisory flag, no credentials, CLI output checks.
 
 ## v2.9.2 (Eval Replay Baseline Snapshot)
 `src/safecode/eval/loop_runner.py`, `tests/snapshots/loop/` (6 JSON files), and `tests/test_eval_replay_baseline_snapshot.py` updated.
