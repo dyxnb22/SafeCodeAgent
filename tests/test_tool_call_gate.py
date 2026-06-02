@@ -267,7 +267,7 @@ class TestCLIGateImports:
         assert hasattr(m, "ToolCallGate")
 
     def test_cli_sandbox_imports_gate(self):
-        import safecode.cli_sandbox as m
+        import safecode.cli_sandbox_proposal as m
 
         assert hasattr(m, "ToolCallGate")
 

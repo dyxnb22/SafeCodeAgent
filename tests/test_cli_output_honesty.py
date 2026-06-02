@@ -64,7 +64,7 @@ class TestSandboxStatusHonesty:
     """sandbox status must clearly communicate execution scope."""
 
     def _invoke_status(self):
-        with patch("safecode.cli_sandbox.SandboxPlanner") as mock_cls:
+        with patch("safecode.cli_sandbox_status.SandboxPlanner") as mock_cls:
             mock_planner = MagicMock()
             mock_planner.plan.return_value = _make_sandbox_plan_with_all_backends()
             mock_cls.return_value = mock_planner
@@ -113,7 +113,7 @@ class TestSandboxPlanHonesty:
     """sandbox plan must surface backend mode prominently in the plan table."""
 
     def _invoke_plan_with_backend(self, backend: SandboxBackend):
-        with patch("safecode.cli_sandbox.SandboxAdapterFactory") as mock_cls:
+        with patch("safecode.cli_sandbox_status.SandboxAdapterFactory") as mock_cls:
             mock_factory = MagicMock()
             mock_factory.create_plan.return_value = _make_exec_plan(backend)
             mock_cls.return_value = mock_factory
