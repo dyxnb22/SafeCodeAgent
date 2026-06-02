@@ -5,13 +5,13 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v2.7.9
+# Current Baseline - v2.8.1
 
 ## Status
-Implemented. Git baseline: tag `v2.7.9`.
+Implemented. Git baseline: tag `v2.7.9`. Local working version: `v2.8.1`.
 
 ## Stage
-`v2.7.x` Consolidation — v2.7.0–v2.7.9: audit consolidation, hook approval project binding, versions-json sync, subagent finding redaction/logging, release surface honesty lite, quickstart command, CLI help surface trim, agent loop stub eval mode, versions governance preflight, release surface collapse lite.
+`v2.8.x` Consolidation and CLI Honesty — v2.8.0–v2.8.1 implement the typed diagnostic substrate and migrate doctor/release/policy internal checks to emit it while preserving the legacy CLI surface and dataclass shapes.
 
 ## Active Forward Plan
 The active plan for v2.8.x, v2.9.x, and v3.0.0 is `docs/version-plans/v2.8-to-v3.0-product-architecture-roadmap.md`.
@@ -21,6 +21,26 @@ Planning stance:
 - v2.9.x is deterministic evidence and contract preparation: loop fixture expansion, bounded retry, replay snapshots, CI gate, MCP static schema classification/arg validation, subagent payload versioning, local ToolSpec versioning, and narrowed contract snapshots.
 - v3.0.0 is a stable local safety runtime release, not a broad freeze of every experimental API. Freeze documented config, pending patch, audit, sandbox lifecycle, local tool registry, eval trace, and recommended CLI workflow contracts. Keep `SafeCodeLocalAPI` beyond `ask()`/`report()`, live-provider LLM behavior, MCP schema shim, subagent payload evolution, TUI, and IDE surfaces explicitly experimental.
 - Prefer the next short user-visible batch: v2.8.5 `release-surface-collapse-full`, v2.8.8 `shell-exit-code-honesty`, then v2.8.9 `audit-and-hook-event-dedup`.
+
+## v2.8.1 (Diagnostic Migration: Doctor + Release + Policy)
+`src/safecode/doctor.py`, `src/safecode/release/check.py`, `src/safecode/release/smoke.py`, `src/safecode/release/preflight.py`, `src/safecode/release/signoff.py`, `src/safecode/policy/audit.py` updated.
+
+Key additions:
+- `Doctor.run_diagnostics(*, release=False)` returns `list[Diagnostic]`; `Doctor.run()` remains backward-compatible.
+- `ReleaseCheckResult.to_diagnostics()`, `SmokeTestResult.to_diagnostics()`, `SmokeTestCase.to_diagnostic()`, `collect_smoke_diagnostics()`, `ReleasePreflightResult.to_diagnostics()`, `ReleaseSignoffResult.to_diagnostics()`, `PolicyAuditResult.to_diagnostics()` expose typed views.
+- Unknown git state in release check surfaces as `SKIP`, not `FAIL`.
+- 18 new tests in `tests/test_diagnostic_migration.py` covering cross-substrate aggregation, round-trip with legacy shapes, and error propagation.
+
+## v2.8.0 (Diagnostic Core)
+`src/safecode/core/__init__.py` and `src/safecode/core/diagnostic.py` added.
+
+Key additions:
+- `DiagnosticStatus` enum: `PASS`, `FAIL`, `WARN`, `SKIP` (str-Enum, JSON-friendly).
+- `Diagnostic` frozen dataclass: `name`, `status`, `message`, `hints` (tuple[str, ...]), `metadata` (Mapping). `Diagnostic.from_bool()` migrates legacy boolean checks; `as_dict()` and `render_line()` for rendering.
+- `DiagnosticGroup` frozen dataclass: `name`, `diagnostics`; exposes `status`, `passed`, `failed_diagnostics`, `warnings`, `skipped`, `render_lines()`, `as_dict()`.
+- `aggregate_status()` returns worst severity (PASS < SKIP < WARN < FAIL). `all_passed()` returns True only when every diagnostic is PASS; empty input passes.
+- 32 new tests in `tests/test_core_diagnostic.py`.
+- Pure substrate: no CLI, file IO, or policy decisions.
 
 ## v2.7.9 (Release Surface Collapse Lite)
 `src/safecode/release/signoff.py` and `src/safecode/release/checklist.py` updated. `docs/install-update.md` updated.

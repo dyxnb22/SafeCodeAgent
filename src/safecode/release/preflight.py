@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
 
+from safecode.core.diagnostic import Diagnostic
 from safecode.release.check import ReleaseCheckResult, run_release_check
 from safecode.release.docs_guard import DocsGuardResult, check_docs_finalized
 from safecode.release.metadata import ReleaseMetadata, collect_release_metadata
@@ -34,6 +35,50 @@ class ReleasePreflightResult:
             and self.docs.ok
             and governance_ok
         )
+
+    def to_diagnostics(self) -> list[Diagnostic]:
+        """Return one Diagnostic per top-level preflight component.
+
+        These are coarse-grained component diagnostics. Use the underlying
+        substrate's `to_diagnostics()` / `collect_smoke_diagnostics()` for
+        finer breakdowns.
+        """
+        diagnostics: list[Diagnostic] = [
+            Diagnostic.from_bool(
+                "release_check",
+                self.release_check.ok,
+                "release check passed"
+                if self.release_check.ok
+                else self.release_check.tree_detail,
+            ),
+            Diagnostic.from_bool(
+                "smoke",
+                self.smoke.ok,
+                "smoke passed"
+                if self.smoke.ok
+                else ", ".join(case.name for case in self.smoke.failed),
+            ),
+            Diagnostic.from_bool(
+                "metadata",
+                self.metadata.ok,
+                "metadata ok" if self.metadata.ok else "; ".join(self.metadata.issues),
+            ),
+            Diagnostic.from_bool(
+                "docs",
+                self.docs.ok,
+                "docs ok" if self.docs.ok else "; ".join(self.docs.issues),
+            ),
+        ]
+        if self.versions_governance is not None:
+            gov = self.versions_governance
+            diagnostics.append(
+                Diagnostic.from_bool(
+                    "versions_governance",
+                    gov.ok,
+                    "governance ok" if gov.ok else "; ".join(gov.issues),
+                )
+            )
+        return diagnostics
 
 
 def run_release_preflight(

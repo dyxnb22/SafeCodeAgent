@@ -339,8 +339,8 @@ Active plan: `docs/version-plans/v2.8-to-v3.0-product-architecture-roadmap.md`.
 
 | 版本 | 分支 | 主要入口 | 验收命令 |
 |---|---|---|---|
-| `v2.8.0` | `v2.8.0-diagnostic-core` | `src/safecode/core/diagnostic.py` | Diagnostic model/status/aggregation/renderer exists; no user-facing behavior change yet |
-| `v2.8.1` | `v2.8.1-diagnostic-migration-doctor-release` | `src/safecode/doctor.py`, `src/safecode/release/*`, `src/safecode/policy/audit.py` | doctor/release checks emit diagnostics internally while CLI compatibility is preserved |
+| `v2.8.0` ✅ | `v2.8.0-diagnostic-core` | `src/safecode/core/diagnostic.py` | `Diagnostic` / `DiagnosticGroup` / `DiagnosticStatus` (PASS/FAIL/WARN/SKIP) + `aggregate_status`/`all_passed`; 32 new tests in `tests/test_core_diagnostic.py`; no user-facing CLI change |
+| `v2.8.1` ✅ | `v2.8.1-diagnostic-migration-doctor-release` | `src/safecode/doctor.py`, `src/safecode/release/check.py`, `src/safecode/release/smoke.py`, `src/safecode/release/preflight.py`, `src/safecode/release/signoff.py`, `src/safecode/policy/audit.py` | `to_diagnostics()` / `run_diagnostics()` / `collect_smoke_diagnostics()` produce typed diagnostics; legacy `DoctorCheck`/`SmokeTestCase`/`ReleaseCheckResult` shapes preserved; CLI output unchanged; 18 new tests in `tests/test_diagnostic_migration.py` |
 | `v2.8.2` | `v2.8.2-sandbox-backend-strategy-split` | `src/safecode/sandbox/`, `src/safecode/cli_sandbox.py` | backend detection/recommendation separated from proposal/execution logic; sandbox tests pass |
 | `v2.8.3` | `v2.8.3-agent-loop-typed-actions` | `src/safecode/agent/loop.py` | pending agent actions become typed objects; CLI owns rendering |
 | `v2.8.4` | `v2.8.4-mcp-shim-schema-prep` | `src/safecode/mcp/` | typed MCP metadata prep with keyword fallback unchanged when schema is absent |

@@ -1,5 +1,7 @@
 """Environment checks for install and update polish."""
 
+from __future__ import annotations
+
 import os
 import shutil
 import sys
@@ -7,15 +9,34 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from safecode import __version__
+from safecode.core.diagnostic import Diagnostic, DiagnosticStatus
 
 
 @dataclass(frozen=True)
 class DoctorCheck:
-    """One doctor check."""
+    """One doctor check (backward-compatible legacy shape)."""
 
     name: str
     passed: bool
     detail: str
+
+    def to_diagnostic(self) -> Diagnostic:
+        """Return the typed Diagnostic view of this check."""
+        return Diagnostic.from_bool(self.name, self.passed, self.detail)
+
+
+def _from_diagnostic(diagnostic: Diagnostic) -> DoctorCheck:
+    """Render a Diagnostic as the legacy boolean DoctorCheck shape.
+
+    SKIP and WARN both map to passed=False for the legacy view because the
+    historical CLI surface uses a single passed bool. Internal callers should
+    prefer `Doctor.run_diagnostics()` when they need PASS/FAIL/WARN/SKIP.
+    """
+    return DoctorCheck(
+        name=diagnostic.name,
+        passed=diagnostic.status is DiagnosticStatus.PASS,
+        detail=diagnostic.message,
+    )
 
 
 class Doctor:
@@ -24,31 +45,71 @@ class Doctor:
     def __init__(self, project_root: Path) -> None:
         self.project_root = project_root
 
-    def run(self, *, release: bool = False) -> list[DoctorCheck]:
-        """Run environment checks, optionally including release diagnostics."""
-        checks = [
-            DoctorCheck("python", sys.version_info >= (3, 11), sys.version.split()[0]),
-            DoctorCheck("uv", shutil.which("uv") is not None, shutil.which("uv") or "not found"),
-            DoctorCheck("project_root", self.project_root.exists(), str(self.project_root)),
-            DoctorCheck("pyproject", (self.project_root / "pyproject.toml").exists(), "pyproject.toml"),
-            DoctorCheck("config", (self.project_root / ".sac" / "config.toml").exists(), ".sac/config.toml"),
-            DoctorCheck("sac_dir", (self.project_root / ".sac").exists(), ".sac"),
-            DoctorCheck("approval_dir", bool(os.getenv("SAFECODE_APPROVAL_DIR")), os.getenv("SAFECODE_APPROVAL_DIR", "not set")),
-            DoctorCheck(
+    def run_diagnostics(self, *, release: bool = False) -> list[Diagnostic]:
+        """Return typed diagnostics (v2.8.x substrate)."""
+        approval_dir = os.getenv("SAFECODE_APPROVAL_DIR")
+        sandbox_dir = os.getenv("SAFECODE_SANDBOX_APPROVAL_DIR")
+        diagnostics: list[Diagnostic] = [
+            Diagnostic.from_bool(
+                "python",
+                sys.version_info >= (3, 11),
+                sys.version.split()[0],
+            ),
+            Diagnostic.from_bool(
+                "uv",
+                shutil.which("uv") is not None,
+                shutil.which("uv") or "not found",
+            ),
+            Diagnostic.from_bool(
+                "project_root",
+                self.project_root.exists(),
+                str(self.project_root),
+            ),
+            Diagnostic.from_bool(
+                "pyproject",
+                (self.project_root / "pyproject.toml").exists(),
+                "pyproject.toml",
+            ),
+            Diagnostic.from_bool(
+                "config",
+                (self.project_root / ".sac" / "config.toml").exists(),
+                ".sac/config.toml",
+            ),
+            Diagnostic.from_bool(
+                "sac_dir",
+                (self.project_root / ".sac").exists(),
+                ".sac",
+            ),
+            Diagnostic.from_bool(
+                "approval_dir",
+                bool(approval_dir),
+                approval_dir or "not set",
+            ),
+            Diagnostic.from_bool(
                 "sandbox_approval_dir",
-                bool(os.getenv("SAFECODE_SANDBOX_APPROVAL_DIR")),
-                os.getenv("SAFECODE_SANDBOX_APPROVAL_DIR", "not set"),
+                bool(sandbox_dir),
+                sandbox_dir or "not set",
             ),
         ]
         if release:
-            checks.extend(self.run_release())
-        return checks
+            diagnostics.extend(self.run_release_diagnostics())
+        return diagnostics
 
-    def run_release(self) -> list[DoctorCheck]:
+    def run(self, *, release: bool = False) -> list[DoctorCheck]:
+        """Run environment checks, optionally including release diagnostics.
+
+        Preserves the legacy DoctorCheck list shape used by `sac doctor`.
+        """
+        return [_from_diagnostic(d) for d in self.run_diagnostics(release=release)]
+
+    def run_release_diagnostics(self) -> list[Diagnostic]:
         """Run release diagnostics without mutating the checkout."""
         from safecode.release.docs_guard import check_docs_finalized
         from safecode.release.preflight import run_release_preflight
-        from safecode.release.version_guard import check_tag_consistency, check_version_consistency
+        from safecode.release.version_guard import (
+            check_tag_consistency,
+            check_version_consistency,
+        )
 
         version = check_version_consistency(
             pyproject_path=self.project_root / "pyproject.toml",
@@ -59,24 +120,20 @@ class Doctor:
         preflight = run_release_preflight(self.project_root)
 
         return [
-            DoctorCheck(
-                "release_version",
-                version.ok,
-                version.message,
-            ),
-            DoctorCheck(
-                "release_tag",
-                tag.consistent,
-                tag.message,
-            ),
-            DoctorCheck(
+            Diagnostic.from_bool("release_version", version.ok, version.message),
+            Diagnostic.from_bool("release_tag", tag.consistent, tag.message),
+            Diagnostic.from_bool(
                 "release_docs",
                 docs.ok,
                 "docs finalized" if docs.ok else "; ".join(docs.issues),
             ),
-            DoctorCheck(
+            Diagnostic.from_bool(
                 "release_preflight",
                 preflight.ok,
                 "preflight passed" if preflight.ok else "preflight needs attention",
             ),
         ]
+
+    def run_release(self) -> list[DoctorCheck]:
+        """Return release diagnostics in the legacy DoctorCheck shape."""
+        return [_from_diagnostic(d) for d in self.run_release_diagnostics()]

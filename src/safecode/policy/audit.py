@@ -13,6 +13,7 @@ from safecode.config import (
     is_known_policy_name,
     normalize_policy_name,
 )
+from safecode.core.diagnostic import Diagnostic
 
 
 @dataclass(frozen=True)
@@ -29,6 +30,33 @@ class PolicyAuditResult:
     @property
     def ok(self) -> bool:
         return not self.issues
+
+    def to_diagnostics(self) -> list[Diagnostic]:
+        """Return typed diagnostics describing this audit."""
+        return [
+            Diagnostic.from_bool(
+                "policy_known_names",
+                bool(self.known_names),
+                ", ".join(self.known_names),
+            ),
+            Diagnostic.from_bool(
+                "policy_aliases",
+                self.aliases_ok,
+                "aliases normalised" if self.aliases_ok else "aliases broken",
+            ),
+            Diagnostic.from_bool(
+                "policy_preset_invariants",
+                self.preset_invariants_ok,
+                "preset invariants ok"
+                if self.preset_invariants_ok
+                else "preset invariants broken",
+            ),
+            Diagnostic.from_bool(
+                "policy_audit",
+                self.ok,
+                "policy audit passed" if self.ok else "; ".join(self.issues),
+            ),
+        ]
 
 
 def _read_project_policy(project_root: Path) -> str | None:

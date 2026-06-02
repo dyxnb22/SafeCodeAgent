@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from safecode.core.diagnostic import Diagnostic
 from safecode.release.ux import header, next_steps
 
 
@@ -14,11 +15,24 @@ EXPECTED_POLICY_NAMES: frozenset[str] = frozenset(
 
 @dataclass(frozen=True)
 class SmokeTestCase:
-    """One smoke-test result."""
+    """One smoke-test result (legacy-shape view)."""
 
     name: str
     passed: bool
     detail: str
+
+    def to_diagnostic(self) -> Diagnostic:
+        """Return the typed Diagnostic for this smoke case."""
+        return Diagnostic.from_bool(self.name, self.passed, self.detail)
+
+
+def _from_diagnostic(diagnostic: Diagnostic) -> SmokeTestCase:
+    """Render a Diagnostic in the legacy SmokeTestCase shape."""
+    return SmokeTestCase(
+        name=diagnostic.name,
+        passed=diagnostic.passed,
+        detail=diagnostic.message,
+    )
 
 
 @dataclass
@@ -35,85 +49,130 @@ class SmokeTestResult:
     def failed(self) -> list[SmokeTestCase]:
         return [c for c in self.cases if not c.passed]
 
+    def to_diagnostics(self) -> list[Diagnostic]:
+        """Return typed diagnostics for each smoke case."""
+        return [case.to_diagnostic() for case in self.cases]
 
-def _check_import_version() -> SmokeTestCase:
+
+def _diag_import_version() -> Diagnostic:
     try:
         import safecode
         v = safecode.__version__
         if not isinstance(v, str) or not v:
-            return SmokeTestCase("import_version", False, f"__version__ is not a non-empty string: {v!r}")
-        return SmokeTestCase("import_version", True, f"safecode.__version__ = {v!r}")
+            return Diagnostic.from_bool(
+                "import_version", False, f"__version__ is not a non-empty string: {v!r}"
+            )
+        return Diagnostic.from_bool(
+            "import_version", True, f"safecode.__version__ = {v!r}"
+        )
     except Exception as exc:  # noqa: BLE001
-        return SmokeTestCase("import_version", False, f"import failed: {exc}")
+        return Diagnostic.from_bool("import_version", False, f"import failed: {exc}")
 
 
-def _check_cli_version() -> SmokeTestCase:
+def _diag_cli_version() -> Diagnostic:
     try:
         from typer.testing import CliRunner
         from safecode.cli import app
         result = CliRunner().invoke(app, ["version"])
         if result.exit_code != 0:
-            return SmokeTestCase("cli_version", False, f"exit_code={result.exit_code}: {result.output.strip()}")
+            return Diagnostic.from_bool(
+                "cli_version", False,
+                f"exit_code={result.exit_code}: {result.output.strip()}",
+            )
         import safecode
         if safecode.__version__ not in result.output:
-            return SmokeTestCase(
+            return Diagnostic.from_bool(
                 "cli_version", False,
-                f"__version__ {safecode.__version__!r} not in CLI output: {result.output.strip()!r}"
+                f"__version__ {safecode.__version__!r} not in CLI output: {result.output.strip()!r}",
             )
-        return SmokeTestCase("cli_version", True, f"sac version → exit 0, version present")
+        return Diagnostic.from_bool(
+            "cli_version", True, "sac version → exit 0, version present"
+        )
     except Exception as exc:  # noqa: BLE001
-        return SmokeTestCase("cli_version", False, f"CLI invocation failed: {exc}")
+        return Diagnostic.from_bool("cli_version", False, f"CLI invocation failed: {exc}")
 
 
-def _check_version_consistency() -> SmokeTestCase:
+def _diag_version_consistency() -> Diagnostic:
     try:
         from safecode.release.version_guard import check_version_consistency
         result = check_version_consistency()
-        if result.ok:
-            return SmokeTestCase("version_consistency", True, result.message)
-        return SmokeTestCase("version_consistency", False, result.message)
+        return Diagnostic.from_bool("version_consistency", result.ok, result.message)
     except Exception as exc:  # noqa: BLE001
-        return SmokeTestCase("version_consistency", False, f"check raised: {exc}")
+        return Diagnostic.from_bool(
+            "version_consistency", False, f"check raised: {exc}"
+        )
 
 
-def _check_docs_finalized() -> SmokeTestCase:
+def _diag_docs_finalized() -> Diagnostic:
     try:
         import safecode
         from safecode.release.docs_guard import check_docs_finalized
         result = check_docs_finalized(safecode.__version__)
         if result.ok:
-            return SmokeTestCase("docs_finalized", True, f"docs finalized for v{safecode.__version__}")
-        summary = "; ".join(result.issues)
-        return SmokeTestCase("docs_finalized", False, summary)
+            return Diagnostic.from_bool(
+                "docs_finalized", True, f"docs finalized for v{safecode.__version__}"
+            )
+        return Diagnostic.from_bool("docs_finalized", False, "; ".join(result.issues))
     except Exception as exc:  # noqa: BLE001
-        return SmokeTestCase("docs_finalized", False, f"check raised: {exc}")
+        return Diagnostic.from_bool("docs_finalized", False, f"check raised: {exc}")
 
 
-def _check_policy_names() -> SmokeTestCase:
+def _diag_policy_names() -> Diagnostic:
     try:
         from safecode.config import KNOWN_POLICY_NAMES
         missing = EXPECTED_POLICY_NAMES - KNOWN_POLICY_NAMES
         if missing:
-            return SmokeTestCase(
+            return Diagnostic.from_bool(
                 "policy_names", False,
-                f"KNOWN_POLICY_NAMES is missing: {sorted(missing)}"
+                f"KNOWN_POLICY_NAMES is missing: {sorted(missing)}",
             )
-        return SmokeTestCase(
+        return Diagnostic.from_bool(
             "policy_names", True,
-            f"all expected policy names present: {sorted(EXPECTED_POLICY_NAMES)}"
+            f"all expected policy names present: {sorted(EXPECTED_POLICY_NAMES)}",
         )
     except Exception as exc:  # noqa: BLE001
-        return SmokeTestCase("policy_names", False, f"import failed: {exc}")
+        return Diagnostic.from_bool("policy_names", False, f"import failed: {exc}")
+
+
+# Backward-compatible wrappers — preserved so any external import of the
+# `_check_*` helpers continues to function. Internally we route through the
+# Diagnostic substrate.
+def _check_import_version() -> SmokeTestCase:
+    return _from_diagnostic(_diag_import_version())
+
+
+def _check_cli_version() -> SmokeTestCase:
+    return _from_diagnostic(_diag_cli_version())
+
+
+def _check_version_consistency() -> SmokeTestCase:
+    return _from_diagnostic(_diag_version_consistency())
+
+
+def _check_docs_finalized() -> SmokeTestCase:
+    return _from_diagnostic(_diag_docs_finalized())
+
+
+def _check_policy_names() -> SmokeTestCase:
+    return _from_diagnostic(_diag_policy_names())
+
+
+def collect_smoke_diagnostics() -> list[Diagnostic]:
+    """Return typed diagnostics for each smoke case (v2.8.x substrate)."""
+    return [
+        _diag_import_version(),
+        _diag_cli_version(),
+        _diag_version_consistency(),
+        _diag_policy_names(),
+        _diag_docs_finalized(),
+    ]
 
 
 def run_smoke_tests() -> SmokeTestResult:
     """Run all release smoke tests and return the aggregated result."""
     result = SmokeTestResult()
-    result.cases.append(_check_import_version())
-    result.cases.append(_check_cli_version())
-    result.cases.append(_check_version_consistency())
-    result.cases.append(_check_policy_names())
-    result.cases.append(_check_docs_finalized())
+    for diag in collect_smoke_diagnostics():
+        result.cases.append(_from_diagnostic(diag))
     return result
 
 

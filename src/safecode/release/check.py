@@ -6,6 +6,7 @@ import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from safecode.core.diagnostic import Diagnostic, DiagnosticStatus
 from safecode.release.version_guard import (
     TagConsistencyResult,
     VersionConsistencyResult,
@@ -33,6 +34,47 @@ class ReleaseCheckResult:
     def ok(self) -> bool:
         tag_ok = self.tag_result is None or self.tag_result.consistent
         return self.version_consistent and (self.tree_clean is not False) and tag_ok
+
+    def to_diagnostics(self) -> list[Diagnostic]:
+        """Return typed diagnostics describing this release check."""
+        diagnostics: list[Diagnostic] = [
+            Diagnostic.from_bool(
+                "release_check_version",
+                self.version_consistent,
+                self.version_message,
+            ),
+        ]
+        if self.tree_clean is None:
+            diagnostics.append(
+                Diagnostic(
+                    name="release_check_tree",
+                    status=DiagnosticStatus.SKIP,
+                    message=self.tree_detail,
+                )
+            )
+        else:
+            diagnostics.append(
+                Diagnostic.from_bool(
+                    "release_check_tree", self.tree_clean, self.tree_detail
+                )
+            )
+        if self.tag_result is not None:
+            tag = self.tag_result
+            if not tag.tag_available:
+                diagnostics.append(
+                    Diagnostic(
+                        name="release_check_tag",
+                        status=DiagnosticStatus.SKIP,
+                        message=tag.message,
+                    )
+                )
+            else:
+                diagnostics.append(
+                    Diagnostic.from_bool(
+                        "release_check_tag", tag.consistent, tag.message
+                    )
+                )
+        return diagnostics
 
 
 _UNSET = object()  # sentinel for auto-detecting git tag

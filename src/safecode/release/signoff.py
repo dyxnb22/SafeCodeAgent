@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from safecode.core.diagnostic import Diagnostic
 from safecode.release.check import ReleaseCheckResult, run_release_check
 from safecode.release.preflight import ReleasePreflightResult, run_release_preflight
 from safecode.release.ux import header, next_steps
@@ -23,6 +24,29 @@ class ReleaseSignoffResult:
     def ok(self) -> bool:
         expected_tag = f"v{self.version}"
         return self.exact_tag == expected_tag and self.release_check.ok and self.preflight.ok
+
+    def to_diagnostics(self) -> list[Diagnostic]:
+        """Return typed diagnostics for the signoff aggregate."""
+        expected_tag = f"v{self.version}"
+        return [
+            Diagnostic.from_bool(
+                "signoff_exact_tag",
+                self.exact_tag == expected_tag,
+                f"exact tag {self.exact_tag or '(none)'} vs expected {expected_tag}",
+            ),
+            Diagnostic.from_bool(
+                "signoff_release_check",
+                self.release_check.ok,
+                "release check passed"
+                if self.release_check.ok
+                else self.release_check.tree_detail,
+            ),
+            Diagnostic.from_bool(
+                "signoff_preflight",
+                self.preflight.ok,
+                "preflight passed" if self.preflight.ok else "preflight needs attention",
+            ),
+        ]
 
 
 def run_release_signoff(project_root: Path | None = None) -> ReleaseSignoffResult:
