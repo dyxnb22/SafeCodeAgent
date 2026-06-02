@@ -5,15 +5,25 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v3.2.4
+# Current Baseline - v3.2.5
 
 ## Status
-Implemented. Git baseline: tag `v3.2.4`. Local working version: `v3.2.4`.
+Implemented. Git baseline: tag `v3.2.5`. Local working version: `v3.2.5`.
 
 ## Stage
-`v3.2.4` Provider Fan-out Config — adds `fallback_provider/model/base_url` to `LLMConfig`; adds `FanOutLLMClient` in factory that routes `RuntimeError` from primary to fallback while preserving policy/contract gates; `_log_fanout` redacts prompts.
+`v3.2.5` Live-Provider CI Lane — adds advisory `live-provider` CI job gated by `ENABLE_LIVE_LLM_TESTS`; `tests/live/conftest.py` skips without env var; no credentials in repository.
 
-Previous: v3.2.3 added `AnthropicLLMClient`; v3.2.2 added structured output validation; v3.2.1 added streaming; v3.2.0 added retry and cost accounting.
+Previous: v3.2.4 added fan-out config; v3.2.3 added Anthropic; v3.2.2 added structured output validation; v3.2.1 added streaming.
+
+## v3.2.5 (Live-Provider CI Lane)
+`.github/workflows/ci.yml`, `tests/live/`, `tests/test_ci_live_lane.py` updated/added.
+
+Key additions:
+- `live-provider` CI job: gated by `vars.ENABLE_LIVE_LLM_TESTS == 'true'`; `continue-on-error: true`; secrets injected as env vars.
+- `tests/live/conftest.py`: `pytest_runtest_setup` skips all live tests unless `SAFECODE_LIVE_TESTS=1`.
+- `tests/live/test_live_providers.py`: smoke tests for OpenAI + Anthropic with per-test `_require_env()` guard.
+- 21 new tests in `tests/test_ci_live_lane.py`: CI structure, gating, no credentials, default path isolation.
+- 2 live tests skipped in baseline pytest run.
 
 ## v3.2.4 (Provider Fan-out Config)
 `src/safecode/config.py`, `src/safecode/llm/factory.py` updated.
