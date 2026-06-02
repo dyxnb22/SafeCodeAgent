@@ -86,6 +86,27 @@ class MCPSchemaStore:
         schema = self.lookup(tool, server)
         return schema.classification if schema is not None else None
 
+    def tools_list(self, server: str = "") -> list[MCPToolSchema]:
+        """Return schemas for *server* (or all schemas when *server* is empty).
+
+        Order matches insertion order within the store. No I/O is performed.
+        """
+        if not server:
+            return list(self.schemas)
+        return [s for s in self.schemas if s.server == server]
+
+    def classify_all(self, server: str = "") -> dict[str, str]:
+        """Return a tool→classification mapping for *server* (or all servers).
+
+        Tools appearing multiple times (different servers) are deduplicated by
+        last write when *server* is empty.  When *server* is set, only schemas
+        for that server are included.
+        """
+        result: dict[str, str] = {}
+        for schema in self.tools_list(server):
+            result[schema.tool] = schema.classification
+        return result
+
 
 def classify_with_schema(
     tool_name: str,

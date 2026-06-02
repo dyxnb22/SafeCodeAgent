@@ -17,6 +17,7 @@ from safecode.context.redactor import redact_secrets
 from safecode.logs.runtime import RuntimeLogger
 from safecode.mcp.config import MCPConfigStore, MCPServerConfig
 from safecode.mcp.proposal import MCPWriteProposal, MCPWriteProposalStore
+from safecode.mcp.schema import MCPToolSchema, classify_with_schema
 from safecode.policy.commands import CommandDecision, CommandPolicy
 from safecode.sandbox.filesystem import FilesystemBoundary
 from safecode.sandbox.network import NetworkPolicy
@@ -88,9 +89,15 @@ class MCPRunResult:
 class MCPReadOnlyRunner:
     """Run MCP tools with read-only and network boundaries enforced."""
 
-    def __init__(self, project_root: Path, config: SafeCodeConfig | None = None) -> None:
+    def __init__(
+        self,
+        project_root: Path,
+        config: SafeCodeConfig | None = None,
+        schemas: list[MCPToolSchema] | None = None,
+    ) -> None:
         self.project_root = project_root
         self.config = config or SafeCodeConfig.load(project_root)
+        self._schemas: list[MCPToolSchema] = schemas or []
         self.policy = CommandPolicy(self.config)
         self.audit_logger = AuditLogger(project_root, self.config)
         self.runtime_logger = RuntimeLogger(project_root, self.config)
@@ -105,7 +112,7 @@ class MCPReadOnlyRunner:
         trace_id: str | None = None,
     ) -> MCPRunResult:
         """Invoke a tool with the read-only policy."""
-        classification = classify_mcp_tool(tool)
+        classification = classify_with_schema(tool, self._schemas, server=server)
         self._audit("mcp_call_proposed", server, tool, classification, "pending", "MCP call proposed", trace_id=trace_id)
 
         if classification != "read":
@@ -334,7 +341,7 @@ class MCPReadOnlyRunner:
         trace_id: str | None = None,
     ) -> MCPWriteProposal:
         """Create a pending MCP write proposal instead of executing the tool."""
-        classification = classify_mcp_tool(tool)
+        classification = classify_with_schema(tool, self._schemas, server=server)
         payload = input_data or {}
 
         if classification == "read":

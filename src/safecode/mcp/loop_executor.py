@@ -8,6 +8,7 @@ from typing import Any
 
 from safecode.mcp.proposal import MCPWriteProposalStore
 from safecode.mcp.runner import MCPReadOnlyRunner, classify_mcp_tool
+from safecode.mcp.schema import MCPToolSchema, classify_with_schema
 from safecode.tools.adapter import AdapterError, ToolCallAdapter
 
 
@@ -34,10 +35,14 @@ class MCPReadToolExecutor:
     """
 
     def __init__(
-        self, project_root: Path, runner: MCPReadOnlyRunner | None = None
+        self,
+        project_root: Path,
+        runner: MCPReadOnlyRunner | None = None,
+        schemas: list[MCPToolSchema] | None = None,
     ) -> None:
         self.project_root = project_root
         self._runner = runner
+        self._schemas: list[MCPToolSchema] = schemas or []
         self._adapter = ToolCallAdapter()
 
     def execute(
@@ -69,7 +74,7 @@ class MCPReadToolExecutor:
                 exit_code=126,
             )
 
-        classification = classify_mcp_tool(tool)
+        classification = classify_with_schema(tool, self._schemas, server=server)
         if classification != "read":
             return self._fail(
                 tool_name, server, tool,

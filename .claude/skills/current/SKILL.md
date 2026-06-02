@@ -5,13 +5,27 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v2.9.3
+# Current Baseline - v2.9.4
 
 ## Status
-Implemented. Git baseline: tag `v2.9.2`. Local working version: `v2.9.3`.
+Implemented. Git baseline: tag `v2.9.3`. Local working version: `v2.9.4`.
 
 ## Stage
-`v2.9.x` Deterministic Evidence and Contract Preparation — v2.9.0 expanded loop fixtures and added typed failure categories; v2.9.1 adds one bounded retry for recoverable contract-shaped failures; v2.9.2 adds deterministic typed trace snapshots for all six loop fixtures; v2.9.3 adds loop eval as an advisory CI job.
+`v2.9.x` Deterministic Evidence and Contract Preparation — v2.9.0 expanded loop fixtures and added typed failure categories; v2.9.1 adds one bounded retry for recoverable contract-shaped failures; v2.9.2 adds deterministic typed trace snapshots for all six loop fixtures; v2.9.3 adds loop eval as an advisory CI job; v2.9.4 wires static schema classification into the MCP runner and executor pipelines.
+
+## v2.9.4 (MCP Tools-List Schema Shim)
+`src/safecode/mcp/schema.py`, `src/safecode/mcp/runner.py`, and `src/safecode/mcp/loop_executor.py` updated.
+
+Key additions:
+- `MCPSchemaStore.tools_list(server="") -> list[MCPToolSchema]`: returns schemas for a server or all servers. No I/O.
+- `MCPSchemaStore.classify_all(server="") -> dict[str, str]`: returns tool→classification mapping.
+- `MCPReadOnlyRunner` gains optional `schemas: list[MCPToolSchema]` parameter. `call_readonly` and `propose_write` use `classify_with_schema` instead of `classify_mcp_tool` directly.
+- `MCPReadToolExecutor` gains optional `schemas: list[MCPToolSchema]` parameter. `execute` uses `classify_with_schema` for the read-only gate check.
+- Schema-absent workloads are unchanged (`classify_with_schema` falls back to keyword matching).
+- Declared write tools are blocked in read-only runner even without write-like names.
+- Unknown bucket shrinks when schema metadata is present.
+- No real JSON-RPC client; no I/O in classification path.
+- 24 new tests in `tests/test_mcp_tools_list_schema_shim.py`.
 
 ## v2.9.3 (Eval Loop Mode CI Gate)
 `.github/workflows/ci.yml`, `pyproject.toml`, and `tests/test_eval_loop_mode_ci_gate.py` updated.
