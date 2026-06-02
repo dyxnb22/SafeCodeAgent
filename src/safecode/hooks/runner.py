@@ -34,14 +34,19 @@ class HookRunner:
         results: list[ShellRunResult] = []
         for command in self.config.hooks.after_apply:
             self._audit("hook_proposed", command, "pending", "after_apply hook proposed")
-            approved = self.config.hooks.allow_medium_after_apply and self.approvals.is_approved("after_apply", command)
+            skipped_by_policy = not self.config.hooks.allow_medium_after_apply
+            approved = (not skipped_by_policy) and self.approvals.is_approved("after_apply", command)
             if approved:
                 self._audit("hook_approval_used", command, "success", "stored hook approval matched")
-            elif not self.config.hooks.allow_medium_after_apply:
+            elif skipped_by_policy:
                 self._audit("hook_skipped_by_policy", command, "blocked", "hook execution disabled by config")
             result = runner.run(command, approved=approved)
             results.append(result)
-            if not result.executed and result.exit_code == 125:
+            if skipped_by_policy:
+                # hook_skipped_by_policy already emitted; no further event for this command.
+                pass
+            elif not result.executed and result.exit_code == 125:
+                # Policy allows hooks but this specific command lacked approval.
                 self._audit("hook_approval_required", command, "blocked", result.stderr)
             else:
                 self._audit(

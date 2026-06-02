@@ -423,6 +423,8 @@ def test_medium_risk_hook_is_not_auto_approved(tmp_path: Path) -> None:
 
 
 def test_hook_runner_writes_audit_chain(tmp_path: Path) -> None:
+    # Default config has allow_medium_after_apply=False, so hooks are skipped by policy.
+    # hook_proposed and hook_skipped_by_policy are emitted; hook_completed is not.
     config = SafeCodeConfig()
     config.hooks.after_apply = ["python -c 'print(1)'"]
 
@@ -431,8 +433,8 @@ def test_hook_runner_writes_audit_chain(tmp_path: Path) -> None:
     event_types = [event.type for event in events]
 
     assert "hook_proposed" in event_types
-    assert "hook_completed" in event_types
-    assert events[-1].command == "python -c 'print(1)'"
+    assert "hook_skipped_by_policy" in event_types
+    assert events[0].command == "python -c 'print(1)'"
 
 
 def test_medium_hook_requires_persisted_approval(tmp_path: Path, monkeypatch) -> None:
@@ -447,7 +449,9 @@ def test_medium_hook_requires_persisted_approval(tmp_path: Path, monkeypatch) ->
     assert summary.results[0].exit_code == 125
 
 
-def test_policy_skipped_hook_writes_single_approval_required_event(tmp_path: Path) -> None:
+def test_policy_skipped_hook_does_not_emit_approval_required(tmp_path: Path) -> None:
+    # v2.8.9: when a hook is skipped by policy, hook_approval_required must NOT be emitted.
+    # Only hook_proposed and hook_skipped_by_policy are written.
     config = SafeCodeConfig()
     config.hooks.after_apply = ["git status"]
     config.hooks.allow_medium_after_apply = False
@@ -457,7 +461,7 @@ def test_policy_skipped_hook_writes_single_approval_required_event(tmp_path: Pat
     event_types = [event.type for event in events]
 
     assert event_types.count("hook_skipped_by_policy") == 1
-    assert event_types.count("hook_approval_required") == 1
+    assert event_types.count("hook_approval_required") == 0
 
 
 def test_approved_hook_uses_persisted_approval(tmp_path: Path, monkeypatch) -> None:

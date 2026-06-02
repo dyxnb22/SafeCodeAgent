@@ -5,13 +5,24 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v2.8.8
+# Current Baseline - v2.8.9
 
 ## Status
-Implemented. Git baseline: tag `v2.7.9`. Local working version: `v2.8.8`.
+Implemented. Git baseline: tag `v2.7.9`. Local working version: `v2.8.9`.
 
 ## Stage
-`v2.8.x` Consolidation and CLI Honesty — v2.8.0–v2.8.8 implement the typed diagnostic substrate, migrate doctor/release/policy checks, split sandbox backend strategy, introduce typed pending-action objects, add MCP schema shim metadata, collapse the release help surface, and document shell exit-code honesty.
+`v2.8.x` Consolidation and CLI Honesty — v2.8.0–v2.8.9 implement the typed diagnostic substrate, migrate doctor/release/policy checks, split sandbox backend strategy, introduce typed pending-action objects, add MCP schema shim metadata, collapse the release help surface, document shell exit-code honesty, and deduplicate hook audit events.
+
+## v2.8.9 (Audit and Hook Event Dedup)
+`src/safecode/hooks/runner.py` updated.
+
+Key additions:
+- `skipped_by_policy` flag tracks when `allow_medium_after_apply=False`.
+- When a hook is skipped by policy, `hook_approval_required` and `hook_completed` are NOT emitted.
+- `hook_skipped_by_policy` remains the sole event for policy-disabled hooks.
+- `hook_approval_required` only fires when policy allows hooks but approval is missing.
+- Audit chain verification backward-compatible — old logs without `hook_skipped_by_policy` still verify.
+- 13 new tests in `tests/test_audit_hook_event_dedup.py`.
 
 ## v2.8.8 (Shell Exit Code Honesty)
 `src/safecode/cli_core.py` and `docs/install-update.md` updated.
