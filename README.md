@@ -34,6 +34,8 @@ sac doctor
 For a complete first run, follow [docs/mvp-user-guide.md](docs/mvp-user-guide.md).
 
 For stable local safety contracts (v3.0), see [docs/public-contracts.md](docs/public-contracts.md).
+For the post-v3.0 commercial product roadmap, see
+[docs/product-commercialization-roadmap.md](docs/product-commercialization-roadmap.md).
 
 ## Core Commands
 
