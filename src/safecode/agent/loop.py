@@ -8,7 +8,7 @@ from pathlib import Path
 
 from safecode.agent.orchestrator import AgentOrchestrator
 from safecode.agent.pending_action import PatchPendingAction, StopForUserAction, ToolPendingAction
-from safecode.agent.schemas import AgentStopForUserResponse, AgentToolIntentResponse
+from safecode.agent.schemas import AgentStopForUserResponse, AgentToolIntentResponse, RecoverableContractFailure
 from safecode.agent.session import AgentSessionState, AgentSessionStore
 from safecode.agent.tools import RoutedToolIntent, ToolIntentRouter
 from safecode.config import SafeCodeConfig
@@ -97,6 +97,42 @@ class AgentLoop:
         context = self.context_collector.collect(query=f"{state.goal}\n{plan_item}")
         context = self._enrich_with_subagent_findings(state.session_id, context)
         tool_choice = self.llm_client.choose_tool(state.goal, context)
+
+        # Bounded retry: one retry for recoverable contract-shaped failures only.
+        # Do NOT retry: policy blocks, validation failures, user-stop, or hard violations.
+        if isinstance(tool_choice, RecoverableContractFailure):
+            self.journal.record_loop_retry(
+                state.session_id,
+                state.current_step,
+                f"Recoverable contract failure; retrying step {state.current_step}.",
+                {
+                    "method": tool_choice.method,
+                    "message": tool_choice.message,
+                    "retry_attempt": 1,
+                },
+            )
+            tool_choice = self.llm_client.choose_tool(state.goal, context)
+            # If the retry also returns a recoverable failure, treat as permanent.
+            if isinstance(tool_choice, RecoverableContractFailure):
+                observation = (
+                    f"Contract failure after retry: {tool_choice.method}: {tool_choice.message}"
+                )
+                updated = state.model_copy(
+                    update={
+                        "pending_action": None,
+                        "last_observation": observation,
+                        "status": "active",
+                        "last_error": observation,
+                    }
+                )
+                saved = self.store.save(updated)
+                self.journal.record_failure(
+                    saved.session_id,
+                    observation,
+                    {"error": observation, "after_retry": True},
+                )
+                return AgentStepResult(state=saved, observation=observation, stopped_for_approval=False)
+
         if isinstance(tool_choice, AgentStopForUserResponse):
             stop_action = StopForUserAction(
                 reason=tool_choice.reason,

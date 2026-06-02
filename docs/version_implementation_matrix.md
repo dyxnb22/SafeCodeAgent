@@ -358,7 +358,7 @@ Active plan: `docs/version-plans/v2.8-to-v3.0-product-architecture-roadmap.md`.
 | 版本 | 分支 | 主要入口 | 验收命令 |
 |---|---|---|---|
 | `v2.9.0` ✅ | `v2.9.0-agent-loop-fixture-expansion` | `src/safecode/eval/loop_runner.py` | Six scripted fixtures; `LoopFailureCategory`/`ClassifiedLoopFailure` typed failure categories; `RecoverableContractFailure` stub for bounded retry; 31 new tests in `tests/test_agent_loop_fixture_expansion.py`; `sac eval --mode loop` exits 0 |
-| `v2.9.1` | `v2.9.1-agent-loop-error-recovery` | `src/safecode/agent/loop.py`, `src/safecode/state/journal.py` | bounded retry for recoverable contract-shaped failures; retry event journaled |
+| `v2.9.1` ✅ | `v2.9.1-agent-loop-error-recovery` | `src/safecode/agent/schemas.py`, `src/safecode/agent/loop.py`, `src/safecode/state/journal.py` | `RecoverableContractFailure` in schemas; `AgentLoop.step()` bounded retry (one); `loop_retry` journal event; `record_loop_retry()`; 18 new tests in `tests/test_agent_loop_error_recovery.py` |
 | `v2.9.2` | `v2.9.2-eval-replay-baseline-snapshot` | `tests/test_agent_loop_stub_eval.py`, `tests/snapshots/loop/` | typed traces are snapshotted without LLM prose |
 | `v2.9.3` | `v2.9.3-eval-loop-mode-ci-gate` | `.github/workflows/ci.yml` | loop eval appears in CI, advisory first if needed |
 | `v2.9.4` | `v2.9.4-mcp-tools-list-schema-shim` | `src/safecode/mcp/` | optional static schema metadata classifies MCP tools; fallback unchanged |

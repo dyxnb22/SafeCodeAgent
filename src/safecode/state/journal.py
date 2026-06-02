@@ -15,7 +15,7 @@ from safecode.state.migrations import SchemaVersionError, migrate_record
 from safecode.utils.time import utc_now_iso
 
 
-JournalEventType = Literal["plan", "action", "diff", "command", "failure", "final_summary", "mcp_call", "subagent_dispatch", "patch_proposed"]
+JournalEventType = Literal["plan", "action", "diff", "command", "failure", "final_summary", "mcp_call", "subagent_dispatch", "patch_proposed", "loop_retry"]
 
 
 class AgentJournalEvent(BaseModel):
@@ -157,6 +157,28 @@ class AgentJournalStore:
                 step=step,
                 message=message,
                 payload={"mcp_call": dict(call_summary)},
+            )
+        )
+
+    def record_loop_retry(
+        self,
+        session_id: str,
+        step: int,
+        message: str,
+        retry_details: dict[str, object] | None = None,
+    ) -> AgentJournalEvent:
+        """Record a bounded retry for a recoverable contract-shaped failure.
+
+        This is emitted at most once per step (retry count is bounded to one).
+        Only recoverable failures explicitly marked as such should produce this event.
+        """
+        return self.append(
+            AgentJournalEvent(
+                session_id=session_id,
+                type="loop_retry",
+                step=step,
+                message=message,
+                payload={"loop_retry": dict(retry_details or {})},
             )
         )
 

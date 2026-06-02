@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+from dataclasses import dataclass
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field, TypeAdapter, ValidationError
@@ -55,6 +56,24 @@ class AgentError(BaseModel):
     """Structured error response from an LLM client."""
 
     type: Literal["error"] = "error"
+    message: str
+
+
+@dataclass(frozen=True)
+class RecoverableContractFailure:
+    """A transient, contract-shaped LLM failure that the agent loop may retry once.
+
+    Distinct from ``LLMContractViolation`` (which is always fail-closed):
+    the loop journals a ``loop_retry`` event and calls ``choose_tool()`` again
+    exactly once. A second ``RecoverableContractFailure`` after the retry is
+    treated as a permanent failure.
+
+    Only explicitly scripted or detected recoverable failure conditions should
+    produce this value — never user-stop, policy-block, or validation failure paths.
+    """
+
+    step: int
+    method: str
     message: str
 
 

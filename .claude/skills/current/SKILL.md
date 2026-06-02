@@ -5,13 +5,25 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v2.9.0
+# Current Baseline - v2.9.1
 
 ## Status
-Implemented. Git baseline: tag `v2.8.10`. Local working version: `v2.9.0`.
+Implemented. Git baseline: tag `v2.9.0`. Local working version: `v2.9.1`.
 
 ## Stage
-`v2.9.x` Deterministic Evidence and Contract Preparation — v2.9.0 begins the evidence batch with fixture expansion, typed failure categories, and the `RecoverableContractFailure` type stub for bounded retry.
+`v2.9.x` Deterministic Evidence and Contract Preparation — v2.9.0 expanded loop fixtures and added typed failure categories; v2.9.1 adds one bounded retry for recoverable contract-shaped failures, journals the retry event, and wires the full first-fail/second-pass flow.
+
+## v2.9.1 (Agent Loop Error Recovery)
+`src/safecode/agent/schemas.py`, `src/safecode/agent/loop.py`, `src/safecode/state/journal.py`, and `tests/test_agent_loop_error_recovery.py` updated.
+
+Key additions:
+- `RecoverableContractFailure(frozen dataclass)` moved to `agent/schemas.py`: `step`, `method`, `message`. Distinct from `LLMContractViolation` (which is always fail-closed).
+- `AgentLoop.step()` detects `RecoverableContractFailure`, journals a `loop_retry` event, and calls `choose_tool()` once more. If the retry also returns `RecoverableContractFailure`, records a permanent failure and returns without further retry.
+- Rules observed: retry only for explicitly-recoverable contract failures; never retry user-stop, policy blocks, validation failures, or hard `LLMContractViolation`.
+- `JournalEventType` gains `"loop_retry"`; `AgentJournalStore.record_loop_retry()` appends a structured event with `step`, `method`, `message`, and `retry_attempt=1`.
+- `ScriptedStep.first_fail_recoverable: bool` (from v2.9.0) now fully wired: `ScriptedLLMClient` returns `RecoverableContractFailure` on first call, then the real tool choice on retry, without advancing `_step_index` early.
+- Old journals without `"loop_retry"` events still parse correctly.
+- 18 new tests in `tests/test_agent_loop_error_recovery.py`.
 
 ## v2.9.0 (Agent Loop Fixture Expansion)
 `src/safecode/eval/loop_runner.py` and `tests/test_agent_loop_fixture_expansion.py` updated.
