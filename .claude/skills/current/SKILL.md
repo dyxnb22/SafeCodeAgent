@@ -5,13 +5,23 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v2.8.3
+# Current Baseline - v2.8.4
 
 ## Status
-Implemented. Git baseline: tag `v2.7.9`. Local working version: `v2.8.3`.
+Implemented. Git baseline: tag `v2.7.9`. Local working version: `v2.8.4`.
 
 ## Stage
-`v2.8.x` Consolidation and CLI Honesty — v2.8.0–v2.8.3 implement the typed diagnostic substrate, migrate doctor/release/policy checks, split sandbox backend strategy, and introduce typed pending-action objects in the agent loop.
+`v2.8.x` Consolidation and CLI Honesty — v2.8.0–v2.8.4 implement the typed diagnostic substrate, migrate doctor/release/policy checks, split sandbox backend strategy, introduce typed pending-action objects, and add MCP schema shim metadata.
+
+## v2.8.4 (MCP Shim Schema Prep — experimental)
+`src/safecode/mcp/schema.py` added.
+
+Key additions:
+- `MCPToolSchema` frozen dataclass: `server`, `tool`, `classification`, optional `description`, `args`.
+- `MCPSchemaStore`: in-memory registry with `lookup(tool, server)` and `classify(tool, server)`.
+- `classify_with_schema(tool_name, schemas, *, server)`: checks schema first, falls back to `classify_mcp_tool` keyword matching.
+- No real JSON-RPC, no I/O, no subprocess calls.
+- 30 new tests in `tests/test_mcp_schema_shim.py`.
 
 ## v2.8.3 (Agent Loop Typed Actions)
 `src/safecode/agent/pending_action.py` added. `src/safecode/agent/loop.py` updated.
