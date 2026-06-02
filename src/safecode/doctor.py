@@ -91,9 +91,37 @@ class Doctor:
                 sandbox_dir or "not set",
             ),
         ]
+        diagnostics.append(self._last_session_cost_diagnostic())
         if release:
             diagnostics.extend(self.run_release_diagnostics())
         return diagnostics
+
+    def _last_session_cost_diagnostic(self) -> "Diagnostic":
+        """Return a PASS or SKIP diagnostic for the most recent session cost.json."""
+        import glob
+        pattern = str(self.project_root / ".sac" / "sessions" / "*" / "cost.json")
+        cost_files = sorted(glob.glob(pattern))
+        if not cost_files:
+            return Diagnostic(
+                name="last_session_cost",
+                status=DiagnosticStatus.SKIP,
+                message="no session cost data",
+            )
+        cost_file = cost_files[-1]
+        try:
+            import json as _json
+            data = _json.loads(Path(cost_file).read_text(encoding="utf-8"))
+            prompt = data.get("prompt_tokens", 0)
+            completion = data.get("completion_tokens", 0)
+            total = data.get("total_tokens", 0)
+            msg = f"last_session: prompt={prompt} completion={completion} total={total}"
+            return Diagnostic(name="last_session_cost", status=DiagnosticStatus.PASS, message=msg)
+        except Exception:
+            return Diagnostic(
+                name="last_session_cost",
+                status=DiagnosticStatus.SKIP,
+                message="no session cost data",
+            )
 
     def run(self, *, release: bool = False) -> list[DoctorCheck]:
         """Run environment checks, optionally including release diagnostics.

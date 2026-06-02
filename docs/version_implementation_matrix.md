@@ -379,3 +379,9 @@ Active plan: `docs/version-plans/v2.8-to-v3.0-product-architecture-roadmap.md`.
 |---|---|---|---|
 | `v3.1.0` ✅ | `main` | `src/safecode/cli_shared_json.py`, `src/safecode/cli_core.py`, `src/safecode/cli_ops.py`, `src/safecode/cli_agent.py` | `--json` flag on ask/edit/apply/run/doctor/version/release preflight/agent run; `CLIJSONResponse`/`render_json()` in `cli_shared_json.py`; `get_last_failure_context()` in journal; `--retry-from-last-failure` on edit; 35 new tests in `tests/test_cli_json_output.py` + `tests/test_agent_autopilot.py`; `PYTHONPATH=src python3 -m pytest tests/test_cli_json_output.py tests/test_agent_autopilot.py -q` → 35 pass; full regression 2429 pass |
 | `v3.1.1` ✅ | `main` | `src/safecode/agent/session.py`, `src/safecode/cli_agent.py` | `AgentSessionStore.load_by_id()`; `agent_resume` gains optional `session_id` arg with ID verification and contract_failed guard; 17 new tests in `tests/test_agent_resume.py` + `tests/test_edit_retry.py`; `PYTHONPATH=src python3 -m pytest tests/test_agent_resume.py tests/test_edit_retry.py -q` → 17 pass; full regression 2446 pass |
+
+## v3.2.x: LLM Retry + Cost Accounting
+
+| 版本 | 分支 | 主要入口 | 验收命令 |
+|---|---|---|---|
+| `v3.2.0` ✅ | `main` | `src/safecode/llm/retry.py`, `src/safecode/llm/cost.py`, `src/safecode/llm/openai_client.py`, `src/safecode/doctor.py` | `retry_call()` with jitter for 429/503/URLError; `TokenUsage`/`SessionCostAccumulator` writing `.sac/sessions/<id>/cost.json`; wired into OpenAI client; `last_session_cost` diagnostic in `sac doctor`; 27 new tests in `tests/test_llm_retry.py` + `tests/test_llm_cost_accounting.py`; full regression 2473 pass |

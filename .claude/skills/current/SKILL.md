@@ -5,15 +5,26 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v3.1.1
+# Current Baseline - v3.2.0
 
 ## Status
-Implemented. Git baseline: tag `v3.1.1`. Local working version: `v3.1.1`.
+Implemented. Git baseline: tag `v3.2.0`. Local working version: `v3.2.0`.
 
 ## Stage
-`v3.1.1` Resume + Retry-From-Failure — adds `sac agent resume <session_id>` with ID verification and contract_failed guard; adds `AgentSessionStore.load_by_id()`; adds focused tests for `--retry-from-last-failure` and `get_last_failure_context()`.
+`v3.2.0` LLM Retry + Cost Accounting — adds bounded retry with jitter for transient LLM transport errors (429/503/URLError); adds `SessionCostAccumulator` writing per-session token usage to `.sac/sessions/<id>/cost.json`; wires both into `OpenAICompatibleLLMClient`; adds `last_session_cost` diagnostic to `sac doctor`.
 
-Previous v3.1.x: v3.1.0 added structured --json output to all daily CLI commands and confirmed sac agent run as the autopilot entry point.
+Previous v3.1.x: v3.1.1 added session resume with ID verification; v3.1.0 added --json output to all daily CLI commands.
+
+## v3.2.0 (LLM Retry + Cost Accounting)
+`src/safecode/llm/retry.py` (new), `src/safecode/llm/cost.py` (new), `src/safecode/llm/openai_client.py`, `src/safecode/doctor.py` updated.
+
+Key additions:
+- `retry_call(fn, *, max_attempts=3, base_delay=0.5, get_retry_after=None, log_fn=None)`: retries on URLError and HTTP 429/503; jitter=uniform(0.5,1.5)*base_delay*2^attempt; honors Retry-After header; does not retry 4xx/5xx other than 429/503.
+- `TokenUsage` dataclass: prompt_tokens, completion_tokens, total_tokens, cost_usd (always None for now). `__add__` accumulates.
+- `SessionCostAccumulator(sac_dir, session_id)`: `record()` atomically accumulates to `.sac/sessions/<id>/cost.json`; `load()` returns None if no file; `total()` returns zero-value if no file.
+- `OpenAICompatibleLLMClient.__init__` gains optional `session_id` and `sac_dir`; `_chat()` wraps urlopen in `retry_call`; `_record_usage()` writes cost after successful call.
+- `Doctor._last_session_cost_diagnostic()`: PASS with `last_session: prompt=N completion=M total=T` if cost.json found; SKIP otherwise.
+- 27 new tests: `tests/test_llm_retry.py` (17) + `tests/test_llm_cost_accounting.py` (10).
 
 ## v3.1.1 (Resume + Retry-From-Failure)
 `src/safecode/agent/session.py` and `src/safecode/cli_agent.py` updated.

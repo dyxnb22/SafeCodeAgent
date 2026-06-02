@@ -1,7 +1,7 @@
 {
   "project": "SafeCode Agent",
-  "current_implemented_tag": "v3.1.1",
-  "current_local_version": "v3.1.1",
+  "current_implemented_tag": "v3.2.0",
+  "current_local_version": "v3.2.0",
   "current_baseline": ".claude/skills/current/SKILL.md",
   "runtime_summary": ".claude/skills/shared/core-runtime.md",
   "version_index": "docs/version_implementation_matrix.md",
@@ -201,6 +201,12 @@
       "name": "Autopilot + JSON Output",
       "depends_on": "v3.0.0",
       "notes": "Structured --json output on all daily CLI commands; sac agent run autopilot confirmation; --retry-from-last-failure on edit; get_last_failure_context in journal."
+    },
+    {
+      "range": "v3.2.x",
+      "name": "LLM Retry + Cost Accounting",
+      "depends_on": "v3.1.x",
+      "notes": "Bounded retry with jitter for 429/503/URLError; TokenUsage and SessionCostAccumulator; last_session_cost diagnostic in sac doctor."
     }
   ],
   "latest_tags": [
@@ -357,7 +363,8 @@
     "v2.9.9",
     "v3.0.0",
     "v3.1.0",
-    "v3.1.1"
+    "v3.1.1",
+    "v3.2.0"
   ],
   "local_versions": [
     "v2.8.0",
@@ -382,6 +389,7 @@
     "v2.9.9",
     "v3.0.0",
     "v3.1.0",
-    "v3.1.1"
+    "v3.1.1",
+    "v3.2.0"
   ]
 }
