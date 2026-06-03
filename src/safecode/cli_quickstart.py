@@ -24,6 +24,68 @@ Next steps:
   sac rollback --last
 """
 
+_NEXT_STEPS_PYTHON = """\
+Next steps:
+  sac ask "What does this project do?"
+  sac edit "Add a docstring to main()"
+  sac apply
+  sac fix                    # auto-repair a failing pytest test
+  sac rollback --last
+"""
+
+_NEXT_STEPS_TYPESCRIPT = """\
+Next steps:
+  sac ask "What does this project do?"
+  sac edit "Add a JSDoc comment to the main export"
+  sac apply
+  sac fix --test-command "npm test"
+  sac rollback --last
+"""
+
+_NEXT_STEPS_GO = """\
+Next steps:
+  sac ask "What does this project do?"
+  sac edit "Add a comment to the main package"
+  sac apply
+  sac fix --test-command "go test ./..."
+  sac rollback --last
+"""
+
+_NEXT_STEPS_RUST = """\
+Next steps:
+  sac ask "What does this project do?"
+  sac edit "Add a doc comment to a public function"
+  sac apply
+  sac fix --test-command "cargo test"
+  sac rollback --last
+"""
+
+
+def _detect_stack(project_root: Path) -> str:
+    """Return the primary detected stack: python, typescript, go, rust, or unknown."""
+    if (project_root / "pyproject.toml").exists():
+        return "python"
+    if (project_root / "package.json").exists():
+        return "typescript"
+    if (project_root / "go.mod").exists():
+        return "go"
+    if (project_root / "Cargo.toml").exists():
+        return "rust"
+    return "unknown"
+
+
+def _next_steps_for_stack(stack: str) -> str:
+    return {
+        "python": _NEXT_STEPS_PYTHON,
+        "typescript": _NEXT_STEPS_TYPESCRIPT,
+        "go": _NEXT_STEPS_GO,
+        "rust": _NEXT_STEPS_RUST,
+    }.get(stack, _NEXT_STEPS)
+
+
+def _demo_id_for_stack(stack: str) -> str:
+    return _RECOMMENDED_DEMO
+
 
 def _show_config_summary(project_root: Path) -> None:
     config = SafeCodeConfig.load(project_root)
@@ -84,10 +146,17 @@ def run_quickstart(
 
     _show_config_summary(project_root)
 
+    # Detect stack and adapt demo + next steps.
+    stack = _detect_stack(project_root)
+    if stack != "unknown":
+        console.print(f"[blue]Detected stack:[/blue] {stack}")
+
+    effective_demo_id = demo_id if demo_id != _RECOMMENDED_DEMO else _demo_id_for_stack(stack)
+
     # Recommend a demo workflow.
     suite = DemoWorkflowSuite()
     try:
-        workflow = suite.get(demo_id)
+        workflow = suite.get(effective_demo_id)
     except KeyError:
         workflow = suite.list()[0]
 
@@ -99,6 +168,7 @@ def run_quickstart(
                     f"  Title   : {workflow.title}",
                     f"  Task    : {workflow.task}",
                     f"  Commands: {' -> '.join(workflow.commands)}",
+                    *(([f"  Stack   : {stack}"]) if stack != "unknown" else []),
                 ]
             ),
             title="SafeCode Quickstart",
@@ -115,7 +185,7 @@ def run_quickstart(
         except FileExistsError as exc:
             console.print(f"[yellow]Demo already exists ({exc}). Use --force to overwrite.[/yellow]")
 
-    console.print(_NEXT_STEPS)
+    console.print(_next_steps_for_stack(stack))
     return 0
 
 

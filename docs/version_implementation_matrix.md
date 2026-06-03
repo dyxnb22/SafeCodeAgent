@@ -333,9 +333,9 @@
 | `v2.7.8` ✅ | `v2.7.8-versions-governance-preflight` | `src/safecode/release/versions_governance.py`, `src/safecode/release/preflight.py` | check_versions_governance: versions.json staleness + SKILL.md baseline tag contradiction detection; integrated into release preflight; next-step hint for sync-versions-json; injectable git_tags for fixture-based tests; 11 new tests; `PYTHONPATH=src python3 -m pytest -q` → 1960 tests pass |
 | `v2.7.9` ✅ | `v2.7.9-release-surface-collapse-lite` | `src/safecode/release/signoff.py`, `src/safecode/release/checklist.py`, `docs/install-update.md` | signoff runtime output labelled deprecated; checklist runtime output labelled planning helper/not a release gate; docs main flow adds sync-versions-json; 10 new tests; `PYTHONPATH=src python3 -m pytest -q` → 1970 tests pass |
 
-## v2.8.x: Consolidation and CLI Honesty (planned)
+## v2.8.x: Consolidation and CLI Honesty
 
-Active plan: `docs/version-plans/v2.8-to-v3.0-product-architecture-roadmap.md`.
+Historical plan: `docs/version-plans/v2.8-to-v3.0-product-architecture-roadmap.md`.
 
 | 版本 | 分支 | 主要入口 | 验收命令 |
 |---|---|---|---|
@@ -351,9 +351,9 @@ Active plan: `docs/version-plans/v2.8-to-v3.0-product-architecture-roadmap.md`.
 | `v2.8.9` ✅ | `v2.8.9-audit-and-hook-event-dedup` | `src/safecode/hooks/runner.py` | `hook_skipped_by_policy` no longer produces duplicate `hook_approval_required`; distinct event type; backward-compatible verification; 13 new tests |
 | `v2.8.10` ✅ | `v2.8.10-final-v28-baseline-sync` | `pyproject.toml`, `src/safecode/__init__.py`, `uv.lock`, `.claude/versions.json`, `.claude/skills/current/SKILL.md` | metadata-only final v2.8 baseline after out-of-order v2.8.6/v2.8.7 cleanup; package/runtime/current tag synchronized to v2.8.10 |
 
-## v2.9.x: Deterministic Evidence and Contract Preparation (planned)
+## v2.9.x: Deterministic Evidence and Contract Preparation
 
-Active plan: `docs/version-plans/v2.8-to-v3.0-product-architecture-roadmap.md`.
+Historical plan: `docs/version-plans/v2.8-to-v3.0-product-architecture-roadmap.md`.
 
 | 版本 | 分支 | 主要入口 | 验收命令 |
 |---|---|---|---|
@@ -433,3 +433,17 @@ Active plan: `docs/version-plans/v2.8-to-v3.0-product-architecture-roadmap.md`.
 | `v3.6.4` ✅ | `main` | `docs/security/threat-model-v3.6.md` | T-3.6.4-A threat-model-doc: adds `docs/security/threat-model-v3.6.md` with 9 threat personas (local user, malicious repo, malicious project config, malicious MCP server, malicious model output, network/provider risk, audit/approval trust boundaries, sandbox limitations, telemetry/update-check); semi-annual review cadence documented; 14 new tests in `tests/test_threat_model_docs.py`; documentation only, no runtime changes |
 | `v3.6.5` ✅ | `main` | `docs/why-safecode.md`, `docs/compare.md`, `docs/troubleshooting.md` | T-3.6.5-A landing-docs: adds three landing docs; claims aligned with `docs/public-contracts.md`; experimental surfaces labeled throughout; all three linked from `README.md`; 20 new tests in `tests/test_landing_docs.py`; documentation only, no runtime changes |
 | `v3.6.6` ✅ | `main` | *(metadata only)* | T-3.6.6-A commercial-v1-cut: final commercial v1 milestone; version bumped to 3.6.6 in `pyproject.toml` and `src/safecode/__init__.py`; `.claude/versions.json` updated; `SKILL.md` baseline updated; version matrix rows for v3.6.4–v3.6.6 added; no runtime changes; full regression `PYTHONPATH=src python3 -m pytest -q` → 3336 passed, 2 skipped |
+
+## v3.7.x: Workflow Gap Closure
+
+| 版本 | 分支 | 主要入口 | 验收命令 |
+|---|---|---|---|
+| `v3.7.0` ✅ | `main` | `src/safecode/cli_fix.py`, `src/safecode/cli_quickstart.py` | T-3.7.0-A sac-fix: `sac fix [--test-command CMD] [--json]`; detects test command via `ProjectTestDetector`, runs it (`shell=False`, 120s timeout), redacts failure output, invokes `AgentOrchestrator.edit()`, leaves pending patch for `sac apply`; no approval gate bypassed; 22 new tests in `tests/test_sac_fix.py`. T-3.7.0-B stack-aware-quickstart: `sac quickstart` detects `pyproject.toml` (python), `package.json` (typescript), `go.mod` (go), `Cargo.toml` (rust) and adapts next-step commands and demo hints; unknown stack preserves existing behavior; 11 new tests added to `tests/test_quickstart.py`; `PYTHONPATH=src python3 -m pytest tests/test_sac_fix.py tests/test_quickstart.py -q` → 35 pass; full regression → 3360 passed, 2 skipped |
+
+## Active Forward Plan After v3.6.6
+
+Active plan: `docs/version-plans/v3.7-to-v4.0-product-roadmap.md`.
+
+Readiness baseline: `docs/commercial-v1-readiness-audit-v3.6.6.md`.
+
+Architecture reference: `docs/product-commercialization-roadmap.md`.

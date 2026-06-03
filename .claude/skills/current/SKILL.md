@@ -5,13 +5,15 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v3.6.6
+# Current Baseline - v3.7.0
 
 ## Status
-Implemented. Git baseline: tag `v3.6.6`. Local working version: `v3.6.6`.
+Implemented. Git baseline: tag `v3.7.0`. Local working version: `v3.7.0`.
 
 ## Stage
-`v3.6.6` Commercial v1 cut — metadata-only release marker; version bumped to 3.6.6; `.claude/versions.json` updated; version matrix rows for v3.6.4–v3.6.6 added. No runtime changes.
+`v3.7.0` sac fix + stack-aware quickstart — `src/safecode/cli_fix.py` (new): `sac fix [--test-command CMD] [--json]`; detects test command via `ProjectTestDetector`, runs it (`shell=False`, 120s timeout), redacts failure output via `redact_secrets()`, invokes `AgentOrchestrator.edit()`, leaves pending patch for `sac apply`; no approval gate bypassed; 22 new tests in `tests/test_sac_fix.py`. `src/safecode/cli_quickstart.py` extended: `_detect_stack()` detects `pyproject.toml` (python), `package.json` (typescript), `go.mod` (go), `Cargo.toml` (rust); `_next_steps_for_stack()` adapts next-step commands; unknown stack unchanged; 11 new tests in `tests/test_quickstart.py`. Full suite: 3360 passed, 2 skipped.
+
+Previous: `v3.6.6` Commercial v1 cut — metadata-only release marker; version bumped to 3.6.6; `.claude/versions.json` updated; version matrix rows for v3.6.4–v3.6.6 added. No runtime changes.
 
 Previous: `v3.6.5` Landing documentation — `docs/why-safecode.md`, `docs/compare.md`, `docs/troubleshooting.md` added; all linked from `README.md`; claims aligned with public contracts; experimental surfaces labeled; 20 new tests in `tests/test_landing_docs.py`.
 

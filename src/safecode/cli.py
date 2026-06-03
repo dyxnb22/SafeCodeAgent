@@ -17,6 +17,7 @@ from safecode.cli_api import api_app
 from safecode.cli_tui import tui_app
 from safecode.cli_shared import console
 from safecode.cli_quickstart import register as _register_quickstart
+from safecode.cli_fix import register as _register_fix
 from safecode.setup import write_setup
 
 app = typer.Typer(
@@ -86,6 +87,7 @@ def setup(
 
 
 _register_quickstart(app)
+_register_fix(app)
 
 # Core commands stay at the root for backward compatibility.
 for command in core_app.registered_commands:
