@@ -7,13 +7,17 @@ v2.9.x, and v3.0.0 is:
 
 - `docs/version-plans/v2.8-to-v3.0-product-architecture-roadmap.md`
 
+As of baseline `v3.6.6`, the active forward execution plan is:
+
+- `docs/version-plans/v3.7-to-v4.0-product-roadmap.md`
+- `docs/commercial-v1-readiness-audit-v3.6.6.md`
+
 This document remains useful as historical productization context, but its
 older "Recommended Next Move" and v2.6-era projections are superseded by the
-v2.8-v3.0 roadmap. The current stance is narrower: v3.0 should stabilize the
-local safety runtime contracts that are already tested and documented, while
-keeping live-provider behavior, broad `SafeCodeLocalAPI` expansion, MCP
-JSON-RPC, concurrent subagents, TUI, and IDE surfaces experimental or
-post-v3.0.
+v2.8-v3.0 roadmap and then by the v3.7-v4.0 roadmap. The current stance is:
+v3.6.6 is a commercial-v1 documentation cut, not public ship readiness; v4.0
+should only promote contracts that are backed by distribution, CI, audit, and
+snapshot evidence.
 
 ## Current Readiness
 
@@ -311,14 +315,8 @@ Subtasks:
 
 ## Recommended Next Move
 
-From baseline `v2.7.9`, use
-`docs/version-plans/v2.8-to-v3.0-product-architecture-roadmap.md` as the active
-plan. The recommended next short batch is:
-
-1. `v2.8.5-release-surface-collapse-full`
-2. `v2.8.8-shell-exit-code-honesty`
-3. `v2.8.9-audit-and-hook-event-dedup`
-
-Start diagnostic migration only when the session is explicitly scoped for
-architecture work; a partial diagnostic substrate is more confusing than the
-current stable behavior.
+From baseline `v3.6.6`, use
+`docs/version-plans/v3.7-to-v4.0-product-roadmap.md` as the active plan and
+`docs/commercial-v1-readiness-audit-v3.6.6.md` as the readiness baseline.
+Start with the v3.7.x workflow-gap batch unless the session is explicitly
+scoped to a later dependency.

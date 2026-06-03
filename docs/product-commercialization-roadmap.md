@@ -5,6 +5,12 @@ Baseline: tag `v3.0.0`, package version `3.0.0`, regression `2398 passed, 9 warn
 `sac release preflight` clean.
 Authoring date: 2026-06-02.
 
+Planning update, 2026-06-03: this document remains the architecture reference
+and record of commercial-product intent. The active execution plan after the
+v3.6.6 documentation cut is
+`docs/version-plans/v3.7-to-v4.0-product-roadmap.md`, with the current
+readiness baseline in `docs/commercial-v1-readiness-audit-v3.6.6.md`.
+
 This roadmap analyzes SafeCode Agent as a commercial-grade local coding agent
 product, not merely as a local safety runtime. It identifies what is solid,
 what is incomplete, what is experimental, what architecture needs refinement,
