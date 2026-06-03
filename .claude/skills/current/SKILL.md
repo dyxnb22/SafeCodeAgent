@@ -5,13 +5,15 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v3.3.0
+# Current Baseline - v3.3.1
 
 ## Status
-Implemented. Git baseline: tag `v3.3.0`. Local working version: `v3.3.0`.
+Implemented. Git baseline: tag `v3.3.1`. Local working version: `v3.3.1`.
 
 ## Stage
-`v3.3.0` MCP stdio Transport — adds a tightly-bounded stdio JSON-RPC client in `src/safecode/mcp/transport_stdio.py`; tested against local stub servers only; not wired into existing MCP runner; MCP remains experimental.
+`v3.3.1` MCP stdio Config Argv — adds typed stdio server config and argv validation in `src/safecode/mcp/config.py`; `call_stdio` not invoked; existing MCP runner behavior unchanged; MCP remains experimental.
+
+Previous: `v3.3.0` MCP stdio Transport — adds a tightly-bounded stdio JSON-RPC client in `src/safecode/mcp/transport_stdio.py`; tested against local stub servers only; not wired into existing MCP runner; MCP remains experimental.
 
 Previous: v3.2.6 promoted LLM provider layer to documented stable contract; v3.2.5 added advisory live-provider CI lane; v3.2.4 added fan-out config; v3.2.3 added Anthropic; v3.2.2 added structured output validation.
 
