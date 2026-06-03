@@ -16,6 +16,7 @@ from safecode.audit.models import AuditEvent
 from safecode.cli_shared_json import CLIJSONResponse, render_json
 from safecode.mcp.config import MCPConfigStore, StdioArgvError, resolve_stdio_argv
 from safecode.mcp.discovery import MCPDiscovery, discover_stdio_tools
+from safecode.mcp.lifecycle import MCPLifecycleManager
 from safecode.mcp.proposal import MCPWriteProposalStore
 from safecode.mcp.runner import MCPReadOnlyRunner
 from safecode.tools.gate import ToolCallGate
@@ -368,3 +369,58 @@ def mcp_discard() -> None:
     console.print("[green]Pending MCP write proposal discarded.[/green]")
 
 
+# ── Lifecycle commands (v3.8.0, experimental) ─────────────────────────────────
+
+
+@mcp_app.command("start")
+def mcp_start(
+    server: str = typer.Argument(..., help="MCP server name from .sac/mcp.toml"),
+) -> None:
+    """Start a configured MCP server process in the background. [EXPERIMENTAL]
+
+    Requires the server to have an ``argv`` list in .sac/mcp.toml.
+    Tracks PID in .sac/mcp/<server>.pid.  Idempotent if already running.
+    Emits an audit event on each attempt.
+    """
+    project_root = Path.cwd()
+    manager = MCPLifecycleManager(project_root)
+    result = manager.start(server)
+    if result.success:
+        console.print(f"[green]{result.message}[/green]")
+    else:
+        console.print(f"[red]{result.message}[/red]")
+        raise typer.Exit(code=1)
+
+
+@mcp_app.command("stop")
+def mcp_stop(
+    server: str = typer.Argument(..., help="MCP server name from .sac/mcp.toml"),
+) -> None:
+    """Stop a running MCP server process. [EXPERIMENTAL]
+
+    Idempotent: exits 0 even if the server is not running or the PID is missing.
+    Emits an audit event on each attempt.
+    """
+    project_root = Path.cwd()
+    manager = MCPLifecycleManager(project_root)
+    result = manager.stop(server)
+    # stop always returns success (idempotent); only show in context
+    console.print(f"[green]{result.message}[/green]")
+
+
+@mcp_app.command("restart")
+def mcp_restart(
+    server: str = typer.Argument(..., help="MCP server name from .sac/mcp.toml"),
+) -> None:
+    """Stop then start a configured MCP server process. [EXPERIMENTAL]
+
+    Emits audit events for the stop and start transitions.
+    """
+    project_root = Path.cwd()
+    manager = MCPLifecycleManager(project_root)
+    result = manager.restart(server)
+    if result.success:
+        console.print(f"[green]{result.message}[/green]")
+    else:
+        console.print(f"[red]{result.message}[/red]")
+        raise typer.Exit(code=1)

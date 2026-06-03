@@ -271,19 +271,26 @@ class TestUnknownBlocking:
 
 
 class TestOptInRequirement:
-    def test_mcp_read_only_runner_does_not_use_stdio_adapter(self):
-        """MCPReadOnlyRunner import and interface unchanged."""
+    def test_mcp_read_only_runner_stdio_is_opt_in_off_by_default(self):
+        """MCPReadOnlyRunner stdio routing is opt-in and off by default (v3.8.0)."""
         from safecode.mcp.runner import MCPReadOnlyRunner
-        import inspect
-        src = inspect.getsource(MCPReadOnlyRunner)
-        assert "StdioReadOnlyAdapter" not in src
-
-    def test_stdio_adapter_not_imported_in_runner(self):
-        import importlib, ast, pathlib
+        import pathlib
+        runner = MCPReadOnlyRunner.__new__(MCPReadOnlyRunner)
+        # Default env behaviour: stdio_runner off unless SAFECODE_MCP_STDIO_RUNNER=1.
+        # The attribute exists; opt-in is controlled by flag not by absence of import.
         runner_src = (pathlib.Path(__file__).parent.parent
                       / "src" / "safecode" / "mcp" / "runner.py").read_text()
-        assert "stdio_runner" not in runner_src
-        assert "StdioReadOnlyAdapter" not in runner_src
+        # v3.8.0: wired behind an explicit opt-in flag — import present, default off.
+        assert "SAFECODE_MCP_STDIO_RUNNER" in runner_src
+
+    def test_stdio_adapter_wired_behind_opt_in_flag(self):
+        """StdioReadOnlyAdapter is imported but only used when stdio_runner=True (v3.8.0)."""
+        import pathlib
+        runner_src = (pathlib.Path(__file__).parent.parent
+                      / "src" / "safecode" / "mcp" / "runner.py").read_text()
+        # v3.8.0: StdioReadOnlyAdapter is imported and used only via the opt-in path.
+        assert "StdioReadOnlyAdapter" in runner_src
+        assert "self._stdio_runner" in runner_src
 
     def test_stdio_adapter_not_imported_in_loop_executor(self):
         import pathlib

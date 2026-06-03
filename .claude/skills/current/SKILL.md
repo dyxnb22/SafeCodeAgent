@@ -5,13 +5,15 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v3.7.3
+# Current Baseline - v3.8.0
 
 ## Status
-Implemented. Git baseline: tag `v3.7.3`. Local working version: `v3.7.3`.
+Implemented. Git baseline: tag `v3.8.0`. Local working version: `v3.8.0`.
 
 ## Stage
-`v3.7.3` v3.7.x docs cut — `README.md` Core Commands updated: `sac setup --wizard`, `sac fix`, `sac fix --test-command`, `--json` usage documented. `docs/mvp-user-guide.md` updated: intro references v3.7.x; quickstart documents stack detection; new "Interactive setup wizard" subsection; new "Fixing failing tests with sac fix" section; new "Machine-readable output" section with stable JSON envelope contract reference. No runtime changes. Full suite: 3414 passed, 2 skipped.
+`v3.8.0` MCP stdio wire + lifecycle — `StdioReadOnlyAdapter` wired into `MCPReadOnlyRunner.call_readonly` behind `SAFECODE_MCP_STDIO_RUNNER=1` env var / `stdio_runner=True` constructor param; classification gate always runs before stdio call; server-supplied classification ignored. `MCPLifecycleManager` (start/stop/restart) added in `src/safecode/mcp/lifecycle.py`; PID files at `.sac/mcp/<server>.pid`; stop() idempotent; each transition emits RuntimeLogger + AuditEvent. `sac mcp start/stop/restart` CLI commands (all [EXPERIMENTAL]). 19 new tests in `tests/test_mcp_stdio_wired.py`, 32 new tests in `tests/test_mcp_lifecycle.py`, 2 tests updated in `tests/test_mcp_stdio_runner.py`. Full suite: 3465 passed, 2 skipped.
+
+Previous: `v3.7.3` v3.7.x docs cut — `README.md` Core Commands updated: `sac setup --wizard`, `sac fix`, `sac fix --test-command`, `--json` usage documented. `docs/mvp-user-guide.md` updated: intro references v3.7.x; quickstart documents stack detection; new "Interactive setup wizard" subsection; new "Fixing failing tests with sac fix" section; new "Machine-readable output" section with stable JSON envelope contract reference. No runtime changes. Full suite: 3414 passed, 2 skipped.
 
 Previous: `v3.7.2` repo recency signal + JSON envelope promotion — `src/safecode/context/selector.py` extended: `ContextSelector._recent_files()` runs `git log -n50 --name-only`, caches by HEAD, adds `_RECENCY_BONUS=2` to keyword-matched files that appear in recent commits; git failures fall back silently; 22 new tests in `tests/test_context_recency.py`. `CLIJSONResponse` promoted to stable contract in `docs/public-contracts.md` Section 11; snapshot at `tests/snapshots/contracts/cli_json_envelope.json`; 12 new tests in `TestCLIJSONEnvelopeContract`; `TestCrossContractDeterminism` extended. Full suite: 3414 passed, 2 skipped.
 

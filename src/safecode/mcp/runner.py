@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import subprocess
 import time
@@ -18,6 +19,7 @@ from safecode.logs.runtime import RuntimeLogger
 from safecode.mcp.config import MCPConfigStore, MCPServerConfig
 from safecode.mcp.proposal import MCPWriteProposal, MCPWriteProposalStore
 from safecode.mcp.schema import MCPToolSchema, classify_with_schema, validate_call_args
+from safecode.mcp.stdio_runner import StdioReadOnlyAdapter
 from safecode.policy.commands import CommandDecision, CommandPolicy
 from safecode.sandbox.filesystem import FilesystemBoundary
 from safecode.sandbox.network import NetworkPolicy
@@ -87,17 +89,33 @@ class MCPRunResult:
 
 
 class MCPReadOnlyRunner:
-    """Run MCP tools with read-only and network boundaries enforced."""
+    """Run MCP tools with read-only and network boundaries enforced.
+
+    Opt-in stdio routing (v3.8.0):
+        Pass ``stdio_runner=True`` or set ``SAFECODE_MCP_STDIO_RUNNER=1`` to
+        route ``call_readonly`` through ``StdioReadOnlyAdapter`` when the
+        configured server has an ``argv`` list.  When the flag is off the
+        behaviour is identical to v3.7.x.
+
+        The static classification gate always runs BEFORE any stdio call.
+        Server-supplied classification fields in responses are ignored (same
+        as the non-stdio path).
+    """
 
     def __init__(
         self,
         project_root: Path,
         config: SafeCodeConfig | None = None,
         schemas: list[MCPToolSchema] | None = None,
+        stdio_runner: bool | None = None,
     ) -> None:
         self.project_root = project_root
         self.config = config or SafeCodeConfig.load(project_root)
         self._schemas: list[MCPToolSchema] = schemas or []
+        if stdio_runner is not None:
+            self._stdio_runner = stdio_runner
+        else:
+            self._stdio_runner = os.getenv("SAFECODE_MCP_STDIO_RUNNER", "0") == "1"
         self.policy = CommandPolicy(self.config)
         self.audit_logger = AuditLogger(project_root, self.config)
         self.runtime_logger = RuntimeLogger(project_root, self.config)
@@ -148,6 +166,13 @@ class MCPReadOnlyRunner:
             return self._blocked(server, tool, classification, "MCP input exceeded size limits.", trace_id)
 
         self._audit("mcp_call_started", server, tool, classification, "started", "MCP call started", trace_id=trace_id)
+
+        # stdio routing: opt-in via SAFECODE_MCP_STDIO_RUNNER=1 or stdio_runner=True.
+        # Classification gate has already passed above; server-supplied classification ignored.
+        if self._stdio_runner and server_config.argv:
+            return self._call_via_stdio(
+                server, tool, classification, input_data or {}, server_config, trace_id
+            )
 
         started = time.perf_counter()
         try:
@@ -454,6 +479,65 @@ class MCPReadOnlyRunner:
             trace_id=trace_id,
         )
         return proposal
+
+    def _call_via_stdio(
+        self,
+        server: str,
+        tool: str,
+        classification: str,
+        input_data: dict[str, Any],
+        server_config: MCPServerConfig,
+        trace_id: str | None,
+    ) -> MCPRunResult:
+        """Route a read-only call through StdioReadOnlyAdapter (opt-in path).
+
+        Classification gate has already passed before this method is called.
+        Server-supplied classification fields are ignored by the adapter.
+        """
+        started = time.perf_counter()
+        adapter = StdioReadOnlyAdapter(
+            server_name=server,
+            argv=list(server_config.argv),  # type: ignore[arg-type]
+            schemas=self._schemas,
+            timeout_seconds=float(self.config.shell.default_timeout_seconds),
+        )
+        result = adapter.call_readonly(tool, input_data)
+        duration_ms = int((time.perf_counter() - started) * 1000)
+
+        if result.blocked:
+            self._audit(
+                "mcp_call_blocked", server, tool, classification, "blocked",
+                result.error, trace_id=trace_id,
+            )
+            return MCPRunResult(
+                server, tool, classification, "", result.error,
+                result.exit_code, duration_ms, False, True,
+            )
+
+        if not result.success:
+            error = result.error or "MCP stdio call failed."
+            self.runtime_logger.error(
+                "mcp.runner", "MCP stdio call failed", trace_id=trace_id, error=error
+            )
+            self._audit(
+                "mcp_call_completed", server, tool, classification, "failed",
+                error, exit_code=result.exit_code, trace_id=trace_id,
+            )
+            return MCPRunResult(
+                server, tool, classification, "", error,
+                result.exit_code, duration_ms, True, False,
+            )
+
+        output = redact_secrets(result.output)
+        status = "success" if result.exit_code == 0 else "failed"
+        self._audit(
+            "mcp_call_completed", server, tool, classification, status,
+            output or "MCP call completed.", exit_code=result.exit_code, trace_id=trace_id,
+        )
+        return MCPRunResult(
+            server, tool, classification, output, "",
+            result.exit_code, duration_ms, True, False,
+        )
 
     def _get_server(self, name: str) -> MCPServerConfig | None:
         for server in MCPConfigStore(self.project_root).list_servers():
