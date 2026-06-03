@@ -61,6 +61,8 @@ def _event_to_finding(event: AgentJournalEvent) -> SubagentFinding | None:
         observations = [redact_secrets(o) for o in typed.observations if isinstance(o, str)]
         files_inspected = [str(f) for f in typed.files_inspected]
         errors = [redact_secrets(e) for e in typed.errors if isinstance(e, str)]
+        # v2 fields are read but not surfaced in SubagentFinding (synthesis
+        # is handled separately by synthesize_findings in the loop).
 
         return SubagentFinding(
             task_id=task_id,

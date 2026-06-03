@@ -17,7 +17,9 @@ from safecode.context.redactor import redact_secrets
 from safecode.llm.factory import create_llm_client
 from safecode.mcp.loop_executor import MCPApprovedWriteExecutor, MCPReadToolExecutor
 from safecode.subagents.executor import SubagentDispatchExecutor
-from safecode.subagents.journal_adapter import merge_journal_subagent_findings
+from safecode.subagents.journal_adapter import findings_from_journal_events, merge_journal_subagent_findings
+from safecode.subagents.merge_policy import merge_subagent_findings
+from safecode.subagents.synthesis import synthesize_findings
 from safecode.mcp.proposal import MCPWriteProposal, MCPWriteProposalStore
 from safecode.state.journal import AgentJournalStore
 
@@ -513,14 +515,17 @@ class AgentLoop:
         return AgentStepResult(state=saved, observation=observation)
 
     def _enrich_with_subagent_findings(self, session_id: str, context: dict) -> dict:
-        """Inject merged subagent findings from this session into planning context.
+        """Inject merged subagent findings and synthesis into planning context.
 
-        Secrets are redacted before injection. Fail closed: any error leaves context
-        unchanged and emits a debug warning without interrupting the agent loop.
+        Secrets are redacted before injection. Parent calls synthesize_findings
+        before consuming the merged list (T-3.4.2-A). Fail closed: any error
+        leaves context unchanged and emits a warning without interrupting the loop.
         """
         try:
             events = self.journal.read(session_id)
-            merged = merge_journal_subagent_findings(events)
+            # Get raw findings for synthesis (T-3.4.2-A).
+            findings = findings_from_journal_events(events)
+            merged = merge_subagent_findings(findings)
             if merged.source_task_ids or merged.blocked_task_ids or merged.errors:
                 # Consumer-side redaction is defense-in-depth (producer-side is primary).
                 # Warn if consumer pass still changes text, indicating a gap upstream.
@@ -546,6 +551,23 @@ class AgentLoop:
                     "blocked_task_ids": merged.blocked_task_ids,
                     "errors": redacted_errors,
                 }
+
+                # T-3.4.2-A: synthesize before parent consumes merged findings.
+                try:
+                    synthesis = synthesize_findings(findings, self.llm_client)
+                    context["subagent_synthesis"] = {
+                        "summary": synthesis.summary,
+                        "key_findings": synthesis.key_findings,
+                        "risks": synthesis.risks,
+                        "source_task_ids": synthesis.source_task_ids,
+                        "used_fallback": synthesis.used_fallback,
+                    }
+                except Exception as syn_exc:
+                    warnings.warn(
+                        f"subagent synthesis failed (merged findings preserved): {type(syn_exc).__name__}",
+                        RuntimeWarning,
+                        stacklevel=2,
+                    )
         except Exception as exc:
             warnings.warn(
                 f"subagent enrichment failed (context unchanged): {exc}",

@@ -28,9 +28,10 @@ class TestSubagentFindingRedaction:
         merged.observations = []
         merged.files_inspected = []
 
-        with patch("safecode.agent.loop.merge_journal_subagent_findings", return_value=merged):
-            with patch.object(loop.journal, "read", return_value=[]):
-                context = loop._enrich_with_subagent_findings("session-1", {})
+        with patch("safecode.agent.loop.findings_from_journal_events", return_value=[]):
+            with patch("safecode.agent.loop.merge_subagent_findings", return_value=merged):
+                with patch.object(loop.journal, "read", return_value=[]):
+                    context = loop._enrich_with_subagent_findings("session-1", {})
 
         assert "sk-supersecretvalue" not in context["subagent_findings"]["summary"]
         assert "[REDACTED]" in context["subagent_findings"]["summary"]
@@ -45,9 +46,10 @@ class TestSubagentFindingRedaction:
         merged.observations = ["Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"]
         merged.files_inspected = []
 
-        with patch("safecode.agent.loop.merge_journal_subagent_findings", return_value=merged):
-            with patch.object(loop.journal, "read", return_value=[]):
-                context = loop._enrich_with_subagent_findings("session-1", {})
+        with patch("safecode.agent.loop.findings_from_journal_events", return_value=[]):
+            with patch("safecode.agent.loop.merge_subagent_findings", return_value=merged):
+                with patch.object(loop.journal, "read", return_value=[]):
+                    context = loop._enrich_with_subagent_findings("session-1", {})
 
         obs = context["subagent_findings"]["observations"][0]
         assert "eyJhbGci" not in obs
@@ -63,9 +65,10 @@ class TestSubagentFindingRedaction:
         merged.observations = []
         merged.files_inspected = []
 
-        with patch("safecode.agent.loop.merge_journal_subagent_findings", return_value=merged):
-            with patch.object(loop.journal, "read", return_value=[]):
-                context = loop._enrich_with_subagent_findings("session-1", {})
+        with patch("safecode.agent.loop.findings_from_journal_events", return_value=[]):
+            with patch("safecode.agent.loop.merge_subagent_findings", return_value=merged):
+                with patch.object(loop.journal, "read", return_value=[]):
+                    context = loop._enrich_with_subagent_findings("session-1", {})
 
         err = context["subagent_findings"]["errors"][0]
         assert "eyJhbGci" not in err
@@ -81,9 +84,10 @@ class TestSubagentFindingRedaction:
         merged.observations = ["module foo has unused import bar"]
         merged.files_inspected = ["foo.py"]
 
-        with patch("safecode.agent.loop.merge_journal_subagent_findings", return_value=merged):
-            with patch.object(loop.journal, "read", return_value=[]):
-                context = loop._enrich_with_subagent_findings("session-1", {})
+        with patch("safecode.agent.loop.findings_from_journal_events", return_value=[]):
+            with patch("safecode.agent.loop.merge_subagent_findings", return_value=merged):
+                with patch.object(loop.journal, "read", return_value=[]):
+                    context = loop._enrich_with_subagent_findings("session-1", {})
 
         assert context["subagent_findings"]["summary"] == "Found 3 Python files with unused imports."
         assert context["subagent_findings"]["observations"] == ["module foo has unused import bar"]
@@ -277,11 +281,12 @@ class TestConsumerSideRedactionWarning:
         merged.observations = []
         merged.files_inspected = []
 
-        with patch("safecode.agent.loop.merge_journal_subagent_findings", return_value=merged):
-            with patch.object(loop.journal, "read", return_value=[]):
-                with warnings.catch_warnings(record=True) as caught:
-                    warnings.simplefilter("always")
-                    context = loop._enrich_with_subagent_findings("session-1", {})
+        with patch("safecode.agent.loop.findings_from_journal_events", return_value=[]):
+            with patch("safecode.agent.loop.merge_subagent_findings", return_value=merged):
+                with patch.object(loop.journal, "read", return_value=[]):
+                    with warnings.catch_warnings(record=True) as caught:
+                        warnings.simplefilter("always")
+                        context = loop._enrich_with_subagent_findings("session-1", {})
 
         runtime_warns = [w for w in caught if issubclass(w.category, RuntimeWarning)]
         warning_msgs = [str(w.message) for w in runtime_warns]
@@ -301,11 +306,12 @@ class TestConsumerSideRedactionWarning:
         merged.observations = ["module foo imports bar"]
         merged.files_inspected = []
 
-        with patch("safecode.agent.loop.merge_journal_subagent_findings", return_value=merged):
-            with patch.object(loop.journal, "read", return_value=[]):
-                with warnings.catch_warnings(record=True) as caught:
-                    warnings.simplefilter("always")
-                    loop._enrich_with_subagent_findings("session-1", {})
+        with patch("safecode.agent.loop.findings_from_journal_events", return_value=[]):
+            with patch("safecode.agent.loop.merge_subagent_findings", return_value=merged):
+                with patch.object(loop.journal, "read", return_value=[]):
+                    with warnings.catch_warnings(record=True) as caught:
+                        warnings.simplefilter("always")
+                        loop._enrich_with_subagent_findings("session-1", {})
 
         producer_gap_warns = [
             w for w in caught

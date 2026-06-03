@@ -116,9 +116,11 @@ class AgentJournalStore:
         message: str,
         dispatch_summary: dict[str, object],
     ) -> AgentJournalEvent:
+        from safecode.subagents.payload import CURRENT_PAYLOAD_VERSION  # avoid circular at module level
+
         payload_data = dict(dispatch_summary)
-        # Always include payload_version for forward-compatible tolerant loading (v2.9.6).
-        payload_data.setdefault("payload_version", 1)
+        # Always include payload_version for forward-compatible tolerant loading (v2.9.6/v3.4.3).
+        payload_data.setdefault("payload_version", CURRENT_PAYLOAD_VERSION)
         return self.append(
             AgentJournalEvent(
                 session_id=session_id,

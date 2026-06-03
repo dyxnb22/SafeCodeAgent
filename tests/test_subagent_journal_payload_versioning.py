@@ -46,8 +46,10 @@ class TestSubagentDispatchPayload:
         assert p.success is False
 
     def test_current_payload_version(self):
-        assert CURRENT_PAYLOAD_VERSION == 1
-        assert 1 in SUPPORTED_PAYLOAD_VERSIONS
+        # v3.4.3: CURRENT_PAYLOAD_VERSION bumped to 2; v1 still supported.
+        assert CURRENT_PAYLOAD_VERSION == 2
+        assert 2 in SUPPORTED_PAYLOAD_VERSIONS
+        assert 1 in SUPPORTED_PAYLOAD_VERSIONS  # backward compat
 
     def test_full_payload(self):
         p = SubagentDispatchPayload(
@@ -92,8 +94,9 @@ class TestSubagentDispatchPayload:
         assert p.blocked is True
         assert p.success is False
 
-    def test_version_2_not_supported(self):
-        assert 2 not in SUPPORTED_PAYLOAD_VERSIONS
+    def test_version_2_is_supported(self):
+        # v3.4.3: payload v2 promoted to supported.
+        assert 2 in SUPPORTED_PAYLOAD_VERSIONS
 
 
 # ---------------------------------------------------------------------------
@@ -222,12 +225,13 @@ class TestUnsupportedVersion:
     def test_future_version_fail_closed(self):
         from safecode.subagents.journal_adapter import findings_from_journal_events
 
-        events = [self._make_versioned_event(1), self._make_versioned_event(99)]
+        # v1 and v2 are supported; v99 is unsupported future.
+        events = [self._make_versioned_event(1), self._make_versioned_event(2), self._make_versioned_event(99)]
         with warnings.catch_warnings(record=True):
             warnings.simplefilter("always")
             findings = findings_from_journal_events(events)
-        # Only v1 event is included
-        assert len(findings) == 1
+        # v1 and v2 events are included; v99 is skipped fail-closed.
+        assert len(findings) == 2
 
 
 # ---------------------------------------------------------------------------
@@ -252,7 +256,8 @@ class TestJournalStoreDispatchVersion:
         )
         payload = event.payload["subagent_dispatch"]
         assert isinstance(payload, dict)
-        assert payload.get("payload_version") == 1
+        # v3.4.3: new payloads write CURRENT_PAYLOAD_VERSION (2).
+        assert payload.get("payload_version") == 2
 
     def test_record_does_not_override_existing_version(self, tmp_path):
         from safecode.state.journal import AgentJournalStore
@@ -269,6 +274,7 @@ class TestJournalStoreDispatchVersion:
             },
         )
         payload = event.payload["subagent_dispatch"]
+        # If caller explicitly sets payload_version=1, it is preserved.
         assert payload["payload_version"] == 1
 
     def test_roundtrip_read_write(self, tmp_path):
@@ -490,3 +496,250 @@ class TestAdversarialPayloads:
             warnings.simplefilter("always")
             result = findings_from_journal_events(malformed_events)
         assert isinstance(result, list)
+
+
+# ---------------------------------------------------------------------------
+# v2 payload tests (T-3.4.3-A)
+# ---------------------------------------------------------------------------
+
+
+class TestPayloadV2Fields:
+    """v2 payload: synthesis + cancellation fields round-trip (T-3.4.3-A)."""
+
+    def test_v2_payload_loads_with_synthesis_fields(self):
+        raw = {
+            "payload_version": 2,
+            "task_id": "v2-task",
+            "summary": "v2 summary",
+            "observations": [],
+            "files_inspected": [],
+            "errors": [],
+            "blocked": False,
+            "success": True,
+            "synthesis_summary": "synthesized text",
+            "synthesis_key_findings": ["finding A", "finding B"],
+            "synthesis_risks": ["risk 1"],
+            "synthesis_source_task_ids": ["v2-task"],
+            "cancelled_task_ids": [],
+        }
+        p = SubagentDispatchPayload.model_validate(raw)
+        assert p.payload_version == 2
+        assert p.synthesis_summary == "synthesized text"
+        assert p.synthesis_key_findings == ["finding A", "finding B"]
+        assert p.synthesis_risks == ["risk 1"]
+        assert p.synthesis_source_task_ids == ["v2-task"]
+        assert p.cancelled_task_ids == []
+
+    def test_v1_loads_with_empty_v2_defaults(self):
+        """v1 payload still loads; new v2 fields default safely."""
+        raw = {
+            "payload_version": 1,
+            "task_id": "v1-task",
+            "summary": "v1 summary",
+            "success": True,
+            "blocked": False,
+        }
+        p = SubagentDispatchPayload.model_validate(raw)
+        assert p.payload_version == 1
+        assert p.synthesis_summary == ""
+        assert p.synthesis_key_findings == []
+        assert p.synthesis_risks == []
+        assert p.synthesis_source_task_ids == []
+        assert p.cancelled_task_ids == []
+
+    def test_missing_optional_v2_fields_load_safely(self):
+        """v2 payload with only core fields: optional v2 fields default."""
+        raw = {
+            "payload_version": 2,
+            "task_id": "v2-partial",
+            "success": True,
+        }
+        p = SubagentDispatchPayload.model_validate(raw)
+        assert p.payload_version == 2
+        assert p.synthesis_summary == ""
+        assert p.cancelled_task_ids == []
+
+    def test_cancellation_fields_round_trip(self):
+        """cancelled_task_ids round-trips through model serialization."""
+        p = SubagentDispatchPayload(
+            payload_version=2,
+            task_id="t",
+            cancelled_task_ids=["cancelled-1", "cancelled-2"],
+        )
+        dumped = p.model_dump()
+        reloaded = SubagentDispatchPayload.model_validate(dumped)
+        assert reloaded.cancelled_task_ids == ["cancelled-1", "cancelled-2"]
+
+    def test_v2_synthesis_round_trip_via_model_dump(self):
+        """v2 synthesis fields survive model_dump → model_validate round-trip."""
+        p = SubagentDispatchPayload(
+            payload_version=2,
+            task_id="synth-task",
+            synthesis_summary="key insight",
+            synthesis_key_findings=["finding 1", "finding 2"],
+            synthesis_risks=["possible risk"],
+            synthesis_source_task_ids=["synth-task"],
+        )
+        dumped = p.model_dump()
+        assert dumped["payload_version"] == 2
+        assert dumped["synthesis_summary"] == "key insight"
+        reloaded = SubagentDispatchPayload.model_validate(dumped)
+        assert reloaded.synthesis_summary == "key insight"
+        assert reloaded.synthesis_key_findings == ["finding 1", "finding 2"]
+
+    def test_v2_extra_fields_ignored(self):
+        """Unknown future fields are silently ignored (extra='ignore')."""
+        raw = {
+            "payload_version": 2,
+            "task_id": "t",
+            "synthesis_summary": "s",
+            "future_unknown_field": "should be ignored",
+        }
+        p = SubagentDispatchPayload.model_validate(raw)
+        assert p.synthesis_summary == "s"
+        assert not hasattr(p, "future_unknown_field")
+
+
+class TestPayloadV2JournalRoundTrip:
+    """v2 payload round-trips through AgentJournalStore write/read."""
+
+    def test_v2_writes_payload_version_2(self, tmp_path):
+        from safecode.state.journal import AgentJournalStore
+        from safecode.subagents.payload import CURRENT_PAYLOAD_VERSION
+
+        assert CURRENT_PAYLOAD_VERSION == 2
+
+        store = AgentJournalStore(tmp_path)
+        event = store.record_subagent_dispatch(
+            session_id="v2-session-001",
+            step=1,
+            message="v2 dispatch",
+            dispatch_summary={
+                "task_id": "t-v2",
+                "summary": "v2 summary",
+                "success": True,
+                "blocked": False,
+                "synthesis_summary": "parent synthesis",
+                "synthesis_key_findings": ["key A"],
+                "cancelled_task_ids": [],
+            },
+        )
+        payload = event.payload["subagent_dispatch"]
+        assert payload["payload_version"] == 2
+        assert payload["synthesis_summary"] == "parent synthesis"
+
+    def test_v2_synthesis_fields_persist_in_journal(self, tmp_path):
+        from safecode.state.journal import AgentJournalStore
+
+        store = AgentJournalStore(tmp_path)
+        store.record_subagent_dispatch(
+            session_id="v2-session-002",
+            step=1,
+            message="v2 with synthesis",
+            dispatch_summary={
+                "task_id": "t-synth",
+                "success": True,
+                "blocked": False,
+                "synthesis_summary": "synthesized result",
+                "synthesis_key_findings": ["kf1", "kf2"],
+                "synthesis_risks": ["risk A"],
+                "synthesis_source_task_ids": ["t-synth"],
+                "cancelled_task_ids": [],
+            },
+        )
+        events = store.read("v2-session-002")
+        assert len(events) == 1
+        payload = events[0].payload["subagent_dispatch"]
+        assert payload["payload_version"] == 2
+        assert payload["synthesis_summary"] == "synthesized result"
+        assert payload["synthesis_key_findings"] == ["kf1", "kf2"]
+
+    def test_v1_still_loads_from_journal(self, tmp_path):
+        """Writing a v1 payload to journal and reading back works."""
+        from safecode.state.journal import AgentJournalStore
+        from safecode.subagents.journal_adapter import findings_from_journal_events
+
+        store = AgentJournalStore(tmp_path)
+        store.record_subagent_dispatch(
+            session_id="v1-compat-session",
+            step=1,
+            message="v1 compat",
+            dispatch_summary={
+                "payload_version": 1,
+                "task_id": "legacy-task",
+                "summary": "legacy summary",
+                "success": True,
+                "blocked": False,
+            },
+        )
+        events = store.read("v1-compat-session")
+        findings = findings_from_journal_events(events)
+        assert len(findings) == 1
+        assert findings[0].task_id == "legacy-task"
+        assert findings[0].success is True
+
+
+class TestPayloadV2UnsupportedFutureVersion:
+    """Unsupported future versions fail closed (T-3.4.3-A)."""
+
+    def _make_event(self, version: int) -> "AgentJournalEvent":
+        from safecode.state.journal import AgentJournalEvent
+        return AgentJournalEvent(
+            session_id="future-session",
+            type="subagent_dispatch",
+            message="future",
+            payload={"subagent_dispatch": {
+                "payload_version": version,
+                "task_id": "t",
+                "summary": "s",
+                "success": True,
+            }},
+        )
+
+    def test_version_3_warns_and_skips(self):
+        from safecode.subagents.journal_adapter import _event_to_finding
+
+        event = self._make_event(3)
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            result = _event_to_finding(event)
+        assert result is None
+        assert any(issubclass(warning.category, RuntimeWarning) for warning in w)
+
+    def test_malformed_payload_warning_does_not_leak_secrets(self):
+        """Warning text must not contain caller-supplied content or secrets."""
+        from safecode.state.journal import AgentJournalEvent
+        from safecode.subagents.journal_adapter import _event_to_finding
+
+        secret = "sk-secretvalue12345678901234567890"
+        event = AgentJournalEvent(
+            session_id="secret-session",
+            type="subagent_dispatch",
+            message="secret payload",
+            payload={"subagent_dispatch": {
+                "payload_version": 999,
+                "task_id": secret,
+                "summary": f"api_key={secret}",
+            }},
+        )
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            _event_to_finding(event)
+        for warning in w:
+            msg = str(warning.message)
+            assert secret not in msg, f"Secret leaked in warning: {msg}"
+
+    def test_unsupported_version_does_not_crash_normal_runs(self):
+        """A journal with a mix of supported and unsupported events continues."""
+        from safecode.subagents.journal_adapter import findings_from_journal_events
+
+        events = [
+            self._make_event(1),
+            self._make_event(2),
+            self._make_event(999),
+        ]
+        with warnings.catch_warnings(record=True):
+            warnings.simplefilter("always")
+            findings = findings_from_journal_events(events)
+        # v1 and v2 parsed; v999 skipped
+        assert len(findings) == 2

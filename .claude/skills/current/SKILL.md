@@ -5,13 +5,21 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v3.3.7
+# Current Baseline - v3.4.3
 
 ## Status
-Implemented. Git baseline: tag `v3.3.7`. Local working version: `v3.3.7`.
+Implemented. Git baseline: tag `v3.4.3`. Local working version: `v3.4.3`.
 
 ## Stage
-`v3.3.7` Metadata-only full-regression signoff for the v3.3.x MCP stdio series. No runtime changes. Full suite: 3014 passed, 2 skipped. MCP remains experimental.
+`v3.4.3` Subagent payload v2 promotion — `CURRENT_PAYLOAD_VERSION=2`; `SUPPORTED_PAYLOAD_VERSIONS={1,2}`; new fields: `synthesis_summary`, `synthesis_key_findings`, `synthesis_risks`, `synthesis_source_task_ids`, `cancelled_task_ids`; old-journal default stays 1; subagent v2 payload promoted to stable contract in `docs/public-contracts.md`. Full suite: 3084 passed, 2 skipped.
+
+Previous: `v3.4.2` Subagent synthesis — `src/safecode/subagents/synthesis.py` (new); `SubagentSynthesisResult` frozen dataclass; `synthesize_findings(findings, llm_client=None, *, max_findings=10)`; parent loop (`_enrich_with_subagent_findings`) calls synthesis before consuming merged findings; output redacted; fallback on LLM failure; `source_task_ids` sorted; 28 new tests in `tests/test_subagent_synthesis.py`.
+
+Previous: `v3.4.1` Subagent cancellation — `CancellationToken` (threading.Event-backed, idempotent) in `pool.py`; `SubagentPool.cancel()` + `run_all(cancellation_token=...)` external token support; cancelled tasks → `blocked=True`, empty `task_id`; no orphan files; completes within 5s in tests; deterministic ordering preserved; 12 new tests in `tests/test_subagent_cancellation.py`.
+
+Previous: `v3.4.0` Subagent pool — `src/safecode/subagents/pool.py` (new); `SubagentPool(project_root, max_workers=2)`; default max 2 (`SAFECODE_SUBAGENT_MAX` env override); invalid env warns + falls back safely; `ThreadPoolExecutor` bounded; results sorted by `task_id`; worker exceptions isolated; 22 new tests in `tests/test_subagent_pool.py`.
+
+Previous: `v3.3.7` Metadata-only full-regression signoff for the v3.3.x MCP stdio series. No runtime changes. Full suite: 3014 passed, 2 skipped. MCP remains experimental.
 
 Previous: `v3.3.6` MCP Stdio Adversarial Hardening — no new features; adds 37 targeted adversarial tests in `tests/test_mcp_stdio_adversarial.py` covering: server-supplied "classification" field in JSON response ignored; CLI `stdio-discover` has no adapter execution path; `--timeout` propagation verified; `StdioReadOnlyAdapter` gates on static classification after merge; shell string in TOML fails at parse time; oversized/malformed server responses fail closed; error text never contains caller-supplied content or server response data; shell metacharacter tool names blocked by classification gate. MCP remains experimental.
 

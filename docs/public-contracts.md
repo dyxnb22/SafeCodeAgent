@@ -210,6 +210,29 @@ fan-out routing.
 
 ---
 
+### 10. Subagent Dispatch Payload v2 Contract
+
+**Where:** `src/safecode/subagents/payload.py`, `SubagentDispatchPayload`.
+
+**Contract:** Subagent journal event payloads at `payload_version=2` are a supported
+format as of v3.4.3. v1 payloads remain supported for backward compatibility.
+
+**v1 fields (stable since v2.9.6):** `payload_version`, `task_id`, `summary`,
+`observations`, `files_inspected`, `errors`, `blocked`, `success`.
+
+**v2 fields (promoted at v3.4.3):** `synthesis_summary`, `synthesis_key_findings`,
+`synthesis_risks`, `synthesis_source_task_ids`, `cancelled_task_ids`.
+
+**Invariants:**
+- Old journals without `payload_version` parse as v1 with safe defaults.
+- `SUPPORTED_PAYLOAD_VERSIONS = frozenset({1, 2})`.
+- Unsupported future versions emit `RuntimeWarning` and return `None` (fail closed).
+- Malformed payload warnings do not include caller-supplied content or secrets.
+- All v2 fields have safe defaults so v1 payloads load without errors.
+- New journal events written with `CURRENT_PAYLOAD_VERSION=2`.
+
+---
+
 ## Experimental Surfaces
 
 The following are explicitly experimental in v3.0. They may change, be removed, or be
@@ -220,7 +243,7 @@ promoted to stable contracts in a future release.
 | `SafeCodeLocalAPI` beyond `ask()` and `report()` | Not yet snapshot-tested or versioned |
 | OpenAI-compatible live provider behavior | Depends on network and API key; not deterministic |
 | MCP schema shim | Keyword-based classification fallback; no real JSON-RPC client |
-| Subagent payload evolution beyond read-only bounded findings | Payload versioning is v1 only |
+| Subagent payload evolution beyond v2 fields | v2 payload (synthesis + cancellation fields) promoted to supported at v3.4.3; v3+ fields remain experimental |
 | TUI (`sac tui dashboard`) | Rich rendering; not yet stable |
 | IDE bridge (`sac ide ...`) | Early manifest; subject to change |
 
