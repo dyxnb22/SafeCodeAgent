@@ -219,3 +219,95 @@ def validate_call_args(
         return f"Unexpected argument(s) not in schema: {names}"
 
     return None
+
+
+def merge_discovered_schemas(
+    static: tuple[MCPToolSchema, ...],
+    discovered: tuple[MCPToolSchema, ...],
+) -> tuple[MCPToolSchema, ...]:
+    """Merge discovered stdio schemas with existing static schemas (experimental, v3.3.3).
+
+    Pure helper — no I/O, no subprocess calls, no side effects.
+
+    Merge rules
+    -----------
+    Matching is by ``(server, tool)`` pair.
+
+    For tools present in both *static* and *discovered*:
+
+    - **Classification**: static always wins.  Discovered classification
+      (always ``"unknown"``) never overwrites an explicit static value.
+    - **description**: static value kept when non-empty; discovered value
+      used to fill in when static is ``""``.
+    - **args**: static value kept when non-empty; discovered value used to
+      fill in when static ``args`` is ``()``.
+    - **arg_schemas**: always from static; discovered never supplies typed
+      arg schemas.
+
+    For tools present only in *static*: included as-is.
+
+    For tools present only in *discovered*: appended as-is (classification
+    remains ``"unknown"``).
+
+    Ordering: enriched static schemas first (original static order preserved),
+    then discovered-only schemas appended in their original discovered order.
+
+    Duplicates within *discovered* (same ``server`` + ``tool``): first
+    occurrence wins; remaining are silently ignored.
+
+    Parameters
+    ----------
+    static:
+        Existing static schemas, e.g. from ``MCPSchemaStore.schemas``.
+        May be empty.
+    discovered:
+        Schemas from ``discover_stdio_tools``; classification is always
+        ``"unknown"``.  May be empty.
+
+    Returns
+    -------
+    tuple[MCPToolSchema, ...]
+        Merged schema tuple.  Never mutates inputs.
+    """
+    # Index discovered by (server, tool); first occurrence wins on duplicates.
+    disc_index: dict[tuple[str, str], MCPToolSchema] = {}
+    disc_order: list[tuple[str, str]] = []
+    for d in discovered:
+        key = (d.server, d.tool)
+        if key not in disc_index:
+            disc_index[key] = d
+            disc_order.append(key)
+
+    result: list[MCPToolSchema] = []
+    matched_keys: set[tuple[str, str]] = set()
+
+    for s in static:
+        key = (s.server, s.tool)
+        matched_keys.add(key)
+        d = disc_index.get(key)
+        if d is None:
+            result.append(s)
+        else:
+            # Static wins on classification; fill description/args from discovered only if absent.
+            description = s.description if s.description else d.description
+            args = s.args if s.args else d.args
+            if description == s.description and args == s.args:
+                result.append(s)
+            else:
+                result.append(
+                    MCPToolSchema(
+                        server=s.server,
+                        tool=s.tool,
+                        classification=s.classification,
+                        description=description,
+                        args=args,
+                        arg_schemas=s.arg_schemas,
+                    )
+                )
+
+    # Append discovered-only schemas (no static counterpart) in discovery order.
+    for key in disc_order:
+        if key not in matched_keys:
+            result.append(disc_index[key])
+
+    return tuple(result)
