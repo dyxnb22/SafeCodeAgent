@@ -13,7 +13,9 @@ import json
 from safecode.agent.approvals import HumanCheckpointPresenter
 from safecode.audit.logger import AuditLogger
 from safecode.audit.models import AuditEvent
-from safecode.mcp.discovery import MCPDiscovery
+from safecode.cli_shared_json import CLIJSONResponse, render_json
+from safecode.mcp.config import MCPConfigStore, StdioArgvError, resolve_stdio_argv
+from safecode.mcp.discovery import MCPDiscovery, discover_stdio_tools
 from safecode.mcp.proposal import MCPWriteProposalStore
 from safecode.mcp.runner import MCPReadOnlyRunner
 from safecode.tools.gate import ToolCallGate
@@ -183,6 +185,154 @@ def mcp_pending() -> None:
     table.add_row("Reason", proposal.reason)
     table.add_row("Input Hash", proposal.input_hash)
     console.print(table)
+
+
+@mcp_app.command("stdio-status")
+def mcp_stdio_status(
+    server: str,
+    json_output: bool = typer.Option(False, "--json", help="Output result as JSON."),
+) -> None:
+    """Show stdio argv status for a configured MCP server. [EXPERIMENTAL]
+
+    Reads server config from .sac/mcp.toml and reports whether stdio argv is
+    configured.  No subprocess is launched.  MCP stdio is experimental.
+    """
+    project_root = Path.cwd()
+    servers = MCPConfigStore(project_root).list_servers()
+    server_names = [s.name for s in servers]
+
+    if server not in server_names:
+        if json_output:
+            print(render_json(CLIJSONResponse(
+                command="mcp stdio-status",
+                status="error",
+                error=f"MCP server not found: '{server}'",
+            )))
+        else:
+            console.print(f"[red]MCP server not found:[/red] '{server}'")
+            console.print(f"[dim]Configured servers: {server_names or ['(none)']}[/dim]")
+        raise typer.Exit(code=1)
+
+    cfg = next(s for s in servers if s.name == server)
+    has_argv = cfg.argv is not None and len(cfg.argv) > 0
+
+    if json_output:
+        print(render_json(CLIJSONResponse(
+            command="mcp stdio-status",
+            status="success",
+            data={
+                "server": server,
+                "stdio_configured": has_argv,
+                "enabled": cfg.enabled,
+                "experimental": True,
+            },
+        )))
+    else:
+        status_label = "[green]configured[/green]" if has_argv else "[yellow]not configured[/yellow]"
+        enabled_label = "[green]enabled[/green]" if cfg.enabled else "[red]disabled[/red]"
+        console.print(f"[bold]MCP server:[/bold] {server}")
+        console.print(f"  Status:          {enabled_label}")
+        console.print(f"  Stdio argv:      {status_label}")
+        console.print(
+            "[dim][EXPERIMENTAL] MCP stdio transport is experimental. "
+            "No subprocess was launched.[/dim]"
+        )
+
+
+@mcp_app.command("stdio-discover")
+def mcp_stdio_discover(
+    server: str,
+    json_output: bool = typer.Option(False, "--json", help="Output result as JSON."),
+    timeout: float = typer.Option(10.0, "--timeout", help="Discovery timeout in seconds."),
+) -> None:
+    """Discover tools from a stdio MCP server via tools/list. [EXPERIMENTAL]
+
+    Launches the configured stdio subprocess, sends a tools/list request, and
+    prints discovered tools.  Only tools/list is called — no tools/call is
+    issued.  MCP stdio is experimental.
+    """
+    project_root = Path.cwd()
+    servers = MCPConfigStore(project_root).list_servers()
+
+    try:
+        argv = resolve_stdio_argv(servers, server)
+    except StdioArgvError as exc:
+        if json_output:
+            print(render_json(CLIJSONResponse(
+                command="mcp stdio-discover",
+                status="error",
+                error=str(exc),
+            )))
+        else:
+            console.print(f"[red]Cannot resolve stdio argv:[/red] {exc}")
+        raise typer.Exit(code=1) from exc
+
+    result = discover_stdio_tools(server, argv, timeout_seconds=timeout)
+
+    if json_output:
+        schemas_data = [
+            {
+                "server": s.server,
+                "tool": s.tool,
+                "classification": s.classification,
+                "description": s.description,
+                "args": list(s.args),
+            }
+            for s in result.schemas
+        ]
+        status = "success" if result.success else "error"
+        response = CLIJSONResponse(
+            command="mcp stdio-discover",
+            status=status,
+            data={
+                "server": result.server_name,
+                "tools_found": len(result.schemas),
+                "skipped": result.skipped_count,
+                "tools": schemas_data,
+                "experimental": True,
+            },
+        )
+        if not result.success:
+            response = CLIJSONResponse(
+                command="mcp stdio-discover",
+                status="error",
+                data={
+                    "server": result.server_name,
+                    "tools_found": 0,
+                    "skipped": result.skipped_count,
+                    "tools": [],
+                    "experimental": True,
+                },
+                error=result.error or "discovery failed",
+            )
+        print(render_json(response))
+    else:
+        console.print(f"[bold][EXPERIMENTAL][/bold] MCP stdio discover: [cyan]{server}[/cyan]")
+        if not result.success:
+            console.print(f"[red]Discovery failed:[/red] {result.error or 'unknown error'}")
+            if result.skipped_count:
+                console.print(f"[dim]Skipped malformed entries: {result.skipped_count}[/dim]")
+            raise typer.Exit(code=1)
+
+        if not result.schemas:
+            console.print("[yellow]No tools discovered.[/yellow]")
+            if result.skipped_count:
+                console.print(f"[dim]Skipped malformed entries: {result.skipped_count}[/dim]")
+        else:
+            table = Table(title=f"Discovered tools — {server} (experimental)")
+            table.add_column("Tool")
+            table.add_column("Classification")
+            table.add_column("Description")
+            for schema in result.schemas:
+                table.add_row(schema.tool, schema.classification, schema.description or "")
+            console.print(table)
+            if result.skipped_count:
+                console.print(f"[dim]Skipped malformed entries: {result.skipped_count}[/dim]")
+
+        console.print(
+            "[dim][EXPERIMENTAL] MCP stdio transport is experimental. "
+            "Only tools/list was called — no tools/call was issued.[/dim]"
+        )
 
 
 @mcp_app.command("discard")
