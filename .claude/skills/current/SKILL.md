@@ -5,13 +5,19 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v3.4.3
+# Current Baseline - v3.5.2
 
 ## Status
-Implemented. Git baseline: tag `v3.4.3`. Local working version: `v3.4.3`.
+Implemented. Git baseline: tag `v3.5.2`. Local working version: `v3.5.2`.
 
 ## Stage
-`v3.4.3` Subagent payload v2 promotion — `CURRENT_PAYLOAD_VERSION=2`; `SUPPORTED_PAYLOAD_VERSIONS={1,2}`; new fields: `synthesis_summary`, `synthesis_key_findings`, `synthesis_risks`, `synthesis_source_task_ids`, `cancelled_task_ids`; old-journal default stays 1; subagent v2 payload promoted to stable contract in `docs/public-contracts.md`. Full suite: 3084 passed, 2 skipped.
+`v3.5.2` Interactive TUI — `sac tui interactive` command; `src/safecode/tui/interactive.py`; non-TTY → static snapshot (deterministic, exits 0); TTY → Rich Live display (Ctrl-C exits cleanly); `--refresh` and `--history-limit` options; 24 new tests in `tests/test_tui_interactive_smoke.py`. Full suite: 3148 passed, 2 skipped.
+
+Previous: `v3.5.1` VS Code extension skeleton — `ide/manifest.py` extended with `jsonrpc_transport` (`launch_command=["sac","api","jsonrpc"]`, `protocol="json-rpc-2.0"`, `transport="stdio"`, `contract_version="1"`, `supported_methods`), `pending_diff_targets`, `safecode.apiJsonrpc` command; `_JSONRPC_CONTRACT_VERSION="1"` exported; IDE bridge remains experimental.
+
+Previous: `v3.5.0` LocalAPI JSON-RPC bridge — `src/safecode/api/jsonrpc.py` (new); `src/safecode/api/__init__.py` (new); `src/safecode/cli_api.py` (new); `sac api jsonrpc` CLI (hidden); `process_request` never raises; error text never contains caller params; `CONTRACT_VERSION="1"`; `_SUPPORTED_METHODS=frozenset({"ask","report","edit","apply"})`; writes gated by existing pending-patch safety machinery; 64 new tests in `tests/test_ide_bridge_jsonrpc.py`.
+
+Previous: `v3.4.3` Subagent payload v2 promotion — `CURRENT_PAYLOAD_VERSION=2`; `SUPPORTED_PAYLOAD_VERSIONS={1,2}`; new fields: `synthesis_summary`, `synthesis_key_findings`, `synthesis_risks`, `synthesis_source_task_ids`, `cancelled_task_ids`; old-journal default stays 1; subagent v2 payload promoted to stable contract in `docs/public-contracts.md`. Full suite: 3084 passed, 2 skipped.
 
 Previous: `v3.4.2` Subagent synthesis — `src/safecode/subagents/synthesis.py` (new); `SubagentSynthesisResult` frozen dataclass; `synthesize_findings(findings, llm_client=None, *, max_findings=10)`; parent loop (`_enrich_with_subagent_findings`) calls synthesis before consuming merged findings; output redacted; fallback on LLM failure; `source_task_ids` sorted; 28 new tests in `tests/test_subagent_synthesis.py`.
 
