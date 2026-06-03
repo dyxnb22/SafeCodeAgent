@@ -5,13 +5,15 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v3.3.3
+# Current Baseline - v3.3.4
 
 ## Status
-Implemented. Git baseline: tag `v3.3.3`. Local working version: `v3.3.3`.
+Implemented. Git baseline: tag `v3.3.4`. Local working version: `v3.3.4`.
 
 ## Stage
-`v3.3.3` Schema Store Merge — adds `merge_discovered_schemas` pure helper in `src/safecode/mcp/schema.py`; static classification always wins; discovered fills description/args when static is absent; no I/O; no subprocess; existing MCPSchemaStore API unchanged; MCP remains experimental.
+`v3.3.4` Experimental Read-Only Stdio Runner Adapter — adds `StdioReadOnlyAdapter` in `src/safecode/mcp/stdio_runner.py`; disabled by default; not wired into MCPReadOnlyRunner; classification gate blocks write/unknown before any call; all failures return StdioCallResult, never raise; call_args never in error text; RuntimeWarning on block/failure; MCP remains experimental.
+
+Previous: `v3.3.3` Schema Store Merge — adds `merge_discovered_schemas` pure helper in `src/safecode/mcp/schema.py`; static classification always wins; discovered fills description/args when static is absent; no I/O; no subprocess; existing MCPSchemaStore API unchanged; MCP remains experimental.
 
 Previous: `v3.3.2` MCP stdio tools/list Discovery — adds experimental one-shot stdio discovery in `src/safecode/mcp/discovery.py`; `discover_stdio_tools` calls `call_stdio("tools/list")`; fails closed on transport/structural failures; malformed entries skipped; classification always "unknown"; no tools/call; no runner wiring; existing `MCPDiscovery` unchanged; MCP remains experimental.
 
