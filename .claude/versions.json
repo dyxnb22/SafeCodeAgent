@@ -1,12 +1,14 @@
 {
   "project": "SafeCode Agent",
-  "current_implemented_tag": "v3.6.6",
+  "current_implemented_tag": "v3.7.0",
   "current_local_version": "v3.6.6",
   "current_baseline": ".claude/skills/current/SKILL.md",
   "runtime_summary": ".claude/skills/shared/core-runtime.md",
   "version_index": "docs/version_implementation_matrix.md",
   "release_roadmap": "docs/release_roadmap_v0_1_to_v1_0.md",
-  "active_planning_roadmap": "docs/version-plans/v2.8-to-v3.0-product-architecture-roadmap.md",
+  "active_planning_roadmap": "docs/version-plans/v3.7-to-v4.0-product-roadmap.md",
+  "readiness_audit": "docs/commercial-v1-readiness-audit-v3.6.6.md",
+  "architecture_reference": "docs/product-commercialization-roadmap.md",
   "version_notes": "docs/version-notes/",
   "git_history_source": "git tag --sort=v:refname && git log --oneline --decorate",
   "branch_prefix_policy": "Do not use codex/ for this repository.",
@@ -207,6 +209,72 @@
       "name": "LLM Retry + Cost Accounting",
       "depends_on": "v3.1.x",
       "notes": "Bounded retry with jitter for 429/503/URLError; TokenUsage and SessionCostAccumulator; last_session_cost diagnostic in sac doctor."
+    },
+    {
+      "range": "v3.3.x",
+      "name": "MCP stdio Transport",
+      "depends_on": "v3.2.x",
+      "notes": "Experimental stdio JSON-RPC transport, argv validation, tools/list discovery, schema merge, read-only adapter scaffold, CLI inspect/discover, and adversarial hardening. Stdio read execution remains not wired into the default runner."
+    },
+    {
+      "range": "v3.4.x",
+      "name": "Subagent Orchestration and Synthesis",
+      "depends_on": "v3.3.x",
+      "notes": "Bounded subagent pool, parent-side cancellation, synthesis, and subagent payload v2 support."
+    },
+    {
+      "range": "v3.5.x",
+      "name": "IDE/TUI Product Surface",
+      "depends_on": "v3.4.x",
+      "notes": "Experimental LocalAPI JSON-RPC bridge, repo-side VS Code extension manifest, and lightweight interactive TUI."
+    },
+    {
+      "range": "v3.6.x",
+      "name": "Commercial Hardening Documentation Cut",
+      "depends_on": "v3.5.x",
+      "notes": "Release publish scaffold, CI matrix, doctor update check, optional OTel exporter, HTML session report, threat model, landing docs, and v3.6.6 metadata cut. Readiness audit classifies this as a commercial v1 documentation cut, not public ship readiness."
+    },
+    {
+      "range": "v3.7.x",
+      "name": "Workflow Gap Closure",
+      "depends_on": "v3.6.x",
+      "notes": "Active plan in docs/version-plans/v3.7-to-v4.0-product-roadmap.md: close skipped v3.1.x UX gaps including sac fix, stack-aware quickstart, setup wizard, progress indicator, repo recency, and CLI JSON envelope promotion."
+    },
+    {
+      "range": "v3.8.x",
+      "name": "MCP Hardening",
+      "depends_on": "v3.7.x",
+      "notes": "Active plan: wire stdio read execution behind opt-in, add MCP lifecycle, per-server scopes, MCP doctor, approval-gated write proposal E2E, and read-contract promotion if evidence supports it."
+    },
+    {
+      "range": "v3.9.x",
+      "name": "Real Distribution and IDE/TUI Maturation",
+      "depends_on": "v3.8.x",
+      "notes": "Active plan: align signing truth, rehearse TestPyPI, verify pipx install docs, externalize/package VS Code extension, and decide TUI promotion or freeze."
+    },
+    {
+      "range": "v3.10.x",
+      "name": "Observability, Performance, and Blocking Gates",
+      "depends_on": "v3.9.x",
+      "notes": "Active plan: add sac eval bench, opt-in local metrics, promote loop-eval CI when evidence is green, record live-provider lane history, and add TS/Go tutorials."
+    },
+    {
+      "range": "v3.11.x",
+      "name": "Policy Management and Sandbox Executor Preflight",
+      "depends_on": "v3.10.x",
+      "notes": "Active plan: per-directory trust, ephemeral trust, policy diff, sandbox executor promotion preflight, and honest sandbox promotion docs."
+    },
+    {
+      "range": "v4.0-prep",
+      "name": "Re-audit and Contract Churn Decisions",
+      "depends_on": "v3.11.x",
+      "notes": "Active plan: re-run the v3.6.6 audit format, write versioning policy, decide experimental-surface promotions, and preserve zero breaking changes to v3.0 contracts."
+    },
+    {
+      "range": "v4.0.0",
+      "name": "Commercial Readiness Contract Cut",
+      "depends_on": "v4.0-prep",
+      "notes": "Reserved for at most two new stable contracts, zero breaking changes to v3.0 contracts, and readiness claims backed by distribution, CI, audit, and snapshot evidence."
     }
   ],
   "latest_tags": [
@@ -389,7 +457,8 @@
     "v3.6.3",
     "v3.6.4",
     "v3.6.5",
-    "v3.6.6"
+    "v3.6.6",
+    "v3.7.0"
   ],
   "local_versions": [
     "v2.8.0",
