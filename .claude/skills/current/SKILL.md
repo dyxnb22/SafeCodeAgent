@@ -5,13 +5,19 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v3.6.3
+# Current Baseline - v3.6.6
 
 ## Status
-Implemented. Git baseline: tag `v3.6.3`. Local working version: `v3.6.3`.
+Implemented. Git baseline: tag `v3.6.6`. Local working version: `v3.6.6`.
 
 ## Stage
-`v3.6.3` Per-session HTML report — `src/safecode/report/session_html.py` (new); `render_session_html(session_id, project_root) -> SessionHtmlReport`; self-contained HTML (no external assets); secrets redacted via `redact_secrets()`; handles missing/invalid sessions gracefully; `sac report html --session <id>` CLI; `sac report` (no subcommand) still renders Markdown; `report_app` Typer group with `invoke_without_command=True`; 30 new tests in `tests/test_report_html.py`. Full suite: 3302 passed, 2 skipped.
+`v3.6.6` Commercial v1 cut — metadata-only release marker; version bumped to 3.6.6; `.claude/versions.json` updated; version matrix rows for v3.6.4–v3.6.6 added. No runtime changes.
+
+Previous: `v3.6.5` Landing documentation — `docs/why-safecode.md`, `docs/compare.md`, `docs/troubleshooting.md` added; all linked from `README.md`; claims aligned with public contracts; experimental surfaces labeled; 20 new tests in `tests/test_landing_docs.py`.
+
+Previous: `v3.6.4` Threat model documentation — `docs/security/threat-model-v3.6.md` added; covers 9 threat personas; semi-annual review cadence; 14 new tests in `tests/test_threat_model_docs.py`.
+
+Previous: `v3.6.3` Per-session HTML report — `src/safecode/report/session_html.py` (new); `render_session_html(session_id, project_root) -> SessionHtmlReport`; self-contained HTML (no external assets); secrets redacted via `redact_secrets()`; handles missing/invalid sessions gracefully; `sac report html --session <id>` CLI; `sac report` (no subcommand) still renders Markdown; `report_app` Typer group with `invoke_without_command=True`; 30 new tests in `tests/test_report_html.py`. Full suite: 3302 passed, 2 skipped.
 
 Previous: `v3.6.2` OTel exporter — `src/safecode/otel/exporter.py` (new); `OtelExporter.from_env()` reads `SAFECODE_OTEL_EXPORTER` (disabled by default); missing OTel packages → `RuntimeWarning` + disabled; `export_event()` never raises; endpoint never in error text; no telemetry in tests; 36 new tests in `tests/test_otel_exporter.py`.
 

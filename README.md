@@ -37,6 +37,9 @@ For stable local safety contracts (v3.0), see [docs/public-contracts.md](docs/pu
 For LLM provider configuration and contract details, see [docs/providers.md](docs/providers.md).
 For the post-v3.0 commercial product roadmap, see
 [docs/product-commercialization-roadmap.md](docs/product-commercialization-roadmap.md).
+For why SafeCode, see [docs/why-safecode.md](docs/why-safecode.md).
+For a comparison with other approaches, see [docs/compare.md](docs/compare.md).
+For troubleshooting help, see [docs/troubleshooting.md](docs/troubleshooting.md).
 
 ## Core Commands
 
