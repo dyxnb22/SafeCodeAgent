@@ -7,9 +7,36 @@ import shutil
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Callable
 
 from safecode import __version__
 from safecode.core.diagnostic import Diagnostic, DiagnosticStatus
+
+_PYPI_URL = "https://pypi.org/pypi/safecode/json"
+
+
+def _fetch_latest_pypi_version(url: str = _PYPI_URL, *, timeout: int = 5) -> str | None:
+    """Return the latest version string from PyPI, or None on any failure.
+
+    Never raises. Sends no telemetry or identifying information beyond the
+    standard HTTPS GET request User-Agent.
+    """
+    try:
+        import json as _json
+        from urllib.request import urlopen
+
+        with urlopen(url, timeout=timeout) as resp:  # noqa: S310
+            data = _json.loads(resp.read().decode("utf-8"))
+            return data.get("info", {}).get("version")
+    except Exception:
+        return None
+
+
+def _ver_tuple(v: str) -> tuple[int, ...]:
+    try:
+        return tuple(int(x) for x in v.split("."))
+    except Exception:
+        return (0,)
 
 
 @dataclass(frozen=True)
@@ -42,8 +69,14 @@ def _from_diagnostic(diagnostic: Diagnostic) -> DoctorCheck:
 class Doctor:
     """Check whether the local environment can run SafeCode."""
 
-    def __init__(self, project_root: Path) -> None:
+    def __init__(
+        self,
+        project_root: Path,
+        *,
+        fetch_latest_version: Callable[[], str | None] | None = None,
+    ) -> None:
         self.project_root = project_root
+        self._fetch_latest_version = fetch_latest_version or _fetch_latest_pypi_version
 
     def run_diagnostics(self, *, release: bool = False) -> list[Diagnostic]:
         """Return typed diagnostics (v2.8.x substrate)."""
@@ -92,6 +125,7 @@ class Doctor:
             ),
         ]
         diagnostics.append(self._last_session_cost_diagnostic())
+        diagnostics.append(self._update_check_diagnostic())
         if release:
             diagnostics.extend(self.run_release_diagnostics())
         return diagnostics
@@ -122,6 +156,27 @@ class Doctor:
                 status=DiagnosticStatus.SKIP,
                 message="no session cost data",
             )
+
+    def _update_check_diagnostic(self) -> Diagnostic:
+        """Check PyPI for a newer version. Skips silently on network failure."""
+        latest = self._fetch_latest_version()
+        if latest is None:
+            return Diagnostic(
+                name="update_check",
+                status=DiagnosticStatus.SKIP,
+                message="update check skipped (offline or network unavailable)",
+            )
+        if _ver_tuple(latest) > _ver_tuple(__version__):
+            return Diagnostic(
+                name="update_check",
+                status=DiagnosticStatus.WARN,
+                message=f"update available: {__version__} → {latest}",
+            )
+        return Diagnostic(
+            name="update_check",
+            status=DiagnosticStatus.PASS,
+            message=f"up to date ({__version__})",
+        )
 
     def run(self, *, release: bool = False) -> list[DoctorCheck]:
         """Run environment checks, optionally including release diagnostics.

@@ -5,13 +5,17 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v3.5.2
+# Current Baseline - v3.6.1
 
 ## Status
-Implemented. Git baseline: tag `v3.5.2`. Local working version: `v3.5.2`.
+Implemented. Git baseline: tag `v3.6.1`. Local working version: `v3.6.1`.
 
 ## Stage
-`v3.5.2` Interactive TUI — `sac tui interactive` command; `src/safecode/tui/interactive.py`; non-TTY → static snapshot (deterministic, exits 0); TTY → Rich Live display (Ctrl-C exits cleanly); `--refresh` and `--history-limit` options; 24 new tests in `tests/test_tui_interactive_smoke.py`. Full suite: 3148 passed, 2 skipped.
+`v3.6.1` Doctor update check — `src/safecode/doctor.py` extended with `_fetch_latest_pypi_version` (HTTPS, no telemetry, never raises), `_ver_tuple`, `Doctor._update_check_diagnostic` (SKIP on offline, PASS when up-to-date, WARN when stale), `Doctor.__init__` injectable `fetch_latest_version` kwarg; `run_diagnostics` includes `update_check`; 26 new tests in `tests/test_doctor_update_check.py`. Full suite: 3236 passed, 2 skipped.
+
+Previous: `v3.6.0` Release publish + CI matrix — `src/safecode/release/publish.py` (`PublishResult`, `run_release_publish`, `render_publish_result`); `sac release publish --dry-run/--sign`; dry-run deterministic (no subprocess); real publish requires `SAFECODE_PUBLISH=1` + clean matching tag; sign fails closed; CI expanded to Python 3.11/3.12/3.13 × {ubuntu, macos}; advisory `smoke-windows` lane; 38 tests in `tests/test_release_publish_dry_run.py`, 28 tests in `tests/test_ci_matrix.py`.
+
+Previous: `v3.5.2` Interactive TUI — `sac tui interactive` command; `src/safecode/tui/interactive.py`; non-TTY → static snapshot (deterministic, exits 0); TTY → Rich Live display (Ctrl-C exits cleanly); `--refresh` and `--history-limit` options; 24 new tests in `tests/test_tui_interactive_smoke.py`. Full suite: 3148 passed, 2 skipped.
 
 Previous: `v3.5.1` VS Code extension skeleton — `ide/manifest.py` extended with `jsonrpc_transport` (`launch_command=["sac","api","jsonrpc"]`, `protocol="json-rpc-2.0"`, `transport="stdio"`, `contract_version="1"`, `supported_methods`), `pending_diff_targets`, `safecode.apiJsonrpc` command; `_JSONRPC_CONTRACT_VERSION="1"` exported; IDE bridge remains experimental.
 

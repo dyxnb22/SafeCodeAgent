@@ -29,6 +29,7 @@ from safecode.release.checklist import render_release_checklist
 from safecode.release.changelog import generate_changelog, generate_recent_changelog, render_changelog
 from safecode.release.metadata import collect_release_metadata, render_release_metadata
 from safecode.release.preflight import render_release_preflight, run_release_preflight
+from safecode.release.publish import PublishResult, render_publish_result, run_release_publish
 from safecode.release.signoff import render_release_signoff, run_release_signoff
 from safecode.release.smoke import render_smoke_results, run_smoke_tests
 from safecode.release.ux import exit_code
@@ -245,6 +246,35 @@ def release_preflight(
             raise typer.Exit(code=exit_code(result.ok))
         return
     console.print(render_release_preflight(result))
+    if not result.ok:
+        raise typer.Exit(code=exit_code(result.ok))
+
+
+@release_app.command("publish")
+def release_publish(
+    dry_run: bool = typer.Option(True, "--dry-run/--no-dry-run", help="Show planned steps without executing (default: dry-run)."),
+    sign: bool = typer.Option(False, "--sign", help="Sign artifacts with cosign or gpg (fails closed if tooling is missing)."),
+    json_output: bool = typer.Option(False, "--json", help="Emit JSON output."),
+) -> None:
+    """Build, sign (optional), and upload a release to PyPI.
+
+    Dry-run is the safe default. Real publish requires a clean matching git tag and SAFECODE_PUBLISH=1.
+    """
+    result = run_release_publish(Path.cwd(), dry_run=dry_run, sign=sign)
+    if json_output:
+        from safecode.cli_shared_json import CLIJSONResponse, render_json
+        resp = CLIJSONResponse(
+            command="release publish",
+            status="ok" if result.ok else "error",
+            data={
+                "dry_run": result.dry_run,
+                "steps": list(result.steps),
+                "errors": list(result.errors),
+            },
+        )
+        console.print(render_json(resp))
+    else:
+        console.print(render_publish_result(result))
     if not result.ok:
         raise typer.Exit(code=exit_code(result.ok))
 
