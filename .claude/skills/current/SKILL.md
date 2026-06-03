@@ -5,13 +5,15 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v3.3.1
+# Current Baseline - v3.3.2
 
 ## Status
-Implemented. Git baseline: tag `v3.3.1`. Local working version: `v3.3.1`.
+Implemented. Git baseline: tag `v3.3.2`. Local working version: `v3.3.2`.
 
 ## Stage
-`v3.3.1` MCP stdio Config Argv — adds typed stdio server config and argv validation in `src/safecode/mcp/config.py`; `call_stdio` not invoked; existing MCP runner behavior unchanged; MCP remains experimental.
+`v3.3.2` MCP stdio tools/list Discovery — adds experimental one-shot stdio discovery in `src/safecode/mcp/discovery.py`; `discover_stdio_tools` calls `call_stdio("tools/list")`; fails closed on transport/structural failures; malformed entries skipped; classification always "unknown"; no tools/call; no runner wiring; existing `MCPDiscovery` unchanged; MCP remains experimental.
+
+Previous: `v3.3.1` MCP stdio Config Argv — adds typed stdio server config and argv validation in `src/safecode/mcp/config.py`; `call_stdio` not invoked; existing MCP runner behavior unchanged; MCP remains experimental.
 
 Previous: `v3.3.0` MCP stdio Transport — adds a tightly-bounded stdio JSON-RPC client in `src/safecode/mcp/transport_stdio.py`; tested against local stub servers only; not wired into existing MCP runner; MCP remains experimental.
 
