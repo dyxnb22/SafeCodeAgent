@@ -5,15 +5,17 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v3.6.1
+# Current Baseline - v3.6.3
 
 ## Status
-Implemented. Git baseline: tag `v3.6.1`. Local working version: `v3.6.1`.
+Implemented. Git baseline: tag `v3.6.3`. Local working version: `v3.6.3`.
 
 ## Stage
-`v3.6.1` Doctor update check — `src/safecode/doctor.py` extended with `_fetch_latest_pypi_version` (HTTPS, no telemetry, never raises), `_ver_tuple`, `Doctor._update_check_diagnostic` (SKIP on offline, PASS when up-to-date, WARN when stale), `Doctor.__init__` injectable `fetch_latest_version` kwarg; `run_diagnostics` includes `update_check`; 26 new tests in `tests/test_doctor_update_check.py`. Full suite: 3236 passed, 2 skipped.
+`v3.6.3` Per-session HTML report — `src/safecode/report/session_html.py` (new); `render_session_html(session_id, project_root) -> SessionHtmlReport`; self-contained HTML (no external assets); secrets redacted via `redact_secrets()`; handles missing/invalid sessions gracefully; `sac report html --session <id>` CLI; `sac report` (no subcommand) still renders Markdown; `report_app` Typer group with `invoke_without_command=True`; 30 new tests in `tests/test_report_html.py`. Full suite: 3302 passed, 2 skipped.
 
-Previous: `v3.6.0` Release publish + CI matrix — `src/safecode/release/publish.py` (`PublishResult`, `run_release_publish`, `render_publish_result`); `sac release publish --dry-run/--sign`; dry-run deterministic (no subprocess); real publish requires `SAFECODE_PUBLISH=1` + clean matching tag; sign fails closed; CI expanded to Python 3.11/3.12/3.13 × {ubuntu, macos}; advisory `smoke-windows` lane; 38 tests in `tests/test_release_publish_dry_run.py`, 28 tests in `tests/test_ci_matrix.py`.
+Previous: `v3.6.2` OTel exporter — `src/safecode/otel/exporter.py` (new); `OtelExporter.from_env()` reads `SAFECODE_OTEL_EXPORTER` (disabled by default); missing OTel packages → `RuntimeWarning` + disabled; `export_event()` never raises; endpoint never in error text; no telemetry in tests; 36 new tests in `tests/test_otel_exporter.py`.
+
+Previous: `v3.6.1` Release publish + CI matrix — `src/safecode/release/publish.py` (`PublishResult`, `run_release_publish`, `render_publish_result`); `sac release publish --dry-run/--sign`; dry-run deterministic (no subprocess); real publish requires `SAFECODE_PUBLISH=1` + clean matching tag; sign fails closed; CI expanded to Python 3.11/3.12/3.13 × {ubuntu, macos}; advisory `smoke-windows` lane; 38 tests in `tests/test_release_publish_dry_run.py`, 28 tests in `tests/test_ci_matrix.py`.
 
 Previous: `v3.5.2` Interactive TUI — `sac tui interactive` command; `src/safecode/tui/interactive.py`; non-TTY → static snapshot (deterministic, exits 0); TTY → Rich Live display (Ctrl-C exits cleanly); `--refresh` and `--history-limit` options; 24 new tests in `tests/test_tui_interactive_smoke.py`. Full suite: 3148 passed, 2 skipped.
 

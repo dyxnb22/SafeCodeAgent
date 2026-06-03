@@ -8,7 +8,7 @@ from safecode.cli_agent import agent_app
 from safecode.cli_context import context_app
 from safecode.cli_core import core_app
 from safecode.cli_mcp import mcp_app, mcp_discard
-from safecode.cli_ops import audit_app, export_app, hooks_app, ide_app, logs_app, ops_app, queue_app, release_app
+from safecode.cli_ops import audit_app, export_app, hooks_app, ide_app, logs_app, ops_app, queue_app, release_app, report_app
 from safecode.cli_project import config_app, index_app, progress_app, skills_app, tools_app
 from safecode.cli_sandbox import sandbox_app
 from safecode.cli_subagent import subagent_app
@@ -114,6 +114,7 @@ app.add_typer(test_app, name="test")
 app.add_typer(demo_app, name="demo")
 app.add_typer(tui_app, name="tui", hidden=True)
 app.add_typer(api_app, name="api", hidden=True)
+app.add_typer(report_app, name="report")
 
 
 def main() -> None:

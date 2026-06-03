@@ -35,6 +35,7 @@ from safecode.release.smoke import render_smoke_results, run_smoke_tests
 from safecode.release.ux import exit_code
 from safecode.release.versions_sync import sync_versions_json
 from safecode.report.render import ReportRenderer
+from safecode.report.session_html import render_session_html
 
 ops_app = typer.Typer()
 queue_app = typer.Typer(help="Manage a tiny local task queue.")
@@ -44,6 +45,7 @@ release_app = typer.Typer(help="Generate release helpers.")
 logs_app = typer.Typer(help="Inspect runtime logs.")
 audit_app = typer.Typer(help="Inspect and verify audit logs.")
 hooks_app = typer.Typer(help="Approve and inspect project hooks.")
+report_app = typer.Typer(invoke_without_command=True, help="SafeCode session and audit reports.")
 
 
 @ops_app.command("rules", hidden=True)
@@ -62,10 +64,26 @@ def memory_set(key: str, value: str) -> None:
     console.print("[green]Memory updated.[/green]")
 
 
-@ops_app.command("report")
-def report() -> None:
-    """Render a Markdown report from recent audit events."""
-    console.print(ReportRenderer(Path.cwd()).render_markdown())
+@report_app.callback(invoke_without_command=True)
+def report(ctx: typer.Context) -> None:
+    """Render a Markdown report from recent audit events (default) or a per-session HTML report."""
+    if ctx.invoked_subcommand is None:
+        console.print(ReportRenderer(Path.cwd()).render_markdown())
+
+
+@report_app.command("html")
+def report_html(
+    session: str = typer.Option(..., "--session", "-s", help="Session ID to render as HTML."),
+    output: Optional[Path] = typer.Option(None, "--output", "-o", help="Write HTML to this file instead of stdout."),
+) -> None:
+    """Render a self-contained HTML report for one agent session."""
+    result = render_session_html(session, Path.cwd())
+    if output is not None:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(result.html, encoding="utf-8")
+        console.print(f"Report written: {output}")
+    else:
+        console.print(result.html)
 
 
 @export_app.command("report")
