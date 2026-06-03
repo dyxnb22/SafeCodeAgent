@@ -233,6 +233,33 @@ format as of v3.4.3. v1 payloads remain supported for backward compatibility.
 
 ---
 
+### 11. CLI JSON Envelope Contract
+
+**Where:** `src/safecode/cli_shared_json.py`, `CLIJSONResponse`.
+
+**Contract:** All `--json` CLI output is wrapped in a `CLIJSONResponse` envelope. Promoted to
+stable contract at v3.7.2.
+
+**Required fields (always present):**
+- `command` — string: the CLI command name (e.g. `ask`, `edit`, `apply`, `fix`).
+- `status` — string: one of `success`, `error`, `cancelled`, `pass`, `fail`.
+- `data` — object: command-specific payload (never null, never a primitive).
+
+**Optional field:**
+- `error` — string: present only when non-null; **omitted** when null.
+
+**Output format:** sorted keys, `indent=2`, UTF-8. Callers should use
+`"error" in json.loads(output)` to test for errors.
+
+**Invariants:**
+- `error` is omitted from serialized JSON when the response has no error.
+- `data` is always a JSON object (never a list or scalar).
+- Output is deterministic for the same inputs (no timestamps, no random ids).
+
+**Snapshot:** `tests/snapshots/contracts/cli_json_envelope.json`
+
+---
+
 ## Experimental Surfaces
 
 The following are explicitly experimental in v3.0. They may change, be removed, or be

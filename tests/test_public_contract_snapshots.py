@@ -55,6 +55,9 @@ class TestSnapshotFilesExist:
     def test_eval_trace_snapshot_exists(self):
         assert (_CONTRACTS / "eval_trace_schema.json").exists()
 
+    def test_cli_json_envelope_snapshot_exists(self):
+        assert (_CONTRACTS / "cli_json_envelope.json").exists()
+
     def test_tool_registry_snapshot_exists(self):
         assert (_REGISTRY / "tool_registry_v1.json").exists()
 
@@ -367,6 +370,7 @@ class TestCrossContractDeterminism:
         "audit_event_schema.json",
         "sandbox_schemas.json",
         "eval_trace_schema.json",
+        "cli_json_envelope.json",
     ])
     def test_snapshot_has_contract_and_schema_version(self, snap_file: str):
         data = _load(_CONTRACTS / snap_file)
@@ -379,9 +383,82 @@ class TestCrossContractDeterminism:
         "audit_event_schema.json",
         "sandbox_schemas.json",
         "eval_trace_schema.json",
+        "cli_json_envelope.json",
     ])
     def test_snapshot_no_timestamps_or_paths(self, snap_file: str):
         raw = (_CONTRACTS / snap_file).read_text()
         data = json.dumps(json.loads(raw))
         assert "/Users/" not in data
         assert "/home/" not in data
+
+
+class TestCLIJSONEnvelopeContract:
+    """v3.7.2 — stable contract tests for CLIJSONResponse envelope."""
+
+    def _snapshot(self) -> dict:
+        return _load(_CONTRACTS / "cli_json_envelope.json")
+
+    def test_snapshot_file_exists(self) -> None:
+        assert (_CONTRACTS / "cli_json_envelope.json").exists()
+
+    def test_contract_label_is_cli_json_response(self) -> None:
+        snap = self._snapshot()
+        assert snap["contract"] == "CLIJSONResponse"
+        assert snap["contract_status"] == "supported"
+
+    def test_required_fields_match_live_model(self) -> None:
+        from safecode.cli_shared_json import CLIJSONResponse
+        snap_fields = set(self._snapshot()["required_fields"])
+        model_fields = set(CLIJSONResponse.model_fields.keys())
+        for field in snap_fields:
+            assert field in model_fields, f"required field '{field}' missing from CLIJSONResponse"
+
+    def test_error_is_optional_field(self) -> None:
+        snap = self._snapshot()
+        assert "error" in snap["optional_fields"]
+
+    def test_error_omitted_when_null(self) -> None:
+        import json as _json
+        from safecode.cli_shared_json import CLIJSONResponse, render_json
+        response = CLIJSONResponse(command="ask", status="success", data={"answer": "hi"})
+        rendered = _json.loads(render_json(response))
+        assert "error" not in rendered
+
+    def test_error_present_when_non_null(self) -> None:
+        import json as _json
+        from safecode.cli_shared_json import CLIJSONResponse, render_json
+        response = CLIJSONResponse(command="ask", status="error", error="something failed")
+        rendered = _json.loads(render_json(response))
+        assert "error" in rendered
+        assert rendered["error"] == "something failed"
+
+    def test_data_field_is_always_dict(self) -> None:
+        import json as _json
+        from safecode.cli_shared_json import CLIJSONResponse, render_json
+        response = CLIJSONResponse(command="fix", status="success")
+        rendered = _json.loads(render_json(response))
+        assert isinstance(rendered["data"], dict)
+
+    def test_output_has_required_keys_present(self) -> None:
+        import json as _json
+        from safecode.cli_shared_json import CLIJSONResponse, render_json
+        response = CLIJSONResponse(command="edit", status="success", data={"diff": "..."})
+        rendered = _json.loads(render_json(response))
+        for field in self._snapshot()["required_fields"]:
+            assert field in rendered, f"required field '{field}' missing from output"
+
+    def test_output_is_sorted_keys(self) -> None:
+        from safecode.cli_shared_json import CLIJSONResponse, render_json
+        response = CLIJSONResponse(command="z", status="success", data={"b": 1, "a": 2})
+        text = render_json(response)
+        # The keys in the outer envelope must be sorted
+        import json as _json
+        keys = list(_json.loads(text).keys())
+        assert keys == sorted(keys)
+
+    def test_snapshot_invariants_listed(self) -> None:
+        snap = self._snapshot()
+        assert "invariants" in snap
+        invariants_text = " ".join(snap["invariants"]).lower()
+        assert "omitted" in invariants_text
+        assert "error" in invariants_text

@@ -1,0 +1,22 @@
+{
+  "contract": "CLIJSONResponse",
+  "contract_status": "supported",
+  "schema_version": "1",
+  "description": "Stable JSON envelope for all CLI --json output (promoted at v3.7.2).",
+  "required_fields": [
+    "command",
+    "data",
+    "status"
+  ],
+  "optional_fields": [
+    "error"
+  ],
+  "invariants": [
+    "error field is OMITTED when null (not present in serialized JSON)",
+    "error field is PRESENT when non-null",
+    "data is always a JSON object (never null, never a primitive)",
+    "status is one of: success, error, cancelled, pass, fail",
+    "command is the CLI command name string (e.g. ask, edit, apply, fix)",
+    "output is sorted-key, indent=2 JSON"
+  ]
+}
