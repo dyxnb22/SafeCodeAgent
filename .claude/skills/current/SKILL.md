@@ -5,13 +5,15 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v3.7.2
+# Current Baseline - v3.7.3
 
 ## Status
-Implemented. Git baseline: tag `v3.7.2`. Local working version: `v3.7.2`.
+Implemented. Git baseline: tag `v3.7.3`. Local working version: `v3.7.3`.
 
 ## Stage
-`v3.7.2` repo recency signal + JSON envelope promotion — `src/safecode/context/selector.py` extended: `ContextSelector._recent_files()` runs `git log -n50 --name-only`, caches by HEAD, adds `_RECENCY_BONUS=2` to keyword-matched files that appear in recent commits; git failures fall back silently; 22 new tests in `tests/test_context_recency.py`. `CLIJSONResponse` promoted to stable contract in `docs/public-contracts.md` Section 11; snapshot at `tests/snapshots/contracts/cli_json_envelope.json`; 12 new tests in `TestCLIJSONEnvelopeContract`; `TestCrossContractDeterminism` extended. Full suite: 3414 passed, 2 skipped.
+`v3.7.3` v3.7.x docs cut — `README.md` Core Commands updated: `sac setup --wizard`, `sac fix`, `sac fix --test-command`, `--json` usage documented. `docs/mvp-user-guide.md` updated: intro references v3.7.x; quickstart documents stack detection; new "Interactive setup wizard" subsection; new "Fixing failing tests with sac fix" section; new "Machine-readable output" section with stable JSON envelope contract reference. No runtime changes. Full suite: 3414 passed, 2 skipped.
+
+Previous: `v3.7.2` repo recency signal + JSON envelope promotion — `src/safecode/context/selector.py` extended: `ContextSelector._recent_files()` runs `git log -n50 --name-only`, caches by HEAD, adds `_RECENCY_BONUS=2` to keyword-matched files that appear in recent commits; git failures fall back silently; 22 new tests in `tests/test_context_recency.py`. `CLIJSONResponse` promoted to stable contract in `docs/public-contracts.md` Section 11; snapshot at `tests/snapshots/contracts/cli_json_envelope.json`; 12 new tests in `TestCLIJSONEnvelopeContract`; `TestCrossContractDeterminism` extended. Full suite: 3414 passed, 2 skipped.
 
 Previous: `v3.7.1` setup wizard + progress indicator — `sac setup --wizard` added to `src/safecode/cli.py`; non-TTY exits 0 with static template; TTY walks provider/model/policy; switching from mock requires explicit confirm; network requires double-confirm; `_stricter_policy` enforced (wizard cannot lower user-level safety); cancel skips writes; 14 new tests in `tests/test_setup_wizard.py`. `src/safecode/cli_progress.py` (new): `cli_status(msg)` context manager + `StepCounter(n)` class; TTY shows Rich spinner/step counter; non-TTY emits zero extra bytes; 20 new tests in `tests/test_cli_progress.py`. Full suite: 3384 passed, 2 skipped.
 

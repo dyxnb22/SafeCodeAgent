@@ -49,14 +49,24 @@ For troubleshooting help, see [docs/troubleshooting.md](docs/troubleshooting.md)
 
 ```bash
 sac setup                           # first-time: write .sac/config.toml
-sac quickstart                      # guided first-run: check config, show demo, print next steps
+sac setup --wizard                  # interactive wizard: walks provider/model/policy (non-TTY prints template)
+sac quickstart                      # guided first-run: detects stack, shows demo, prints next steps
 sac ask "这个项目是什么？"
 sac edit "给 FastAPI 项目添加 /health 接口"
 sac apply
 sac rollback --last
+sac fix                             # run last failing test, propose a repair patch
+sac fix --test-command "go test ./..."  # override test command
 sac run "git status --short" --yes
 sac doctor
 sac version
+```
+
+Use `--json` on most commands for machine-readable output:
+```bash
+sac fix --json
+sac edit "task" --json
+sac ask "question" --json
 ```
 
 ## Safety Defaults

@@ -1,8 +1,8 @@
 # SafeCode MVP User Guide
 
-This guide is the v2.0.5 path for a new user: install SafeCode, choose a model
-mode, run one realistic coding task, review the diff, run tests, apply, and
-rollback.
+This guide covers the v3.7.x path for a new user: install SafeCode, set up
+your provider, run a coding task, fix a failing test, and review/apply the
+proposed patches safely.
 
 ## Quickstart (fastest path)
 
@@ -14,15 +14,87 @@ sac quickstart
 
 This will:
 1. Detect or create `.sac/config.toml` with safe defaults (mock provider, balanced policy).
-2. Display the current provider and policy.
-3. Recommend the `cli-version-flag` demo workflow.
-4. Print the next commands to run.
+2. Detect your project stack (Python/TypeScript/Go/Rust) and adapt next-step hints.
+3. Display the current provider and policy.
+4. Recommend the `cli-version-flag` demo workflow.
+5. Print stack-appropriate next commands to run.
 
 To also materialise the demo project locally:
 
 ```bash
 sac quickstart --demo
 ```
+
+### Interactive setup wizard
+
+For first-time provider configuration, use the interactive wizard:
+
+```bash
+sac setup --wizard
+```
+
+In a TTY, the wizard walks you through provider, model, and policy selection.
+In CI/non-TTY mode, it prints a static configuration template and exits 0 without prompting.
+
+Safety invariants: the wizard cannot write a config that lowers your current user-level
+safety policy. Switching from `mock` to a live provider requires explicit confirmation.
+Enabling network access requires two confirmations.
+
+## Fixing failing tests with sac fix
+
+`sac fix` automates the test-detect → run → redact → propose cycle:
+
+```bash
+sac fix
+```
+
+This will:
+1. Auto-detect the test command (`pytest`, `go test ./...`, `npm test`, etc.).
+2. Run it and capture the failure output.
+3. Redact any secrets from the output.
+4. Invoke `sac edit` with the failure context to propose a repair patch.
+5. Leave the patch pending for your review.
+
+Then:
+```bash
+sac apply    # after reviewing the diff
+# or
+sac rollback --last   # if you change your mind
+```
+
+To override the test command:
+
+```bash
+sac fix --test-command "pytest tests/test_foo.py -q"
+sac fix --test-command "go test ./..."
+sac fix --json   # machine-readable output
+```
+
+If tests are already passing, `sac fix` reports success without proposing a patch.
+
+## Machine-readable output
+
+Most commands support `--json` for scripting:
+
+```bash
+sac fix --json
+sac edit "task" --json
+sac ask "question" --json
+sac apply --json
+```
+
+The JSON envelope format is a stable contract (`docs/public-contracts.md` Section 11):
+
+```json
+{
+  "command": "fix",
+  "status": "success",
+  "data": { "pending_patch_path": "...", "test_command": "pytest -q", "test_exit_code": 1 }
+}
+```
+
+The `error` field is present only when non-null. Use `"error" in json.loads(output)` to test
+for errors.
 
 ## Install
 
