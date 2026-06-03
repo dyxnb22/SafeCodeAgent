@@ -1,5 +1,6 @@
 """Command line entrypoint for SafeCode Agent."""
 
+import sys
 import typer
 from pathlib import Path
 from rich.panel import Panel
@@ -18,7 +19,110 @@ from safecode.cli_tui import tui_app
 from safecode.cli_shared import console
 from safecode.cli_quickstart import register as _register_quickstart
 from safecode.cli_fix import register as _register_fix
+from safecode.config import SafeCodeConfig, _stricter_policy
 from safecode.setup import write_setup
+
+_WIZARD_STATIC_TEMPLATE = """\
+# SafeCode Setup Template
+# (Non-interactive mode — fill in values and run: sac setup --provider <p> --policy <policy>)
+
+provider = "mock"          # or: openai, anthropic
+model = "gpt-4.1-mini"    # model name for the selected provider
+policy = "balanced"        # strict | balanced | experimental
+network = false            # set true only if you need live LLM calls
+"""
+
+_KNOWN_PROVIDERS = {"mock", "openai", "anthropic"}
+_KNOWN_POLICIES = {"strict", "balanced", "experimental", "normal", "learning"}
+
+
+def run_setup_wizard(project_root: Path, *, is_tty: bool | None = None) -> int:
+    """Interactive setup wizard. Returns exit code."""
+    if is_tty is None:
+        is_tty = sys.stdin.isatty()
+
+    if not is_tty:
+        console.print(_WIZARD_STATIC_TEMPLATE)
+        return 0
+
+    console.print("[bold]SafeCode Setup Wizard[/bold]")
+    console.print("Press Enter to accept the default shown in [dim]brackets[/dim].\n")
+
+    # Provider
+    provider = typer.prompt("LLM provider (mock/openai/anthropic)", default="mock").strip().lower()
+    if provider not in _KNOWN_PROVIDERS:
+        console.print(f"[red]Unknown provider '{provider}'. Defaulting to mock.[/red]")
+        provider = "mock"
+    if provider != "mock":
+        confirmed = typer.confirm(
+            f"Switching to provider '{provider}' requires a real API key and network access. Continue?",
+            default=False,
+        )
+        if not confirmed:
+            console.print("[yellow]Keeping provider=mock.[/yellow]")
+            provider = "mock"
+
+    # Model
+    default_model = "gpt-4.1-mini" if provider in {"mock", "openai"} else "claude-sonnet-4-6"
+    model = typer.prompt("Model name", default=default_model).strip()
+
+    # Policy
+    policy_raw = typer.prompt(
+        "Safety policy (strict/balanced/experimental)", default="balanced"
+    ).strip().lower()
+    if policy_raw not in _KNOWN_POLICIES:
+        console.print(f"[red]Unknown policy '{policy_raw}'. Defaulting to balanced.[/red]")
+        policy_raw = "balanced"
+
+    # Network
+    network = False
+    if typer.confirm("Enable network access?", default=False):
+        network = typer.confirm("Confirm: enable real network calls (LLM provider must support)?", default=False)
+
+    # Refuse to lower user-level safety
+    user_config = SafeCodeConfig.load(project_root)
+    effective_policy = _stricter_policy(user_config.policy, policy_raw)
+    if effective_policy != policy_raw:
+        console.print(
+            f"[yellow]Wizard: policy '{policy_raw}' is less restrictive than the current "
+            f"user-level policy '{user_config.policy}'. "
+            f"Using '{effective_policy}' to preserve user-level safety.[/yellow]"
+        )
+        policy_raw = effective_policy
+
+    console.print(
+        f"\n[bold]Summary:[/bold] provider={provider}, model={model}, "
+        f"policy={policy_raw}, network={str(network).lower()}"
+    )
+    if not typer.confirm("Write this configuration?", default=False):
+        console.print("[yellow]Setup cancelled.[/yellow]")
+        return 0
+
+    try:
+        result = write_setup(
+            project_root,
+            provider=provider,
+            model=model,
+            policy=policy_raw,
+            network_enabled=network,
+        )
+    except (FileExistsError, ValueError) as exc:
+        console.print(f"[red]{exc}[/red]")
+        return 1
+
+    console.print(
+        Panel.fit(
+            "\n".join([
+                f"Config: {result.config_path}",
+                f"Provider: {result.provider}",
+                f"Model: {result.model}",
+                f"Policy: {result.policy}",
+                f"Network: {str(result.network_enabled).lower()}",
+            ]),
+            title="SafeCode Setup",
+        )
+    )
+    return 0
 
 app = typer.Typer(
     name="sac",
@@ -42,8 +146,12 @@ def setup(
     sandbox_approval_dir: str = typer.Option("", "--sandbox-approval-dir", help="External sandbox approval directory."),
     force: bool = typer.Option(False, "--force", help="Overwrite existing setup files."),
     yes: bool = typer.Option(False, "--yes", "-y", help="Accept the selected options without prompting."),
+    wizard: bool = typer.Option(False, "--wizard", help="Interactive wizard: walks provider/model/policy; non-TTY prints static template."),
 ) -> None:
     """Configure model, network, approval dirs, and safety preset."""
+    if wizard:
+        code = run_setup_wizard(Path.cwd())
+        raise typer.Exit(code=code)
     if not yes:
         confirmed = typer.confirm(
             f"Write SafeCode setup with provider={provider}, policy={policy}, network={network}?",

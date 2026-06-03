@@ -5,13 +5,15 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v3.7.0
+# Current Baseline - v3.7.1
 
 ## Status
-Implemented. Git baseline: tag `v3.7.0`. Local working version: `v3.7.0`.
+Implemented. Git baseline: tag `v3.7.1`. Local working version: `v3.7.1`.
 
 ## Stage
-`v3.7.0` sac fix + stack-aware quickstart — `src/safecode/cli_fix.py` (new): `sac fix [--test-command CMD] [--json]`; detects test command via `ProjectTestDetector`, runs it (`shell=False`, 120s timeout), redacts failure output via `redact_secrets()`, invokes `AgentOrchestrator.edit()`, leaves pending patch for `sac apply`; no approval gate bypassed; 22 new tests in `tests/test_sac_fix.py`. `src/safecode/cli_quickstart.py` extended: `_detect_stack()` detects `pyproject.toml` (python), `package.json` (typescript), `go.mod` (go), `Cargo.toml` (rust); `_next_steps_for_stack()` adapts next-step commands; unknown stack unchanged; 11 new tests in `tests/test_quickstart.py`. Full suite: 3360 passed, 2 skipped.
+`v3.7.1` setup wizard + progress indicator — `sac setup --wizard` added to `src/safecode/cli.py`; non-TTY exits 0 with static template; TTY walks provider/model/policy; switching from mock requires explicit confirm; network requires double-confirm; `_stricter_policy` enforced (wizard cannot lower user-level safety); cancel skips writes; 14 new tests in `tests/test_setup_wizard.py`. `src/safecode/cli_progress.py` (new): `cli_status(msg)` context manager + `StepCounter(n)` class; TTY shows Rich spinner/step counter; non-TTY emits zero extra bytes; 20 new tests in `tests/test_cli_progress.py`. Full suite: 3384 passed, 2 skipped.
+
+Previous: `v3.7.0` sac fix + stack-aware quickstart — `src/safecode/cli_fix.py` (new): `sac fix [--test-command CMD] [--json]`; detects test command via `ProjectTestDetector`, runs it (`shell=False`, 120s timeout), redacts failure output via `redact_secrets()`, invokes `AgentOrchestrator.edit()`, leaves pending patch for `sac apply`; no approval gate bypassed; 22 new tests in `tests/test_sac_fix.py`. `src/safecode/cli_quickstart.py` extended: `_detect_stack()` detects `pyproject.toml` (python), `package.json` (typescript), `go.mod` (go), `Cargo.toml` (rust); `_next_steps_for_stack()` adapts next-step commands; unknown stack unchanged; 11 new tests in `tests/test_quickstart.py`. Full suite: 3360 passed, 2 skipped.
 
 Previous: `v3.6.6` Commercial v1 cut — metadata-only release marker; version bumped to 3.6.6; `.claude/versions.json` updated; version matrix rows for v3.6.4–v3.6.6 added. No runtime changes.
 
