@@ -462,3 +462,98 @@ class TestCLIJSONEnvelopeContract:
         invariants_text = " ".join(snap["invariants"]).lower()
         assert "omitted" in invariants_text
         assert "error" in invariants_text
+
+
+class TestMCPReadContract:
+    """v3.8.2 MCP read execution contract snapshot tests."""
+
+    def _snapshot(self) -> dict:
+        path = _CONTRACTS / "mcp_read_contract.json"
+        return json.loads(path.read_text(encoding="utf-8"))
+
+    def test_snapshot_file_exists(self) -> None:
+        assert (_CONTRACTS / "mcp_read_contract.json").exists()
+
+    def test_contract_label_is_mcp_read_execution(self) -> None:
+        snap = self._snapshot()
+        assert snap["contract"] == "MCPReadExecution"
+
+    def test_contract_status_is_supported(self) -> None:
+        snap = self._snapshot()
+        assert snap["contract_status"] == "supported"
+
+    def test_result_fields_include_required(self) -> None:
+        snap = self._snapshot()
+        required = {"server", "tool", "classification", "output", "error",
+                    "exit_code", "duration_ms", "executed", "blocked"}
+        assert required <= set(snap["result_fields"])
+
+    def test_gate_order_scope_before_classification(self) -> None:
+        snap = self._snapshot()
+        gates = snap["gate_order"]
+        assert gates.index("scope_gate") < gates.index("classification_gate")
+
+    def test_scope_vocabulary_complete(self) -> None:
+        snap = self._snapshot()
+        scopes = set(snap["scope_vocabulary"])
+        assert "denied" in scopes
+        assert "read_only" in scopes
+        assert "write_proposal_required" in scopes
+
+    def test_default_scope_unknown_server_is_denied(self) -> None:
+        snap = self._snapshot()
+        assert snap["default_scope_unknown_server"] == "denied"
+
+    def test_default_scope_known_server_is_read_only(self) -> None:
+        snap = self._snapshot()
+        assert snap["default_scope_known_server"] == "read_only"
+
+    def test_invariants_mention_scope_before_classification(self) -> None:
+        snap = self._snapshot()
+        text = " ".join(snap["invariants"]).lower()
+        assert "scope" in text
+        assert "before" in text
+        assert "classification" in text
+
+    def test_invariants_mention_server_supplied_classification_ignored(self) -> None:
+        snap = self._snapshot()
+        text = " ".join(snap["invariants"]).lower()
+        assert "server-supplied" in text or "ignored" in text
+
+    def test_invariants_mention_redaction(self) -> None:
+        snap = self._snapshot()
+        text = " ".join(snap["invariants"]).lower()
+        assert "redact" in text
+
+    def test_snapshot_is_valid_json_with_sorted_keys(self) -> None:
+        path = _CONTRACTS / "mcp_read_contract.json"
+        raw = path.read_text(encoding="utf-8")
+        data = json.loads(raw)
+        serialized = json.dumps(data, sort_keys=True, indent=2)
+        reloaded = json.loads(serialized)
+        assert data == reloaded
+
+    def test_runner_entry_point_matches_snapshot(self) -> None:
+        snap = self._snapshot()
+        assert snap["entry_point"] == "MCPReadOnlyRunner.call_readonly"
+        from safecode.mcp.runner import MCPReadOnlyRunner
+        assert hasattr(MCPReadOnlyRunner, "call_readonly")
+
+    def test_result_type_matches_live_code(self) -> None:
+        snap = self._snapshot()
+        assert snap["result_type"] == "MCPRunResult"
+        from safecode.mcp.runner import MCPRunResult
+        import dataclasses as _dc
+        fields = {f.name for f in _dc.fields(MCPRunResult)}
+        assert set(snap["result_fields"]) <= fields
+
+    def test_write_execution_remains_experimental(self) -> None:
+        """Verify write execution is NOT promoted in this snapshot."""
+        snap = self._snapshot()
+        text = " ".join(snap["invariants"]).lower()
+        assert "write execution" in text and "experimental" in text
+
+    def test_public_contracts_doc_has_mcp_read_section(self) -> None:
+        doc = (Path(__file__).parent.parent / "docs" / "public-contracts.md").read_text(encoding="utf-8")
+        assert "MCP Read Execution Contract" in doc
+        assert "MCPReadOnlyRunner.call_readonly" in doc

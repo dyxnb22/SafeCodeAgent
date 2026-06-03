@@ -260,9 +260,46 @@ stable contract at v3.7.2.
 
 ---
 
+### 12. MCP Read Execution Contract
+
+**Where:** `src/safecode/mcp/runner.py`, `MCPReadOnlyRunner.call_readonly`.
+
+**Contract:** Read-only MCP tool execution has a stable gate sequence and result shape.
+Promoted to stable contract at v3.8.2.  **MCP write execution and lifecycle remain experimental.**
+
+**Result type:** `MCPRunResult` — fields: `server`, `tool`, `classification`, `output`, `error`,
+`exit_code`, `duration_ms`, `executed`, `blocked`.
+
+**Gate order (enforced in sequence):**
+1. **Scope gate** — checked BEFORE classification; unknown server → `denied`; invalid scope → `denied`.
+2. **Classification gate** — tool must be classified as `read` to proceed.
+3. Arg schema validation (if schema has `arg_schemas`).
+4. Server config check (enabled, non-empty command).
+5. Command policy.
+6. Network policy.
+7. Input size limit.
+
+**Invariants:**
+- Scope gate always runs before classification.
+- Unknown server (not in `.sac/mcp.toml`) defaults to scope `denied` and is blocked before classification.
+- Server-supplied `"classification"` fields in transport responses are **ignored**; only local static classification applies.
+- `output` is always redacted via `redact_secrets()` before returning.
+- `error` text never contains caller-supplied `input_data` content.
+- `blocked=True` when a gate prevents execution; `executed=True` when subprocess or stdio actually ran.
+- `SAFECODE_MCP_STDIO_RUNNER=0` (default): uses subprocess shim path.
+- `SAFECODE_MCP_STDIO_RUNNER=1`: routes through `StdioReadOnlyAdapter` when server has `argv`.
+
+**Scope vocabulary:** `denied` | `read_only` | `write_proposal_required`.
+Default for known server without `scope`: `read_only`.
+Default for unknown server: `denied`.
+
+**Snapshot:** `tests/snapshots/contracts/mcp_read_contract.json`
+
+---
+
 ## Experimental Surfaces
 
-The following are explicitly experimental in v3.0. They may change, be removed, or be
+The following are explicitly experimental. They may change, be removed, or be
 promoted to stable contracts in a future release.
 
 | Surface | Why experimental |
@@ -270,6 +307,8 @@ promoted to stable contracts in a future release.
 | `SafeCodeLocalAPI` beyond `ask()` and `report()` | Not yet snapshot-tested or versioned |
 | OpenAI-compatible live provider behavior | Depends on network and API key; not deterministic |
 | MCP schema shim | Keyword-based classification fallback; no real JSON-RPC client |
+| MCP write execution (`execute_approved_write`, `execute_granted_write`) | Approval gate; result handling subject to change |
+| MCP lifecycle (`sac mcp start/stop/restart`) | PID management; not yet stable |
 | Subagent payload evolution beyond v2 fields | v2 payload (synthesis + cancellation fields) promoted to supported at v3.4.3; v3+ fields remain experimental |
 | TUI (`sac tui dashboard`) | Rich rendering; not yet stable |
 | IDE bridge (`sac ide ...`) | Early manifest; subject to change |

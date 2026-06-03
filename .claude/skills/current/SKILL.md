@@ -5,13 +5,15 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v3.8.1
+# Current Baseline - v3.8.2
 
 ## Status
-Implemented. Git baseline: tag `v3.8.1`. Local working version: `v3.8.1`.
+Implemented. Git baseline: tag `v3.8.2`. Local working version: `v3.8.2`.
 
 ## Stage
-`v3.8.1` MCP per-server scopes + doctor — `MCPServerConfig.scope` field (`denied`/`read_only`/`write_proposal_required`); parsed from `.sac/mcp.toml`; invalid value → `denied` (fail-closed); unknown server → `denied`; known server without explicit scope → `read_only`; scope gate runs BEFORE classification in `call_readonly` and `propose_write`; `read_only` scope blocks write proposals; `write_proposal_required` allows write proposals through existing approval gate. `sac mcp doctor [server]` ([EXPERIMENTAL]) reports binary path, scope, stdio configured, last call status from audit, lifecycle PID; `--json`; pure read. 22 new tests in `tests/test_mcp_per_server_scopes.py`, 23 new tests in `tests/test_mcp_doctor.py`. Full suite: 3510 passed, 2 skipped.
+`v3.8.2` MCP write-proposal e2e + read contract promotion — `MCPApprovalStore` in `src/safecode/mcp/approval_grant.py`; single-use grants stored outside project root (`SAFECODE_MCP_APPROVAL_DIR`); `execute_granted_write(proposal_id, server, tool, ...)` on `MCPReadOnlyRunner`; consumes grant, routes through stdio, emits `mcp_granted_write_*` audit events, discards pending proposal (single-use); requires `SAFECODE_MCP_STDIO_RUNNER=1` + server `argv`. Section 12 "MCP Read Execution Contract" added to `docs/public-contracts.md`; snapshot at `tests/snapshots/contracts/mcp_read_contract.json`; `TestMCPReadContract` (16 tests); MCP read execution promoted to stable contract; write execution and lifecycle remain experimental. 19 new tests in `tests/test_mcp_write_proposal_e2e.py`. Full suite: 3545 passed, 2 skipped.
+
+Previous: `v3.8.1` MCP per-server scopes + doctor — `MCPServerConfig.scope` field (`denied`/`read_only`/`write_proposal_required`); parsed from `.sac/mcp.toml`; invalid value → `denied` (fail-closed); unknown server → `denied`; known server without explicit scope → `read_only`; scope gate runs BEFORE classification in `call_readonly` and `propose_write`; `read_only` scope blocks write proposals; `write_proposal_required` allows write proposals through existing approval gate. `sac mcp doctor [server]` ([EXPERIMENTAL]) reports binary path, scope, stdio configured, last call status from audit, lifecycle PID; `--json`; pure read. 22 new tests in `tests/test_mcp_per_server_scopes.py`, 23 new tests in `tests/test_mcp_doctor.py`. Full suite: 3510 passed, 2 skipped.
 
 Previous: `v3.8.0` MCP stdio wire + lifecycle — `StdioReadOnlyAdapter` wired into `MCPReadOnlyRunner.call_readonly` behind `SAFECODE_MCP_STDIO_RUNNER=1` env var / `stdio_runner=True` constructor param; classification gate always runs before stdio call; server-supplied classification ignored. `MCPLifecycleManager` (start/stop/restart) added in `src/safecode/mcp/lifecycle.py`; PID files at `.sac/mcp/<server>.pid`; stop() idempotent; each transition emits RuntimeLogger + AuditEvent. `sac mcp start/stop/restart` CLI commands (all [EXPERIMENTAL]). 19 new tests in `tests/test_mcp_stdio_wired.py`, 32 new tests in `tests/test_mcp_lifecycle.py`, 2 tests updated in `tests/test_mcp_stdio_runner.py`. Full suite: 3465 passed, 2 skipped.
 

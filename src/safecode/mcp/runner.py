@@ -16,10 +16,12 @@ from safecode.audit.models import AuditEvent
 from safecode.config import SafeCodeConfig
 from safecode.context.redactor import redact_secrets
 from safecode.logs.runtime import RuntimeLogger
+from safecode.mcp.approval_grant import MCPApprovalStore
 from safecode.mcp.config import MCPConfigStore, MCPServerConfig
 from safecode.mcp.proposal import MCPWriteProposal, MCPWriteProposalStore
 from safecode.mcp.schema import MCPToolSchema, classify_with_schema, validate_call_args
 from safecode.mcp.stdio_runner import StdioReadOnlyAdapter
+from safecode.mcp.transport_stdio import call_stdio
 from safecode.policy.commands import CommandDecision, CommandPolicy
 from safecode.sandbox.filesystem import FilesystemBoundary
 from safecode.sandbox.network import NetworkPolicy
@@ -498,6 +500,119 @@ class MCPReadOnlyRunner:
             trace_id=trace_id,
         )
         return proposal
+
+    def execute_granted_write(
+        self,
+        proposal_id: str,
+        server: str,
+        tool: str,
+        input_data: dict[str, Any] | None = None,
+        trace_id: str | None = None,
+        approval_store: "MCPApprovalStore | None" = None,
+    ) -> MCPRunResult:
+        """Execute a write tool using an out-of-project approval grant.
+
+        Flow (v3.8.2 e2e gate):
+        1. Consume the approval grant from ``MCPApprovalStore`` (single-use; outside project root).
+        2. Check server config and policy.
+        3. Execute via stdio transport (requires ``SAFECODE_MCP_STDIO_RUNNER=1`` or ``stdio_runner=True``
+           and server must have ``argv`` configured).
+        4. Emit ``mcp_granted_write_completed`` audit event.
+        5. Discard the pending proposal file (single-use approval consumed).
+
+        The approval grant is stored outside project root so that project-controlled
+        files cannot forge approvals.
+        """
+        store = approval_store or MCPApprovalStore()
+        grant = store.consume(proposal_id)
+        if grant is None:
+            reason = f"No valid approval grant found for proposal '{proposal_id}'."
+            classification = classify_mcp_tool(tool)
+            self._audit("mcp_granted_write_blocked", server, tool, classification, "blocked", reason, trace_id=trace_id)
+            return MCPRunResult(server, tool, classification, "", reason, 126, 0, False, True)
+
+        classification = classify_mcp_tool(tool)
+        self._audit(
+            "mcp_granted_write_started", server, tool, classification,
+            "started", f"Approved write grant consumed: proposal={proposal_id}", trace_id=trace_id,
+        )
+
+        server_config = self._get_server(server)
+        if not server_config:
+            return self._blocked_granted(server, tool, classification, "MCP server is not configured.", trace_id, proposal_id)
+        if not server_config.enabled:
+            return self._blocked_granted(server, tool, classification, "MCP server is disabled by config.", trace_id, proposal_id)
+        if not (self._stdio_runner and server_config.argv):
+            reason = "execute_granted_write requires stdio routing (SAFECODE_MCP_STDIO_RUNNER=1 and server argv)."
+            return self._blocked_granted(server, tool, classification, reason, trace_id, proposal_id)
+
+        network_block = self._network_block_reason(input_data or {})
+        if network_block:
+            return self._blocked_granted(server, tool, classification, network_block, trace_id, proposal_id)
+
+        result = self._execute_write_via_stdio(
+            server, tool, classification, input_data or {}, server_config, trace_id
+        )
+
+        # Discard pending proposal (single-use: grant consumed, proposal removed).
+        MCPWriteProposalStore(self.project_root, self.config).discard_pending()
+
+        return result
+
+    def _blocked_granted(
+        self,
+        server: str,
+        tool: str,
+        classification: str,
+        reason: str,
+        trace_id: str | None,
+        proposal_id: str,
+    ) -> MCPRunResult:
+        self._audit(
+            "mcp_granted_write_blocked", server, tool, classification, "blocked",
+            reason, trace_id=trace_id,
+        )
+        return MCPRunResult(server, tool, classification, "", reason, 126, 0, False, True)
+
+    def _execute_write_via_stdio(
+        self,
+        server: str,
+        tool: str,
+        classification: str,
+        input_data: dict[str, Any],
+        server_config: MCPServerConfig,
+        trace_id: str | None,
+    ) -> MCPRunResult:
+        """Execute a write tool via stdio JSON-RPC transport.
+
+        Uses ``call_stdio`` directly (not the read-only adapter).
+        The approval gate has already been verified by the caller.
+        """
+        started = time.perf_counter()
+        argv = list(server_config.argv)  # type: ignore[arg-type]
+        result = call_stdio(
+            argv,
+            method="tools/call",
+            params={"name": tool, "arguments": input_data},
+            timeout_seconds=float(self.config.shell.default_timeout_seconds),
+        )
+        duration_ms = int((time.perf_counter() - started) * 1000)
+
+        if not result.success:
+            error = redact_secrets(result.error or "MCP write stdio call failed.")
+            self.runtime_logger.error("mcp.runner", "MCP write stdio call failed", trace_id=trace_id)
+            self._audit(
+                "mcp_granted_write_completed", server, tool, classification, "failed",
+                error, exit_code=result.exit_code, trace_id=trace_id,
+            )
+            return MCPRunResult(server, tool, classification, "", error, result.exit_code, duration_ms, True, False)
+
+        output = redact_secrets(self._stringify_payload(result.result))
+        self._audit(
+            "mcp_granted_write_completed", server, tool, classification, "success",
+            output or "MCP write via stdio completed.", exit_code=0, trace_id=trace_id,
+        )
+        return MCPRunResult(server, tool, classification, output, "", 0, duration_ms, True, False)
 
     def _call_via_stdio(
         self,

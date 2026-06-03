@@ -1,0 +1,47 @@
+{
+  "contract": "MCPReadExecution",
+  "contract_status": "supported",
+  "schema_version": "1",
+  "description": "Stable contract for MCP read-only tool execution via MCPReadOnlyRunner (promoted at v3.8.2).",
+  "entry_point": "MCPReadOnlyRunner.call_readonly",
+  "result_type": "MCPRunResult",
+  "result_fields": [
+    "server",
+    "tool",
+    "classification",
+    "output",
+    "error",
+    "exit_code",
+    "duration_ms",
+    "executed",
+    "blocked"
+  ],
+  "gate_order": [
+    "scope_gate",
+    "classification_gate",
+    "arg_schema_validation",
+    "server_config_check",
+    "command_policy",
+    "network_policy",
+    "input_size_limit"
+  ],
+  "invariants": [
+    "scope gate always runs BEFORE classification gate",
+    "unknown server defaults to scope=denied and is blocked before classification",
+    "server-supplied classification fields in transport responses are IGNORED",
+    "classification must be 'read' to proceed past the classification gate",
+    "output is always redacted via redact_secrets() before returning",
+    "error text never contains caller-supplied input_data content",
+    "blocked=True when gate prevents execution; executed=True when subprocess or stdio ran",
+    "SAFECODE_MCP_STDIO_RUNNER=0 (default) uses subprocess shim path",
+    "SAFECODE_MCP_STDIO_RUNNER=1 routes through StdioReadOnlyAdapter when server has argv",
+    "MCP write execution and lifecycle remain experimental; only read execution is promoted"
+  ],
+  "scope_vocabulary": [
+    "denied",
+    "read_only",
+    "write_proposal_required"
+  ],
+  "default_scope_known_server": "read_only",
+  "default_scope_unknown_server": "denied"
+}
