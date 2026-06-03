@@ -5,13 +5,15 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v3.3.5
+# Current Baseline - v3.3.6
 
 ## Status
-Implemented. Git baseline: tag `v3.3.5`. Local working version: `v3.3.5`.
+Implemented. Git baseline: tag `v3.3.6`. Local working version: `v3.3.6`.
 
 ## Stage
-`v3.3.5` Experimental CLI Stdio Inspect/Discover — adds `sac mcp stdio-status` and `sac mcp stdio-discover` commands to `src/safecode/cli_mcp.py`; both clearly labeled EXPERIMENTAL; `stdio-status` reads MCPConfigStore only, no subprocess; `stdio-discover` calls `resolve_stdio_argv` + `discover_stdio_tools`, no tools/call; both support `--json` via `CLIJSONResponse`/`render_json`; fail closed on missing server or missing argv; MCP remains experimental.
+`v3.3.6` MCP Stdio Adversarial Hardening — no new features; adds 37 targeted adversarial tests in `tests/test_mcp_stdio_adversarial.py` covering: server-supplied "classification" field in JSON response ignored; CLI `stdio-discover` has no adapter execution path; `--timeout` propagation verified; `StdioReadOnlyAdapter` gates on static classification after merge; shell string in TOML fails at parse time; oversized/malformed server responses fail closed; error text never contains caller-supplied content or server response data; shell metacharacter tool names blocked by classification gate. MCP remains experimental.
+
+Previous: `v3.3.5` Experimental CLI Stdio Inspect/Discover — adds `sac mcp stdio-status` and `sac mcp stdio-discover` commands to `src/safecode/cli_mcp.py`; both clearly labeled EXPERIMENTAL; `stdio-status` reads MCPConfigStore only, no subprocess; `stdio-discover` calls `resolve_stdio_argv` + `discover_stdio_tools`, no tools/call; both support `--json` via `CLIJSONResponse`/`render_json`; fail closed on missing server or missing argv; MCP remains experimental.
 
 Previous: `v3.3.4` Experimental Read-Only Stdio Runner Adapter — adds `StdioReadOnlyAdapter` in `src/safecode/mcp/stdio_runner.py`; disabled by default; not wired into MCPReadOnlyRunner; classification gate blocks write/unknown before any call; all failures return StdioCallResult, never raise; call_args never in error text; RuntimeWarning on block/failure; MCP remains experimental.
 
