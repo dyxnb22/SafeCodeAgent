@@ -182,9 +182,19 @@ class TestValidateCallArgs:
 class TestRunnerArgValidation:
     """MCPReadOnlyRunner blocks calls with invalid args when schema has arg_schemas."""
 
+    def _write_server_config(self, tmp_path, server_name: str = "myserver") -> None:
+        """Write a minimal mcp.toml with a read_only-scoped server for arg validation tests."""
+        sac_dir = tmp_path / ".sac"
+        sac_dir.mkdir(exist_ok=True)
+        (sac_dir / "mcp.toml").write_text(
+            f'[servers.{server_name}]\ncommand = "echo"\nscope = "read_only"\n',
+            encoding="utf-8",
+        )
+
     def test_missing_required_arg_blocked(self, tmp_path):
         from safecode.mcp.runner import MCPReadOnlyRunner
 
+        self._write_server_config(tmp_path)
         arg = MCPSchemaArg(name="path", required=True)
         schema = MCPToolSchema(
             server="myserver", tool="get_info", classification="read",
@@ -199,6 +209,7 @@ class TestRunnerArgValidation:
     def test_extra_arg_blocked(self, tmp_path):
         from safecode.mcp.runner import MCPReadOnlyRunner
 
+        self._write_server_config(tmp_path)
         arg = MCPSchemaArg(name="path", required=True)
         schema = MCPToolSchema(
             server="myserver", tool="get_info", classification="read",

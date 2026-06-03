@@ -14,7 +14,7 @@ from safecode.agent.approvals import HumanCheckpointPresenter
 from safecode.audit.logger import AuditLogger
 from safecode.audit.models import AuditEvent
 from safecode.cli_shared_json import CLIJSONResponse, render_json
-from safecode.mcp.config import MCPConfigStore, StdioArgvError, resolve_stdio_argv
+from safecode.mcp.config import MCPConfigStore, MCPServerConfig, StdioArgvError, resolve_stdio_argv
 from safecode.mcp.discovery import MCPDiscovery, discover_stdio_tools
 from safecode.mcp.lifecycle import MCPLifecycleManager
 from safecode.mcp.proposal import MCPWriteProposalStore
@@ -424,3 +424,131 @@ def mcp_restart(
     else:
         console.print(f"[red]{result.message}[/red]")
         raise typer.Exit(code=1)
+
+
+# ── Doctor command (v3.8.1, experimental) ──────────────────────────────────────
+
+
+def _doctor_server_info(
+    project_root: Path,
+    cfg: MCPServerConfig,
+    audit_logger: AuditLogger,
+    lifecycle_manager: MCPLifecycleManager,
+) -> dict:
+    """Collect doctor info for one server. Pure read — never spawns subprocesses."""
+    import shutil
+
+    # Binary path: first token of the command string (not argv; matches subprocess shim).
+    binary = cfg.command.split()[0] if cfg.command.strip() else ""
+    binary_path = shutil.which(binary) if binary else None
+
+    # Last call status from audit log (most recent mcp_call_* or mcp_write_* event for this server).
+    mcp_event_types = {
+        "mcp_call_proposed", "mcp_call_started", "mcp_call_completed", "mcp_call_blocked",
+        "mcp_write_proposed", "mcp_write_blocked", "mcp_approved_write_started",
+        "mcp_approved_write_completed",
+    }
+    last_call_status: str | None = None
+    last_call_type: str | None = None
+    last_call_ts: str | None = None
+    try:
+        recent = audit_logger.read_recent(limit=200)
+        for event in reversed(recent):
+            if event.type in mcp_event_types:
+                meta = event.metadata or {}
+                if meta.get("server") == cfg.name:
+                    last_call_status = event.status
+                    last_call_type = event.type
+                    last_call_ts = event.timestamp
+                    break
+    except Exception:
+        pass
+
+    # Lifecycle PID.
+    pid: int | None = lifecycle_manager.read_pid(cfg.name)
+    is_running = lifecycle_manager.is_running(cfg.name)
+
+    return {
+        "server": cfg.name,
+        "enabled": cfg.enabled,
+        "scope": cfg.scope,
+        "binary": binary or None,
+        "binary_path": binary_path,
+        "stdio_configured": cfg.argv is not None and len(cfg.argv) > 0,
+        "last_call_type": last_call_type,
+        "last_call_status": last_call_status,
+        "last_call_timestamp": last_call_ts,
+        "lifecycle_pid": pid,
+        "lifecycle_running": is_running,
+    }
+
+
+@mcp_app.command("doctor")
+def mcp_doctor(
+    server: Optional[str] = typer.Argument(None, help="Server name; omit to check all servers."),
+    json_output: bool = typer.Option(False, "--json", help="Output result as JSON."),
+) -> None:
+    """Show diagnostic info for configured MCP servers. [EXPERIMENTAL]
+
+    Reports binary path, scope, last call status from audit log, and lifecycle
+    PID.  Pure read — no subprocess is launched.
+    """
+    project_root = Path.cwd()
+    config_store = MCPConfigStore(project_root)
+    audit_logger = AuditLogger(project_root)
+    lifecycle_manager = MCPLifecycleManager(project_root)
+
+    servers = config_store.list_servers()
+
+    if server is not None:
+        servers = [s for s in servers if s.name == server]
+        if not servers:
+            if json_output:
+                print(render_json(CLIJSONResponse(
+                    command="mcp doctor",
+                    status="error",
+                    error=f"MCP server not found: '{server}'",
+                )))
+            else:
+                console.print(f"[red]MCP server not found:[/red] '{server}'")
+            raise typer.Exit(code=1)
+
+    if not servers:
+        if json_output:
+            print(render_json(CLIJSONResponse(command="mcp doctor", status="success", data={"servers": []})))
+        else:
+            console.print("[yellow]No MCP servers configured.[/yellow]")
+        return
+
+    results = [_doctor_server_info(project_root, cfg, audit_logger, lifecycle_manager) for cfg in servers]
+
+    if json_output:
+        print(render_json(CLIJSONResponse(
+            command="mcp doctor",
+            status="success",
+            data={"servers": results, "experimental": True},
+        )))
+        return
+
+    for info in results:
+        console.print(f"\n[bold]MCP server:[/bold] {info['server']}")
+        enabled_label = "[green]enabled[/green]" if info["enabled"] else "[red]disabled[/red]"
+        console.print(f"  Enabled:           {enabled_label}")
+        console.print(f"  Scope:             {info['scope']}")
+        binary_display = info["binary_path"] or info["binary"] or "[dim](not set)[/dim]"
+        console.print(f"  Binary path:       {binary_display}")
+        stdio_label = "[green]yes[/green]" if info["stdio_configured"] else "[yellow]no[/yellow]"
+        console.print(f"  Stdio configured:  {stdio_label}")
+        if info["last_call_type"]:
+            console.print(f"  Last call type:    {info['last_call_type']}")
+            console.print(f"  Last call status:  {info['last_call_status']}")
+            console.print(f"  Last call at:      {info['last_call_timestamp']}")
+        else:
+            console.print("  Last call:         [dim](no audit record found)[/dim]")
+        if info["lifecycle_pid"]:
+            running_label = "[green]running[/green]" if info["lifecycle_running"] else "[red]dead (stale PID)[/red]"
+            console.print(f"  Lifecycle PID:     {info['lifecycle_pid']} ({running_label})")
+        else:
+            console.print("  Lifecycle PID:     [dim](not tracked)[/dim]")
+
+    console.print("\n[dim][EXPERIMENTAL] MCP doctor is experimental. No subprocess was launched.[/dim]")

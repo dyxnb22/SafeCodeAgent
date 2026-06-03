@@ -4,6 +4,10 @@ import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 
+# Valid per-server scope values (v3.8.1).
+VALID_SCOPES: frozenset[str] = frozenset({"denied", "read_only", "write_proposal_required"})
+_DEFAULT_SCOPE = "read_only"
+
 
 @dataclass(frozen=True)
 class MCPServerConfig:
@@ -15,6 +19,11 @@ class MCPServerConfig:
     # Experimental (v3.3.1): stdio argv; non-None means server supports stdio transport.
     # Must be non-empty and contain only str items when present.
     argv: tuple[str, ...] | None = None
+    # Per-server scope (v3.8.1): controls which call types are permitted.
+    # "denied" blocks all calls; "read_only" allows only read tools;
+    # "write_proposal_required" allows read tools directly and write tools
+    # via the proposal/approval flow.  Invalid values default to "denied".
+    scope: str = _DEFAULT_SCOPE
 
 
 class StdioArgvError(ValueError):
@@ -113,12 +122,15 @@ class MCPConfigStore:
             raw_argv = config.get("argv")
             if raw_argv is not None:
                 argv = validate_stdio_argv(raw_argv)
+            raw_scope = config.get("scope", _DEFAULT_SCOPE)
+            scope = raw_scope if raw_scope in VALID_SCOPES else "denied"
             result.append(
                 MCPServerConfig(
                     name=name,
                     command=str(config.get("command", "")),
                     enabled=bool(config.get("enabled", True)),
                     argv=argv,
+                    scope=scope,
                 )
             )
         return result

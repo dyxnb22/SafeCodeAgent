@@ -5,13 +5,15 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v3.8.0
+# Current Baseline - v3.8.1
 
 ## Status
-Implemented. Git baseline: tag `v3.8.0`. Local working version: `v3.8.0`.
+Implemented. Git baseline: tag `v3.8.1`. Local working version: `v3.8.1`.
 
 ## Stage
-`v3.8.0` MCP stdio wire + lifecycle — `StdioReadOnlyAdapter` wired into `MCPReadOnlyRunner.call_readonly` behind `SAFECODE_MCP_STDIO_RUNNER=1` env var / `stdio_runner=True` constructor param; classification gate always runs before stdio call; server-supplied classification ignored. `MCPLifecycleManager` (start/stop/restart) added in `src/safecode/mcp/lifecycle.py`; PID files at `.sac/mcp/<server>.pid`; stop() idempotent; each transition emits RuntimeLogger + AuditEvent. `sac mcp start/stop/restart` CLI commands (all [EXPERIMENTAL]). 19 new tests in `tests/test_mcp_stdio_wired.py`, 32 new tests in `tests/test_mcp_lifecycle.py`, 2 tests updated in `tests/test_mcp_stdio_runner.py`. Full suite: 3465 passed, 2 skipped.
+`v3.8.1` MCP per-server scopes + doctor — `MCPServerConfig.scope` field (`denied`/`read_only`/`write_proposal_required`); parsed from `.sac/mcp.toml`; invalid value → `denied` (fail-closed); unknown server → `denied`; known server without explicit scope → `read_only`; scope gate runs BEFORE classification in `call_readonly` and `propose_write`; `read_only` scope blocks write proposals; `write_proposal_required` allows write proposals through existing approval gate. `sac mcp doctor [server]` ([EXPERIMENTAL]) reports binary path, scope, stdio configured, last call status from audit, lifecycle PID; `--json`; pure read. 22 new tests in `tests/test_mcp_per_server_scopes.py`, 23 new tests in `tests/test_mcp_doctor.py`. Full suite: 3510 passed, 2 skipped.
+
+Previous: `v3.8.0` MCP stdio wire + lifecycle — `StdioReadOnlyAdapter` wired into `MCPReadOnlyRunner.call_readonly` behind `SAFECODE_MCP_STDIO_RUNNER=1` env var / `stdio_runner=True` constructor param; classification gate always runs before stdio call; server-supplied classification ignored. `MCPLifecycleManager` (start/stop/restart) added in `src/safecode/mcp/lifecycle.py`; PID files at `.sac/mcp/<server>.pid`; stop() idempotent; each transition emits RuntimeLogger + AuditEvent. `sac mcp start/stop/restart` CLI commands (all [EXPERIMENTAL]). 19 new tests in `tests/test_mcp_stdio_wired.py`, 32 new tests in `tests/test_mcp_lifecycle.py`, 2 tests updated in `tests/test_mcp_stdio_runner.py`. Full suite: 3465 passed, 2 skipped.
 
 Previous: `v3.7.3` v3.7.x docs cut — `README.md` Core Commands updated: `sac setup --wizard`, `sac fix`, `sac fix --test-command`, `--json` usage documented. `docs/mvp-user-guide.md` updated: intro references v3.7.x; quickstart documents stack detection; new "Interactive setup wizard" subsection; new "Fixing failing tests with sac fix" section; new "Machine-readable output" section with stable JSON envelope contract reference. No runtime changes. Full suite: 3414 passed, 2 skipped.
 

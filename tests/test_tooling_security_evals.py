@@ -58,7 +58,7 @@ def _write_mock_mcp_server(tmp_path: Path) -> Path:
     return path
 
 
-def _write_mcp_config(tmp_path: Path, command: str) -> None:
+def _write_mcp_config(tmp_path: Path, command: str, scope: str = "write_proposal_required") -> None:
     sac_dir = tmp_path / ".sac"
     sac_dir.mkdir(parents=True, exist_ok=True)
     (sac_dir / "mcp.toml").write_text(
@@ -67,6 +67,7 @@ def _write_mcp_config(tmp_path: Path, command: str) -> None:
             [servers.mock]
             command = "{command}"
             enabled = true
+            scope = "{scope}"
             """
         ).strip()
         + "\n",

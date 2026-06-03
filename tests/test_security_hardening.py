@@ -73,7 +73,7 @@ def write_mock_mcp_server(tmp_path: Path) -> Path:
     return path
 
 
-def write_mcp_config(tmp_path: Path, command: str) -> None:
+def write_mcp_config(tmp_path: Path, command: str, scope: str = "write_proposal_required") -> None:
     sac_dir = tmp_path / ".sac"
     sac_dir.mkdir(parents=True, exist_ok=True)
     (sac_dir / "mcp.toml").write_text(
@@ -82,6 +82,7 @@ def write_mcp_config(tmp_path: Path, command: str) -> None:
             [servers.mock]
             command = "{command}"
             enabled = true
+            scope = "{scope}"
             """
         ).strip()
         + "\n",
@@ -1276,7 +1277,7 @@ def test_mcp_write_proposal_rejects_disabled_server(tmp_path: Path, monkeypatch)
     monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor_dir))
     (tmp_path / ".sac").mkdir(parents=True, exist_ok=True)
     (tmp_path / ".sac" / "mcp.toml").write_text(
-        '[servers.mock]\ncommand = "echo ok"\nenabled = false\n',
+        '[servers.mock]\ncommand = "echo ok"\nenabled = false\nscope = "write_proposal_required"\n',
         encoding="utf-8",
     )
     config = SafeCodeConfig()

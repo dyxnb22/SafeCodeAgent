@@ -130,6 +130,20 @@ class MCPReadOnlyRunner:
         trace_id: str | None = None,
     ) -> MCPRunResult:
         """Invoke a tool with the read-only policy."""
+        # Scope gate: runs BEFORE classification (v3.8.1).
+        # Unknown server defaults to "denied"; invalid scope values also "denied".
+        server_config = self._get_server(server)
+        scope = server_config.scope if server_config else "denied"
+        if scope == "denied":
+            reason = (
+                "MCP server is not configured."
+                if not server_config
+                else f"MCP server '{server}' scope is 'denied'."
+            )
+            classification = classify_with_schema(tool, self._schemas, server=server)
+            self._audit("mcp_call_blocked", server, tool, classification, "blocked", reason, trace_id=trace_id)
+            return MCPRunResult(server, tool, classification, "", reason, 126, 0, False, True)
+
         classification = classify_with_schema(tool, self._schemas, server=server)
         self._audit("mcp_call_proposed", server, tool, classification, "pending", "MCP call proposed", trace_id=trace_id)
 
@@ -143,9 +157,6 @@ class MCPReadOnlyRunner:
                 self.runtime_logger.error("mcp.runner", f"MCP arg validation failed: {arg_error}", trace_id=trace_id)
                 return self._blocked(server, tool, classification, f"MCP arg validation failed: {arg_error}", trace_id)
 
-        server_config = self._get_server(server)
-        if not server_config:
-            return self._blocked(server, tool, classification, "MCP server is not configured.", trace_id)
         if not server_config.enabled:
             return self._blocked(server, tool, classification, "MCP server is disabled by config.", trace_id)
         if not server_config.command:
@@ -373,6 +384,24 @@ class MCPReadOnlyRunner:
         trace_id: str | None = None,
     ) -> MCPWriteProposal:
         """Create a pending MCP write proposal instead of executing the tool."""
+        # Scope gate: runs BEFORE classification (v3.8.1).
+        server_config_pre = self._get_server(server)
+        scope = server_config_pre.scope if server_config_pre else "denied"
+        if scope == "denied":
+            classification_pre = classify_with_schema(tool, self._schemas, server=server)
+            reason = (
+                "MCP server is not configured."
+                if not server_config_pre
+                else f"MCP server '{server}' scope is 'denied'."
+            )
+            self._audit("mcp_write_blocked", server, tool, classification_pre, "blocked", reason, trace_id=trace_id)
+            raise PermissionError(reason)
+        if scope == "read_only":
+            classification_pre = classify_with_schema(tool, self._schemas, server=server)
+            reason = f"MCP server '{server}' scope is 'read_only'; write proposals are not permitted."
+            self._audit("mcp_write_blocked", server, tool, classification_pre, "blocked", reason, trace_id=trace_id)
+            raise PermissionError(reason)
+
         classification = classify_with_schema(tool, self._schemas, server=server)
         payload = input_data or {}
 
@@ -404,18 +433,8 @@ class MCPReadOnlyRunner:
                 f"Tool '{tool}' has unknown classification and cannot be proposed as a write operation."
             )
 
-        server_config = self._get_server(server)
-        if not server_config:
-            self._audit(
-                "mcp_write_blocked",
-                server,
-                tool,
-                classification,
-                "blocked",
-                "MCP server is not configured.",
-                trace_id=trace_id,
-            )
-            raise PermissionError(f"MCP server is not configured: {server}")
+        # server_config_pre is guaranteed non-None here (scope "denied" already raised above).
+        server_config = server_config_pre
         if not server_config.enabled:
             self._audit(
                 "mcp_write_blocked",
