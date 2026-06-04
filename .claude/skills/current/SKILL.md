@@ -5,13 +5,15 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v4.4.2
+# Current Baseline - v4.5.0
 
 ## Status
-Implemented. Git baseline: tag `v4.4.2`. Local working version: `v4.4.2`.
+Implemented. Git baseline: tag `v4.5.0`. Local working version: `v4.5.0`.
 
 ## Stage
-`v4.4.2` resume-recovery-budget-docs — T-4.4.2-A v4.4-docs-cut: README Core Commands documents experimental `sac resume`, `sac task budget show`, and `sac task budget set`; MVP guide documents resume after Ctrl-C, interrupted task recovery, task budget usage, and stuck-loop guard behavior; troubleshooting documents interrupted tasks, `budget_exceeded`, `loop_stuck`, and resume refusing closed tasks. Docs guard tests cover the new commands. All v4.4 surfaces remain EXPERIMENTAL; no stable contract promoted.
+`v4.5.0` local-commit-and-dirty-tree-guard — T-4.5.0-A sac-commit: new experimental `sac commit [--message-from-task] [--branch <name>] [--include-task-summary] [--json]` stages only files derived from the current task's applied checkpoint/audit metadata and refuses when that file set cannot be determined. Local Git helpers live in `src/safecode/git/local.py` and use argv-only `subprocess.run([...], shell=False)`; no push or remote operations. T-4.5.0-B dirty-tree-guard: `sac apply` and `sac commit` refuse unrelated tracked/staged changes, ignore untracked files outside touched directories, block untracked files inside touched directories, and allow explicit `--allow-unrelated-changes`. All v4.5.0 surfaces are EXPERIMENTAL; no stable contract promoted.
+
+Previous: `v4.4.2` resume-recovery-budget-docs — T-4.4.2-A v4.4-docs-cut: README Core Commands documents experimental `sac resume`, `sac task budget show`, and `sac task budget set`; MVP guide documents resume after Ctrl-C, interrupted task recovery, task budget usage, and stuck-loop guard behavior; troubleshooting documents interrupted tasks, `budget_exceeded`, `loop_stuck`, and resume refusing closed tasks. Docs guard tests cover the new commands. All v4.4 surfaces remain EXPERIMENTAL; no stable contract promoted.
 
 Previous: `v4.4.1` budgets-and-stuck-loop — T-4.4.1-A task-budget-config: new experimental `src/safecode/task/budget.py` stores per-task budget sidecars under `.sac/tasks/budgets/` with defaults steps=8, time_seconds=600, retries=2, tokens=60000; `sac task budget show|set [--task <id>] [--json]` validates positive integers and refuses missing/closed tasks. `AgentLoop.run()` enforces the step budget and records experimental `failure_category: budget_exceeded` with the tripped budget. T-4.4.1-B stuck-loop-guard: `AgentLoop` tracks consecutive identical tool intent identities `(intent.type, intent.target, intent.tool_name, intent.description)`, aborts after 3, journals experimental `failure_category: loop_stuck`, and records a task marker where CURRENT exists. Budget and stuck categories remain experimental; no v4.7 taxonomy work started; policy/approval gates unchanged.
 
