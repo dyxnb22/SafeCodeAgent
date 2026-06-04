@@ -476,6 +476,12 @@ Historical plan: `docs/version-plans/v2.8-to-v3.0-product-architecture-roadmap.m
 | `v3.11.1` ✅ | `main` | `src/safecode/cli_project.py`, `src/safecode/policy/audit.py`, `tests/test_policy_diff.py` | T-3.11.1-A policy-diff: `sac config diff --against strict\|balanced\|experimental`; deterministic knob-by-knob output; `--json` via `CLIJSONResponse`; preset definitions unchanged; targeted → 5 passed; full regression → 3759 passed, 2 skipped |
 | `v3.11.2` ✅ | `main` | `src/safecode/sandbox/executor_preflight.py`, `src/safecode/cli_sandbox_status.py`, `src/safecode/sandbox/execution.py`, `src/safecode/doctor.py`, `docs/install-update.md`, `docs/security/threat-model-v3.6.md`, `tests/test_sandbox_executor_preflight.py` | T-3.11.2-A sandbox-executor-preflight: `sac sandbox executor-preflight <backend>` records passing backend gate state; real Docker/Seatbelt/Bubblewrap require preflight + explicit env opt-in; Noop behavior unchanged. T-3.11.2-B sandbox-promotion-docs: install/threat docs and doctor report policy-gated/preview/opt-in state; targeted → 22 passed; backend-focused regression → 299 passed; full regression → 3767 passed, 2 skipped |
 
+## v3.99.x: v4.0 Prep
+
+| 版本 | 分支 | 主要入口 | 验收命令 / 结果 |
+|---|---|---|---|
+| `v3.99.0` ✅ | `main` | `docs/commercial-v1-readiness-audit-v3.11.x.md`, `docs/versioning-policy.md`, `tests/test_versioning_policy_doc.py` | T-3.99.0-A v4-readiness-audit: re-audits the v3.11.x baseline against v4.0 readiness goals and marks unresolved PyPI, VS Code, loop-eval, live-provider, CI bench, and sandbox real-execution claims as deferred rather than shipped. T-3.99.0-B versioning-policy-doc: clarifies patch/minor/major semantics and pins the v4.0 churn budget (≤2 new stable contracts, zero v3.0 breaking changes). Targeted/full/preflight run as part of release train. |
+
 ## Active Forward Plan After v3.6.6
 
 Active plan: `docs/version-plans/v3.7-to-v4.0-product-roadmap.md`.

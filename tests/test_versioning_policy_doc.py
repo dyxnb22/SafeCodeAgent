@@ -26,6 +26,9 @@ class TestVersioningPolicyDocExists:
 
 
 class TestPatchSemanticsDocumented:
+    def test_patch_never_changes_public_contracts_phrase(self):
+        assert "Patch never changes public contracts" in _load()
+
     def test_patch_never_changes_contract(self):
         content = _load()
         assert "patch" in content.lower()
@@ -38,6 +41,9 @@ class TestPatchSemanticsDocumented:
 
 
 class TestMinorSemanticsDocumented:
+    def test_minor_may_add_experimental_phrase(self):
+        assert "Minor may add experimental surfaces" in _load()
+
     def test_minor_may_add_experimental(self):
         content = _load()
         assert "minor" in content.lower() or "Minor" in content
@@ -50,6 +56,9 @@ class TestMinorSemanticsDocumented:
 
 
 class TestMajorSemanticsDocumented:
+    def test_major_reserved_for_public_contract_changes_phrase(self):
+        assert "Major is reserved for public contract changes" in _load()
+
     def test_major_required_for_breaking(self):
         content = _load()
         assert "major" in content.lower() or "Major" in content
@@ -57,6 +66,11 @@ class TestMajorSemanticsDocumented:
 
 
 class TestV40ChurnBudget:
+    def test_v40_exact_churn_budget_language(self):
+        content = _load()
+        assert "At most two new stable contracts" in content
+        assert "Zero breaking changes" in content
+
     def test_v40_churn_budget_present(self):
         content = _load()
         assert "v4.0" in content or "4.0" in content

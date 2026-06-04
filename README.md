@@ -59,7 +59,7 @@ For the post-v3.0 commercial product architecture reference, see
 For the active post-v3.6.6 execution plan, see
 [docs/version-plans/v3.7-to-v4.0-product-roadmap.md](docs/version-plans/v3.7-to-v4.0-product-roadmap.md)
 and the readiness audit
-[docs/commercial-v1-readiness-audit-v3.6.6.md](docs/commercial-v1-readiness-audit-v3.6.6.md).
+[docs/commercial-v1-readiness-audit-v3.11.x.md](docs/commercial-v1-readiness-audit-v3.11.x.md).
 For why SafeCode, see [docs/why-safecode.md](docs/why-safecode.md).
 For a comparison with other approaches, see [docs/compare.md](docs/compare.md).
 For troubleshooting help, see [docs/troubleshooting.md](docs/troubleshooting.md).

@@ -6,15 +6,15 @@ SafeCode Agent uses [Semantic Versioning 2.0.0](https://semver.org/).
 
 | Change type | Version bump | Contract rule |
 |---|---|---|
-| Patch (Z) | Bug fixes, doc corrections, test additions | Never changes a public contract |
-| Minor (Y) | New features, experimental surfaces | May add new experimental surfaces; never removes or breaks stable contracts |
-| Major (X) | Breaking contract changes | Required for any change to a v3.0+ stable contract |
+| Patch (Z) | Bug fixes, doc corrections, test additions | Patch never changes public contracts |
+| Minor (Y) | New features, experimental surfaces | Minor may add experimental surfaces; never removes or breaks stable contracts |
+| Major (X) | Breaking contract changes | Major is reserved for public contract changes |
 
 ## Stable vs Experimental Surfaces
 
-Surfaces documented in `docs/public-contracts.md` as **stable** are governed by
-this policy. Surfaces labeled **experimental** may change in any minor release
-without notice.
+Surfaces documented in `docs/public-contracts.md` as **stable** are public
+contracts governed by this policy. Surfaces labeled **experimental** may change
+in any minor release without notice.
 
 ## Patch releases
 
@@ -39,6 +39,7 @@ A minor release:
 
 A major release (e.g., v4.0.0):
 
+- Is reserved for public contract changes.
 - Is required for any breaking change to a v3.0+ stable contract.
 - Is required to remove or rename a stable CLI command or option.
 - Is required to change a stable contract field name or type.
@@ -48,14 +49,19 @@ A major release (e.g., v4.0.0):
 The v4.0 contract churn budget is:
 
 - **At most two new stable contracts** promoted from experimental at v4.0.
-- **Zero breaking changes** to v3.0 contracts (config precedence, pending patch,
-  audit event hash-chain, sandbox approval lifecycle, eval loop trace, CLI JSON
-  envelope, LLM provider contract, MCP read execution contract).
+- **Zero breaking changes** to v3.0 public contracts (config precedence,
+  pending patch format, audit event hash-chain, sandbox approval lifecycle,
+  local tool registry shape, eval loop trace, recommended CLI workflows, and
+  hidden/internal release command policy).
+- Later stable contracts promoted during v3.x (LLM provider contract, subagent
+  payload v2, CLI JSON envelope, and MCP read execution) also remain unchanged
+  unless an explicit major-version contract change is documented.
 
 Candidates for promotion at v4.0 (to be decided in the v4.0-prep audit):
-- IDE JSON-RPC bridge (iff VS Code extension is shipped and stable).
-- Sandbox real-execution opt-in (iff executor preflight passes for at least one
-  backend).
+- IDE JSON-RPC bridge (iff a shipped VS Code extension has consumed it for a
+  release cycle and the surface has docs, snapshot, and tests).
+- Sandbox real-execution opt-in (iff executor preflight evidence is strong
+  enough for a stable contract and the default remains Noop).
 
 Surfaces that will **not** be promoted at v4.0 without a new evidence pass:
 - TUI (`sac tui interactive`) — frozen experimental.
@@ -84,3 +90,4 @@ Until then, the supported install paths are:
 | Version | Change |
 |---|---|
 | v3.9.1 | Policy document created. Brew decision: defer. |
+| v3.99.0 | Policy wording clarified for patch/minor/major semantics and v4.0 churn budget. |
