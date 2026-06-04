@@ -1,128 +1,198 @@
 # Go: First Hour with SafeCode Agent
 
-This tutorial walks you through using SafeCode Agent on a Go project.
-Every command shown here is implemented and deterministically testable —
-no claims are made about capabilities that do not exist in the codebase.
+This tutorial walks you through using SafeCode Agent on a Go project
+following the v4.x task-first daily loop. Every command shown here exists
+in the codebase and is deterministically testable.
 
-**Prerequisites**: SafeCode Agent installed (`pip install safecode-agent` or
-`pipx install safecode-agent`), Python 3.11+, a Go project with `go.mod`.
+**Prerequisites**: SafeCode Agent installed, Python 3.11+, a Go project with
+`go.mod`.
+
+No live LLM provider is required to follow these steps — the default provider
+is `mock`. No IDE is required. No auto-apply, no auto-commit, no push.
 
 ---
 
-## 1. Quickstart and stack detection
-
-SafeCode Agent automatically detects Go projects by checking for `go.mod`
-in the project root:
+## 1. Start: quickstart and stack detection
 
 ```sh
 cd my-go-project
 sac quickstart
 ```
 
-When `go.mod` is found, `sac quickstart` adapts next-step hints to Go conventions
-(e.g., suggests `go test ./...` as the test command). Unknown or mixed stacks fall
-back to the default next-step set.
+`sac quickstart` checks your `.sac/config.toml`, shows the current
+provider/policy, detects the Go stack (when `go.mod` is present), and prints
+next-step commands tailored to Go conventions. No files are modified.
 
 ---
 
-## 2. Ask a read-only question
+## 2. Create a task
 
 ```sh
-sac ask "What does the main package do?"
+sac task new "fix the HTTP handler error handling"
 ```
 
-SafeCode Agent collects context (up to `max_context_chars`, default 40,000) and
-returns a read-only answer. No files are modified. The LLM provider defaults to
-`mock` for local testing — set `provider = "openai"` or `provider = "anthropic"`
-in `.sac/config.toml` to use a real model.
+`sac task new <goal>` creates a task sidecar under `.sac/tasks/` and sets it
+as `CURRENT`. All subsequent `sac edit`, `sac apply`, `sac fix`, and `sac run`
+invocations attach to this task automatically. The task starts with status
+`open`.
 
 ---
 
-## 3. Propose an edit
+## 3. Detect project profile
 
 ```sh
-sac edit "Add error handling to the ReadConfig function in config/config.go"
+sac profile detect
 ```
 
-This generates a pending patch proposal and shows a unified diff. **No files
-are changed yet.** The pending patch is stored at `.sac/pending_patch.json`.
+`sac profile detect` scans the project for Go test/vet/build commands without
+executing them. The detected profile is stored at `.sac/project_profile.json`
+and used by `sac fix --watch` to know which test suite to run.
+
+```sh
+sac profile show
+```
+
+Shows the detected commands. Use `sac profile set test "go test ./..."` to
+override if detection missed something.
 
 ---
 
-## 4. Review and apply
+## 4. Check status
+
+```sh
+sac status
+```
+
+`sac status` shows the current task id/goal/status, whether a pending patch is
+waiting for review, the last test outcome, the last command, and the next safe
+step. Run it any time you want to know what to do next.
+
+---
+
+## 5. Ask a read-only question
+
+```sh
+sac ask "How does the HTTP router handle 404 errors?"
+```
+
+`sac ask` collects project context and returns a read-only answer. No files are
+modified. The LLM provider defaults to `mock` for local testing — configure
+`provider = "openai"` or `provider = "anthropic"` in `.sac/config.toml` for
+real answers.
+
+---
+
+## 6. Propose an edit
+
+```sh
+sac edit "Return a structured error response in the handler in internal/api/handler.go"
+```
+
+`sac edit` generates a pending patch proposal and shows a unified diff.
+**No files are changed yet.** The pending patch is stored at
+`.sac/pending_patch.json`. Review the diff before proceeding.
+
+---
+
+## 7. Apply the patch
 
 ```sh
 sac apply
 ```
 
-Before applying, you are shown the diff again and asked to confirm. After
-confirmation:
-
-- A checkpoint is created (rollback target).
-- The patch is applied and validated.
-- An audit event is written to the audit log.
+`sac apply` validates the patch, creates a checkpoint (backup of the files to
+be changed), writes the patch to disk, and emits an audit event. The original
+files are preserved in the checkpoint directory so you can roll back.
 
 ---
 
-## 5. Rollback if needed
+## 8. Fix a failing test with the watch loop
+
+If a test is failing, use the fix loop instead of a manual edit:
+
+```sh
+sac fix --watch
+```
+
+`sac fix --watch` runs the detected test suite (from `sac profile detect`),
+and if tests fail, proposes a patch to repair them. **It never auto-applies.**
+After review, run `sac apply` and then re-run `sac fix --watch` to verify.
+
+Limit iterations explicitly:
+
+```sh
+sac fix --watch --max-iterations 3
+```
+
+---
+
+## 9. Roll back if needed
 
 ```sh
 sac rollback --last
 ```
 
-Restores the files modified by the most recent `sac apply` from the checkpoint.
-The audit log records the rollback event.
+`sac rollback --last` restores the files modified by the latest checkpoint.
+This is always available as a recovery path.
 
 ---
 
-## 6. Fix a failing test
-
-If `go test ./...` is your test command:
+## 10. Commit the task locally
 
 ```sh
-sac fix --test-command "go test ./..."
+sac commit
 ```
 
-SafeCode Agent runs the test command, redacts any secret-like content from the
-failure output, and proposes a patch. Review and apply as above.
+`sac commit` stages only the files derived from the current task's applied
+checkpoint, writes a commit message from the task goal, and commits locally.
+**No push, no remote operations.**
 
 ---
 
-## 7. Check health
+## 11. Resume after interruption
+
+If you press Ctrl-C during `sac edit` or `sac fix`, the current task is marked
+`interrupted`. Resume later with:
 
 ```sh
-sac doctor
+sac resume
 ```
-
-Reports installation health, LLM provider config, last session cost (if a live
-provider was used), and release metadata.
 
 ---
 
-## Stack detection detail
+## 12. Inspect failures
 
-`sac quickstart` detects Go by checking for `go.mod`.
-The detection logic is in `src/safecode/cli_quickstart.py`; the detected stack
-influences next-step hints but does not change safety behavior.
+```sh
+sac debug last-failure
+```
+
+Shows a redacted summary of the last failure. Read-only.
+
+```sh
+sac debug bundle
+```
+
+Creates a redacted tar.gz diagnostic bundle (bounded to 5 MiB). Project source
+code is excluded.
 
 ---
 
 ## Safety notes
 
-- All edits go through diff preview, checkpoint, and audit — no file is changed
-  silently.
-- Network access is disabled by default; enable it explicitly in config to use a
-  live LLM provider.
-- The `mock` provider is deterministic and requires no network or credentials.
-- `go test` is run with `shell=False` (no shell expansion); command args are passed
-  as a list to prevent injection.
+- `sac edit` never writes to project files — it creates a pending patch only.
+- `sac apply` always creates a checkpoint first; `sac rollback --last` restores it.
+- `sac fix --watch` never auto-applies; each iteration requires explicit `sac apply`.
+- `sac commit` never pushes; no remote operations occur.
+- Network access defaults to disabled.
+- All v4.x commands (`sac task`, `sac profile`, `sac fix --watch`, `sac commit`,
+  `sac resume`, `sac debug`) are EXPERIMENTAL. They may change in future releases.
 
 ---
 
-## Related docs
+## See also
 
-- [SafeCode Agent README](../../README.md)
 - [MVP User Guide](../mvp-user-guide.md)
+- [Troubleshooting](../troubleshooting.md)
 - [Public Contracts](../public-contracts.md)
-- [Providers Reference](../providers.md)
-- [TypeScript tutorial](typescript-first-hour.md)
+- [Python Tutorial](python-first-hour.md)
+- [TypeScript Tutorial](typescript-first-hour.md)
