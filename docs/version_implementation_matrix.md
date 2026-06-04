@@ -490,6 +490,12 @@ Historical plan: `docs/version-plans/v2.8-to-v3.0-product-architecture-roadmap.m
 | `v4.0.0` ✅ | `main` | `docs/public-contracts.md`, `docs/commercial-v1-readiness-audit-v3.11.x.md`, `docs/versioning-policy.md`, `tests/test_public_contract_snapshots.py` | T-4.0.0-A v4-contract-cut: applies v3.99.1 decisions without runtime feature work. CLI JSON envelope and MCP read execution remain already-stable; no new stable contracts are promoted at v4.0.0; zero breaking changes to v3.0 public contracts; IDE JSON-RPC, TUI, `sac report html`, and sandbox real-execution opt-in remain deferred/rejected as documented. Targeted/full/preflight run as part of release train. |
 | `v4.0.1` ✅ | `main` | `README.md`, `.claude/versions.json`, `docs/version_implementation_matrix.md`, `docs/product-commercialization-roadmap.md`, `docs/version-plans/v4.1-to-v4.8-shell-first-roadmap.md` | post-v4-roadmap-metadata-alignment: aligns active planning pointers around the v4.1-to-v4.8 shell-first roadmap, preserves the v3.7-to-v4.0 roadmap as previous, points readiness to the v3.11.x audit, and synchronizes package/runtime/lock metadata to v4.0.1. No runtime behavior changes and no stable contract changes. Targeted governance/contract tests passed. |
 
+## v4.1.x: Unified Task State
+
+| 版本 | 分支 | 主要入口 | 验收命令 / 结果 |
+|---|---|---|---|
+| `v4.1.0` ✅ | `main` | `src/safecode/task/state.py`, `src/safecode/task/store.py`, `src/safecode/cli_task.py`, `tests/test_task_state.py`, `tests/test_cli_task.py` | T-4.1.0-A task-state-sidecar: new `TaskState` Pydantic model (payload_version=1, status enum, iterations, last_command); `TaskStore` with atomic writes via tmp+os.replace; `.sac/tasks/<id>.json`, `INDEX`, `CURRENT` files; refuses to overwrite payload_version>1 (fail closed); missing files never crash read paths. T-4.1.0-B task-cli-core: `sac task new|list|show|switch|close|delete`; all support `--json` via CLIJSONResponse; `new` requires non-empty goal, auto-generates kebab-case+short-hash id, sets CURRENT; `delete` requires `--yes`; `show` redacts secrets; `list` deterministic. 58 targeted tests passed; full suite 3842 passed, 2 skipped; contract snapshots green; preflight passed post-commit. |
+
 ## Active Forward Plan After v4.0.1
 
 Active plan: `docs/version-plans/v4.1-to-v4.8-shell-first-roadmap.md`.

@@ -5,13 +5,15 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v4.0.1
+# Current Baseline - v4.1.0
 
 ## Status
-Implemented. Git baseline: tag `v4.0.1`. Local working version: `v4.0.1`.
+Implemented. Git baseline: tag `v4.1.0`. Local working version: `v4.1.0`.
 
 ## Stage
-`v4.0.1` post-v4-roadmap-metadata-alignment — documentation and metadata patch only. `README.md`, `.claude/versions.json`, `docs/version_implementation_matrix.md`, `docs/product-commercialization-roadmap.md`, and `uv.lock` now agree that the active forward plan is `docs/version-plans/v4.1-to-v4.8-shell-first-roadmap.md`, with `docs/version-plans/v3.7-to-v4.0-product-roadmap.md` preserved as the previous plan and `docs/commercial-v1-readiness-audit-v3.11.x.md` as the current readiness baseline. No runtime behavior changes and no stable contract changes.
+`v4.1.0` task-state-sidecar-and-cli — T-4.1.0-A task-state-sidecar: new `src/safecode/task/state.py` (`TaskState` Pydantic model, payload_version=1, status enum open|applied|interrupted|closed, `TaskIteration`, `TaskCommand`) and `src/safecode/task/store.py` (`TaskStore` with atomic writes, `.sac/tasks/<id>.json`, `INDEX`, `CURRENT`; refuses payload_version>1; missing files never crash). T-4.1.0-B task-cli-core: `sac task new|list|show|switch|close|delete` registered in `cli.py`; all support `--json` via `CLIJSONResponse`; `new` requires non-empty goal, sets CURRENT; `delete` requires `--yes`; `show` redacts secrets; `list` deterministic. 58 new tests; full suite 3842 passed, 2 skipped.
+
+Previous: `v4.0.1` post-v4-roadmap-metadata-alignment — documentation and metadata patch only. `README.md`, `.claude/versions.json`, `docs/version_implementation_matrix.md`, `docs/product-commercialization-roadmap.md`, and `uv.lock` now agree that the active forward plan is `docs/version-plans/v4.1-to-v4.8-shell-first-roadmap.md`, with `docs/version-plans/v3.7-to-v4.0-product-roadmap.md` preserved as the previous plan and `docs/commercial-v1-readiness-audit-v3.11.x.md` as the current readiness baseline. No runtime behavior changes and no stable contract changes.
 
 Previous: `v4.0.0` contract-cut — T-4.0.0-A v4-contract-cut: applies the v3.99.1 promotion decisions without runtime feature work. `docs/public-contracts.md` records the v4.0.0 contract cut: no new stable contracts promoted at v4.0.0, zero breaking changes to v3.0 public contracts, CLI JSON envelope and MCP read execution preserved as already-stable v3.x contracts, and IDE JSON-RPC/TUI/HTML report/sandbox real-execution opt-in deferred or rejected as documented. `docs/commercial-v1-readiness-audit-v3.11.x.md` and `docs/versioning-policy.md` agree with the final result.
 
@@ -96,6 +98,33 @@ Previous: `v3.3.1` MCP stdio Config Argv — adds typed stdio server config and 
 Previous: `v3.3.0` MCP stdio Transport — adds a tightly-bounded stdio JSON-RPC client in `src/safecode/mcp/transport_stdio.py`; tested against local stub servers only; not wired into existing MCP runner; MCP remains experimental.
 
 Previous: v3.2.6 promoted LLM provider layer to documented stable contract; v3.2.5 added advisory live-provider CI lane; v3.2.4 added fan-out config; v3.2.3 added Anthropic; v3.2.2 added structured output validation.
+
+## v4.1.0 (task-state-sidecar-and-cli)
+`src/safecode/task/state.py` (new), `src/safecode/task/store.py` (new),
+`src/safecode/cli_task.py` (new), `src/safecode/cli.py` updated.
+`tests/test_task_state.py` (new), `tests/test_cli_task.py` (new).
+
+Key additions:
+- `TaskState(BaseModel)`: `task_id` (kebab-case ≤39 chars), `goal`, `created_at`,
+  `updated_at`, `status` (open|applied|interrupted|closed), `pending_patch_id`,
+  `session_id`, `audit_trace_ids`, `iterations (list[TaskIteration])`,
+  `last_command (TaskCommand|None)`, `payload_version=1`.
+- `TaskIteration(BaseModel)`: `iteration_index`, `event`, `test_command`,
+  `test_exit_code`, `failure_tail_sha256`, `pending_patch_id`, `audit_trace_id`.
+- `TaskCommand(BaseModel)`: `command`, `exit_code`, `timestamp`.
+- `TaskStore(project_root)`: `create(goal)`, `load(task_id)`, `save(state)`,
+  `list()`, `current_id()`, `set_current()`, `clear_current()`, `delete()`.
+- File layout: `.sac/tasks/<id>.json` (atomic), `.sac/tasks/INDEX`, `.sac/tasks/CURRENT`.
+- All writes atomic via `tmp + os.replace`. Refuses payload_version>1 (fail closed).
+- Missing files never raise on read paths.
+- `sac task new|list|show|switch|close|delete` registered under `task` group.
+- All subcommands support `--json` via `CLIJSONResponse` (stable contract 11).
+- `new` requires non-empty goal; id = slug+short-hash; sets CURRENT.
+- `list` sorted by `created_at` desc; deterministic.
+- `show` redacts via `redact_secrets()`.
+- `delete` requires `--yes`.
+- 58 new tests in `tests/test_task_state.py` + `tests/test_cli_task.py`.
+- Full suite: 3842 passed, 2 skipped.
 
 ## v3.3.0 (MCP stdio Transport)
 `src/safecode/mcp/transport_stdio.py` (new), `tests/test_mcp_transport_stdio.py` (new).
