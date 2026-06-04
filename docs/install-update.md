@@ -93,6 +93,70 @@ SAFECODE_RUN_LEGACY_EXIT_CODE=1 sac run "..."
 
 This opt-out will be removed in a future version.
 
+## Release Signing
+
+SafeCode release artifacts are signed using a **detached signature** produced by either
+`cosign sign-blob` or `gpg --detach-sign --armor` (whichever is available on the release
+machine). This is **not** a Sigstore Rekor transparency-log entry; it is a plain detached
+signature file placed alongside each wheel/sdist in `dist/`.
+
+To sign during a real publish:
+
+```bash
+SAFECODE_PUBLISH=1 sac release publish --no-dry-run --sign
+```
+
+The `--sign` flag fails closed if neither `cosign` nor `gpg` is found.
+The dry-run step description explicitly names the mechanism:
+
+```
+[dry-run] sign: detached signature via cosign (sign-blob) or gpg (--detach-sign --armor)
+```
+
+## TestPyPI Rehearsal
+
+Before publishing to PyPI, rehearse the upload against TestPyPI:
+
+```bash
+# Dry-run rehearsal (no network, no upload):
+sac release publish --repository test-pypi
+
+# Real TestPyPI upload (requires SAFECODE_PUBLISH=1):
+SAFECODE_PUBLISH=1 sac release publish --no-dry-run --repository test-pypi
+
+# Install from TestPyPI using pipx:
+pipx install --index-url https://test.pypi.org/simple/ \
+  --extra-index-url https://pypi.org/simple/ \
+  safecode-agent
+```
+
+Production publish to PyPI (still requires `SAFECODE_PUBLISH=1` and a matching git tag):
+
+```bash
+SAFECODE_PUBLISH=1 sac release publish --no-dry-run
+```
+
+## pipx Install
+
+Once a wheel is on PyPI, install with pipx:
+
+```bash
+pipx install safecode-agent
+```
+
+To upgrade an existing install:
+
+```bash
+pipx upgrade safecode-agent
+```
+
+Offline install from a locally-built wheel:
+
+```bash
+uv build             # produces dist/safecode_agent-X.Y.Z-py3-none-any.whl
+pipx install dist/safecode_agent-X.Y.Z-py3-none-any.whl
+```
+
 ## Current Enforcement Boundaries
 
 - Sandbox command execution currently runs through Noop plus Docker, macOS Seatbelt, and Linux Bubblewrap preview backends. Docker requires a reachable daemon, macOS Seatbelt requires `sandbox-exec`, and Linux Bubblewrap requires `bwrap`.

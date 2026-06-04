@@ -5,13 +5,15 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v3.8.2
+# Current Baseline - v3.9.0
 
 ## Status
-Implemented. Git baseline: tag `v3.8.2`. Local working version: `v3.8.2`.
+Implemented. Git baseline: tag `v3.9.0`. Local working version: `v3.9.0`.
 
 ## Stage
-`v3.8.2` MCP write-proposal e2e + read contract promotion — `MCPApprovalStore` in `src/safecode/mcp/approval_grant.py`; single-use grants stored outside project root (`SAFECODE_MCP_APPROVAL_DIR`); `execute_granted_write(proposal_id, server, tool, ...)` on `MCPReadOnlyRunner`; consumes grant, routes through stdio, emits `mcp_granted_write_*` audit events, discards pending proposal (single-use); requires `SAFECODE_MCP_STDIO_RUNNER=1` + server `argv`. Section 12 "MCP Read Execution Contract" added to `docs/public-contracts.md`; snapshot at `tests/snapshots/contracts/mcp_read_contract.json`; `TestMCPReadContract` (16 tests); MCP read execution promoted to stable contract; write execution and lifecycle remain experimental. 19 new tests in `tests/test_mcp_write_proposal_e2e.py`. Full suite: 3545 passed, 2 skipped.
+`v3.9.0` signing truthing + TestPyPI rehearsal — Decision B on signing: `--sign` produces a **detached cosign or gpg signature** (not Sigstore Rekor); `_planned_steps()` labels the mechanism explicitly; `_check_sign_tooling()` error updated; module docstring clarifies. `docs/install-update.md` "Release Signing" section documents the mechanism; "TestPyPI Rehearsal" section documents `--repository test-pypi`. `docs/security/threat-model-v3.6.md` "Release Artifact Integrity" subsection added. `run_release_publish()` gains `repository` param; `_REPOSITORY_URLS` maps `pypi`/`test-pypi`; real uploads via `uv publish --publish-url <url>`; `SAFECODE_PUBLISH=1` required for both. `--repository` CLI option; JSON output includes `repository` field. 6 new tests `TestSigningMechanismDescription` in `tests/test_release_publish_dry_run.py`; 28 new tests in `tests/test_release_publish_repository.py`. Full suite: 3579 passed, 2 skipped.
+
+Previous: `v3.8.2` MCP write-proposal e2e + read contract promotion — `MCPApprovalStore` in `src/safecode/mcp/approval_grant.py`; single-use grants stored outside project root (`SAFECODE_MCP_APPROVAL_DIR`); `execute_granted_write(proposal_id, server, tool, ...)` on `MCPReadOnlyRunner`; consumes grant, routes through stdio, emits `mcp_granted_write_*` audit events, discards pending proposal (single-use); requires `SAFECODE_MCP_STDIO_RUNNER=1` + server `argv`. Section 12 "MCP Read Execution Contract" added to `docs/public-contracts.md`; snapshot at `tests/snapshots/contracts/mcp_read_contract.json`; `TestMCPReadContract` (16 tests); MCP read execution promoted to stable contract; write execution and lifecycle remain experimental. 19 new tests in `tests/test_mcp_write_proposal_e2e.py`. Full suite: 3545 passed, 2 skipped.
 
 Previous: `v3.8.1` MCP per-server scopes + doctor — `MCPServerConfig.scope` field (`denied`/`read_only`/`write_proposal_required`); parsed from `.sac/mcp.toml`; invalid value → `denied` (fail-closed); unknown server → `denied`; known server without explicit scope → `read_only`; scope gate runs BEFORE classification in `call_readonly` and `propose_write`; `read_only` scope blocks write proposals; `write_proposal_required` allows write proposals through existing approval gate. `sac mcp doctor [server]` ([EXPERIMENTAL]) reports binary path, scope, stdio configured, last call status from audit, lifecycle PID; `--json`; pure read. 22 new tests in `tests/test_mcp_per_server_scopes.py`, 23 new tests in `tests/test_mcp_doctor.py`. Full suite: 3510 passed, 2 skipped.
 

@@ -210,6 +210,28 @@ project paths, or user identity without consent.
 
 ---
 
+---
+
+### Release Artifact Integrity
+
+**Threat:** A compromised distribution artifact (wheel or sdist) could silently
+replace the legitimate release on PyPI.
+
+**Mitigations:**
+- Release artifacts are signed with a **detached signature** using either
+  `cosign sign-blob` or `gpg --detach-sign --armor`. This is not a Sigstore
+  Rekor transparency-log entry; it is a per-artifact `.sig`/`.asc` file placed
+  alongside the artifact in `dist/`.
+- Real publish requires `SAFECODE_PUBLISH=1`, a clean matching git tag at HEAD,
+  and version consistency between `pyproject.toml` and the runtime version.
+- `sac release publish --sign` fails closed if no signing tool is found.
+- The `--sign` flag documents its actual mechanism in the dry-run step list
+  (`detached signature via cosign or gpg`), not a Sigstore transparency log.
+- TestPyPI rehearsal (`--repository test-pypi`) exercises the upload path
+  without touching the production index.
+
+---
+
 ## Review Cadence
 
 This document should be reviewed:

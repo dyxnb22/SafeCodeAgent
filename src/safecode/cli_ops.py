@@ -271,14 +271,16 @@ def release_preflight(
 @release_app.command("publish")
 def release_publish(
     dry_run: bool = typer.Option(True, "--dry-run/--no-dry-run", help="Show planned steps without executing (default: dry-run)."),
-    sign: bool = typer.Option(False, "--sign", help="Sign artifacts with cosign or gpg (fails closed if tooling is missing)."),
+    sign: bool = typer.Option(False, "--sign", help="Sign artifacts with detached cosign or gpg signature (fails closed if tooling is missing)."),
+    repository: str = typer.Option("pypi", "--repository", help="Target repository: 'pypi' (default) or 'test-pypi' for rehearsal."),
     json_output: bool = typer.Option(False, "--json", help="Emit JSON output."),
 ) -> None:
-    """Build, sign (optional), and upload a release to PyPI.
+    """Build, sign (optional), and upload a release to PyPI or TestPyPI.
 
     Dry-run is the safe default. Real publish requires a clean matching git tag and SAFECODE_PUBLISH=1.
+    Use --repository test-pypi for a TestPyPI rehearsal (still requires SAFECODE_PUBLISH=1).
     """
-    result = run_release_publish(Path.cwd(), dry_run=dry_run, sign=sign)
+    result = run_release_publish(Path.cwd(), dry_run=dry_run, sign=sign, repository=repository)
     if json_output:
         from safecode.cli_shared_json import CLIJSONResponse, render_json
         resp = CLIJSONResponse(
@@ -286,6 +288,7 @@ def release_publish(
             status="ok" if result.ok else "error",
             data={
                 "dry_run": result.dry_run,
+                "repository": result.repository,
                 "steps": list(result.steps),
                 "errors": list(result.errors),
             },

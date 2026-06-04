@@ -272,3 +272,46 @@ class TestCLIPublish:
         result = runner.invoke(app, ["release", "--help"])
         assert result.exit_code == 0
         assert "publish" in result.output
+
+
+# ── v3.9.0 T-3.9.0-A: signing truthing ───────────────────────────────────────
+
+
+class TestSigningMechanismDescription:
+    """Dry-run output must describe the actual signing mechanism (detached sig)."""
+
+    def test_sign_step_mentions_detached(self, tmp_path):
+        steps = _planned_steps(sign=True)
+        sign_steps = [s for s in steps if "sign" in s]
+        assert sign_steps, "expected a sign step"
+        combined = " ".join(sign_steps).lower()
+        assert "detach" in combined or "detached" in combined
+
+    def test_sign_step_mentions_cosign_or_gpg(self, tmp_path):
+        steps = _planned_steps(sign=True)
+        sign_steps = [s for s in steps if "sign" in s]
+        combined = " ".join(sign_steps).lower()
+        assert "cosign" in combined or "gpg" in combined
+
+    def test_sign_step_does_not_claim_sigstore_rekor(self, tmp_path):
+        steps = _planned_steps(sign=True)
+        combined = " ".join(steps).lower()
+        assert "rekor" not in combined, "step should not claim Sigstore Rekor"
+
+    def test_dry_run_sign_step_prefixed(self, tmp_path):
+        result = run_release_publish(tmp_path, dry_run=True, sign=True)
+        sign_steps = [s for s in result.steps if "sign" in s]
+        for s in sign_steps:
+            assert s.startswith("[dry-run]")
+
+    def test_sign_error_mentions_detached_not_sigstore(self):
+        with patch("shutil.which", return_value=None):
+            error = _check_sign_tooling()
+        assert error is not None
+        assert "detach" in error.lower() or "detached" in error.lower()
+
+    def test_render_includes_repository_label(self):
+        from safecode.release.publish import PublishResult, render_publish_result
+        r = PublishResult(dry_run=True, ok=True, steps=("[dry-run] build",), errors=(), repository="pypi")
+        text = render_publish_result(r)
+        assert "repository=pypi" in text
