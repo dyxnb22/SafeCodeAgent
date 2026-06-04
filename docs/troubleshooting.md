@@ -171,6 +171,49 @@ applied checkpoint, audit, or task sidecar metadata.
 
 ---
 
+## Project Memory Issues (v4.6, EXPERIMENTAL)
+
+### Pinned file missing
+
+**Cause:** A path in `.sac/memory/pinned-files.txt` no longer exists. Context
+selection reports this as `pinned_missing` metadata.
+
+**Fix:**
+- Run `sac memory show --pinned`.
+- Recreate the file if it should still guide context.
+- Or remove it with `sac memory unpin <path>`.
+
+### Pinned file outside project root
+
+**Cause:** `sac memory pin <path>` refuses paths that resolve outside the
+project root. This prevents pinned files from bypassing context boundaries.
+
+**Fix:**
+- Pin a project-relative path such as `sac memory pin src/app.py`.
+- Move external notes into the project only if they are safe to include.
+
+### Memory secret rejection
+
+**Cause:** `sac memory add-note` or a memory write contained obvious
+secret-like text such as tokens, API keys, private keys, or passwords.
+
+**Fix:**
+- Remove the secret value and store only the safe fact you wanted SafeCode to
+remember.
+- Rotate any credential that may have been copied into a terminal or file.
+
+### Recent failure context too stale
+
+**Cause:** `sac fix` includes the newest three redacted recent failures. If the
+project has changed substantially, old failures may be less useful.
+
+**Fix:**
+- Inspect recent failures with `sac memory show --recent-failures`.
+- Clear stale entries with `sac memory clear --recent-failures --yes`.
+- Rerun `sac fix` to record fresh failure context.
+
+---
+
 ## Runtime Logs
 
 For detailed error context:

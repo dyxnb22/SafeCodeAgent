@@ -84,6 +84,11 @@ sac rollback --last
 sac commit                          # [EXPERIMENTAL] commit files touched by CURRENT task only
 sac branch new <name>               # [EXPERIMENTAL] create/switch local branch without force/reset
 sac diff --task                     # [EXPERIMENTAL] show applied + pending task changes
+sac memory show                     # [EXPERIMENTAL] show redacted project memory
+sac memory pin <path>               # [EXPERIMENTAL] keep a file considered for context
+sac memory unpin <path>             # [EXPERIMENTAL] remove a pinned file
+sac memory add-note "text"          # [EXPERIMENTAL] add a non-secret project/task note
+sac memory clear --project --yes    # [EXPERIMENTAL] clear one memory scope
 sac resume                          # [EXPERIMENTAL] recover an open/interrupted task safely
 sac fix                             # run last failing test, propose a repair patch
 sac fix --test-command "go test ./..."  # override test command
@@ -113,6 +118,27 @@ directories, and block untracked files inside touched directories. Use
 changes. If a committed apply is later rolled back, `sac rollback --last`
 refuses by default and suggests `git revert <sha>`; `--force-uncommit` is the
 explicit dangerous opt-in. These v4.5 commands are local only and never push.
+
+**Project memory (v4.6, EXPERIMENTAL):**
+```bash
+sac memory show
+sac memory show --task --task-id <task-id>
+sac memory show --recent-failures
+sac memory show --pinned
+sac memory pin src/app.py
+sac memory unpin src/app.py
+sac memory add-note "health route must stay synchronous"
+sac memory clear --pinned --yes
+```
+
+Unified memory uses `.sac/memory/project.md`, `.sac/memory/recent-failures.jsonl`,
+`.sac/memory/recent-edits.jsonl`, `.sac/memory/pinned-files.txt`, and
+`.sac/tasks/<task_id>/memory.md`. Legacy `.sac/memory.json`, `.sac/progress.md`,
+and `SAC.md` remain readable. Memory writes reject obvious secrets; CLI reads
+are redacted. Pinned files are considered during context selection but still
+consume a bounded context quota and never bypass ignore, sensitive-file, binary,
+redaction, or project-root gates. Recent failures can help `sac fix` by adding
+the newest three redacted failures as bounded task context.
 
 **Task commands (v4.1, EXPERIMENTAL):**
 ```bash

@@ -1,6 +1,6 @@
 # SafeCode MVP User Guide
 
-This guide covers the v4.5.x path for a new user: install SafeCode, set up
+This guide covers the v4.6.x path for a new user: install SafeCode, set up
 your provider, run a coding task, fix a failing test, and review/apply the
 proposed patches safely.
 
@@ -107,6 +107,44 @@ Rollback after a committed apply is conservative. If `sac rollback --last`
 detects that the latest apply appears committed, it refuses and prints a
 `git revert <sha>` hint. The default path never rewrites git history.
 `--force-uncommit` is the explicit dangerous opt-in and records an audit event.
+
+## Project Memory (v4.6, EXPERIMENTAL)
+
+Project memory is a unified experimental view over project notes, task notes,
+pinned files, and bounded recent failures. New writes use the v4.6 layout:
+
+```text
+.sac/memory/project.md
+.sac/memory/recent-failures.jsonl
+.sac/memory/recent-edits.jsonl
+.sac/memory/pinned-files.txt
+.sac/tasks/<task_id>/memory.md
+```
+
+Legacy `.sac/memory.json`, `.sac/progress.md`, and `SAC.md` remain readable,
+but new memory writes go to the v4.6 layout.
+
+```bash
+sac memory show
+sac memory add-note "health route must stay synchronous"
+sac memory add-note "parser edge case" --task-id <task-id>
+sac memory show --task --task-id <task-id>
+sac memory pin src/app.py
+sac memory show --pinned
+sac memory unpin src/app.py
+sac memory clear --recent-failures --yes
+```
+
+Pinned files are considered during context selection, but they consume a
+bounded pinned-files quota and do not replace task-relevant keyword context
+entirely. Missing pinned files are reported as `pinned_missing` metadata.
+Pinned files still pass through the same ignore, sensitive-file, binary,
+redaction, and project-root checks as ordinary context.
+
+When `sac fix` or `sac fix --watch` observes a failing command, SafeCode stores
+a bounded redacted recent-failure entry. Later `sac fix` prompts include the
+newest three recent failures as task context, which can help repeated failures
+without exposing raw secret-bearing output.
 
 ## Quickstart (fastest path)
 
@@ -223,6 +261,8 @@ sac task budget show --json
 sac commit --json
 sac branch new my-branch --json
 sac diff --task --json
+sac memory show --json
+sac memory pin src/app.py --json
 ```
 
 The JSON envelope format is a stable contract (`docs/public-contracts.md` Section 11):

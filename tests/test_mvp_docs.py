@@ -151,3 +151,47 @@ def test_documented_v45_commands_exist() -> None:
     diff = runner.invoke(app, ["diff", "--help"])
     assert diff.exit_code == 0
     assert "--task" in diff.output
+
+
+def test_v46_memory_docs_cover_unified_memory_flow() -> None:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    guide = (ROOT / "docs" / "mvp-user-guide.md").read_text(encoding="utf-8")
+    troubleshooting = (ROOT / "docs" / "troubleshooting.md").read_text(encoding="utf-8")
+
+    for text in (readme, guide):
+        for command in (
+            "sac memory show",
+            "sac memory pin",
+            "sac memory unpin",
+            "sac memory add-note",
+            "sac memory clear",
+        ):
+            assert command in text
+        assert ".sac/memory/project.md" in text
+        assert ".sac/tasks/<task_id>/memory.md" in text
+        assert "recent failures" in text.lower()
+        assert "EXPERIMENTAL" in text
+
+    for marker in (
+        "Pinned file missing",
+        "Pinned file outside project root",
+        "Memory secret rejection",
+        "Recent failure context too stale",
+    ):
+        assert marker in troubleshooting
+
+
+def test_documented_v46_memory_commands_exist() -> None:
+    memory_help = runner.invoke(app, ["memory", "--help"])
+    assert memory_help.exit_code == 0
+    for command in ("show", "pin", "unpin", "add-note", "clear"):
+        assert command in memory_help.output
+
+    show_help = runner.invoke(app, ["memory", "show", "--help"])
+    assert show_help.exit_code == 0
+    for option in ("--project", "--task", "--recent-failures", "--recent-edits", "--pinned", "--json"):
+        assert option in show_help.output
+
+    clear_help = runner.invoke(app, ["memory", "clear", "--help"])
+    assert clear_help.exit_code == 0
+    assert "--yes" in clear_help.output
