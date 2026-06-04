@@ -1,3 +1,3 @@
 """SafeCode Agent package."""
 
-__version__ = "4.8.2"
+__version__ = "4.9.3"
