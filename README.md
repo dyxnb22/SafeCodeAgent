@@ -81,6 +81,7 @@ sac ask "这个项目是什么？"
 sac edit "给 FastAPI 项目添加 /health 接口"
 sac apply
 sac rollback --last
+sac resume                          # [EXPERIMENTAL] recover an open/interrupted task safely
 sac fix                             # run last failing test, propose a repair patch
 sac fix --test-command "go test ./..."  # override test command
 sac fix --watch                     # [EXPERIMENTAL] one approval-gated test-fix loop step
@@ -103,6 +104,8 @@ sac task switch <task-id>           # switch current task
 sac task close                      # mark current task closed
 sac task delete <task-id> --yes     # delete a task
 sac status                          # show current task status and next recommended step
+sac task budget show                # [EXPERIMENTAL] show per-task budget
+sac task budget set --steps 8       # [EXPERIMENTAL] set per-task budget values
 ```
 
 **Profile commands (v4.2, EXPERIMENTAL):**
@@ -132,6 +135,19 @@ sac fix --watch --rerun-suite all
 `sac fix --watch` is approval-gated: every patch proposal remains pending until
 you explicitly run `sac apply`. All v4.3 fix-watch surfaces are EXPERIMENTAL.
 
+**Resume and budgets (v4.4, EXPERIMENTAL):**
+```bash
+sac resume                          # make CURRENT resumable task active and print next step
+sac resume <task-id>                # resume a specific open/interrupted task
+sac task budget show
+sac task budget set --steps 8 --time-seconds 600 --retries 2 --tokens 60000
+```
+
+`sac resume` never auto-runs `fix`, `edit`, `apply`, or a shell command. Ctrl-C
+during `sac edit`, `sac fix`, `sac fix --watch`, or `sac run` marks the task
+interrupted and prints `resume with: sac resume`. Budgets and stuck-loop
+categories are experimental and do not change command policy or approval gates.
+
 Use `--json` on most commands for machine-readable output:
 ```bash
 sac fix --json
@@ -139,6 +155,8 @@ sac edit "task" --json
 sac ask "question" --json
 sac task list --json
 sac status --json
+sac resume --json
+sac task budget show --json
 ```
 
 ## Safety Defaults

@@ -84,3 +84,34 @@ def test_documented_v43_fix_options_exist() -> None:
     assert result.exit_code == 0
     for option in ("--watch", "--max-iterations", "--timeout-seconds", "--rerun-suite"):
         assert option in result.output
+
+
+def test_v44_resume_budget_docs_cover_recovery_flow() -> None:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    guide = (ROOT / "docs" / "mvp-user-guide.md").read_text(encoding="utf-8")
+    troubleshooting = (ROOT / "docs" / "troubleshooting.md").read_text(encoding="utf-8")
+
+    for text in (readme, guide):
+        assert "sac resume" in text
+        assert "sac task budget show" in text
+        assert "sac task budget set" in text
+        assert "EXPERIMENTAL" in text
+        assert "never" in text.lower()
+
+    for marker in ("interrupted", "budget_exceeded", "loop_stuck", "closed"):
+        assert marker in troubleshooting
+
+
+def test_documented_v44_commands_exist() -> None:
+    resume = runner.invoke(app, ["resume", "--help"])
+    assert resume.exit_code == 0
+    assert "--json" in resume.output
+
+    budget_show = runner.invoke(app, ["task", "budget", "show", "--help"])
+    assert budget_show.exit_code == 0
+    assert "--task" in budget_show.output
+
+    budget_set = runner.invoke(app, ["task", "budget", "set", "--help"])
+    assert budget_set.exit_code == 0
+    for option in ("--steps", "--time-seconds", "--retries", "--tokens"):
+        assert option in budget_set.output

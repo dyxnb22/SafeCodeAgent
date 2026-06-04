@@ -234,6 +234,54 @@ sac profile set typecheck "mypy ."
 
 ---
 
+## Resume / Recovery / Budgets (v4.4, EXPERIMENTAL)
+
+### Interrupted tasks
+
+**Cause:** Ctrl-C interrupted `sac edit`, `sac fix`, `sac fix --watch`, or
+`sac run`. SafeCode records the current task as `interrupted` and exits 130.
+
+**Fix:**
+```bash
+sac resume
+sac status
+```
+
+Review the redacted resume summary and follow the next safe step. `sac resume`
+does not auto-apply patches or auto-run commands.
+
+### Resume refuses closed tasks
+
+**Cause:** The selected task is `closed`. Closed tasks are not resumable.
+
+**Fix:**
+```bash
+sac task new "Continue from closed work"
+```
+
+### `budget_exceeded`
+
+**Cause:** A per-task experimental budget was exceeded. The marker records
+which budget tripped, such as `steps` or `time_seconds`.
+
+**Fix:**
+- Run `sac task budget show`.
+- Inspect the current task with `sac status`.
+- Increase the budget only after review:
+  `sac task budget set --steps 12 --time-seconds 900`.
+
+### `loop_stuck`
+
+**Cause:** The agent loop emitted three identical consecutive task-scoped tool
+intents: `(type, target, tool_name, description)`.
+
+**Fix:**
+- Run `sac status`.
+- Inspect the task and journal before retrying.
+- Change the task goal or context if the loop keeps choosing the same action.
+
+---
+
 ## Getting More Help
 
 - Run `sac --help` for command reference.

@@ -5,13 +5,15 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v4.4.1
+# Current Baseline - v4.4.2
 
 ## Status
-Implemented. Git baseline: tag `v4.4.1`. Local working version: `v4.4.1`.
+Implemented. Git baseline: tag `v4.4.2`. Local working version: `v4.4.2`.
 
 ## Stage
-`v4.4.1` budgets-and-stuck-loop — T-4.4.1-A task-budget-config: new experimental `src/safecode/task/budget.py` stores per-task budget sidecars under `.sac/tasks/budgets/` with defaults steps=8, time_seconds=600, retries=2, tokens=60000; `sac task budget show|set [--task <id>] [--json]` validates positive integers and refuses missing/closed tasks. `AgentLoop.run()` enforces the step budget and records experimental `failure_category: budget_exceeded` with the tripped budget. T-4.4.1-B stuck-loop-guard: `AgentLoop` tracks consecutive identical tool intent identities `(intent.type, intent.target, intent.tool_name, intent.description)`, aborts after 3, journals experimental `failure_category: loop_stuck`, and records a task marker where CURRENT exists. Budget and stuck categories remain experimental; no v4.7 taxonomy work started; policy/approval gates unchanged.
+`v4.4.2` resume-recovery-budget-docs — T-4.4.2-A v4.4-docs-cut: README Core Commands documents experimental `sac resume`, `sac task budget show`, and `sac task budget set`; MVP guide documents resume after Ctrl-C, interrupted task recovery, task budget usage, and stuck-loop guard behavior; troubleshooting documents interrupted tasks, `budget_exceeded`, `loop_stuck`, and resume refusing closed tasks. Docs guard tests cover the new commands. All v4.4 surfaces remain EXPERIMENTAL; no stable contract promoted.
+
+Previous: `v4.4.1` budgets-and-stuck-loop — T-4.4.1-A task-budget-config: new experimental `src/safecode/task/budget.py` stores per-task budget sidecars under `.sac/tasks/budgets/` with defaults steps=8, time_seconds=600, retries=2, tokens=60000; `sac task budget show|set [--task <id>] [--json]` validates positive integers and refuses missing/closed tasks. `AgentLoop.run()` enforces the step budget and records experimental `failure_category: budget_exceeded` with the tripped budget. T-4.4.1-B stuck-loop-guard: `AgentLoop` tracks consecutive identical tool intent identities `(intent.type, intent.target, intent.tool_name, intent.description)`, aborts after 3, journals experimental `failure_category: loop_stuck`, and records a task marker where CURRENT exists. Budget and stuck categories remain experimental; no v4.7 taxonomy work started; policy/approval gates unchanged.
 
 Previous: `v4.4.0` resume-and-interrupt — T-4.4.0-A sac-resume: new experimental top-level `sac resume [<task_id>] [--json]`; selects explicit task, CURRENT, or newest open/interrupted task; refuses closed tasks; sets CURRENT; reopens interrupted tasks to open; prints a redacted passive resume summary (task id, goal, last command, last fix iteration, pending patch state, next safe step) without running fix/edit/apply/run. T-4.4.0-B sigint-durable-interrupt: `sac edit`, `sac fix`, `sac fix --watch`, and `sac run` catch KeyboardInterrupt only, mark the current task interrupted with an append-only iteration marker, record journal/audit interruption metadata where available, print `resume with: sac resume`, and exit 130. Pending patch files are not modified. All v4.4.0 surfaces are EXPERIMENTAL; no stable contract promoted.
 

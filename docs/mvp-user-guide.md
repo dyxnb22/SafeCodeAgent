@@ -1,6 +1,6 @@
 # SafeCode MVP User Guide
 
-This guide covers the v4.3.x path for a new user: install SafeCode, set up
+This guide covers the v4.4.x path for a new user: install SafeCode, set up
 your provider, run a coding task, fix a failing test, and review/apply the
 proposed patches safely.
 
@@ -33,6 +33,51 @@ sac task close
 
 If no task is active when you run `sac edit` (or another wiring command),
 SafeCode auto-creates one so the workflow stays unblocked.
+
+## Resume And Recovery (v4.4, EXPERIMENTAL)
+
+If you press Ctrl-C during `sac edit`, `sac fix`, `sac fix --watch`, or
+`sac run`, SafeCode marks the current task `interrupted`, appends an
+interruption marker, and exits 130.
+
+```bash
+sac resume
+sac status
+```
+
+`sac resume` is passive: it sets the task as CURRENT, prints a redacted summary
+and next safe step, and never runs `edit`, `fix`, `apply`, or a shell command.
+To resume a specific task:
+
+```bash
+sac resume <task-id>
+```
+
+Closed tasks are refused. Start a new task when the old one is closed:
+
+```bash
+sac task new "Continue the recovery work"
+```
+
+## Task Budgets (v4.4, EXPERIMENTAL)
+
+Per-task budgets are stored separately from the task sidecar and are
+experimental. Defaults are 8 steps, 600 seconds, 2 retries, and 60000 tokens.
+
+```bash
+sac task budget show
+sac task budget set --steps 8 --time-seconds 600 --retries 2 --tokens 60000
+sac task budget show --json
+```
+
+Budget breaches record experimental `failure_category: budget_exceeded` with
+the tripped budget. Budgets do not weaken command policy, approval, sandbox, or
+network gates.
+
+`AgentLoop` also has an experimental stuck-loop guard. Three identical
+consecutive tool intents for a task abort with `failure_category: loop_stuck`.
+This is separate from the v4.3 `loop_no_progress` fix-watch guard and is not a
+stable runtime taxonomy.
 
 ## Quickstart (fastest path)
 
@@ -144,6 +189,8 @@ sac edit "task" --json
 sac ask "question" --json
 sac apply --json
 sac fix --watch --json
+sac resume --json
+sac task budget show --json
 ```
 
 The JSON envelope format is a stable contract (`docs/public-contracts.md` Section 11):
