@@ -27,6 +27,7 @@ from safecode.cli_profile import profile_app
 from safecode.cli_memory import memory_app
 from safecode.cli_debug import debug_app
 from safecode.cli_smoke import smoke_app
+from safecode.cli_shell import register as _register_shell
 from safecode.config import SafeCodeConfig, _stricter_policy
 from safecode.setup import write_setup
 
@@ -207,6 +208,7 @@ _register_fix(app)
 _register_status(app)
 _register_resume(app)
 _register_commit(app)
+_register_shell(app)
 
 # Core commands stay at the root for backward compatibility.
 for command in core_app.registered_commands:

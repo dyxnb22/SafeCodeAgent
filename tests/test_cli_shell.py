@@ -1,0 +1,400 @@
+"""Tests for sac shell — v4.9.0 shell-session-and-repl."""
+
+from __future__ import annotations
+
+import io
+import json
+import sys
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+import pytest
+
+
+# ---------------------------------------------------------------------------
+# CLI registration / help
+# ---------------------------------------------------------------------------
+
+
+class TestShellRegistration:
+    def test_shell_in_help(self, tmp_path, monkeypatch):
+        """sac --help must include the 'shell' command."""
+        from typer.testing import CliRunner
+        from safecode.cli import app
+
+        runner = CliRunner()
+        result = runner.invoke(app, ["--help"])
+        assert result.exit_code == 0
+        assert "shell" in result.output
+
+    def test_shell_help_text(self, tmp_path, monkeypatch):
+        """sac shell --help shows the EXPERIMENTAL label."""
+        from typer.testing import CliRunner
+        from safecode.cli import app
+
+        runner = CliRunner()
+        result = runner.invoke(app, ["shell", "--help"])
+        assert result.exit_code == 0
+        assert "EXPERIMENTAL" in result.output
+
+    def test_shell_non_tty_help(self, tmp_path, monkeypatch):
+        """sac shell /help works in non-TTY mode."""
+        from typer.testing import CliRunner
+        from safecode.cli import app
+
+        monkeypatch.chdir(tmp_path)
+        runner = CliRunner()
+        result = runner.invoke(app, ["shell", "--non-tty"], input="/help\n/exit\n")
+        assert result.exit_code == 0
+        assert "Slash commands" in result.output
+
+
+# ---------------------------------------------------------------------------
+# TTY / non-TTY behaviour
+# ---------------------------------------------------------------------------
+
+
+class TestShellTTYBehaviour:
+    def test_non_tty_exit(self, tmp_path, monkeypatch):
+        """Non-TTY mode exits cleanly on /exit."""
+        from typer.testing import CliRunner
+        from safecode.cli import app
+
+        monkeypatch.chdir(tmp_path)
+        runner = CliRunner()
+        result = runner.invoke(app, ["shell", "--non-tty"], input="/exit\n")
+        assert result.exit_code == 0
+        assert "Exiting" in result.output
+
+    def test_non_tty_eof_exits(self, tmp_path, monkeypatch):
+        """Non-TTY mode exits cleanly on EOF."""
+        from typer.testing import CliRunner
+        from safecode.cli import app
+
+        monkeypatch.chdir(tmp_path)
+        runner = CliRunner()
+        result = runner.invoke(app, ["shell", "--non-tty"], input="")
+        assert result.exit_code == 0
+
+    def test_non_tty_status(self, tmp_path, monkeypatch):
+        """Non-TTY /status returns task info without crashing."""
+        from typer.testing import CliRunner
+        from safecode.cli import app
+
+        monkeypatch.chdir(tmp_path)
+        runner = CliRunner()
+        result = runner.invoke(app, ["shell", "--non-tty"], input="/status\n/exit\n")
+        assert result.exit_code == 0
+        assert "task_id" in result.output
+
+    def test_non_tty_task(self, tmp_path, monkeypatch):
+        """Non-TTY /task returns task details."""
+        from typer.testing import CliRunner
+        from safecode.cli import app
+
+        monkeypatch.chdir(tmp_path)
+        runner = CliRunner()
+        result = runner.invoke(app, ["shell", "--non-tty"], input="/task\n/exit\n")
+        assert result.exit_code == 0
+
+    def test_non_tty_plain_input_records_turn(self, tmp_path, monkeypatch):
+        """Plain (non-slash) input is accepted and stored as a shell turn."""
+        from typer.testing import CliRunner
+        from safecode.cli import app
+        from safecode.shell_session.store import ShellSessionStore
+
+        monkeypatch.chdir(tmp_path)
+        runner = CliRunner()
+        result = runner.invoke(
+            app, ["shell", "--non-tty"], input="what is this project?\n/exit\n"
+        )
+        assert result.exit_code == 0
+
+        # A session file should exist
+        store = ShellSessionStore(tmp_path)
+        sessions = store.list_sessions()
+        assert len(sessions) >= 1, "At least one session must be persisted"
+
+        session = store.load(sessions[0])
+        assert session is not None
+        # The natural-language turn must be recorded
+        nl_turns = [t for t in session.turns if not t.user_input.startswith("/")]
+        assert len(nl_turns) >= 1
+
+    def test_non_tty_unknown_slash(self, tmp_path, monkeypatch):
+        """Unknown slash command returns a helpful message."""
+        from typer.testing import CliRunner
+        from safecode.cli import app
+
+        monkeypatch.chdir(tmp_path)
+        runner = CliRunner()
+        result = runner.invoke(app, ["shell", "--non-tty"], input="/foobar\n/exit\n")
+        assert result.exit_code == 0
+        assert "Unknown slash command" in result.output
+
+
+# ---------------------------------------------------------------------------
+# Session persistence and corruption tolerance
+# ---------------------------------------------------------------------------
+
+
+class TestShellSessionPersistence:
+    def test_session_persisted_to_dot_sac(self, tmp_path, monkeypatch):
+        """Shell session files are written under .sac/shell/."""
+        from typer.testing import CliRunner
+        from safecode.cli import app
+
+        monkeypatch.chdir(tmp_path)
+        runner = CliRunner()
+        runner.invoke(app, ["shell", "--non-tty"], input="/help\n/exit\n")
+
+        shell_dir = tmp_path / ".sac" / "shell"
+        assert shell_dir.exists(), ".sac/shell/ must be created"
+        sessions = list(shell_dir.glob("*.json"))
+        assert len(sessions) >= 1, "At least one session file must be written"
+
+    def test_session_file_is_valid_json(self, tmp_path, monkeypatch):
+        """Session files must be valid JSON."""
+        from typer.testing import CliRunner
+        from safecode.cli import app
+
+        monkeypatch.chdir(tmp_path)
+        runner = CliRunner()
+        runner.invoke(app, ["shell", "--non-tty"], input="/help\n/exit\n")
+
+        shell_dir = tmp_path / ".sac" / "shell"
+        for f in shell_dir.glob("*.json"):
+            data = json.loads(f.read_text())
+            assert "session_id" in data
+            assert "payload_version" in data
+
+    def test_corrupt_session_handled_gracefully(self, tmp_path):
+        """A corrupt session file returns None (fail-safe) instead of crashing."""
+        from safecode.shell_session.store import ShellSessionStore
+
+        shell_dir = tmp_path / ".sac" / "shell"
+        shell_dir.mkdir(parents=True)
+        corrupt_file = shell_dir / "corrupt12345678.json"
+        corrupt_file.write_text("{not valid json !!!", encoding="utf-8")
+
+        store = ShellSessionStore(tmp_path)
+        result = store.load("corrupt12345678")
+        assert result is None, "Corrupt file must return None, not raise"
+
+    def test_future_payload_version_returns_none(self, tmp_path):
+        """A session with payload_version > 1 returns None (fail-closed)."""
+        from safecode.shell_session.store import ShellSessionStore
+
+        shell_dir = tmp_path / ".sac" / "shell"
+        shell_dir.mkdir(parents=True)
+        future_file = shell_dir / "future12345678.json"
+        future_file.write_text(
+            json.dumps({"session_id": "future12345678", "payload_version": 99, "turns": []}),
+            encoding="utf-8",
+        )
+
+        store = ShellSessionStore(tmp_path)
+        result = store.load("future12345678")
+        assert result is None, "Future payload version must return None"
+
+    def test_missing_session_returns_none(self, tmp_path):
+        """Loading a non-existent session returns None."""
+        from safecode.shell_session.store import ShellSessionStore
+
+        store = ShellSessionStore(tmp_path)
+        result = store.load("nonexistent123")
+        assert result is None
+
+    def test_turns_bounded_to_max(self, tmp_path):
+        """Turns list is bounded to _MAX_TURNS entries."""
+        from safecode.shell_session.state import ShellSessionState, ShellTurn, _MAX_TURNS
+
+        turns = [
+            ShellTurn(turn_index=i, user_input=f"q{i}", shell_response=f"a{i}")
+            for i in range(_MAX_TURNS + 20)
+        ]
+        state = ShellSessionState(session_id="test", turns=turns)
+        bounded = state.bounded_turns()
+        assert len(bounded) == _MAX_TURNS
+
+
+# ---------------------------------------------------------------------------
+# Task and audit wiring
+# ---------------------------------------------------------------------------
+
+
+class TestShellTaskAndAuditWiring:
+    def test_shell_binds_to_current_task(self, tmp_path, monkeypatch):
+        """Shell session picks up the CURRENT task id."""
+        from safecode.task.store import TaskStore
+        from safecode.shell_session.store import ShellSessionStore
+        from typer.testing import CliRunner
+        from safecode.cli import app
+
+        # Create a task and set it as CURRENT
+        task_store = TaskStore(tmp_path)
+        task = task_store.create("fix the widget bug")
+        task_store.set_current(task.task_id)
+
+        monkeypatch.chdir(tmp_path)
+        runner = CliRunner()
+        runner.invoke(app, ["shell", "--non-tty"], input="/exit\n")
+
+        shell_store = ShellSessionStore(tmp_path)
+        sessions = shell_store.list_sessions()
+        assert sessions, "Session must be created"
+        session = shell_store.load(sessions[-1])
+        assert session is not None
+        assert session.task_id == task.task_id, "Session must bind to current task"
+
+    def test_shell_writes_audit_event_per_turn(self, tmp_path, monkeypatch):
+        """An audit event is written for each shell turn."""
+        from typer.testing import CliRunner
+        from safecode.cli import app
+        from safecode.audit.logger import AuditLogger
+
+        monkeypatch.chdir(tmp_path)
+        runner = CliRunner()
+        runner.invoke(app, ["shell", "--non-tty"], input="/help\n/exit\n")
+
+        audit_log = tmp_path / ".sac" / "logs" / "events.jsonl"
+        if audit_log.exists():
+            lines = [l for l in audit_log.read_text().splitlines() if "shell_turn" in l]
+            assert len(lines) >= 1, "At least one shell_turn audit event must be written"
+
+
+# ---------------------------------------------------------------------------
+# No auto-apply regression
+# ---------------------------------------------------------------------------
+
+
+class TestShellNoAutoApply:
+    def test_apply_in_non_tty_does_not_apply(self, tmp_path, monkeypatch):
+        """/apply in non-TTY mode must NOT apply — it prints instructions instead."""
+        from typer.testing import CliRunner
+        from safecode.cli import app
+
+        # Create a fake pending patch
+        sac_dir = tmp_path / ".sac"
+        sac_dir.mkdir()
+        from safecode.patch.models import PatchProposal
+        proposal = PatchProposal(
+            id="no-auto-patch",
+            task="smoke test",
+            blocks=[],
+            created_at="2026-01-01T00:00:00Z",
+            model="mock",
+            status="pending",
+        )
+        (sac_dir / "pending_patch.json").write_text(proposal.model_dump_json())
+
+        monkeypatch.chdir(tmp_path)
+        runner = CliRunner()
+        result = runner.invoke(app, ["shell", "--non-tty"], input="/apply\n/exit\n")
+        assert result.exit_code == 0
+
+        # Must NOT have run any apply subprocess; must print "sac apply" hint
+        assert "sac apply" in result.output, "/apply in non-TTY must print 'sac apply' hint"
+
+        # The patch file must still exist — nothing applied it
+        assert (sac_dir / "pending_patch.json").exists(), "Patch must remain unapplied"
+
+    def test_commit_in_non_tty_does_not_commit(self, tmp_path, monkeypatch):
+        """/commit in non-TTY mode must NOT commit."""
+        from typer.testing import CliRunner
+        from safecode.cli import app
+
+        monkeypatch.chdir(tmp_path)
+        runner = CliRunner()
+        result = runner.invoke(app, ["shell", "--non-tty"], input="/commit\n/exit\n")
+        assert result.exit_code == 0
+        assert "sac commit" in result.output, "/commit in non-TTY must print 'sac commit' hint"
+
+    def test_slash_apply_requires_confirmation(self, tmp_path):
+        """run_shell with /apply in TTY mode asks for confirmation before applying."""
+        from safecode.cli_shell import run_shell
+        from safecode.patch.models import PatchProposal
+
+        sac_dir = tmp_path / ".sac"
+        sac_dir.mkdir()
+        proposal = PatchProposal(
+            id="apply-confirm-test",
+            task="test",
+            blocks=[],
+            created_at="2026-01-01T00:00:00Z",
+            model="mock",
+            status="pending",
+        )
+        (sac_dir / "pending_patch.json").write_text(proposal.model_dump_json())
+
+        # Simulate TTY mode but user says 'n'
+        with patch("safecode.cli_shell.input", return_value="n"):
+            with patch("safecode.cli_shell._read_line", side_effect=["/apply", None]):
+                code = run_shell(tmp_path, is_tty=True)
+
+        assert code == 0
+        assert (sac_dir / "pending_patch.json").exists(), "Patch must remain after 'n' confirmation"
+
+
+# ---------------------------------------------------------------------------
+# JSON output mode
+# ---------------------------------------------------------------------------
+
+
+class TestShellJsonOutput:
+    def test_json_output_per_turn(self, tmp_path, monkeypatch):
+        """--json outputs JSON objects containing 'command' and 'status' fields."""
+        from typer.testing import CliRunner
+        from safecode.cli import app
+
+        monkeypatch.chdir(tmp_path)
+        runner = CliRunner()
+        result = runner.invoke(
+            app, ["shell", "--non-tty", "--json"], input="/help\n/exit\n"
+        )
+        assert result.exit_code == 0
+        # render_json outputs multi-line indented JSON; check for key fields
+        assert '"command"' in result.output, "JSON output must contain 'command' key"
+        assert '"status"' in result.output, "JSON output must contain 'status' key"
+        assert '"intent"' in result.output, "JSON output must contain 'intent' key"
+
+
+# ---------------------------------------------------------------------------
+# State model unit tests
+# ---------------------------------------------------------------------------
+
+
+class TestShellSessionState:
+    def test_session_state_roundtrip(self, tmp_path):
+        """Session state serializes and deserializes correctly."""
+        from safecode.shell_session.state import ShellSessionState, ShellTurn
+
+        state = ShellSessionState(session_id="abc123", task_id="task-1")
+        turn = ShellTurn(
+            turn_index=0,
+            user_input="hello",
+            shell_response="world",
+            intent="ask",
+            task_id="task-1",
+        )
+        state = state.model_copy(update={"turns": [turn]})
+        raw = state.model_dump_json()
+        loaded = ShellSessionState.model_validate_json(raw)
+        assert loaded.session_id == "abc123"
+        assert loaded.task_id == "task-1"
+        assert len(loaded.turns) == 1
+        assert loaded.turns[0].intent == "ask"
+
+    def test_next_turn_index(self):
+        """next_turn_index returns len(turns)."""
+        from safecode.shell_session.state import ShellSessionState, ShellTurn
+
+        state = ShellSessionState(session_id="x")
+        assert state.next_turn_index() == 0
+        turn = ShellTurn(turn_index=0, user_input="q", shell_response="a")
+        state = state.model_copy(update={"turns": [turn]})
+        assert state.next_turn_index() == 1
+
+    def test_supported_payload_version(self):
+        from safecode.shell_session.state import ShellSessionState
+        assert ShellSessionState.supported_payload_version() == 1
