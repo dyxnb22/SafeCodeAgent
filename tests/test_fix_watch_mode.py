@@ -7,6 +7,9 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from safecode.cli_fix import run_fix_watch
+from safecode.project.profile import ProfileCommand, ProjectProfile, save_profile
+from safecode.shell.risk import RiskLevel, ShellRisk
+from safecode.shell.runner import ShellRunResult
 from safecode.task.store import TaskStore
 from typer.testing import CliRunner
 
@@ -122,3 +125,90 @@ def test_watch_flags_are_registered() -> None:
     assert "--watch" in result.output
     assert "--max-iterations" in result.output
     assert "--rerun-suite" in result.output
+    assert "--timeout-seconds" in result.output
+
+
+def _profile_command(argv: tuple[str, ...]) -> ProfileCommand:
+    return ProfileCommand(command=argv, stack="x", source="detected", missing_dependency=False)
+
+
+def test_timeout_records_command_timeout(tmp_path: Path) -> None:
+    with patch("safecode.cli_fix._run_test_command") as mock_run:
+        mock_run.return_value = ("Test command timed out.", 124)
+        code = run_fix_watch(tmp_path, test_command="pytest -q", timeout_seconds=7)
+
+    assert code == 124
+    state = TaskStore(tmp_path).load(TaskStore(tmp_path).current_id() or "")
+    assert state is not None
+    assert state.iterations[-1].test_exit_code == 124
+    assert state.iterations[-1].failure_category == "command_timeout"
+
+
+def test_rerun_suite_all_uses_profile_order(tmp_path: Path) -> None:
+    profile = ProjectProfile(
+        test=_profile_command(("echo", "test")),
+        lint=_profile_command(("echo", "lint")),
+        typecheck=_profile_command(("echo", "typecheck")),
+        build=_profile_command(("echo", "build")),
+    )
+    save_profile(tmp_path, profile)
+
+    with patch("safecode.cli_fix.ShellRunner") as MockRunner:
+        mock = MagicMock()
+        mock.run.return_value = ShellRunResult("echo ok", ShellRisk(RiskLevel.LOW, [], ["echo"]), 0, "ok", "", 1, True)
+        MockRunner.return_value = mock
+        code = run_fix_watch(tmp_path, rerun_suite="all", timeout_seconds=9)
+
+    assert code == 0
+    assert [call.args[0] for call in mock.run.call_args_list] == [
+        "echo test",
+        "echo lint",
+        "echo typecheck",
+        "echo build",
+    ]
+    assert all(call.kwargs["approved"] is True for call in mock.run.call_args_list)
+    assert all(call.kwargs["timeout_seconds"] == 9 for call in mock.run.call_args_list)
+
+
+def test_rerun_suite_all_skips_missing_suites(tmp_path: Path, capsys) -> None:
+    profile = ProjectProfile(test=_profile_command(("echo", "test")))
+    save_profile(tmp_path, profile)
+
+    with patch("safecode.cli_fix.ShellRunner") as MockRunner:
+        mock = MagicMock()
+        mock.run.return_value = ShellRunResult("echo test", ShellRisk(RiskLevel.LOW, [], ["echo"]), 0, "ok", "", 1, True)
+        MockRunner.return_value = mock
+        run_fix_watch(tmp_path, rerun_suite="all", json_output=True)
+
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["status"] == "success"
+    assert payload["data"]["skipped_suites"] == ["lint", "typecheck", "build"]
+    mock.run.assert_called_once()
+
+
+def test_rerun_suite_all_blocked_command_stops(tmp_path: Path) -> None:
+    profile = ProjectProfile(test=_profile_command(("rm", "-rf", "/tmp/nope")))
+    save_profile(tmp_path, profile)
+
+    with (
+        patch("safecode.cli_fix.ShellRunner") as MockRunner,
+        patch("safecode.cli_fix.AgentOrchestrator") as MockOrch,
+    ):
+        mock = MagicMock()
+        mock.run.return_value = ShellRunResult(
+            "rm -rf /tmp/nope",
+            ShellRisk(RiskLevel.HIGH, ["danger"], ["rm"]),
+            126,
+            "",
+            "Blocked high-risk command.",
+            0,
+            False,
+        )
+        MockRunner.return_value = mock
+        code = run_fix_watch(tmp_path, rerun_suite="all")
+
+    assert code == 126
+    MockOrch.return_value.edit.assert_not_called()
+    state = TaskStore(tmp_path).load(TaskStore(tmp_path).current_id() or "")
+    assert state is not None
+    assert state.iterations[-1].failure_category == "blocked_suite_command"

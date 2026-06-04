@@ -40,6 +40,7 @@ class TaskIteration(BaseModel):
     pending_patch_id: str | None = None
     pending_patch_path: str | None = None
     status: str | None = None
+    failure_category: str | None = None
     audit_trace_id: str | None = None
     timestamp: str = Field(default_factory=utc_now_iso)
     created_at: str = Field(default_factory=utc_now_iso)

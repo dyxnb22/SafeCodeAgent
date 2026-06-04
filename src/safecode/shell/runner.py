@@ -60,7 +60,12 @@ class ShellRunner:
         """Evaluate a command through policy without executing it."""
         return ShellCommandProposal(command=command, decision=self.policy.evaluate(command, approved=approved))
 
-    def run(self, command: str, approved: bool = False) -> ShellRunResult:
+    def run(
+        self,
+        command: str,
+        approved: bool = False,
+        timeout_seconds: int | None = None,
+    ) -> ShellRunResult:
         """Run a command when policy allows it."""
         decision = self.policy.evaluate(command, approved=approved)
         risk = decision.risk
@@ -81,7 +86,7 @@ class ShellRunner:
                 text=True,
                 capture_output=True,
                 env=env,
-                timeout=self.config.shell.default_timeout_seconds,
+                timeout=timeout_seconds or self.config.shell.default_timeout_seconds,
                 check=False,
             )
         except subprocess.TimeoutExpired as exc:

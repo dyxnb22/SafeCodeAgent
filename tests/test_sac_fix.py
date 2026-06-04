@@ -54,7 +54,7 @@ class TestRunFixNoTestCommand:
 
             code = run_fix(tmp_path)
         assert code == 0
-        mock_run.assert_called_once_with(tmp_path, "pytest -q")
+        mock_run.assert_called_once_with(tmp_path, "pytest -q", timeout_seconds=120)
 
 
 class TestRunFixTestCommandOverride:
@@ -67,7 +67,18 @@ class TestRunFixTestCommandOverride:
             MockOrch.return_value.edit.return_value = _make_edit_result(tmp_path)
             code = run_fix(tmp_path, test_command="go test ./...")
         assert code == 0
-        mock_run.assert_called_once_with(tmp_path, "go test ./...")
+        mock_run.assert_called_once_with(tmp_path, "go test ./...", timeout_seconds=120)
+
+    def test_timeout_override_is_passed_to_test_runner(self, tmp_path: Path) -> None:
+        with (
+            patch("safecode.cli_fix._run_test_command") as mock_run,
+            patch("safecode.cli_fix.AgentOrchestrator") as MockOrch,
+        ):
+            mock_run.return_value = ("error", 1)
+            MockOrch.return_value.edit.return_value = _make_edit_result(tmp_path)
+            code = run_fix(tmp_path, test_command="pytest -q", timeout_seconds=17)
+        assert code == 0
+        mock_run.assert_called_once_with(tmp_path, "pytest -q", timeout_seconds=17)
 
 
 class TestRunFixAlreadyPassing:
@@ -85,6 +96,25 @@ class TestRunFixAlreadyPassing:
             mock_run.return_value = ("ok", 0)
             run_fix(tmp_path, test_command="pytest -q")
         MockOrch.return_value.edit.assert_not_called()
+
+
+class TestRunFixTimeout:
+    def test_timeout_returns_124_and_records_category(self, tmp_path: Path) -> None:
+        from safecode.task.store import TaskStore
+
+        with (
+            patch("safecode.cli_fix._run_test_command") as mock_run,
+            patch("safecode.cli_fix.AgentOrchestrator") as MockOrch,
+        ):
+            mock_run.return_value = ("Test command timed out.", 124)
+            code = run_fix(tmp_path, test_command="pytest -q", timeout_seconds=3)
+
+        assert code == 124
+        MockOrch.return_value.edit.assert_not_called()
+        state = TaskStore(tmp_path).load(TaskStore(tmp_path).current_id() or "")
+        assert state is not None
+        assert state.iterations[-1].failure_category == "command_timeout"
+        assert state.iterations[-1].test_exit_code == 124
 
 
 class TestRunFixEndToEnd:
@@ -248,7 +278,7 @@ class TestRunFixProfilePrecedence:
             code = run_fix(tmp_path, test_command="explicit-test")
 
         assert code == 0
-        mock_run.assert_called_once_with(tmp_path, "explicit-test")
+        mock_run.assert_called_once_with(tmp_path, "explicit-test", timeout_seconds=120)
 
     def test_profile_wins_over_detector(self, tmp_path: Path) -> None:
         """When profile exists with a test command, detector is not called."""
@@ -268,7 +298,7 @@ class TestRunFixProfilePrecedence:
             code = run_fix(tmp_path)
 
         assert code == 0
-        mock_run.assert_called_once_with(tmp_path, "profile-test -v")
+        mock_run.assert_called_once_with(tmp_path, "profile-test -v", timeout_seconds=120)
         # Detector should not have been called
         MockDetector.return_value.detect.assert_not_called()
 
@@ -288,7 +318,7 @@ class TestRunFixProfilePrecedence:
             code = run_fix(tmp_path)
 
         assert code == 0
-        mock_run.assert_called_once_with(tmp_path, "pytest -q")
+        mock_run.assert_called_once_with(tmp_path, "pytest -q", timeout_seconds=120)
 
     def test_profile_with_no_test_command_falls_back_to_detector(self, tmp_path: Path) -> None:
         """Profile exists but no 'test' command → fall back to detector."""
@@ -309,7 +339,7 @@ class TestRunFixProfilePrecedence:
             code = run_fix(tmp_path)
 
         assert code == 0
-        mock_run.assert_called_once_with(tmp_path, "detected-test")
+        mock_run.assert_called_once_with(tmp_path, "detected-test", timeout_seconds=120)
 
     def test_profile_override_never_auto_set_by_fix(self, tmp_path: Path) -> None:
         """sac fix must never write a user override to the profile."""

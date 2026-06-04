@@ -131,6 +131,7 @@ def record_fix_on_task(
     pending_patch_id: str | None = None,
     pending_patch_path: str | None = None,
     status: str = "failed",
+    failure_category: str | None = None,
 ) -> None:
     """Update the task sidecar when sac fix runs a test."""
     store = TaskStore(project_root)
@@ -151,6 +152,7 @@ def record_fix_on_task(
         pending_patch_id=pending_patch_id,
         pending_patch_path=pending_patch_path,
         status=status,
+        failure_category=failure_category,
     )
     update: dict[str, object] = {"iterations": list(state.iterations) + [iteration]}
     if pending_patch_id:
