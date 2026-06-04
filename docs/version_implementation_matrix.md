@@ -483,6 +483,12 @@ Historical plan: `docs/version-plans/v2.8-to-v3.0-product-architecture-roadmap.m
 | `v3.99.0` ✅ | `main` | `docs/commercial-v1-readiness-audit-v3.11.x.md`, `docs/versioning-policy.md`, `tests/test_versioning_policy_doc.py` | T-3.99.0-A v4-readiness-audit: re-audits the v3.11.x baseline against v4.0 readiness goals and marks unresolved PyPI, VS Code, loop-eval, live-provider, CI bench, and sandbox real-execution claims as deferred rather than shipped. T-3.99.0-B versioning-policy-doc: clarifies patch/minor/major semantics and pins the v4.0 churn budget (≤2 new stable contracts, zero v3.0 breaking changes). Targeted/full/preflight run as part of release train. |
 | `v3.99.1` ✅ | `main` | `docs/public-contracts.md`, `tests/test_public_contract_snapshots.py` | T-3.99.1-A promotion-decision-pass: records CLI JSON envelope and MCP read execution as already-stable promotions; defers IDE JSON-RPC, `sac report html`, and sandbox real-execution opt-in; rejects TUI stable promotion at v4.0. No new stable contract promoted by v3.99.1 itself. Targeted/full/preflight run as part of release train. |
 
+## v4.0.0: Commercial Readiness Contract Cut
+
+| 版本 | 分支 | 主要入口 | 验收命令 / 结果 |
+|---|---|---|---|
+| `v4.0.0` ✅ | `main` | `docs/public-contracts.md`, `docs/commercial-v1-readiness-audit-v3.11.x.md`, `docs/versioning-policy.md`, `tests/test_public_contract_snapshots.py` | T-4.0.0-A v4-contract-cut: applies v3.99.1 decisions without runtime feature work. CLI JSON envelope and MCP read execution remain already-stable; no new stable contracts are promoted at v4.0.0; zero breaking changes to v3.0 public contracts; IDE JSON-RPC, TUI, `sac report html`, and sandbox real-execution opt-in remain deferred/rejected as documented. Targeted/full/preflight run as part of release train. |
+
 ## Active Forward Plan After v3.6.6
 
 Active plan: `docs/version-plans/v3.7-to-v4.0-product-roadmap.md`.

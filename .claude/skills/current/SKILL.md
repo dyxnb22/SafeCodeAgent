@@ -5,13 +5,15 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v3.99.1
+# Current Baseline - v4.0.0
 
 ## Status
-Implemented. Git baseline: tag `v3.99.1`. Local working version: `v3.99.1`.
+Implemented. Git baseline: tag `v4.0.0`. Local working version: `v4.0.0`.
 
 ## Stage
-`v3.99.1` promotion-decisions — T-3.99.1-A promotion-decision-pass: `docs/public-contracts.md` records v4.0 candidate decisions with evidence. CLI `--json` envelope and MCP read execution are treated as already-stable promotions from v3.7.2/v3.8.2; IDE JSON-RPC, `sac report html`, and sandbox real-execution opt-in are deferred; TUI stable promotion is rejected for v4.0. `tests/test_public_contract_snapshots.py` pins the decision table and verifies deferred surfaces are not stable-contract headings. No runtime features or new stable contracts added in v3.99.1.
+`v4.0.0` contract-cut — T-4.0.0-A v4-contract-cut: applies the v3.99.1 promotion decisions without runtime feature work. `docs/public-contracts.md` records the v4.0.0 contract cut: no new stable contracts promoted at v4.0.0, zero breaking changes to v3.0 public contracts, CLI JSON envelope and MCP read execution preserved as already-stable v3.x contracts, and IDE JSON-RPC/TUI/HTML report/sandbox real-execution opt-in deferred or rejected as documented. `docs/commercial-v1-readiness-audit-v3.11.x.md` and `docs/versioning-policy.md` agree with the final result.
+
+Previous: `v3.99.1` promotion-decisions — T-3.99.1-A promotion-decision-pass: `docs/public-contracts.md` records v4.0 candidate decisions with evidence. CLI `--json` envelope and MCP read execution are treated as already-stable promotions from v3.7.2/v3.8.2; IDE JSON-RPC, `sac report html`, and sandbox real-execution opt-in are deferred; TUI stable promotion is rejected for v4.0. `tests/test_public_contract_snapshots.py` pins the decision table and verifies deferred surfaces are not stable-contract headings. No runtime features or new stable contracts added in v3.99.1.
 
 Previous: `v3.99.0` v4-readiness-audit — T-3.99.0-A v4-readiness-audit: new `docs/commercial-v1-readiness-audit-v3.11.x.md` re-audits current v3.11.x reality against the v4.0 readiness goals; PyPI distribution, VS Code release evidence, loop-eval blocking, live-provider green train, CI bench evidence, and sandbox real-execution contract promotion are explicitly deferred rather than claimed shipped. T-3.99.0-B versioning-policy-doc: `docs/versioning-policy.md` now states patch never changes public contracts, minor may add experimental surfaces, major is reserved for public contract changes, and the v4.0 churn budget is at most two new stable contracts with zero v3.0 breaking changes; README links the current audit and policy. Targeted/full/preflight validation run in release train.
 

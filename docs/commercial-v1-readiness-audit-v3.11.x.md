@@ -122,3 +122,15 @@ v4.0 can ship honestly as a **contract cut** if it:
 5. Keeps Noop as the default sandbox recommendation.
 6. Leaves IDE, TUI, HTML report, live-provider behavior, loop-eval blocking, and
    sandbox real-execution promotion claims explicit rather than implied.
+
+## 6. v4.0.0 final result
+
+The v4.0.0 contract cut follows this audit:
+
+- New stable contracts promoted at v4.0.0: **none**.
+- Breaking changes to v3.0 public contracts: **zero**.
+- Already-stable v3.x contracts preserved unchanged: CLI JSON envelope and MCP
+  read execution.
+- Deferred/rejected candidates remain explicit: IDE JSON-RPC deferred, TUI
+  stable promotion rejected for v4.0, `sac report html` deferred, sandbox
+  real-execution opt-in deferred.

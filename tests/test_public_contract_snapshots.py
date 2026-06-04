@@ -613,3 +613,28 @@ class TestV40PromotionDecisions:
         assert "TUI Interactive Contract" not in stable
         assert "HTML Report Contract" not in stable
         assert "Sandbox Real Execution Opt-In Contract" not in stable
+
+
+class TestV400ContractCut:
+    """v4.0.0 contract cut: no new stable contracts, no v3.0 breakage."""
+
+    def _doc(self) -> str:
+        return (Path(__file__).parent.parent / "docs" / "public-contracts.md").read_text(encoding="utf-8")
+
+    def test_v400_contract_cut_section_exists(self) -> None:
+        assert "v4.0.0 Contract Cut" in self._doc()
+
+    def test_v400_promotes_no_new_stable_contracts(self) -> None:
+        doc = self._doc()
+        assert "New stable contracts promoted at v4.0.0:** none" in doc
+
+    def test_v400_breaks_zero_v30_contracts(self) -> None:
+        doc = self._doc()
+        assert "Breaking changes to v3.0 public contracts:** zero" in doc
+
+    def test_v400_preserves_already_stable_cli_and_mcp_contracts(self) -> None:
+        doc = self._doc()
+        assert "CLI JSON envelope" in doc
+        assert "stable since v3.7.2" in doc
+        assert "MCP read execution" in doc
+        assert "stable since v3.8.2" in doc

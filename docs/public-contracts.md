@@ -1,8 +1,20 @@
-# SafeCode Agent v3.0 Public Contracts
+# SafeCode Agent Public Contracts
 
-This document describes the local safety contracts that are stable in v3.0 and the surfaces
-that remain explicitly experimental. Build workflows on top of the stable contracts. Do not
-rely on experimental surfaces for automation; they may change without a major version bump.
+This document describes the local safety contracts that are stable through
+v4.0.0 and the surfaces that remain explicitly experimental. Build workflows on
+top of the stable contracts. Do not rely on experimental surfaces for
+automation; they may change without a major version bump.
+
+## v4.0.0 Contract Cut
+
+v4.0.0 is a contract cut, not a runtime feature release.
+
+- **New stable contracts promoted at v4.0.0:** none.
+- **Breaking changes to v3.0 public contracts:** zero.
+- **Already-stable contracts preserved for v4.0.0:** CLI JSON envelope
+  (stable since v3.7.2) and MCP read execution (stable since v3.8.2).
+- **Deferred/rejected at v4.0.0:** IDE JSON-RPC, TUI interactive,
+  `sac report html`, and sandbox real-execution opt-in.
 
 ## Stable Contracts
 

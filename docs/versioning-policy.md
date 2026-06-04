@@ -91,3 +91,4 @@ Until then, the supported install paths are:
 |---|---|
 | v3.9.1 | Policy document created. Brew decision: defer. |
 | v3.99.0 | Policy wording clarified for patch/minor/major semantics and v4.0 churn budget. |
+| v4.0.0 | Contract cut honored the budget: zero new v4 stable contracts and zero v3.0 breaking changes. |
