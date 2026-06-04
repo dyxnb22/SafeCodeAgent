@@ -393,7 +393,7 @@ def rollback(
     )
 
 
-@core_app.command()
+@core_app.command(hidden=True)
 def history(
     task: Optional[str] = typer.Option(
         None, "--task", help="[EXPERIMENTAL] Filter by task id (exact match on metadata.task_id).",

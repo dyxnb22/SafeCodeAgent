@@ -87,7 +87,7 @@ def export_report(output: Path = typer.Option(Path(".sac/reports/latest.md"), "-
     console.print(f"Report exported: {path}")
 
 
-@ops_app.command("eval")
+@ops_app.command("eval", hidden=True)
 def eval_demo(
     mode: str = typer.Option("default", "--mode", help="Eval mode: default, loop, or bench."),
     update_baseline: bool = typer.Option(False, "--update-baseline", help="Overwrite bench baseline snapshots."),

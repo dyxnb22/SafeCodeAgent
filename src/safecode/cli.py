@@ -26,6 +26,7 @@ from safecode.cli_commit import register as _register_commit
 from safecode.cli_profile import profile_app
 from safecode.cli_memory import memory_app
 from safecode.cli_debug import debug_app
+from safecode.cli_smoke import smoke_app
 from safecode.config import SafeCodeConfig, _stricter_policy
 from safecode.setup import write_setup
 
@@ -215,31 +216,32 @@ for command in ops_app.registered_commands:
 
 app.add_typer(task_app, name="task")
 app.add_typer(profile_app, name="profile")
-app.add_typer(memory_app, name="memory", hidden=True)
+app.add_typer(memory_app, name="memory")
 app.add_typer(debug_app, name="debug")
-app.add_typer(context_app, name="context")
-app.add_typer(trust_app, name="trust")
-app.add_typer(config_app, name="config")
-app.add_typer(skills_app, name="skills")
-app.add_typer(tools_app, name="tools")
-app.add_typer(index_app, name="index")
+app.add_typer(context_app, name="context", hidden=True)
+app.add_typer(trust_app, name="trust", hidden=True)
+app.add_typer(config_app, name="config", hidden=True)
+app.add_typer(skills_app, name="skills", hidden=True)
+app.add_typer(tools_app, name="tools", hidden=True)
+app.add_typer(index_app, name="index", hidden=True)
 app.add_typer(progress_app, name="progress", hidden=True)
-app.add_typer(mcp_app, name="mcp")
-app.add_typer(subagent_app, name="subagent")
+app.add_typer(mcp_app, name="mcp", hidden=True)
+app.add_typer(subagent_app, name="subagent", hidden=True)
 app.add_typer(queue_app, name="queue", hidden=True)
 app.add_typer(export_app, name="export", hidden=True)
 app.add_typer(ide_app, name="ide", hidden=True)
-app.add_typer(release_app, name="release")
-app.add_typer(logs_app, name="logs")
-app.add_typer(audit_app, name="audit")
-app.add_typer(hooks_app, name="hooks")
-app.add_typer(sandbox_app, name="sandbox")
-app.add_typer(agent_app, name="agent")
-app.add_typer(test_app, name="test")
-app.add_typer(demo_app, name="demo")
+app.add_typer(release_app, name="release", hidden=True)
+app.add_typer(logs_app, name="logs", hidden=True)
+app.add_typer(audit_app, name="audit", hidden=True)
+app.add_typer(hooks_app, name="hooks", hidden=True)
+app.add_typer(sandbox_app, name="sandbox", hidden=True)
+app.add_typer(agent_app, name="agent", hidden=True)
+app.add_typer(test_app, name="test", hidden=True)
+app.add_typer(demo_app, name="demo", hidden=True)
 app.add_typer(tui_app, name="tui", hidden=True)
 app.add_typer(api_app, name="api", hidden=True)
-app.add_typer(report_app, name="report")
+app.add_typer(report_app, name="report", hidden=True)
+app.add_typer(smoke_app, name="smoke", hidden=True)
 
 
 def main() -> None:

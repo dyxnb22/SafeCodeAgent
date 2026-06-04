@@ -12,7 +12,7 @@ from safecode.cli import app
 
 runner = CliRunner()
 
-_HIDDEN_COMMANDS = ["queue", "memory", "progress", "rules", "tui", "ide", "export"]
+_HIDDEN_COMMANDS = ["queue", "progress", "rules", "tui", "ide", "export"]
 _CORE_COMMANDS = ["setup", "quickstart", "ask", "edit", "apply", "rollback", "run", "doctor", "version"]
 
 
@@ -38,9 +38,6 @@ def _command_names_in_root_help() -> set[str]:
 class TestHiddenCommandsNotInRootHelp:
     def test_queue_hidden_from_root_help(self):
         assert "queue" not in _command_names_in_root_help()
-
-    def test_memory_hidden_from_root_help(self):
-        assert "memory" not in _command_names_in_root_help()
 
     def test_progress_hidden_from_root_help(self):
         assert "progress" not in _command_names_in_root_help()

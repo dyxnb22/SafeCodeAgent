@@ -101,9 +101,9 @@ def register(app: typer.Typer) -> None:
         console.print(f"[green]Committed task {task.task_id}[/green]")
         console.print("\n".join(files))
 
-    app.add_typer(branch_app, name="branch")
+    app.add_typer(branch_app, name="branch", hidden=True)
 
-    @app.command("diff")
+    @app.command("diff", hidden=True)
     def diff_cmd(
         task: bool = typer.Option(False, "--task", help="Show applied and pending changes for a task."),
         task_id: Optional[str] = typer.Argument(None),

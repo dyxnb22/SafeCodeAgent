@@ -5,13 +5,15 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v4.7.2
+# Current Baseline - v4.8.0
 
 ## Status
-Implemented. Git baseline: tag `v4.7.2`. Local working version: `v4.7.2`.
+Implemented. Git baseline: tag `v4.8.0`. Local working version: `v4.8.0`.
 
 ## Stage
-`v4.7.2` debug-docs — T-4.7.2-A v4.7-docs-cut: README Core Commands documents experimental `sac debug last-failure`, `sac debug bundle`, and `sac audit query`; MVP guide documents the debug workflow (inspect last failure, create bundle, query audit by task/type/date); troubleshooting documents the experimental failure taxonomy with meaning, likely cause, and suggested command for every code category; docs guards verify category docs match the code table and documented commands exist. All v4.7 surfaces remain EXPERIMENTAL; no stable contract promoted.
+`v4.8.0` smoke-shell-first-and-cli-trim — T-4.8.0-A smoke-shell-first: new `src/safecode/cli_smoke.py` with `sac smoke shell-first` command running 8 deterministic workflow scenarios (docs-edit-task, failing-test-repair-with-fix-watch, command-profile-detection, dirty-tree-refusal, rollback-after-commit-warn, resume-after-sigint, debug-bundle-redaction, pinned-files-in-context) under mock provider only; hidden but callable; JSON output via CLIJSONResponse; 31 tests in `tests/test_smoke_shell_first.py`. T-4.8.0-B cli-surface-trim: root `sac --help` trimmed to exactly 17 visible daily-loop commands (setup, quickstart, status, task, ask, edit, fix, apply, rollback, run, commit, profile, resume, memory, debug, doctor, version); `memory` promoted from hidden to visible; all trimmed commands remain callable; 62 tests in `tests/test_cli_help_surface_v4_8.py`. No stable public contract promoted.
+
+Previous: `v4.7.2` debug-docs — T-4.7.2-A v4.7-docs-cut: README Core Commands documents experimental `sac debug last-failure`, `sac debug bundle`, and `sac audit query`; MVP guide documents the debug workflow (inspect last failure, create bundle, query audit by task/type/date); troubleshooting documents the experimental failure taxonomy with meaning, likely cause, and suggested command for every code category; docs guards verify category docs match the code table and documented commands exist. All v4.7 surfaces remain EXPERIMENTAL; no stable contract promoted.
 
 Previous: `v4.7.1` debug-bundle-and-audit-query — T-4.7.1-A sac-debug-bundle: new experimental `sac debug bundle [--task <id>] [--out <path>] [--force] [--json]` writes a redacted tar.gz containing manifest, version metadata, config snapshot, doctor-equivalent data without shelling through a string, runtime logs, verified audit events, selected task sidecars, project profile, and memory metadata only; it excludes project source code, refuses overwrites without `--force`, and caps output at 5 MiB. T-4.7.1-B sac-audit-query: new experimental read-only `sac audit query [--type <event_type>] [--since <date>] [--task <id>] [--limit N] [--json]` verifies audit integrity before returning deterministic filtered events and never writes audit events. No stable public contract promoted.
 
