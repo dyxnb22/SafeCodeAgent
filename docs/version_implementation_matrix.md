@@ -498,7 +498,7 @@ Historical plan: `docs/version-plans/v2.8-to-v3.0-product-architecture-roadmap.m
 | `v4.1.1` ✅ | `main` | `src/safecode/cli_status.py`, `src/safecode/task/wiring.py`, `src/safecode/cli_core.py`, `src/safecode/cli_fix.py`, `src/safecode/audit/logger.py`, `tests/test_cli_status.py`, `tests/test_audit_task_metadata.py` | T-4.1.1-A sac-status-cmd: `sac status [--json]`; pure `next_step(state, pending_patch_exists)` with truth-table coverage (6 states); TTY/non-TTY deterministic; never writes audit events. T-4.1.1-B wire-edit-apply-rollback-into-task: `sac edit|apply|rollback|fix|run` attach to CURRENT task (auto-create if none/closed); task sidecar mutated on each command; `AuditLogger.write()` extended with optional `task_id` keyword (metadata only; field set unchanged); 26 targeted tests; full suite 3868 passed, 2 skipped; contract snapshots green; preflight passed. |
 | `v4.1.2` ✅ | `main` | `src/safecode/audit/logger.py`, `src/safecode/cli_core.py`, `tests/test_history.py`, `tests/test_history_task_filter.py`, `docs/version-notes/v4.1.2-task-history-filter-and-docs.md` | T-4.1.2-A history-task-filter: `sac history --task <id>` filters output to events with exact `metadata.task_id` match (EXPERIMENTAL); `AuditLogger.read_by_task_id(task_id, limit=200)` added (exact match, empty task_id returns [], corrupted lines skipped); field set unchanged. T-4.1.2-B v4.1-docs-cut: README core commands updated with `sac task`, `sac status`, `sac history --task`; `docs/mvp-user-guide.md` updated with task-first v4.1 flow; all v4.1 surfaces marked EXPERIMENTAL; stable contract snapshots unchanged. 17 targeted history tests; full suite 3885 passed, 2 skipped; contract snapshots green. |
 
-## Active Forward Plan After v4.0.1
+## Active Forward Plan After v4.1.2
 
 Active plan: `docs/version-plans/v4.1-to-v4.8-shell-first-roadmap.md`.
 
@@ -507,3 +507,9 @@ Previous plan: `docs/version-plans/v3.7-to-v4.0-product-roadmap.md`.
 Readiness baseline: `docs/commercial-v1-readiness-audit-v3.11.x.md`.
 
 Architecture reference: `docs/product-commercialization-roadmap.md`.
+
+## v4.2.x: Project Command Profile
+
+| 版本 | 分支 | 主要入口 | 验收命令 / 结果 |
+|---|---|---|---|
+| `v4.2.0` ✅ | `main` | `src/safecode/project/profile.py`, `src/safecode/cli_profile.py`, `tests/test_project_profile.py`, `tests/test_cli_profile.py` | T-4.2.0-A project-profile-detector: `ProjectProfile` Pydantic model (payload_version=1, test/lint/typecheck/build: ProfileCommand\|None, user_overrides: frozenset[str]); `ProfileCommand` (command: tuple[str,...], stack, source: detected\|user\|none, missing_dependency); atomic persist to .sac/project_profile.json; detects Python (pytest/ruff/mypy), Node (npm/pnpm/yarn scripts), Go (go test/vet/build), Rust (cargo test/clippy/check/build); missing tool → missing_dependency=True; user overrides survive detect. T-4.2.0-B sac-profile-cli: `sac profile detect\|show\|set\|clear`; `set` parses with shlex.split and rejects ; \| & $ \` and newline; `show --json` deterministic; profile registered in cli.py; matrix heading fixed from v4.0.1 to v4.1.2. 87 targeted tests; full suite 3972 passed, 2 skipped; contract snapshots green. |

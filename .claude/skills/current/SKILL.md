@@ -5,13 +5,15 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v4.1.2
+# Current Baseline - v4.2.0
 
 ## Status
-Implemented. Git baseline: tag `v4.1.2`. Local working version: `v4.1.2`.
+Implemented. Git baseline: tag `v4.2.0`. Local working version: `v4.2.0`.
 
 ## Stage
-`v4.1.2` task-history-filter-and-docs — T-4.1.2-A history-task-filter: `sac history --task <id>` (EXPERIMENTAL) filters audit table to events with exact `metadata.task_id` match; `AuditLogger.read_by_task_id(task_id, limit=200)` added (empty id → [], missing file → [], corrupted lines skipped, raw events returned); `AuditEvent` field set unchanged. T-4.1.2-B v4.1-docs-cut: README Core Commands updated with `sac task`, `sac status`, `sac history --task` (all EXPERIMENTAL); `docs/mvp-user-guide.md` version updated to v4.1.x and "Task-First Flow (v4.1, EXPERIMENTAL)" section added. 17 new targeted tests; full suite 3885 passed, 2 skipped; contract snapshots green.
+`v4.2.0` project-profile — T-4.2.0-A project-profile-detector: new `src/safecode/project/profile.py`; `ProjectProfile` Pydantic model (payload_version=1, test/lint/typecheck/build: ProfileCommand|None, user_overrides: frozenset[str]); `ProfileCommand` (command: tuple[str,...], stack, source: detected|user|none, missing_dependency: bool); atomic persist to `.sac/project_profile.json`; detect for Python (pytest/ruff/mypy), Node (npm/pnpm/yarn package.json scripts), Go (go test/vet/build), Rust (cargo test/clippy/check/build); missing tool → missing_dependency=True (command kept visible); user overrides survive detect and always win; detection never executes project commands. T-4.2.0-B sac-profile-cli: new `src/safecode/cli_profile.py`; `sac profile detect|show|set <kind> "<cmd>"|clear <kind>`; `set` parses with shlex.split and rejects ; | & $ ` and newline; `show --json` deterministic; profile_app registered in cli.py; fixed matrix heading from v4.0.1 to v4.1.2. 87 new tests; full suite 3972 passed, 2 skipped; contract snapshots green.
+
+Previous: `v4.1.2` task-history-filter-and-docs — T-4.1.2-A history-task-filter: `sac history --task <id>` (EXPERIMENTAL) filters audit table to events with exact `metadata.task_id` match; `AuditLogger.read_by_task_id(task_id, limit=200)` added (empty id → [], missing file → [], corrupted lines skipped, raw events returned); `AuditEvent` field set unchanged. T-4.1.2-B v4.1-docs-cut: README Core Commands updated with `sac task`, `sac status`, `sac history --task` (all EXPERIMENTAL); `docs/mvp-user-guide.md` version updated to v4.1.x and "Task-First Flow (v4.1, EXPERIMENTAL)" section added. 17 new targeted tests; full suite 3885 passed, 2 skipped; contract snapshots green.
 
 Previous: `v4.1.1` sac-status-and-task-wiring — T-4.1.1-A sac-status-cmd: new `src/safecode/cli_status.py`; `sac status [--json]`; pure `next_step(state, pending_patch_exists)` truth table; TTY/non-TTY deterministic; never writes audit events. T-4.1.1-B wire-edit-apply-rollback-into-task: new `src/safecode/task/wiring.py`; `get_or_create_current_task()` + record helpers; `sac edit|apply|rollback|fix|run` now attach to CURRENT task; task sidecar mutated on each command; `AuditLogger.write()` extended with optional `task_id` keyword stuffed into metadata; AuditEvent field set unchanged. 26 new tests; full suite 3868 passed, 2 skipped.
 

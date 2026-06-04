@@ -21,6 +21,7 @@ from safecode.cli_quickstart import register as _register_quickstart
 from safecode.cli_fix import register as _register_fix
 from safecode.cli_task import task_app
 from safecode.cli_status import register as _register_status
+from safecode.cli_profile import profile_app
 from safecode.config import SafeCodeConfig, _stricter_policy
 from safecode.setup import write_setup
 
@@ -207,6 +208,7 @@ for command in ops_app.registered_commands:
     app.registered_commands.append(command)
 
 app.add_typer(task_app, name="task")
+app.add_typer(profile_app, name="profile")
 app.add_typer(context_app, name="context")
 app.add_typer(trust_app, name="trust")
 app.add_typer(config_app, name="config")
