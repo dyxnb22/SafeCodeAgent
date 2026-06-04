@@ -1,7 +1,7 @@
-"""Tests for v4.8.0 cli-surface-trim.
+"""Tests for v4.8.0 cli-surface-trim (updated v4.9).
 
-Verifies the v4.8.0 root help surface:
-- Exactly <=17 visible commands (the daily-loop set).
+Verifies the root help surface:
+- At most 18 visible commands (daily-loop set + sac shell added in v4.9).
 - All previously hidden commands remain callable.
 - Newly hidden commands are not in root help.
 - memory is now visible in root help.
@@ -18,7 +18,7 @@ from safecode.cli import app
 
 runner = CliRunner()
 
-# Target visible set (17 commands)
+# Target visible set (18 commands after v4.9 adds sac shell)
 _TARGET_VISIBLE = frozenset({
     "setup",
     "quickstart",
@@ -37,6 +37,7 @@ _TARGET_VISIBLE = frozenset({
     "debug",
     "doctor",
     "version",
+    "shell",
 })
 
 # Commands hidden in v4.8.0 (callable but not in root help)
@@ -87,9 +88,10 @@ def _command_names_in_root_help() -> set[str]:
 
 
 class TestV48VisibleSurface:
-    def test_visible_count_at_most_17(self):
+    def test_visible_count_at_most_18(self):
+        """v4.9 adds sac shell, bumping the max visible count to 18."""
         names = _command_names_in_root_help()
-        assert len(names) <= 17, f"Expected <=17 visible commands, got {len(names)}: {sorted(names)}"
+        assert len(names) <= 18, f"Expected <=18 visible commands, got {len(names)}: {sorted(names)}"
 
     def test_all_target_commands_visible(self):
         names = _command_names_in_root_help()

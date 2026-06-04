@@ -412,10 +412,48 @@ intents: `(type, target, tool_name, description)`.
 
 ---
 
+---
+
+## AI Shell Issues (v4.9, EXPERIMENTAL)
+
+### "Cannot apply in non-TTY mode"
+
+**Cause:** `/apply` or `/commit` was run in non-TTY mode (e.g., piped input or
+`--non-tty` flag).
+
+**Fix:** Run `sac apply` or `sac commit` directly from a TTY shell. The AI shell
+never auto-applies in non-TTY mode by design.
+
+### "Intent routing not available"
+
+**Cause:** The router module is not importable (package not fully installed, or
+import error).
+
+**Fix:** Run `sac doctor` to check the installation. Then use slash commands
+(`/status`, `/overview`, `/debug`, `/help`) until the router is available.
+
+### Shell session file is corrupt
+
+**Cause:** A `.sac/shell/<session-id>.json` file is missing or truncated.
+
+**Fix:** The shell reads corrupt files fail-safe (returns None and creates a new
+session). The corrupt file can be deleted manually from `.sac/shell/`.
+
+### "Overview unavailable"
+
+**Cause:** The `build_project_overview` function encountered an error (e.g.,
+git not installed, no read permission).
+
+**Fix:** Run `sac doctor`. Check that `git` is available in your PATH. Use
+`/status` and `/debug` as alternatives.
+
+---
+
 ## Getting More Help
 
 - Run `sac --help` for command reference.
 - Run `sac <command> --help` for per-command options.
 - See [docs/mvp-user-guide.md](mvp-user-guide.md) for a guided walkthrough.
+- See [docs/tutorials/ai-shell-first-hour.md](tutorials/ai-shell-first-hour.md) for the AI shell tutorial.
 - See [docs/public-contracts.md](public-contracts.md) for stable API contracts.
 - File issues at the project repository.

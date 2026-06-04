@@ -5,13 +5,18 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v4.8.2
+# Current Baseline - v4.9.3
 
 ## Status
-Implemented. Git baseline: tag `v4.8.2`. Local working version: `v4.8.2`.
+Implemented. Git baseline: tag `v4.9.3`. Local working version: `v4.9.3`.
 
 ## Stage
-`v4.8.2` final-v4-shell-first-docs-cut — T-4.8.2-A v4.8-final-docs-cut: README adds Python tutorial link and task-first daily loop summary (17-command surface, v4.x train complete, no v5.0 promise); `docs/mvp-user-guide.md` updated to v4.8.x with new Task-First Daily Loop section; `docs/public-contracts.md` adds v4.x series contract summary (zero new stable contracts v4.0–v4.8, all new surfaces EXPERIMENTAL); `docs/versioning-policy.md` adds v4.x train closure section and policy changelog entry; `docs/security/threat-model-v3.6.md` adds v4.x shell-first addendum table (task/profile/resume/commit/memory/debug/smoke surfaces). All existing tests pass; no stable public contract promoted; v4.x train is complete.
+`v4.9.3` ai-shell-docs-and-smoke — T-4.9.3-A: `docs/tutorials/ai-shell-first-hour.md` shell-first tutorial added; README, MVP guide, troubleshooting, public-contracts, versioning-policy updated with v4.9 EXPERIMENTAL surfaces; `sac smoke ai-shell` with 6 deterministic scenarios; docs claims guard; v4.9 adds zero stable contracts; no v5 scheduled. `v4.9.2` project-overview-context: `build_project_overview()` aggregates stack/git/profile/entrypoints/test-dirs/high-signal-files/pinned-files/current-task/recent-failures; bounded by _MAX_OVERVIEW_BYTES; secrets redacted; no RAG. `v4.9.1` natural-language-router: intent classifier routes ask/edit/fix/run/status/apply/commit/debug/overview/exit; ambiguous defaults to read-only ask; write-class needs confirmation. `v4.9.0` shell-session-and-repl: `sac shell` EXPERIMENTAL REPL; TTY/non-TTY modes; slash commands; session state under `.sac/shell/`; fail-safe corrupt file handling; task/audit wiring; no auto-apply.
+
+## Active Forward Plan
+The v4.9 AI shell train is complete. No active forward plan. v4.9 adds no stable contracts and does not schedule v5.
+
+Previous: `v4.8.2` final-v4-shell-first-docs-cut — T-4.8.2-A v4.8-final-docs-cut: README adds Python tutorial link and task-first daily loop summary (17-command surface, v4.x train complete, no v5.0 promise); `docs/mvp-user-guide.md` updated to v4.8.x with new Task-First Daily Loop section; `docs/public-contracts.md` adds v4.x series contract summary (zero new stable contracts v4.0–v4.8, all new surfaces EXPERIMENTAL); `docs/versioning-policy.md` adds v4.x train closure section and policy changelog entry; `docs/security/threat-model-v3.6.md` adds v4.x shell-first addendum table (task/profile/resume/commit/memory/debug/smoke surfaces). All existing tests pass; no stable public contract promoted; v4.x train is complete.
 
 Previous: `v4.8.1` v4-tutorials-and-doc-guards — T-4.8.1-A tutorials-v4-rewrite: three tutorials rewritten around the v4.x task-first daily loop (`sac quickstart` → `sac task new` → `sac profile detect` → `sac status` → `sac ask` → `sac edit` or `sac fix --watch` → `sac apply` → `sac commit` → `sac debug last-failure`/`bundle`); all tutorials honest: no auto-apply, no auto-commit, no push, no live provider required, no IDE required; all v4.x surfaces marked EXPERIMENTAL; new `docs/tutorials/python-first-hour.md` (12 sections), `docs/tutorials/typescript-first-hour.md` rewritten, `docs/tutorials/go-first-hour.md` rewritten. T-4.8.1-B docs-claims-guard-extend: new `tests/test_docs_claims_guard.py` with 46 tests verifying tutorial existence, daily-loop coverage, honesty guards (no auto-apply/commit/push/live-provider-requirement), command existence, stack-specific content, failure taxonomy command existence, and visible command documentation coverage. No stable public contract promoted.
 
@@ -525,13 +530,13 @@ Key additions:
 - 20 new tests in `tests/test_sandbox_backend_strategy.py` proving strategy is independently testable.
 
 ## Active Forward Plan
-The active plan for v2.8.x, v2.9.x, and v3.0.0 is `docs/version-plans/v2.8-to-v3.0-product-architecture-roadmap.md`.
+The active plan after v4.8.2 is `docs/version-plans/v4.9-ai-shell-mvp-roadmap.md`.
 
 Planning stance:
-- v2.8.x is consolidation and CLI honesty: diagnostic substrate, sandbox split, typed agent actions, MCP schema prep, release surface collapse, sandbox CLI split, subagent redaction at the journal boundary, shell exit-code honesty, and audit/hook event deduplication.
-- v2.9.x is deterministic evidence and contract preparation: loop fixture expansion, bounded retry, replay snapshots, CI gate, MCP static schema classification/arg validation, subagent payload versioning, local ToolSpec versioning, and narrowed contract snapshots.
-- v3.0.0 is a stable local safety runtime release, not a broad freeze of every experimental API. Freeze documented config, pending patch, audit, sandbox lifecycle, local tool registry, eval trace, and recommended CLI workflow contracts. Keep `SafeCodeLocalAPI` beyond `ask()`/`report()`, live-provider LLM behavior, MCP schema shim, subagent payload evolution, TUI, and IDE surfaces explicitly experimental.
-- Prefer the next short user-visible batch: v2.8.5 `release-surface-collapse-full`, v2.8.8 `shell-exit-code-honesty`, then v2.8.9 `audit-and-hook-event-dedup`.
+- v4.9.x is AI Shell MVP: add `sac shell` as an EXPERIMENTAL Claude Code-like local shell around existing SafeCode primitives.
+- Focus on the user workflow: `cd` into a project, ask questions, understand the project, propose edits, run checks, apply approved patches, debug failures, resume state, and commit locally.
+- Keep SafeCode's safety posture: no auto-apply, approval-gated mutation/run/commit paths, checkpoints, rollback, audit, task wiring, and dirty-tree guard.
+- Do not implement RAG, embeddings, vector storage, LangGraph, stable contract promotion, hosted behavior, IDE integration, remote execution, push/PR automation, or v5 scheduling in v4.9.
 
 ## v2.8.1 (Diagnostic Migration: Doctor + Release + Policy)
 `src/safecode/doctor.py`, `src/safecode/release/check.py`, `src/safecode/release/smoke.py`, `src/safecode/release/preflight.py`, `src/safecode/release/signoff.py`, `src/safecode/policy/audit.py` updated.

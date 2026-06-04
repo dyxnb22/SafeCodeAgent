@@ -56,7 +56,9 @@ For LLM provider configuration and contract details, see [docs/providers.md](doc
 For release versioning semantics and the v4.0 contract churn budget, see [docs/versioning-policy.md](docs/versioning-policy.md).
 For the post-v3.0 commercial product architecture reference, see
 [docs/product-commercialization-roadmap.md](docs/product-commercialization-roadmap.md).
-For the active post-v4.0.0 shell-first execution plan, see
+For the active post-v4.8.2 AI shell execution plan, see
+[docs/version-plans/v4.9-ai-shell-mvp-roadmap.md](docs/version-plans/v4.9-ai-shell-mvp-roadmap.md).
+The completed v4.1→v4.8 shell-first plan is preserved at
 [docs/version-plans/v4.1-to-v4.8-shell-first-roadmap.md](docs/version-plans/v4.1-to-v4.8-shell-first-roadmap.md).
 The previous v3.7→v4.0 plan is preserved at
 [docs/version-plans/v3.7-to-v4.0-product-roadmap.md](docs/version-plans/v3.7-to-v4.0-product-roadmap.md);
@@ -71,8 +73,18 @@ For context budget configuration, see [docs/context-budgets.md](docs/context-bud
 - [Python: First Hour](docs/tutorials/python-first-hour.md)
 - [TypeScript: First Hour](docs/tutorials/typescript-first-hour.md)
 - [Go: First Hour](docs/tutorials/go-first-hour.md)
+- [AI Shell: First Hour](docs/tutorials/ai-shell-first-hour.md) — `sac shell` [EXPERIMENTAL v4.9]
 
 ## Core Commands
+
+**AI Shell (v4.9, EXPERIMENTAL):**
+```bash
+cd myproject && sac shell           # [EXPERIMENTAL] start the local AI shell
+```
+The shell accepts natural-language questions and slash commands (`/status`, `/overview`,
+`/apply`, `/commit`, `/debug`, `/help`, `/exit`). All mutation paths require explicit
+confirmation. No auto-apply. No auto-commit. No RAG or embeddings.
+See [docs/tutorials/ai-shell-first-hour.md](docs/tutorials/ai-shell-first-hour.md).
 
 ```bash
 sac setup                           # first-time: write .sac/config.toml

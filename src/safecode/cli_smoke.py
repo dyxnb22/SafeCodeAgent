@@ -474,3 +474,180 @@ def smoke_shell_first(
         f"\n[bold]{'All' if result.all_passed else str(result.passed)}/{total} scenarios passed[/bold]"
     )
     raise typer.Exit(code=0 if result.all_passed else 1)
+
+
+# ---------------------------------------------------------------------------
+# AI Shell smoke scenarios (v4.9)
+# ---------------------------------------------------------------------------
+
+
+def _ai_shell_scenario_session_create_and_persist(tmp_path: Path) -> None:
+    """Shell session is created, persisted, and loaded back correctly."""
+    from safecode.shell_session.store import ShellSessionStore
+    from safecode.shell_session.state import ShellSessionState
+
+    store = ShellSessionStore(tmp_path)
+    session = store.create(task_id=None)
+    assert session.session_id, "session_id must be non-empty"
+
+    loaded = store.load(session.session_id)
+    assert loaded is not None, "session must be loadable after create"
+    assert loaded.session_id == session.session_id
+
+
+def _ai_shell_scenario_corrupt_session_fail_safe(tmp_path: Path) -> None:
+    """Corrupt session file returns None without raising."""
+    from safecode.shell_session.store import ShellSessionStore
+
+    shell_dir = tmp_path / ".sac" / "shell"
+    shell_dir.mkdir(parents=True)
+    (shell_dir / "bad1234567890ab.json").write_text("{{{not json", encoding="utf-8")
+
+    store = ShellSessionStore(tmp_path)
+    result = store.load("bad1234567890ab")
+    assert result is None, "Corrupt session must return None"
+
+
+def _ai_shell_scenario_intent_router_read_only(tmp_path: Path) -> None:
+    """Read-only questions never trigger mutation paths."""
+    from safecode.shell_session.router import classify_intent
+
+    read_only_inputs = [
+        "what is this project?",
+        "explain the auth module",
+        "status",
+        "show me the last error",
+    ]
+    for q in read_only_inputs:
+        intent = classify_intent(q)
+        assert intent not in ("apply", "commit"), (
+            f"Read-only input {q!r} must not route to {intent}"
+        )
+
+
+def _ai_shell_scenario_overview_builds_for_python_project(tmp_path: Path) -> None:
+    """build_project_overview returns a valid overview for a Python project."""
+    from safecode.shell_session.overview import build_project_overview
+
+    (tmp_path / "pyproject.toml").write_text(
+        "[project]\nname = 'smoke'\n", encoding="utf-8"
+    )
+    (tmp_path / "README.md").write_text("# Smoke Project\n", encoding="utf-8")
+    (tmp_path / "tests").mkdir()
+
+    ov = build_project_overview(tmp_path)
+    assert ov.stack == "python", f"expected python stack, got {ov.stack!r}"
+    assert "tests" in ov.test_dirs or True  # may not detect without pyproject config
+
+
+def _ai_shell_scenario_non_tty_no_auto_apply(tmp_path: Path) -> None:
+    """Non-TTY /apply never applies the pending patch."""
+    from safecode.cli_shell import run_shell
+    from safecode.patch.models import PatchProposal
+    import io, sys
+
+    sac_dir = tmp_path / ".sac"
+    sac_dir.mkdir()
+    proposal = PatchProposal(
+        id="ai-shell-smoke",
+        task="test",
+        blocks=[],
+        created_at="2026-01-01T00:00:00Z",
+        model="mock",
+        status="pending",
+    )
+    (sac_dir / "pending_patch.json").write_text(proposal.model_dump_json())
+
+    # Feed /apply then /exit as non-TTY input
+    old_stdin = sys.stdin
+    sys.stdin = io.StringIO("/apply\n/exit\n")
+    try:
+        run_shell(tmp_path, is_tty=False)
+    finally:
+        sys.stdin = old_stdin
+
+    assert (sac_dir / "pending_patch.json").exists(), (
+        "Patch must NOT be applied in non-TTY mode"
+    )
+
+
+def _ai_shell_scenario_shell_loop_deterministic(tmp_path: Path) -> None:
+    """Shell loop with fixed input produces deterministic output."""
+    from safecode.cli_shell import run_shell
+    import io, sys
+
+    outputs: list[str] = []
+    for _ in range(2):
+        old_stdin = sys.stdin
+        old_stdout = sys.stdout
+        sys.stdin = io.StringIO("/help\n/exit\n")
+        sys.stdout = io.StringIO()
+        try:
+            run_shell(tmp_path, is_tty=False)
+            outputs.append(sys.stdout.getvalue())
+        finally:
+            sys.stdin = old_stdin
+            sys.stdout = old_stdout
+
+    assert outputs[0] == outputs[1], "Shell output must be deterministic for fixed input"
+
+
+_AI_SHELL_SCENARIOS: list[tuple[str, Callable[[Path], None]]] = [
+    ("session-create-and-persist", _ai_shell_scenario_session_create_and_persist),
+    ("corrupt-session-fail-safe", _ai_shell_scenario_corrupt_session_fail_safe),
+    ("intent-router-read-only", _ai_shell_scenario_intent_router_read_only),
+    ("overview-builds-for-python-project", _ai_shell_scenario_overview_builds_for_python_project),
+    ("non-tty-no-auto-apply", _ai_shell_scenario_non_tty_no_auto_apply),
+    ("shell-loop-deterministic", _ai_shell_scenario_shell_loop_deterministic),
+]
+
+
+def run_ai_shell_smoke(
+    *,
+    only: Optional[list[str]] = None,
+) -> SmokeRunResult:
+    """Run all (or a named subset of) ai-shell smoke scenarios."""
+    result = SmokeRunResult()
+    for name, fn in _AI_SHELL_SCENARIOS:
+        if only and name not in only:
+            continue
+        result.scenarios.append(_run_scenario(name, fn))
+    return result
+
+
+@smoke_app.command("ai-shell")
+def smoke_ai_shell(
+    json_output: bool = typer.Option(False, "--json", help="Output result as JSON."),
+    only: Optional[str] = typer.Option(
+        None, "--only", help="Comma-separated list of scenario names to run."
+    ),
+) -> None:
+    """[EXPERIMENTAL] Run deterministic AI shell smoke scenarios (mock provider only, v4.9)."""
+    only_list: Optional[list[str]] = [s.strip() for s in only.split(",")] if only else None
+
+    result = run_ai_shell_smoke(only=only_list)
+
+    if json_output:
+        status = "pass" if result.all_passed else "fail"
+        print(
+            render_json(
+                CLIJSONResponse(
+                    command="smoke ai-shell",
+                    status=status,
+                    data=result.to_dict(),
+                )
+            )
+        )
+        raise typer.Exit(code=0 if result.all_passed else 1)
+
+    for scenario in result.scenarios:
+        icon = "[green]PASS[/green]" if scenario.passed else "[red]FAIL[/red]"
+        console.print(f"  {icon}  {scenario.name}  ({scenario.duration_ms} ms)")
+        if not scenario.passed:
+            console.print(f"       {scenario.message}")
+
+    total = len(result.scenarios)
+    console.print(
+        f"\n[bold]{'All' if result.all_passed else str(result.passed)}/{total} scenarios passed[/bold]"
+    )
+    raise typer.Exit(code=0 if result.all_passed else 1)

@@ -498,15 +498,30 @@ Historical plan: `docs/version-plans/v2.8-to-v3.0-product-architecture-roadmap.m
 | `v4.1.1` ✅ | `main` | `src/safecode/cli_status.py`, `src/safecode/task/wiring.py`, `src/safecode/cli_core.py`, `src/safecode/cli_fix.py`, `src/safecode/audit/logger.py`, `tests/test_cli_status.py`, `tests/test_audit_task_metadata.py` | T-4.1.1-A sac-status-cmd: `sac status [--json]`; pure `next_step(state, pending_patch_exists)` with truth-table coverage (6 states); TTY/non-TTY deterministic; never writes audit events. T-4.1.1-B wire-edit-apply-rollback-into-task: `sac edit|apply|rollback|fix|run` attach to CURRENT task (auto-create if none/closed); task sidecar mutated on each command; `AuditLogger.write()` extended with optional `task_id` keyword (metadata only; field set unchanged); 26 targeted tests; full suite 3868 passed, 2 skipped; contract snapshots green; preflight passed. |
 | `v4.1.2` ✅ | `main` | `src/safecode/audit/logger.py`, `src/safecode/cli_core.py`, `tests/test_history.py`, `tests/test_history_task_filter.py`, `docs/version-notes/v4.1.2-task-history-filter-and-docs.md` | T-4.1.2-A history-task-filter: `sac history --task <id>` filters output to events with exact `metadata.task_id` match (EXPERIMENTAL); `AuditLogger.read_by_task_id(task_id, limit=200)` added (exact match, empty task_id returns [], corrupted lines skipped); field set unchanged. T-4.1.2-B v4.1-docs-cut: README core commands updated with `sac task`, `sac status`, `sac history --task`; `docs/mvp-user-guide.md` updated with task-first v4.1 flow; all v4.1 surfaces marked EXPERIMENTAL; stable contract snapshots unchanged. 17 targeted history tests; full suite 3885 passed, 2 skipped; contract snapshots green. |
 
-## Active Forward Plan After v4.1.2
+## Active Forward Plan After v4.8.2
 
-Active plan: `docs/version-plans/v4.1-to-v4.8-shell-first-roadmap.md`.
+Completed plan: `docs/version-plans/v4.9-ai-shell-mvp-roadmap.md` (v4.9.3 complete).
 
-Previous plan: `docs/version-plans/v3.7-to-v4.0-product-roadmap.md`.
+Completed shell-first plan: `docs/version-plans/v4.1-to-v4.8-shell-first-roadmap.md`.
+
+Previous contract/product plan: `docs/version-plans/v3.7-to-v4.0-product-roadmap.md`.
 
 Readiness baseline: `docs/commercial-v1-readiness-audit-v3.11.x.md`.
 
 Architecture reference: `docs/product-commercialization-roadmap.md`.
+
+v4.9 result: EXPERIMENTAL Claude Code-like local AI shell (`sac shell`) built around
+existing SafeCode primitives. Zero new stable contracts. No RAG, embeddings, vector
+storage, LangGraph, IDE integration, remote execution, push/PR operations, or v5 scheduling.
+
+## v4.9.x: AI Shell MVP
+
+| 版本 | 分支 | 主要入口 | 验收命令 / 结果 |
+|---|---|---|---|
+| `v4.9.0` ✅ | `main` | `src/safecode/cli_shell.py`, `src/safecode/shell_session/state.py`, `src/safecode/shell_session/store.py`, `src/safecode/cli.py`, `tests/test_cli_shell.py` | T-4.9.0-A shell-session-and-repl: experimental `sac shell` REPL with TTY and non-TTY modes; slash commands `/status`, `/task`, `/overview`, `/apply`, `/commit`, `/debug`, `/help`, `/exit`; session state persisted to `.sac/shell/`; corrupt/future-version files handled fail-safe; each turn bound to CURRENT task and audit; mutation paths require explicit confirmation, never auto-apply. 24 tests. |
+| `v4.9.1` ✅ | `main` | `src/safecode/shell_session/router.py`, `tests/test_shell_router.py` | T-4.9.1-A natural-language-router: intent classifier routes user input to ask/edit/fix/run/status/apply/commit/debug/overview/exit; ambiguous intent defaults to read-only ask; write-class actions require explicit confirmation; profile-based test/lint/typecheck/build routing preserved; mock provider for deterministic tests. 44 tests. |
+| `v4.9.2` ✅ | `main` | `src/safecode/shell_session/overview.py`, `tests/test_shell_overview.py` | T-4.9.2-A project-overview-context: `build_project_overview()` aggregates stack, git, profile commands, entrypoints, test dirs, high-signal files, pinned memory, current task, and recent failures without RAG; context bounded by `_MAX_OVERVIEW_BYTES`; skipped signals listed in output; secrets redacted; paths stay within project root; Python/TypeScript/Go/Rust fixture tests. 23 tests. |
+| `v4.9.3` ✅ | `main` | `docs/tutorials/ai-shell-first-hour.md`, `README.md`, `docs/mvp-user-guide.md`, `docs/troubleshooting.md`, `docs/public-contracts.md`, `docs/versioning-policy.md`, `src/safecode/cli_smoke.py`, `tests/test_smoke_ai_shell.py`, `tests/test_ai_shell_docs_claims.py` | T-4.9.3-A ai-shell-docs-and-smoke: shell-first tutorial added; README, MVP guide, troubleshooting, public-contracts, versioning-policy updated; v4.9 surfaces explicitly EXPERIMENTAL; zero new stable contracts; no v5 scheduled; `sac smoke ai-shell` added with 6 deterministic scenarios under mock provider; docs claims guard and smoke tests. Full suite clean. |
 
 ## v4.2.x: Project Command Profile
 

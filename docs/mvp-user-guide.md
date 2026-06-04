@@ -1,8 +1,34 @@
 # SafeCode MVP User Guide
 
-This guide covers the v4.8.x path for a new user: install SafeCode, set up
+This guide covers the v4.9.x path for a new user: install SafeCode, set up
 your provider, run a coding task, fix a failing test, and review/apply the
 proposed patches safely.
+
+## AI Shell (v4.9, EXPERIMENTAL)
+
+v4.9 adds `sac shell` — an interactive local AI shell. Start with:
+
+```bash
+cd myproject && sac shell
+```
+
+The shell accepts natural-language questions and routes them to existing
+SafeCode primitives. All mutation paths require explicit confirmation:
+
+```
+sac> what is this project?      — read-only overview
+sac> /overview                  — structured project context
+sac> /debug                     — last failure summary
+sac> make the smallest safe fix — proposes patch after confirmation
+sac> run the tests              — runs profile test suite after confirmation
+sac> /apply                     — apply pending patch after confirmation
+sac> /commit                    — local commit after confirmation
+sac> /exit
+```
+
+**No auto-apply. No auto-commit. No RAG or embeddings. All surfaces EXPERIMENTAL.**
+
+See [docs/tutorials/ai-shell-first-hour.md](tutorials/ai-shell-first-hour.md) for the full tutorial.
 
 ## Task-First Daily Loop (v4.x, EXPERIMENTAL)
 

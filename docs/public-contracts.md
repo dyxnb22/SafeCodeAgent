@@ -33,6 +33,22 @@ The twelve stable contracts from v4.0.0 (sections 1–12 of this document) remai
 stable and unchanged through v4.8.2. No deferred surface (IDE JSON-RPC, TUI,
 HTML report, sandbox real-execution opt-in) was promoted in v4.x.
 
+## v4.9.x AI Shell MVP Contract Summary
+
+The v4.9.x AI shell train adds zero new stable contracts. All new v4.9 surfaces
+are explicitly EXPERIMENTAL:
+
+- `sac shell` — interactive AI shell REPL.
+- `sac shell /overview` — bounded project context builder.
+- `sac shell /status`, `/task`, `/apply`, `/commit`, `/debug` — slash commands.
+- Natural-language intent router (routes to existing primitives).
+- Shell session state under `.sac/shell/`.
+- `sac smoke ai-shell` — deterministic AI shell smoke suite.
+
+No v4.9 surface is a stable contract. v4.9 introduces no breaking changes to
+v4.0 stable contracts. v4.9 does not schedule v5. All twelve stable contracts
+from v4.0.0 remain unchanged through v4.9.3.
+
 ## Stable Contracts
 
 ### 1. Config Precedence and Lowering Rules

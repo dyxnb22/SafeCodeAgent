@@ -19,6 +19,13 @@ shell-first functional completeness rather than commercialization. The
 current readiness baseline is
 `docs/commercial-v1-readiness-audit-v3.11.x.md`.
 
+Planning update, 2026-06-04: the v4.1-to-v4.8 shell-first train closed at
+v4.8.2. The active forward execution plan is now
+`docs/version-plans/v4.9-ai-shell-mvp-roadmap.md`, scoped to a Claude
+Code-like local AI shell around existing SafeCode primitives. RAG, embeddings,
+vector storage, LangGraph, stable contract promotion, and v5 scheduling are
+out of scope for v4.9.
+
 This roadmap analyzes SafeCode Agent as a commercial-grade local coding agent
 product, not merely as a local safety runtime. It identifies what is solid,
 what is incomplete, what is experimental, what architecture needs refinement,

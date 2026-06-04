@@ -94,6 +94,16 @@ The twelve v4.0.0 stable contracts remain stable and unchanged through v4.8.2.
 No v5.0 release is currently scheduled. Future contract promotions and major
 version decisions will be documented here when they are planned.
 
+## v4.9.x AI Shell Train
+
+The v4.9.x AI shell train (v4.9.0–v4.9.3) is complete as of v4.9.3. The train
+added zero new stable contracts. All new v4.9 surfaces (`sac shell`, overview,
+router, session state, `sac smoke ai-shell`) are EXPERIMENTAL.
+
+The twelve v4.0.0 stable contracts remain stable and unchanged through v4.9.3.
+No deferred surface (IDE JSON-RPC, TUI, HTML report, sandbox real-execution) was
+promoted in v4.9. v4.9 does not schedule v5.
+
 ## Policy Changelog
 
 | Version | Change |
@@ -102,3 +112,4 @@ version decisions will be documented here when they are planned.
 | v3.99.0 | Policy wording clarified for patch/minor/major semantics and v4.0 churn budget. |
 | v4.0.0 | Contract cut honored the budget: zero new v4 stable contracts and zero v3.0 breaking changes. |
 | v4.8.2 | v4.x shell-first train closed. Zero new stable contracts added in v4.1–v4.8. No v5.0 currently scheduled. |
+| v4.9.3 | v4.9 AI shell train closed. Zero new stable contracts added in v4.9.0–v4.9.3. No v5.0 scheduled. |
