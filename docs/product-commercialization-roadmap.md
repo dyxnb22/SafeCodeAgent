@@ -11,6 +11,14 @@ v3.6.6 documentation cut is
 `docs/version-plans/v3.7-to-v4.0-product-roadmap.md`, with the current
 readiness baseline in `docs/commercial-v1-readiness-audit-v3.6.6.md`.
 
+Planning update, 2026-06-04: the v3.7-to-v4.0 execution plan closed at the
+v4.0.0 contract cut. This document remains the commercial architecture
+reference, but the active forward execution plan is now
+`docs/version-plans/v4.1-to-v4.8-shell-first-roadmap.md`, scoped to
+shell-first functional completeness rather than commercialization. The
+current readiness baseline is
+`docs/commercial-v1-readiness-audit-v3.11.x.md`.
+
 This roadmap analyzes SafeCode Agent as a commercial-grade local coding agent
 product, not merely as a local safety runtime. It identifies what is solid,
 what is incomplete, what is experimental, what architecture needs refinement,

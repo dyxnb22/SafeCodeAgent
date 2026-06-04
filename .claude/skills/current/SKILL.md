@@ -5,13 +5,15 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v4.0.0
+# Current Baseline - v4.0.1
 
 ## Status
-Implemented. Git baseline: tag `v4.0.0`. Local working version: `v4.0.0`.
+Implemented. Git baseline: tag `v4.0.1`. Local working version: `v4.0.1`.
 
 ## Stage
-`v4.0.0` contract-cut — T-4.0.0-A v4-contract-cut: applies the v3.99.1 promotion decisions without runtime feature work. `docs/public-contracts.md` records the v4.0.0 contract cut: no new stable contracts promoted at v4.0.0, zero breaking changes to v3.0 public contracts, CLI JSON envelope and MCP read execution preserved as already-stable v3.x contracts, and IDE JSON-RPC/TUI/HTML report/sandbox real-execution opt-in deferred or rejected as documented. `docs/commercial-v1-readiness-audit-v3.11.x.md` and `docs/versioning-policy.md` agree with the final result.
+`v4.0.1` post-v4-roadmap-metadata-alignment — documentation and metadata patch only. `README.md`, `.claude/versions.json`, `docs/version_implementation_matrix.md`, `docs/product-commercialization-roadmap.md`, and `uv.lock` now agree that the active forward plan is `docs/version-plans/v4.1-to-v4.8-shell-first-roadmap.md`, with `docs/version-plans/v3.7-to-v4.0-product-roadmap.md` preserved as the previous plan and `docs/commercial-v1-readiness-audit-v3.11.x.md` as the current readiness baseline. No runtime behavior changes and no stable contract changes.
+
+Previous: `v4.0.0` contract-cut — T-4.0.0-A v4-contract-cut: applies the v3.99.1 promotion decisions without runtime feature work. `docs/public-contracts.md` records the v4.0.0 contract cut: no new stable contracts promoted at v4.0.0, zero breaking changes to v3.0 public contracts, CLI JSON envelope and MCP read execution preserved as already-stable v3.x contracts, and IDE JSON-RPC/TUI/HTML report/sandbox real-execution opt-in deferred or rejected as documented. `docs/commercial-v1-readiness-audit-v3.11.x.md` and `docs/versioning-policy.md` agree with the final result.
 
 Previous: `v3.99.1` promotion-decisions — T-3.99.1-A promotion-decision-pass: `docs/public-contracts.md` records v4.0 candidate decisions with evidence. CLI `--json` envelope and MCP read execution are treated as already-stable promotions from v3.7.2/v3.8.2; IDE JSON-RPC, `sac report html`, and sandbox real-execution opt-in are deferred; TUI stable promotion is rejected for v4.0. `tests/test_public_contract_snapshots.py` pins the decision table and verifies deferred surfaces are not stable-contract headings. No runtime features or new stable contracts added in v3.99.1.
 

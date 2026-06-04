@@ -56,9 +56,11 @@ For LLM provider configuration and contract details, see [docs/providers.md](doc
 For release versioning semantics and the v4.0 contract churn budget, see [docs/versioning-policy.md](docs/versioning-policy.md).
 For the post-v3.0 commercial product architecture reference, see
 [docs/product-commercialization-roadmap.md](docs/product-commercialization-roadmap.md).
-For the active post-v3.6.6 execution plan, see
-[docs/version-plans/v3.7-to-v4.0-product-roadmap.md](docs/version-plans/v3.7-to-v4.0-product-roadmap.md)
-and the readiness audit
+For the active post-v4.0.0 shell-first execution plan, see
+[docs/version-plans/v4.1-to-v4.8-shell-first-roadmap.md](docs/version-plans/v4.1-to-v4.8-shell-first-roadmap.md).
+The previous v3.7→v4.0 plan is preserved at
+[docs/version-plans/v3.7-to-v4.0-product-roadmap.md](docs/version-plans/v3.7-to-v4.0-product-roadmap.md);
+the v4.0 readiness audit is
 [docs/commercial-v1-readiness-audit-v3.11.x.md](docs/commercial-v1-readiness-audit-v3.11.x.md).
 For why SafeCode, see [docs/why-safecode.md](docs/why-safecode.md).
 For a comparison with other approaches, see [docs/compare.md](docs/compare.md).
