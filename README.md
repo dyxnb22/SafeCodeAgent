@@ -83,6 +83,10 @@ sac apply
 sac rollback --last
 sac fix                             # run last failing test, propose a repair patch
 sac fix --test-command "go test ./..."  # override test command
+sac fix --watch                     # [EXPERIMENTAL] one approval-gated test-fix loop step
+sac fix --watch --max-iterations 5  # [EXPERIMENTAL] cap proposals for the current task
+sac fix --watch --rerun-suite all   # [EXPERIMENTAL] rerun profile suites through policy
+sac fix --timeout-seconds 60        # [EXPERIMENTAL] override test/suite command timeout
 sac run "git status --short" --yes
 sac history                         # show recent audit events
 sac history --task <task-id>        # [EXPERIMENTAL] filter by task id
@@ -113,6 +117,20 @@ sac run --suite lint                # run the profile lint command through polic
 sac run --suite typecheck           # run the profile typecheck command through policy
 sac run --suite build               # run the profile build command through policy
 ```
+
+**Fix watch loop (v4.3, EXPERIMENTAL):**
+```bash
+sac fix --watch                     # propose a pending patch, never auto-apply
+sac apply                           # explicit approval step after reviewing the diff
+sac fix --watch                     # rerun and either pass or propose the next pending patch
+sac fix --watch --max-iterations 5
+sac fix --watch --timeout-seconds 60
+sac fix --watch --rerun-suite test
+sac fix --watch --rerun-suite all
+```
+
+`sac fix --watch` is approval-gated: every patch proposal remains pending until
+you explicitly run `sac apply`. All v4.3 fix-watch surfaces are EXPERIMENTAL.
 
 Use `--json` on most commands for machine-readable output:
 ```bash

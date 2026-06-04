@@ -169,6 +169,71 @@ Run `sac profile detect` again after installing the tool to refresh
 
 ---
 
+## Fix Watch Loop Issues (v4.3, EXPERIMENTAL)
+
+### `loop_no_progress`
+
+**Cause:** `sac fix --watch` saw the same bounded redacted failure-tail hash in
+two consecutive failing fix iterations. SafeCode stops instead of proposing
+another patch that is unlikely to move the task forward.
+
+**Fix:**
+- Run `sac status` to inspect the current task and next step.
+- Inspect the failing test output manually.
+- Adjust the task, profile test command, or code before rerunning
+  `sac fix --watch`.
+
+### `command_timeout`
+
+**Cause:** The selected test or suite command exceeded the timeout budget.
+The command exits 124 and SafeCode records `failure_category: command_timeout`.
+
+**Fix:**
+```bash
+sac fix --watch --timeout-seconds 300
+```
+
+If the command normally takes longer, set a larger timeout. If it is hanging,
+run the profile command manually through `sac run --suite test` or inspect the
+test process.
+
+### Max iterations reached
+
+**Cause:** The current task has already recorded the maximum number of fix
+proposals allowed by `--max-iterations` (default 3).
+
+**Fix:**
+- Run `sac status`.
+- Review prior pending/applied patches and the task sidecar.
+- Rerun with a larger budget only after manual inspection:
+  `sac fix --watch --max-iterations 5`.
+
+### Blocked suite command
+
+**Cause:** `sac fix --watch --rerun-suite all` ran a profile suite command that
+SafeCode command policy blocked. High-risk commands remain blocked even when
+selected from the profile.
+
+**Fix:**
+- Run `sac profile show`.
+- Replace the unsafe suite command:
+  `sac profile set lint "ruff check ."`.
+- Rerun `sac fix --watch --rerun-suite all`.
+
+### Missing profile suite
+
+**Cause:** `--rerun-suite all` found no command for one of
+`test`, `lint`, `typecheck`, or `build` in `.sac/project_profile.json`.
+
+**Fix:** Missing suites are skipped rather than treated as failures. To add one:
+
+```bash
+sac profile detect
+sac profile set typecheck "mypy ."
+```
+
+---
+
 ## Getting More Help
 
 - Run `sac --help` for command reference.

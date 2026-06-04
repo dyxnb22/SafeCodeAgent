@@ -1,6 +1,6 @@
 # SafeCode MVP User Guide
 
-This guide covers the v4.2.x path for a new user: install SafeCode, set up
+This guide covers the v4.3.x path for a new user: install SafeCode, set up
 your provider, run a coding task, fix a failing test, and review/apply the
 proposed patches safely.
 
@@ -102,6 +102,38 @@ sac fix --json   # machine-readable output
 
 If tests are already passing, `sac fix` reports success without proposing a patch.
 
+### Approval-gated watch loop (v4.3, EXPERIMENTAL)
+
+`sac fix --watch` runs one bounded test-fix loop step per invocation. It never
+applies patches automatically.
+
+```bash
+sac fix --watch
+# review the pending diff
+sac apply
+sac fix --watch
+```
+
+On failure, watch mode records a task fix-loop iteration and leaves a pending
+patch for review. After you explicitly run `sac apply`, the next
+`sac fix --watch` reruns the selected test or suite. If it passes, the task
+loop state is marked passing/applied. If it still fails, SafeCode may propose a
+follow-up pending patch, still requiring another explicit `sac apply`.
+
+Useful controls:
+
+```bash
+sac fix --watch --max-iterations 5
+sac fix --watch --timeout-seconds 60
+sac fix --watch --rerun-suite test
+sac fix --watch --rerun-suite all
+```
+
+`--rerun-suite all` uses the project profile in deterministic order:
+`test`, `lint`, `typecheck`, `build`. Missing profile suites are skipped with a
+clear note; blocked suite commands stop safely through the existing command
+policy path.
+
 ## Machine-readable output
 
 Most commands support `--json` for scripting:
@@ -111,6 +143,7 @@ sac fix --json
 sac edit "task" --json
 sac ask "question" --json
 sac apply --json
+sac fix --watch --json
 ```
 
 The JSON envelope format is a stable contract (`docs/public-contracts.md` Section 11):

@@ -1,9 +1,12 @@
 """MVP documentation regression tests for v2.0.5."""
 
 from pathlib import Path
+from typer.testing import CliRunner
 
+from safecode.cli import app
 
 ROOT = Path(__file__).resolve().parents[1]
+runner = CliRunner()
 
 
 def test_mvp_user_guide_covers_new_user_path() -> None:
@@ -51,3 +54,33 @@ def test_readme_links_to_mvp_guide_and_first_demo() -> None:
     assert "## First Demo Task" in readme
     assert "sac demo materialize failing-test-repair" in readme
     assert "sac rollback --last" in readme
+
+
+def test_v43_fix_watch_docs_cover_approval_gated_loop() -> None:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    guide = (ROOT / "docs" / "mvp-user-guide.md").read_text(encoding="utf-8")
+    troubleshooting = (ROOT / "docs" / "troubleshooting.md").read_text(encoding="utf-8")
+
+    for text in (readme, guide):
+        assert "sac fix --watch" in text
+        assert "--max-iterations" in text
+        assert "--timeout-seconds" in text
+        assert "--rerun-suite" in text
+        assert "never" in text.lower()
+        assert "sac apply" in text
+
+    for marker in (
+        "loop_no_progress",
+        "command_timeout",
+        "Max iterations reached",
+        "Blocked suite command",
+        "Missing profile suite",
+    ):
+        assert marker in troubleshooting
+
+
+def test_documented_v43_fix_options_exist() -> None:
+    result = runner.invoke(app, ["fix", "--help"])
+    assert result.exit_code == 0
+    for option in ("--watch", "--max-iterations", "--timeout-seconds", "--rerun-suite"):
+        assert option in result.output
