@@ -5,12 +5,14 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v4.2.2
+# Current Baseline - v4.3.0
 
 ## Status
-Implemented. Git baseline: tag `v4.2.2`. Local working version: `v4.2.2`.
+Implemented. Git baseline: tag `v4.3.0`. Local working version: `v4.3.0`.
 
 ## Stage
+`v4.3.0` fix-watch-mode — T-4.3.0-A fix-loop-iteration-record: `TaskIteration` now carries experimental fix-loop metadata (`mode`, `suite`, `exit_code`, `tail_hash`, `pending_patch_path`, `status`, `created_at`) while preserving existing v4.1 fields; `record_fix_on_task()` stores one append-only record per fix proposal/failure using sha256 of a bounded redacted tail; plain `sac fix` records proposed pending-patch details without changing PatchProposal or AuditEvent. T-4.3.0-B fix-watch-mode: `sac fix --watch [--max-iterations N=3] [--rerun-suite test]`; one invocation runs the selected test command, proposes a pending patch on failure, exits with next step `sac apply` then rerun; after apply, a later watch rerun can mark the task passing/applied. `--watch` never auto-applies. JSON output includes task_id, iteration_index, test_command, test_exit_code, pending_patch_path, next_step. 2 new test files plus extended sac fix tests; targeted slice green.
+
 `v4.2.2` project-tooling-doctor-and-docs — T-4.2.2-A doctor-missing-deps: `Doctor._project_tooling_diagnostics()` in `src/safecode/doctor.py`; no profile → single SKIP "run sac profile detect"; with profile → one diagnostic per kind: PASS (detected+binary present), SKIP (not detected or missing_dependency=True); missing tool → SKIP not FAIL; SKIP includes binary name + "sac profile set <kind>" hint; 4 diagnostics per kind (project_tooling_test/_lint/_typecheck/_build); preserves diagnostic substrate contract. T-4.2.2-B v4.2-docs-cut: README "Profile commands (v4.2, EXPERIMENTAL)" section with detect/show/set/clear/run suite; docs/mvp-user-guide.md updated to v4.2.x + full profile flow section; docs/troubleshooting.md missing-tool guidance; all v4.2 surfaces EXPERIMENTAL. 30 new tests; full suite 4005 passed, 2 skipped; contract snapshots green.
 
 Previous: `v4.2.1` run-suite-and-fix-profile — T-4.2.1-A sac-run-suite: `sac run --suite test|lint|typecheck|build`; reads `.sac/project_profile.json`; missing profile → "run sac profile detect" guidance (exit 1); missing kind → actionable next-step (exit 1); auto-approved (treated as --yes=True); high-risk still blocked via policy; exit codes 125/126 per v2.8.8; audit/task wiring unchanged from sac run. T-4.2.1-B fix-uses-profile: `sac fix` precedence: --test-command > profile test command > ProjectTestDetector; profile never auto-set by `sac fix`. 43 new tests; full suite 3991 passed, 2 skipped; contract snapshots green.

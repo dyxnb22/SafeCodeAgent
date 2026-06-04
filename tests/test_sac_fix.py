@@ -195,6 +195,12 @@ class TestFixCLI:
         result = runner.invoke(app, ["fix", "--help"])
         assert "--test-command" in result.output
 
+    def test_fix_watch_flags_exist(self) -> None:
+        result = runner.invoke(app, ["fix", "--help"])
+        assert "--watch" in result.output
+        assert "--max-iterations" in result.output
+        assert "--rerun-suite" in result.output
+
     def test_fix_exits_zero_when_tests_pass(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.chdir(tmp_path)
         with patch("safecode.cli_fix._run_test_command") as mock_run:

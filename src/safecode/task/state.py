@@ -30,12 +30,19 @@ class TaskIteration(BaseModel):
 
     iteration_index: int
     event: str  # e.g. "edit", "fix", "apply", "rollback", "run"
+    mode: str | None = None
     test_command: str | None = None
+    suite: str | None = None
     test_exit_code: int | None = None
+    exit_code: int | None = None
     failure_tail_sha256: str | None = None
+    tail_hash: str | None = None
     pending_patch_id: str | None = None
+    pending_patch_path: str | None = None
+    status: str | None = None
     audit_trace_id: str | None = None
     timestamp: str = Field(default_factory=utc_now_iso)
+    created_at: str = Field(default_factory=utc_now_iso)
 
 
 class TaskState(BaseModel):
