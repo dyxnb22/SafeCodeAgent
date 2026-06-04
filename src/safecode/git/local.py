@@ -80,6 +80,12 @@ def changed_files(project_root: Path) -> tuple[str, ...]:
     return tuple(sorted({_status_path(line) for line in status_porcelain(project_root) if _status_path(line)}))
 
 
+def worktree_has_changes_for_files(project_root: Path, files: list[str]) -> bool:
+    """Return True when any listed file still has uncommitted worktree state."""
+    wanted = {Path(path).as_posix() for path in files}
+    return any(Path(path).as_posix() in wanted for path in changed_files(project_root))
+
+
 def staged_files(project_root: Path) -> tuple[str, ...]:
     output = _run(project_root, ["diff", "--cached", "--name-only"]).stdout
     return tuple(sorted(line for line in output.splitlines() if line.strip()))
@@ -241,4 +247,3 @@ def commit_for_files(project_root: Path, files: list[str]) -> str | None:
 def commit_contains_files_or_checkpoint(project_root: Path, checkpoint: CheckpointMetadata) -> str | None:
     files = [operation.path for operation in checkpoint.file_operations]
     return commit_for_files(project_root, files)
-

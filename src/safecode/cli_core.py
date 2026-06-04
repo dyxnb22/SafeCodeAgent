@@ -313,11 +313,14 @@ def rollback(
     if not force_uncommit:
         try:
             from safecode.checkpoint.manager import CheckpointManager
-            from safecode.git.local import commit_contains_files_or_checkpoint, is_git_repo
+            from safecode.git.local import commit_contains_files_or_checkpoint, is_git_repo, worktree_has_changes_for_files
 
             if is_git_repo(project_root):
                 latest_checkpoint = CheckpointManager(project_root)._load_latest_metadata()
-                committed_sha = commit_contains_files_or_checkpoint(project_root, latest_checkpoint)
+                checkpoint_files = [operation.path for operation in latest_checkpoint.file_operations]
+                committed_sha = None
+                if not worktree_has_changes_for_files(project_root, checkpoint_files):
+                    committed_sha = commit_contains_files_or_checkpoint(project_root, latest_checkpoint)
                 if committed_sha:
                     console.print(
                         "[red]Rollback refused:[/red] latest apply appears committed. "
