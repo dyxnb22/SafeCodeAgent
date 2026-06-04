@@ -81,6 +81,9 @@ sac ask "这个项目是什么？"
 sac edit "给 FastAPI 项目添加 /health 接口"
 sac apply
 sac rollback --last
+sac commit                          # [EXPERIMENTAL] commit files touched by CURRENT task only
+sac branch new <name>               # [EXPERIMENTAL] create/switch local branch without force/reset
+sac diff --task                     # [EXPERIMENTAL] show applied + pending task changes
 sac resume                          # [EXPERIMENTAL] recover an open/interrupted task safely
 sac fix                             # run last failing test, propose a repair patch
 sac fix --test-command "go test ./..."  # override test command
@@ -94,6 +97,22 @@ sac history --task <task-id>        # [EXPERIMENTAL] filter by task id
 sac doctor
 sac version
 ```
+
+**Local Git delivery (v4.5, EXPERIMENTAL):**
+```bash
+sac diff --task                     # read-only task diff; includes pending patch when present
+sac commit --message-from-task      # local commit; stages only CURRENT task files
+sac commit --include-task-summary   # include task iteration trail in the commit body
+sac branch new fix/auth-regression  # create and switch to a new local branch
+```
+
+`sac apply` and `sac commit` include a dirty-tree guard. They refuse unrelated
+tracked or staged changes by default, ignore untracked files outside touched
+directories, and block untracked files inside touched directories. Use
+`--allow-unrelated-changes` only when you have inspected those unrelated
+changes. If a committed apply is later rolled back, `sac rollback --last`
+refuses by default and suggests `git revert <sha>`; `--force-uncommit` is the
+explicit dangerous opt-in. These v4.5 commands are local only and never push.
 
 **Task commands (v4.1, EXPERIMENTAL):**
 ```bash

@@ -1,6 +1,6 @@
 # SafeCode MVP User Guide
 
-This guide covers the v4.4.x path for a new user: install SafeCode, set up
+This guide covers the v4.5.x path for a new user: install SafeCode, set up
 your provider, run a coding task, fix a failing test, and review/apply the
 proposed patches safely.
 
@@ -78,6 +78,35 @@ network gates.
 consecutive tool intents for a task abort with `failure_category: loop_stuck`.
 This is separate from the v4.3 `loop_no_progress` fix-watch guard and is not a
 stable runtime taxonomy.
+
+## Local Git Delivery (v4.5, EXPERIMENTAL)
+
+After a task has produced and applied a patch, the local delivery flow is:
+
+```bash
+sac task new "Fix auth regression"
+sac edit "Fix auth regression"
+sac apply
+sac diff --task
+sac commit --message-from-task
+sac branch new follow-up/auth-cleanup
+```
+
+`sac commit` is task-aware: it stages only files SafeCode can associate with
+the CURRENT task through applied patch, checkpoint, audit, or sidecar metadata.
+If that file set cannot be determined, commit fails closed instead of staging
+the whole worktree. `sac diff --task [<task-id>]` is read-only and shows
+applied plus pending task changes where available.
+
+The dirty-tree guard protects `sac apply` and `sac commit`. Unrelated tracked
+or staged changes are refused by default; untracked files outside touched
+directories are ignored; untracked files inside touched directories are
+blocked. Use `--allow-unrelated-changes` only after manual inspection.
+
+Rollback after a committed apply is conservative. If `sac rollback --last`
+detects that the latest apply appears committed, it refuses and prints a
+`git revert <sha>` hint. The default path never rewrites git history.
+`--force-uncommit` is the explicit dangerous opt-in and records an audit event.
 
 ## Quickstart (fastest path)
 
@@ -191,6 +220,9 @@ sac apply --json
 sac fix --watch --json
 sac resume --json
 sac task budget show --json
+sac commit --json
+sac branch new my-branch --json
+sac diff --task --json
 ```
 
 The JSON envelope format is a stable contract (`docs/public-contracts.md` Section 11):

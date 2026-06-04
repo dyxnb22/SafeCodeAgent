@@ -115,3 +115,39 @@ def test_documented_v44_commands_exist() -> None:
     assert budget_set.exit_code == 0
     for option in ("--steps", "--time-seconds", "--retries", "--tokens"):
         assert option in budget_set.output
+
+
+def test_v45_local_git_docs_cover_delivery_flow() -> None:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    guide = (ROOT / "docs" / "mvp-user-guide.md").read_text(encoding="utf-8")
+    troubleshooting = (ROOT / "docs" / "troubleshooting.md").read_text(encoding="utf-8")
+
+    for text in (readme, guide):
+        assert "sac commit" in text
+        assert "sac branch new" in text
+        assert "sac diff --task" in text
+        assert "dirty-tree guard" in text
+        assert "EXPERIMENTAL" in text
+
+    for marker in (
+        "Dirty unrelated changes",
+        "Rollback after committed apply",
+        "Branch creation refusal",
+        "Unknown task files",
+    ):
+        assert marker in troubleshooting
+
+
+def test_documented_v45_commands_exist() -> None:
+    commit = runner.invoke(app, ["commit", "--help"])
+    assert commit.exit_code == 0
+    for option in ("--message-from-task", "--branch", "--include-task-summary", "--json"):
+        assert option in commit.output
+
+    branch = runner.invoke(app, ["branch", "new", "--help"])
+    assert branch.exit_code == 0
+    assert "--json" in branch.output
+
+    diff = runner.invoke(app, ["diff", "--help"])
+    assert diff.exit_code == 0
+    assert "--task" in diff.output

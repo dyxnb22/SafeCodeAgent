@@ -11,6 +11,7 @@ from rich.syntax import Syntax
 from safecode.cli_shared import console
 from safecode.cli_shared_json import CLIJSONResponse, render_json
 from safecode.context.redactor import redact_secrets
+from safecode.patch.diff import build_unified_diff
 from safecode.git.local import (
     GitError,
     add_files,
@@ -21,6 +22,7 @@ from safecode.git.local import (
     diff_for_files,
     dirty_tree_guard,
     is_git_repo,
+    pending_patch,
     staged_files,
     task_files,
 )
@@ -160,7 +162,19 @@ def _run_diff_task(task_id: Optional[str], *, json_output: bool) -> None:
             data = {"task_id": resolved_id, "files": [], "diff": ""}
         else:
             files = task_files(project_root, task, include_pending=True)
-            diff_text = redact_secrets(diff_for_files(project_root, list(files)))
+            diff_parts: list[str] = []
+            applied_diff = diff_for_files(project_root, list(files))
+            if applied_diff:
+                diff_parts.append(applied_diff)
+            patch = pending_patch(project_root)
+            if patch is not None:
+                try:
+                    pending_diff = build_unified_diff(project_root, patch)
+                    if pending_diff:
+                        diff_parts.append(pending_diff)
+                except Exception:
+                    pass
+            diff_text = redact_secrets("\n".join(diff_parts))
             data = {"task_id": task.task_id, "files": list(files), "diff": diff_text}
     except GitError as exc:
         if json_output:

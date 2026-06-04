@@ -5,13 +5,15 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v4.5.1
+# Current Baseline - v4.5.2
 
 ## Status
-Implemented. Git baseline: tag `v4.5.1`. Local working version: `v4.5.1`.
+Implemented. Git baseline: tag `v4.5.2`. Local working version: `v4.5.2`.
 
 ## Stage
-`v4.5.1` branch-and-rollback-commit-guard — T-4.5.1-A sac-branch-new: experimental `sac branch new <name> [--json]` validates branch names with local checks plus `git check-ref-format --branch`, refuses existing branches, refuses dirty unrelated changes, creates/switches without force, and never resets. T-4.5.1-B rollback-after-commit-warn: `sac rollback --last` conservatively detects when the latest checkpoint files appear committed, refuses by default with a `git revert <sha>` hint, and supports explicit `--force-uncommit` with an audit event carrying `commit_sha`. Uncommitted rollback behavior is unchanged. All v4.5.1 surfaces are EXPERIMENTAL; no stable contract promoted.
+`v4.5.2` task-diff-and-local-git-docs — T-4.5.2-A sac-diff-task: experimental `sac diff --task [<task_id>] [--json]` is read-only, resolves omitted task id from CURRENT, combines applied task file diffs with pending patch previews where available, redacts output, returns deterministic file ordering, and returns an empty result for missing/no-file tasks. T-4.5.2-B v4.5-docs-cut: README, MVP guide, troubleshooting, matrix, and version note document local delivery (`task -> edit/fix -> apply -> diff/commit -> optional branch`) plus dirty-tree, rollback-after-commit, branch refusal, and unknown task-file guidance. All v4.5 surfaces remain EXPERIMENTAL; no stable contract promoted.
+
+Previous: `v4.5.1` branch-and-rollback-commit-guard — T-4.5.1-A sac-branch-new: experimental `sac branch new <name> [--json]` validates branch names with local checks plus `git check-ref-format --branch`, refuses existing branches, refuses dirty unrelated changes, creates/switches without force, and never resets. T-4.5.1-B rollback-after-commit-warn: `sac rollback --last` conservatively detects when the latest checkpoint files appear committed, refuses by default with a `git revert <sha>` hint, and supports explicit `--force-uncommit` with an audit event carrying `commit_sha`. Uncommitted rollback behavior is unchanged. All v4.5.1 surfaces are EXPERIMENTAL; no stable contract promoted.
 
 Previous: `v4.5.0` local-commit-and-dirty-tree-guard — T-4.5.0-A sac-commit: new experimental `sac commit [--message-from-task] [--branch <name>] [--include-task-summary] [--json]` stages only files derived from the current task's applied checkpoint/audit metadata and refuses when that file set cannot be determined. Local Git helpers live in `src/safecode/git/local.py` and use argv-only `subprocess.run([...], shell=False)`; no push or remote operations. T-4.5.0-B dirty-tree-guard: `sac apply` and `sac commit` refuse unrelated tracked/staged changes, ignore untracked files outside touched directories, block untracked files inside touched directories, and allow explicit `--allow-unrelated-changes`. All v4.5.0 surfaces are EXPERIMENTAL; no stable contract promoted.
 

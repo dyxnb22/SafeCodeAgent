@@ -125,6 +125,52 @@ was already consumed.
 
 ---
 
+## Local Git Delivery Issues (v4.5, EXPERIMENTAL)
+
+### Dirty unrelated changes
+
+**Cause:** `sac apply` or `sac commit` found unrelated tracked or staged
+changes outside the current task files. Untracked files inside directories
+touched by the task patch are also blocked.
+
+**Fix:**
+- Run `git status --short` and inspect the unrelated files.
+- Commit or stash unrelated tracked changes before retrying.
+- Use `--allow-unrelated-changes` only after manual inspection.
+
+### Rollback after committed apply
+
+**Cause:** `sac rollback --last` detected that the latest apply appears to
+already be committed.
+
+**Fix:** Prefer the printed `git revert <sha>` hint. The default rollback path
+never rewrites git history. Use `sac rollback --last --force-uncommit` only
+when you intentionally want SafeCode to restore files from the checkpoint and
+record the dangerous opt-in audit event.
+
+### Branch creation refusal
+
+**Cause:** `sac branch new <name>` refuses invalid branch names, existing
+branches, and dirty unrelated tracked changes. It never force-creates and never
+resets.
+
+**Fix:**
+- Choose a valid branch name accepted by `git check-ref-format --branch`.
+- Pick a branch name that does not already exist.
+- Clean or stash unrelated tracked changes, then rerun.
+
+### Unknown task files for commit or diff
+
+**Cause:** SafeCode could not derive a task file set from pending patch,
+applied checkpoint, audit, or task sidecar metadata.
+
+**Fix:**
+- Run `sac status` and confirm the intended task is CURRENT.
+- Use `sac diff --task <task-id>` with an explicit task id.
+- If no SafeCode metadata exists for those files, commit manually with git.
+
+---
+
 ## Runtime Logs
 
 For detailed error context:
