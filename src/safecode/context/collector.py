@@ -98,6 +98,8 @@ class ContextCollector:
             return None
         if path.stat().st_size > self.config.max_file_bytes:
             return None
+        if self._looks_binary(path):
+            return None
 
         lines: list[str] = []
         with path.open("r", encoding="utf-8", errors="replace") as file:
@@ -156,7 +158,8 @@ class ContextCollector:
         """Select and include small snippets for files related to the query."""
         from safecode.context.selector import ContextSelector
 
-        sources = ContextSelector(self.project_root).select_sources(query, limit=5)
+        selector = ContextSelector(self.project_root)
+        sources = selector.select_sources(query, limit=5)
         snippets = {
             source.path: self._read_limited(source.path, max_lines=min(self.config.max_file_lines, 80))
             for source in sources
@@ -164,4 +167,13 @@ class ContextCollector:
         return {
             "sources": [asdict(source) for source in sources],
             "snippets": {path: text for path, text in snippets.items() if text is not None},
+            "warnings": selector.last_warnings,
         }
+
+    def _looks_binary(self, path: Path) -> bool:
+        """Detect obvious binary files without reading them into text context."""
+        try:
+            with path.open("rb") as file:
+                return b"\0" in file.read(1024)
+        except OSError:
+            return True

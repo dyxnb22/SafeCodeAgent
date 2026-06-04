@@ -13,6 +13,7 @@ from safecode.agent.orchestrator import AgentOrchestrator
 from safecode.cli_shared import console, log_cli_error
 from safecode.cli_shared_json import CLIJSONResponse, render_json
 from safecode.context.redactor import redact_secrets
+from safecode.memory.facade import MemoryFacade
 from safecode.patch.parser import PatchParseError
 from safecode.patch.validator import PatchValidationError
 from safecode.project.test_detector import ProjectTestDetector
@@ -147,13 +148,58 @@ def _select_test_command(project_root: Path, test_command: Optional[str] = None)
     return candidates[0].command, None
 
 
-def _failure_task_text(cmd: str, exit_code: int, redacted_output: str) -> str:
-    return (
+def _failure_task_text(cmd: str, exit_code: int, redacted_output: str, recent_context: str = "") -> str:
+    text = (
         f"Fix the failing test.\n"
         f"Test command: {cmd}\n"
         f"Exit code: {exit_code}\n\n"
         f"Failure output:\n{redacted_output}"
     )
+    if recent_context:
+        text += f"\n\nRecent failure memory:\n{recent_context}"
+    return text
+
+
+def _record_recent_failure_memory(
+    project_root: Path,
+    *,
+    task_id: str | None,
+    command: str,
+    exit_code: int,
+    redacted_output: str,
+    suite: str | None = None,
+) -> None:
+    try:
+        MemoryFacade(project_root).record_failure(
+            task_id=task_id,
+            command=command,
+            exit_code=exit_code,
+            tail=redacted_output,
+            suite=suite,
+        )
+    except Exception:
+        pass
+
+
+def _recent_failure_memory_context(project_root: Path) -> str:
+    try:
+        entries = MemoryFacade(project_root).read_recent_failures(limit=3)
+    except Exception:
+        return ""
+    lines: list[str] = []
+    for index, entry in enumerate(entries, start=1):
+        command = str(entry.get("command", ""))
+        suite = str(entry.get("suite") or "")
+        exit_code = str(entry.get("exit_code", ""))
+        tail_hash = str(entry.get("tail_hash", ""))[:12]
+        summary = str(entry.get("tail_summary", ""))[-800:]
+        header = f"{index}. command={command!r} exit_code={exit_code} tail_hash={tail_hash}"
+        if suite:
+            header += f" suite={suite!r}"
+        lines.append(header)
+        if summary:
+            lines.append(f"   tail: {summary}")
+    return "\n".join(lines)
 
 
 def _json_fix_watch(
@@ -244,6 +290,14 @@ def run_fix(
 
     # Step 3 & 4: redact failure context
     redacted_output = redact_secrets(raw_output)
+    _record_recent_failure_memory(
+        project_root,
+        task_id=fix_task_id,
+        command=cmd,
+        exit_code=exit_code,
+        redacted_output=redacted_output,
+        suite="test",
+    )
     if exit_code == 124:
         if fix_task_id:
             try:
@@ -275,12 +329,7 @@ def run_fix(
         else:
             console.print(f"[red]{msg}[/red]")
         return 124
-    fix_task_str = (
-        f"Fix the failing test.\n"
-        f"Test command: {cmd}\n"
-        f"Exit code: {exit_code}\n\n"
-        f"Failure output:\n{redacted_output}"
-    )
+    fix_task_str = _failure_task_text(cmd, exit_code, redacted_output, _recent_failure_memory_context(project_root))
 
     if not json_output:
         console.print(f"[yellow]Test failed (exit {exit_code}). Proposing a fix...[/yellow]")
@@ -424,6 +473,15 @@ def run_fix_watch(
     cmd = run.command or cmd
     raw_output, exit_code = run.output, run.exit_code
     redacted_output = redact_secrets(raw_output)
+    if exit_code != 0:
+        _record_recent_failure_memory(
+            project_root,
+            task_id=task_id,
+            command=cmd,
+            exit_code=exit_code,
+            redacted_output=redacted_output,
+            suite=run.suite if rerun_suite == "all" else rerun_suite,
+        )
 
     if exit_code == 0:
         iteration_index = task_state.next_iteration_index() if task_state else None
@@ -638,7 +696,9 @@ def run_fix_watch(
         console.print(f"[yellow]Test failed (exit {exit_code}). Proposing a pending patch...[/yellow]")
 
     try:
-        edit_result = AgentOrchestrator(project_root).edit(_failure_task_text(cmd, exit_code, redacted_output))
+        edit_result = AgentOrchestrator(project_root).edit(
+            _failure_task_text(cmd, exit_code, redacted_output, _recent_failure_memory_context(project_root))
+        )
     except KeyboardInterrupt:
         mark_task_interrupted(project_root, command_name="fix --watch", hint=cmd, task_id=task_id)
         if json_output:

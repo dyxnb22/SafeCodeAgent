@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from safecode.index.files import FileIndexer
+from safecode.memory.facade import MemoryFacade
 
 _RECENCY_BONUS = 2
 _GIT_LOG_N = 50
@@ -69,6 +70,7 @@ class ContextSelector:
     def __init__(self, project_root: Path) -> None:
         self.project_root = project_root
         self._recency_cache = _RecencyCache()
+        self.last_warnings: dict[str, list[str]] = {}
 
     def _recent_files(self) -> frozenset[str]:
         """Return recently git-touched file names, cached by HEAD."""
@@ -85,27 +87,73 @@ class ContextSelector:
 
     def select_sources(self, query: str, limit: int = 10) -> list[SelectedContextSource]:
         """Return ranked file sources; recently git-touched files get a score bonus."""
+        self.last_warnings = {}
+        if limit <= 0:
+            return []
         tokens = {part.lower() for part in query.replace("/", " ").replace("_", " ").split() if part}
         indexed = FileIndexer(self.project_root).index()
+        indexed_paths = {item.path for item in indexed}
         recent = self._recent_files()
         scored: list[SelectedContextSource] = []
-        for item in indexed:
-            path_text = item.path.lower()
-            matched = sorted(token for token in tokens if token in path_text)
-            if not matched:
-                continue
-            base_score = len(matched)
-            file_name = Path(item.path).name
-            is_recent = item.path in recent or file_name in recent
-            bonus = _RECENCY_BONUS if is_recent else 0
-            reason = f"path matched: {', '.join(matched)}"
-            if is_recent:
-                reason += "; recently modified"
-            scored.append(
-                SelectedContextSource(
-                    path=item.path,
-                    score=base_score + bonus,
-                    reason=reason,
+        if tokens:
+            for item in indexed:
+                path_text = item.path.lower()
+                matched = sorted(token for token in tokens if token in path_text)
+                if not matched:
+                    continue
+                base_score = len(matched)
+                file_name = Path(item.path).name
+                is_recent = item.path in recent or file_name in recent
+                bonus = _RECENCY_BONUS if is_recent else 0
+                reason = f"path matched: {', '.join(matched)}"
+                if is_recent:
+                    reason += "; recently modified"
+                scored.append(
+                    SelectedContextSource(
+                        path=item.path,
+                        score=base_score + bonus,
+                        reason=reason,
+                    )
                 )
-            )
-        return sorted(scored, key=lambda source: (-source.score, source.path))[:limit]
+        ranked = sorted(scored, key=lambda source: (-source.score, source.path))
+        pinned = self._pinned_sources(indexed_paths, limit)
+        pinned_paths = {source.path for source in pinned}
+        keyword_quota = max(limit - len(pinned), 0)
+        selected = [source for source in ranked if source.path not in pinned_paths][:keyword_quota]
+        selected.extend(pinned)
+        return selected[:limit]
+
+    def _pinned_sources(self, indexed_paths: set[str], limit: int) -> list[SelectedContextSource]:
+        """Return pinned sources that still pass safe indexing."""
+        facade = MemoryFacade(self.project_root)
+        quota = max(1, limit // 4)
+        missing: list[str] = []
+        invalid: list[str] = []
+        sources: list[SelectedContextSource] = []
+
+        for raw_pin in facade.read_pinned_files():
+            try:
+                pin = facade.normalize_project_path(raw_pin)
+            except ValueError:
+                invalid.append(raw_pin)
+                continue
+            if pin not in indexed_paths:
+                if not (self.project_root / pin).exists():
+                    missing.append(pin)
+                continue
+            if self._looks_binary(self.project_root / pin):
+                continue
+            sources.append(SelectedContextSource(path=pin, score=1, reason="pinned file"))
+
+        if missing:
+            self.last_warnings["pinned_missing"] = sorted(missing)
+        if invalid:
+            self.last_warnings["pinned_invalid"] = sorted(invalid)
+        return sorted(sources, key=lambda source: source.path)[:quota]
+
+    def _looks_binary(self, path: Path) -> bool:
+        try:
+            with path.open("rb") as file:
+                return b"\0" in file.read(1024)
+        except OSError:
+            return True
