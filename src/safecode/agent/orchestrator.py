@@ -20,6 +20,7 @@ from safecode.patch.parser import PatchParser
 from safecode.patch.validator import PatchValidator
 from safecode.trace.events import TraceLogger
 from safecode.utils.time import utc_now_iso
+from safecode.metrics.writer import make_metrics_writer
 
 
 @dataclass
@@ -69,6 +70,7 @@ class AgentOrchestrator:
         self.llm_client = llm_client if llm_client is not None else create_llm_client(self.config)
         self.audit_logger = AuditLogger(project_root, self.config)
         self.trace_logger = TraceLogger(project_root)
+        self._metrics = make_metrics_writer(project_root, session_id="orchestrator")
 
     def ask(self, question: str) -> str:
         """Return a read-only answer about the current project."""
@@ -91,6 +93,7 @@ class AgentOrchestrator:
         """Generate and store a pending patch proposal."""
         trace_id = self.trace_logger.new_trace_id()
         self.trace_logger.write(trace_id, "edit.start", task)
+        self._metrics.record_step_start(0, tool_intent="edit")
 
         planner = DiffPlanner()
         diff_plan = planner.predict(task)
@@ -121,6 +124,8 @@ class AgentOrchestrator:
                 metadata=audit_metadata,
             )
         )
+        self._metrics.record_pending_patch(0, patch_response.patch_text)
+        self._metrics.record_step_end(0, tool_intent="edit")
         return EditResult(
             proposal=proposal,
             diff_text=diff_text,

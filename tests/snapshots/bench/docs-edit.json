@@ -1,0 +1,8 @@
+{
+  "failure_reasons": [],
+  "fixture_name": "docs-edit",
+  "passed": true,
+  "patch_output_hash": "9f893a26d664228c83613d75d789d907ba56084207a296b574207de836294163",
+  "step_count": 2,
+  "wall_time_seconds": 0.0539
+}

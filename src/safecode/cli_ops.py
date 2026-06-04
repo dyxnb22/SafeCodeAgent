@@ -15,6 +15,7 @@ from safecode.doctor import Doctor
 from safecode.eval.cases import default_cases
 from safecode.eval.runner import EvalRunner
 from safecode.eval.loop_runner import LoopModeEvalRunner, default_loop_fixtures
+from safecode.eval.bench import EvalBenchRunner, render_bench_summary
 from safecode.export.bundle import Exporter
 from safecode.hooks.approvals import HookApprovalStore
 from safecode.ide.bridge import pending_diff_target, selected_file_targets
@@ -95,11 +96,13 @@ def export_report(output: Path = typer.Option(Path(".sac/reports/latest.md"), "-
 
 @ops_app.command("eval")
 def eval_demo(
-    mode: str = typer.Option("default", "--mode", help="Eval mode: default or loop."),
+    mode: str = typer.Option("default", "--mode", help="Eval mode: default, loop, or bench."),
+    update_baseline: bool = typer.Option(False, "--update-baseline", help="Overwrite bench baseline snapshots."),
 ) -> None:
     """Run lightweight local eval cases.
 
     --mode loop runs realistic scripted agent-loop fixtures (no real LLM).
+    --mode bench runs eval bench and collects timing/hash metrics per fixture.
     """
     if mode == "loop":
         fixtures = default_loop_fixtures()
@@ -118,6 +121,11 @@ def eval_demo(
             table.add_row(r.fixture_name, "yes" if r.passed else "no", r.stopped_reason, failures)
         console.print(table)
         raise typer.Exit(code=0 if all_passed else 1)
+    elif mode == "bench":
+        bench_runner = EvalBenchRunner()
+        summary = bench_runner.run_all(update_baseline=update_baseline)
+        console.print(render_bench_summary(summary))
+        raise typer.Exit(code=0 if summary.all_passed else 1)
     else:
         results_legacy = EvalRunner(Path.cwd()).run(default_cases())
         table = Table(title="SafeCode Eval")

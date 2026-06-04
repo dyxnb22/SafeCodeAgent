@@ -1,0 +1,8 @@
+{
+  "failure_reasons": [],
+  "fixture_name": "test-assertion-fix",
+  "passed": true,
+  "patch_output_hash": "4174ed8f64759a2232ce651fcc059e42128f73db3a084533001867c74c1849d3",
+  "step_count": 2,
+  "wall_time_seconds": 0.0542
+}

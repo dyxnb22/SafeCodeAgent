@@ -1,0 +1,8 @@
+{
+  "failure_reasons": [],
+  "fixture_name": "config-update-fix",
+  "passed": true,
+  "patch_output_hash": "b18d3aa388af99ecc8bf3466b489bbc520a002c9634eb70313f8192f91fe1217",
+  "step_count": 2,
+  "wall_time_seconds": 0.0427
+}

@@ -5,13 +5,15 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v3.9.3
+# Current Baseline - v3.10.0
 
 ## Status
-Implemented. Git baseline: tag `v3.9.3`. Local working version: `v3.9.3`.
+Implemented. Git baseline: tag `v3.10.0`. Local working version: `v3.10.0`.
 
 ## Stage
-`v3.9.3` v3.9.x docs cut — Documentation-only. `README.md` install section updated (local dev, pipx, TestPyPI, offline wheel); Release Flow updated (sync-versions-json step, tag-move pattern, TestPyPI/production publish commands); "IDE and TUI Status" section added. `docs/install-update.md` reflects all v3.9.x additions (signing mechanism, TestPyPI rehearsal, pipx). Version matrix rows v3.9.0–v3.9.3 complete. Claims-vs-implementation table in version note. No runtime changes. Full suite: 3647 passed, 2 skipped.
+`v3.10.0` eval-bench-metrics — T-3.10.0-A `sac eval bench`: new `src/safecode/eval/bench.py`; `EvalBenchRunner` collects wall time, step count, pending-patch hash per fixture; baseline snapshots under `tests/snapshots/bench/`; ±20% tolerance; mocked-clock injectable for deterministic CI; `sac eval --mode bench` and `--update-baseline` CLI; 27 new tests in `tests/test_eval_bench.py`. T-3.10.0-B live-session-metrics: new `src/safecode/metrics/writer.py`; `MetricsWriter` writes JSONL to `.sac/metrics.jsonl`; disabled by default; `SAFECODE_METRICS=1` opt-in; captures step start/end, tool intent, pending patch size (byte count only), retry; 1 MiB size bound; never raises; minimal wiring in `AgentOrchestrator.edit()`; 26 new tests in `tests/test_metrics_writer.py`. Full suite: 3700 passed, 2 skipped.
+
+Previous: `v3.9.3` v3.9.x docs cut — Documentation-only. `README.md` install section updated (local dev, pipx, TestPyPI, offline wheel); Release Flow updated (sync-versions-json step, tag-move pattern, TestPyPI/production publish commands); "IDE and TUI Status" section added. `docs/install-update.md` reflects all v3.9.x additions (signing mechanism, TestPyPI rehearsal, pipx). Version matrix rows v3.9.0–v3.9.3 complete. Claims-vs-implementation table in version note. No runtime changes. Full suite: 3647 passed, 2 skipped.
 
 Previous: `v3.9.2` VS Code extension VSIX + TUI decision — `vscode-extension/` subtree with `package.json`, TypeScript entrypoint (`src/extension.ts`), `tsconfig.json`, `.vscodeignore`; extension spawns `sac api jsonrpc` via stdio; approval prompt is VS Code modal; no telemetry; no marketplace publish. **VSIX build deferred** (tsc absent; manual smoke procedure in version note). `tests/test_ide_extension_manifest_contract.py` (24 tests) enforces parity between `vscode-extension/package.json` and `src/safecode/ide/manifest.py`. TUI decision = **freeze experimental** (Option B; no Textual); `docs/public-contracts.md` updated; `TestTUIFrozenExperimental` (5 tests). Full suite: 3647 passed, 2 skipped.
 

@@ -1,0 +1,8 @@
+{
+  "failure_reasons": [],
+  "fixture_name": "python-function-fix",
+  "passed": true,
+  "patch_output_hash": "a318fb851f3bb20f431f1344478a5ae59badd58228b449a6a1bb1730af4cbc4f",
+  "step_count": 2,
+  "wall_time_seconds": 0.047
+}

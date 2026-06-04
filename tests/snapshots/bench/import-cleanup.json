@@ -1,0 +1,8 @@
+{
+  "failure_reasons": [],
+  "fixture_name": "import-cleanup",
+  "passed": true,
+  "patch_output_hash": "02264679149b54d7f03964cab5e63715e8aade55bded88257e55582f329fb4d8",
+  "step_count": 2,
+  "wall_time_seconds": 0.049
+}

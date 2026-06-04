@@ -1,0 +1,8 @@
+{
+  "failure_reasons": [],
+  "fixture_name": "shell-readonly-check",
+  "passed": true,
+  "patch_output_hash": null,
+  "step_count": 2,
+  "wall_time_seconds": 0.0442
+}
