@@ -239,6 +239,32 @@ replace the legitimate release on PyPI.
 
 ---
 
+## v4.x Shell-First Addendum (v4.1–v4.8)
+
+The v4.x train added the following surfaces. All remain EXPERIMENTAL and do not
+change the fundamental threat model described above. No new trust boundaries were
+introduced and no existing safety gate was weakened.
+
+**New experimental surfaces and their threat-model implications:**
+
+| Surface | Threat-model note |
+|---|---|
+| `sac task` / `.sac/tasks/` | Task sidecars are local files under `sac_dir`; they are redacted on read paths; task IDs are short slugs, not user-controlled paths; `task_id` stuffed into audit metadata does not change the audit event field set. |
+| `sac status` | Read-only; never writes audit events. |
+| `sac profile` / `.sac/project_profile.json` | Profile detection never executes project commands; user overrides always win; project profile cannot lower user-level policy. |
+| `sac resume` | Passive; never auto-runs `edit`, `fix`, `apply`, or a shell command; always prints redacted summary only. |
+| `sac commit` / `sac branch new` | Local git only; no push, no remote operations; dirty-tree guard refuses unrelated changes; `--force-uncommit` requires explicit opt-in and emits an audit event. |
+| `sac memory` / `.sac/memory/` | Writes reject obvious secrets; reads are redacted; pinned files still pass through ignore, sensitive-file, binary, and project-root gates; memory cannot enable network or lower policy. |
+| `sac debug last-failure` / `sac audit query` | Read-only; never executes project commands; output is redacted. |
+| `sac debug bundle` | Writes a single tar.gz containing SafeCode metadata only; excludes project source code; refuses overwrite without `--force`; capped at 5 MiB. |
+| `sac smoke shell-first` | Test-only surface; uses mock provider; no real LLM calls; hidden from root help; all scenarios run in temporary directories. |
+| `sac fix --watch` | Never auto-applies patches; every proposal remains pending until explicit `sac apply`; failure categories are informational and do not bypass policy. |
+
+The v4.x train is now complete as of v4.8.2. The next scheduled threat-model
+review is the semi-annual review below.
+
+---
+
 ## Review Cadence
 
 This document should be reviewed:

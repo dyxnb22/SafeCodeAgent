@@ -68,6 +68,7 @@ For troubleshooting help, see [docs/troubleshooting.md](docs/troubleshooting.md)
 For context budget configuration, see [docs/context-budgets.md](docs/context-budgets.md).
 
 **Per-stack tutorials**:
+- [Python: First Hour](docs/tutorials/python-first-hour.md)
 - [TypeScript: First Hour](docs/tutorials/typescript-first-hour.md)
 - [Go: First Hour](docs/tutorials/go-first-hour.md)
 
@@ -212,6 +213,31 @@ sac task budget set --steps 8 --time-seconds 600 --retries 2 --tokens 60000
 during `sac edit`, `sac fix`, `sac fix --watch`, or `sac run` marks the task
 interrupted and prints `resume with: sac resume`. Budgets and stuck-loop
 categories are experimental and do not change command policy or approval gates.
+
+**Task-first daily loop (v4.x, EXPERIMENTAL):**
+
+The v4.x shell-first flow links every command into one task-scoped session:
+
+```bash
+sac quickstart                      # detect stack, see demo, print next steps
+sac task new "Add /health endpoint" # create task, set as CURRENT
+sac profile detect                  # detect test/lint/typecheck/build commands
+sac status                          # check CURRENT task state and next step
+sac ask "explain the auth flow"     # read-only LLM question, no patch
+sac edit "Add the /health endpoint" # propose patch, preview diff, await approval
+# — or use the fix-watch loop —
+sac fix --watch                     # run tests, propose repair patch on failure
+sac apply                           # explicit approval: checkpoint + apply patch
+sac commit --message-from-task      # local commit: CURRENT task files only
+sac debug last-failure              # summarize last redacted failure, never executes
+sac debug bundle --out debug.tgz    # redacted SafeCode metadata bundle, no source
+```
+
+The root CLI surface is trimmed to 17 visible daily-loop commands: `setup`,
+`quickstart`, `status`, `task`, `ask`, `edit`, `fix`, `apply`, `rollback`,
+`run`, `commit`, `profile`, `resume`, `memory`, `debug`, `doctor`, `version`.
+All v4.x additions remain EXPERIMENTAL. The v4.x shell-first train is complete
+as of v4.8.2. No v5.0 release is currently scheduled.
 
 Use `--json` on most commands for machine-readable output:
 ```bash

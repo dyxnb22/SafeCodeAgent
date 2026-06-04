@@ -16,6 +16,23 @@ v4.0.0 is a contract cut, not a runtime feature release.
 - **Deferred/rejected at v4.0.0:** IDE JSON-RPC, TUI interactive,
   `sac report html`, and sandbox real-execution opt-in.
 
+## v4.x Series (v4.0–v4.8) Contract Summary
+
+The v4.x shell-first train (v4.0–v4.8) is now complete. It added zero new stable
+contracts. All new v4.1–v4.8 surfaces remain explicitly experimental:
+
+- `sac task`, `sac status`, `sac profile`, `sac resume`, `sac commit`,
+  `sac branch new`, `sac diff --task`, `sac memory`, `sac debug`,
+  `sac audit query`, `sac smoke`.
+- `.sac/tasks/`, `.sac/memory/`, `.sac/project_profile.json` file layouts.
+- Failure category enumeration in runtime logs.
+- Per-task budget configuration.
+- `sac fix --watch` behavior.
+
+The twelve stable contracts from v4.0.0 (sections 1–12 of this document) remain
+stable and unchanged through v4.8.2. No deferred surface (IDE JSON-RPC, TUI,
+HTML report, sandbox real-execution opt-in) was promoted in v4.x.
+
 ## Stable Contracts
 
 ### 1. Config Precedence and Lowering Rules

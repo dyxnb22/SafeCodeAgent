@@ -1,8 +1,40 @@
 # SafeCode MVP User Guide
 
-This guide covers the v4.7.x path for a new user: install SafeCode, set up
+This guide covers the v4.8.x path for a new user: install SafeCode, set up
 your provider, run a coding task, fix a failing test, and review/apply the
 proposed patches safely.
+
+## Task-First Daily Loop (v4.x, EXPERIMENTAL)
+
+The v4.x daily loop links task creation, context detection, editing, testing,
+local delivery, memory, and debug into one session. All steps below are
+EXPERIMENTAL. No step auto-applies or auto-commits. No live provider is required
+(the default `mock` provider works for all structural commands).
+
+```bash
+sac quickstart                       # detect stack, show demo, print next steps
+sac task new "Fix auth regression"   # create task, set CURRENT
+sac profile detect                   # detect test/lint/typecheck/build commands
+sac status                           # check CURRENT task state and next step
+sac ask "explain the auth flow"      # read-only question, no patch proposed
+sac edit "Fix auth regression"       # propose patch → preview diff → await approval
+# — or use the approval-gated test-fix loop —
+sac fix --watch                      # run tests, propose repair patch on failure
+sac apply                            # explicit approval: checkpoint + apply patch
+sac rollback --last                  # undo last apply if the patch is wrong
+sac commit --message-from-task       # local commit: CURRENT task files only, no push
+sac resume                           # recover an open/interrupted task, print next step
+sac debug last-failure               # summarize last redacted failure, never executes
+sac debug bundle --out debug.tgz     # redacted metadata bundle, no source code
+```
+
+Recovery after interruption:
+```bash
+# Ctrl-C during sac edit/fix/run marks the task interrupted and prints:
+#   resume with: sac resume
+sac resume           # passive: sets CURRENT, prints redacted summary and next step
+sac status           # confirm task state before continuing
+```
 
 ## Task-First Flow (v4.1, EXPERIMENTAL)
 

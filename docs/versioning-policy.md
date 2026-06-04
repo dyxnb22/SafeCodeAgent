@@ -85,6 +85,15 @@ Until then, the supported install paths are:
 - **pipx from PyPI** (once available): `pipx install safecode-agent`
 - **Offline wheel**: `uv build` locally + `pipx install dist/<wheel>`
 
+## v4.x Train Closure
+
+The v4.x shell-first train (v4.1–v4.8) is now complete as of v4.8.2. The train
+added zero new stable contracts. All new v4.1–v4.8 surfaces remain experimental.
+The twelve v4.0.0 stable contracts remain stable and unchanged through v4.8.2.
+
+No v5.0 release is currently scheduled. Future contract promotions and major
+version decisions will be documented here when they are planned.
+
 ## Policy Changelog
 
 | Version | Change |
@@ -92,3 +101,4 @@ Until then, the supported install paths are:
 | v3.9.1 | Policy document created. Brew decision: defer. |
 | v3.99.0 | Policy wording clarified for patch/minor/major semantics and v4.0 churn budget. |
 | v4.0.0 | Contract cut honored the budget: zero new v4 stable contracts and zero v3.0 breaking changes. |
+| v4.8.2 | v4.x shell-first train closed. Zero new stable contracts added in v4.1–v4.8. No v5.0 currently scheduled. |
