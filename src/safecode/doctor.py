@@ -126,9 +126,52 @@ class Doctor:
         ]
         diagnostics.append(self._last_session_cost_diagnostic())
         diagnostics.extend(self._sandbox_promotion_diagnostics())
+        diagnostics.extend(self._project_tooling_diagnostics())
         diagnostics.append(self._update_check_diagnostic())
         if release:
             diagnostics.extend(self.run_release_diagnostics())
+        return diagnostics
+
+    def _project_tooling_diagnostics(self) -> list[Diagnostic]:
+        """Report project command profile kinds as PASS/SKIP. (v4.2, EXPERIMENTAL)
+
+        - PASS: kind detected and tool binary is available.
+        - SKIP: kind not detected or tool binary is missing.
+        Missing tool is SKIP, not FAIL, to avoid alarming users who don't use that tool.
+        """
+        from safecode.project.profile import load_profile
+
+        profile = load_profile(self.project_root)
+        if profile is None:
+            return [Diagnostic(
+                name="project_tooling",
+                status=DiagnosticStatus.SKIP,
+                message="no project profile; run 'sac profile detect'",
+            )]
+
+        diagnostics: list[Diagnostic] = []
+        for kind in ("test", "lint", "typecheck", "build"):
+            cmd = getattr(profile, kind)
+            if cmd is None:
+                diagnostics.append(Diagnostic(
+                    name=f"project_tooling_{kind}",
+                    status=DiagnosticStatus.SKIP,
+                    message=f"{kind}: not detected",
+                ))
+            elif cmd.missing_dependency:
+                binary = cmd.command[0] if cmd.command else "unknown"
+                diagnostics.append(Diagnostic(
+                    name=f"project_tooling_{kind}",
+                    status=DiagnosticStatus.SKIP,
+                    message=f"{kind}: tool missing ({binary}); install it or run 'sac profile set {kind} <cmd>'",
+                ))
+            else:
+                argv_str = " ".join(cmd.command)
+                diagnostics.append(Diagnostic(
+                    name=f"project_tooling_{kind}",
+                    status=DiagnosticStatus.PASS,
+                    message=f"{kind}: {argv_str}",
+                ))
         return diagnostics
 
     def _last_session_cost_diagnostic(self) -> "Diagnostic":

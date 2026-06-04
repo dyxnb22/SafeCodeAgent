@@ -5,13 +5,15 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v4.2.1
+# Current Baseline - v4.2.2
 
 ## Status
-Implemented. Git baseline: tag `v4.2.1`. Local working version: `v4.2.1`.
+Implemented. Git baseline: tag `v4.2.2`. Local working version: `v4.2.2`.
 
 ## Stage
-`v4.2.1` run-suite-and-fix-profile — T-4.2.1-A sac-run-suite: `sac run --suite test|lint|typecheck|build`; reads `.sac/project_profile.json`; missing profile → "run sac profile detect" guidance (exit 1); missing kind → actionable next-step (exit 1); auto-approved (treated as --yes=True); high-risk still blocked via policy; exit codes 125/126 per v2.8.8; audit/task wiring unchanged from sac run. T-4.2.1-B fix-uses-profile: `sac fix` precedence: --test-command > profile test command > ProjectTestDetector; profile never auto-set by `sac fix`. 43 new tests; full suite 3991 passed, 2 skipped; contract snapshots green.
+`v4.2.2` project-tooling-doctor-and-docs — T-4.2.2-A doctor-missing-deps: `Doctor._project_tooling_diagnostics()` in `src/safecode/doctor.py`; no profile → single SKIP "run sac profile detect"; with profile → one diagnostic per kind: PASS (detected+binary present), SKIP (not detected or missing_dependency=True); missing tool → SKIP not FAIL; SKIP includes binary name + "sac profile set <kind>" hint; 4 diagnostics per kind (project_tooling_test/_lint/_typecheck/_build); preserves diagnostic substrate contract. T-4.2.2-B v4.2-docs-cut: README "Profile commands (v4.2, EXPERIMENTAL)" section with detect/show/set/clear/run suite; docs/mvp-user-guide.md updated to v4.2.x + full profile flow section; docs/troubleshooting.md missing-tool guidance; all v4.2 surfaces EXPERIMENTAL. 30 new tests; full suite 4005 passed, 2 skipped; contract snapshots green.
+
+Previous: `v4.2.1` run-suite-and-fix-profile — T-4.2.1-A sac-run-suite: `sac run --suite test|lint|typecheck|build`; reads `.sac/project_profile.json`; missing profile → "run sac profile detect" guidance (exit 1); missing kind → actionable next-step (exit 1); auto-approved (treated as --yes=True); high-risk still blocked via policy; exit codes 125/126 per v2.8.8; audit/task wiring unchanged from sac run. T-4.2.1-B fix-uses-profile: `sac fix` precedence: --test-command > profile test command > ProjectTestDetector; profile never auto-set by `sac fix`. 43 new tests; full suite 3991 passed, 2 skipped; contract snapshots green.
 
 Previous: `v4.2.0` project-profile — T-4.2.0-A project-profile-detector: new `src/safecode/project/profile.py`; `ProjectProfile` Pydantic model (payload_version=1, test/lint/typecheck/build: ProfileCommand|None, user_overrides: frozenset[str]); `ProfileCommand` (command: tuple[str,...], stack, source: detected|user|none, missing_dependency: bool); atomic persist to `.sac/project_profile.json`; detect for Python (pytest/ruff/mypy), Node (npm/pnpm/yarn package.json scripts), Go (go test/vet/build), Rust (cargo test/clippy/check/build); missing tool → missing_dependency=True (command kept visible); user overrides survive detect and always win; detection never executes project commands. T-4.2.0-B sac-profile-cli: new `src/safecode/cli_profile.py`; `sac profile detect|show|set <kind> "<cmd>"|clear <kind>`; `set` parses with shlex.split and rejects ; | & $ ` and newline; `show --json` deterministic; profile_app registered in cli.py; fixed matrix heading from v4.0.1 to v4.1.2. 87 new tests; full suite 3972 passed, 2 skipped; contract snapshots green.
 

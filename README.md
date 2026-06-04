@@ -101,6 +101,19 @@ sac task delete <task-id> --yes     # delete a task
 sac status                          # show current task status and next recommended step
 ```
 
+**Profile commands (v4.2, EXPERIMENTAL):**
+```bash
+sac profile detect                  # detect test/lint/typecheck/build commands for this project
+sac profile show                    # show current profile
+sac profile set test "pytest -q"    # override the test command
+sac profile set lint "ruff check ." # override the lint command
+sac profile clear test              # restore detected test command
+sac run --suite test                # run the profile test command through policy
+sac run --suite lint                # run the profile lint command through policy
+sac run --suite typecheck           # run the profile typecheck command through policy
+sac run --suite build               # run the profile build command through policy
+```
+
 Use `--json` on most commands for machine-readable output:
 ```bash
 sac fix --json

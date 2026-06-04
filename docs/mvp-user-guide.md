@@ -1,6 +1,6 @@
 # SafeCode MVP User Guide
 
-This guide covers the v4.1.x path for a new user: install SafeCode, set up
+This guide covers the v4.2.x path for a new user: install SafeCode, set up
 your provider, run a coding task, fix a failing test, and review/apply the
 proposed patches safely.
 
@@ -291,3 +291,74 @@ sac history
 ```
 
 Look for `checkpoint_created`, `patch_applied`, and `rollback_completed` events.
+
+## Project Command Profile (v4.2, EXPERIMENTAL)
+
+v4.2 adds a project command profile that stores detected test/lint/typecheck/build
+commands per project, persisted to `.sac/project_profile.json`. All profile
+commands are **EXPERIMENTAL** and may change in future releases.
+
+### Detecting commands
+
+```bash
+sac profile detect       # detect and save test/lint/typecheck/build for this project
+sac profile show         # show the current profile
+sac profile show --json  # machine-readable profile output
+```
+
+SafeCode detects commands for Python (pytest/ruff/mypy), Node.js (npm/pnpm/yarn
+scripts), Go (`go test`/`go vet`/`go build`), and Rust (cargo). If a tool binary
+is not installed, it is marked `missing_dependency=true` but kept visible so you
+can decide how to handle it (install the tool or override the command).
+
+### Overriding commands
+
+```bash
+sac profile set test "pytest -q --tb=short"  # override the test command
+sac profile set lint "ruff check src/"        # override the lint command
+sac profile clear test                        # restore the detected test command
+```
+
+The `set` command parses the string with `shlex.split` and rejects shell
+metacharacters (`;`, `|`, `&`, `$`, `` ` ``, newline) for safety.
+
+### Running suite commands
+
+```bash
+sac run --suite test       # run the profile test command through policy checks
+sac run --suite lint       # run the profile lint command
+sac run --suite typecheck  # run the profile typecheck command
+sac run --suite build      # run the profile build command
+```
+
+Suite commands are validated through the same policy gates as `sac run <cmd>`.
+High-risk commands remain blocked. Exit codes 125 (approval required) and
+126 (blocked) are preserved per v2.8.8 semantics.
+
+### Fix command integration
+
+`sac fix` consults the profile test command automatically:
+
+```bash
+sac profile detect         # detect test command
+sac fix                    # uses profile test command → proposes patch
+sac fix --test-command "go test ./..."  # explicit override still wins
+```
+
+Precedence: `--test-command` explicit override > profile test command > auto-detect.
+The profile is never modified by `sac fix`.
+
+### Doctor integration
+
+`sac doctor` now reports project tooling status:
+
+```
+project_tooling_test        PASS  test: pytest -q
+project_tooling_lint        PASS  lint: ruff check .
+project_tooling_typecheck   SKIP  typecheck: tool missing (mypy)
+project_tooling_build       SKIP  build: not detected
+```
+
+Missing tools are reported as SKIP (not FAIL) to avoid alarming users who do
+not use that tool. Install the tool or run `sac profile set <kind> <cmd>` to
+configure a replacement.

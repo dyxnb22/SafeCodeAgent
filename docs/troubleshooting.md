@@ -139,6 +139,36 @@ includes component, level, message, error type, traceback, and extra metadata.
 
 ---
 
+## Project Profile Tool Missing (v4.2, EXPERIMENTAL)
+
+If `sac doctor` reports `project_tooling_<kind>: SKIP — tool missing (<binary>)`,
+the tool binary is not on your `PATH`. You have two options:
+
+**Option 1 — Install the tool:**
+```bash
+# Python: install mypy for typecheck
+pip install mypy
+
+# Node: install eslint for lint
+npm install -D eslint
+
+# Go: go vet is built-in; no separate install needed
+
+# Rust: install cargo via rustup
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+```
+
+**Option 2 — Override the command in the profile:**
+```bash
+sac profile set typecheck "python -m mypy ."
+sac profile set lint "npx eslint ."
+```
+
+Run `sac profile detect` again after installing the tool to refresh
+`missing_dependency` state.
+
+---
+
 ## Getting More Help
 
 - Run `sac --help` for command reference.
