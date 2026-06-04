@@ -21,6 +21,13 @@ from safecode.shell.risk import RiskLevel
 from safecode.shell.runner import ShellRunner
 from safecode.tools.gate import GateError, ToolCallGate
 from safecode.utils.time import utc_now_iso
+from safecode.task.wiring import (
+    get_or_create_current_task,
+    record_edit_on_task,
+    record_apply_on_task,
+    record_rollback_on_task,
+    record_run_on_task,
+)
 
 core_app = typer.Typer()
 trust_app = typer.Typer(help="Manage session-local trust grants.")
@@ -69,8 +76,15 @@ def edit(
     if retry_from_last_failure:
         effective_task = _inject_last_failure_context(project_root, task)
 
+    # Wire task sidecar (experimental)
     try:
-        result = AgentOrchestrator(project_root).edit(effective_task)
+        current_task = get_or_create_current_task(project_root, "edit", task)
+    except Exception:
+        current_task = None
+
+    orchestrator = AgentOrchestrator(project_root)
+    try:
+        result = orchestrator.edit(effective_task)
     except (PatchParseError, PatchValidationError) as exc:
         log_cli_error("cli.edit", "patch proposal failed", exc)
         if json_output:
@@ -86,6 +100,28 @@ def edit(
             console.print(f"[red]Edit failed:[/red] {exc}")
         raise typer.Exit(code=1) from exc
 
+    # Record in task sidecar and audit with task_id metadata
+    task_id = current_task.task_id if current_task else None
+    if task_id:
+        try:
+            record_edit_on_task(project_root, task_id, result.proposal.id)
+        except Exception:
+            pass
+    # Re-write the audit event with task_id in metadata
+    if task_id:
+        try:
+            orchestrator.audit_logger.write(
+                AuditEvent(
+                    type="task_edit_wired",
+                    timestamp=utc_now_iso(),
+                    patch_id=result.proposal.id,
+                    message=f"edit wired to task {task_id}",
+                ),
+                task_id=task_id,
+            )
+        except Exception:
+            pass
+
     if json_output:
         print(render_json(CLIJSONResponse(
             command="edit",
@@ -93,6 +129,7 @@ def edit(
             data={
                 "pending_patch_path": str(result.pending_patch_path),
                 "diff_text": result.diff_text,
+                "task_id": task_id,
             },
         )))
         return
@@ -153,6 +190,13 @@ def apply(
             console.print(f"[red]Blocked by tool gate:[/red] {gate_result.reason}")
         raise typer.Exit(code=1)
 
+    # Wire task sidecar (experimental)
+    try:
+        current_task_for_apply = get_or_create_current_task(project_root, "apply")
+    except Exception:
+        current_task_for_apply = None
+    apply_task_id = current_task_for_apply.task_id if current_task_for_apply else None
+
     try:
         result = orchestrator.apply(preview.proposal)
     except PatchValidationError as exc:
@@ -170,6 +214,23 @@ def apply(
             console.print(f"[red]Apply failed:[/red] {exc}")
         raise typer.Exit(code=1) from exc
 
+    # Record apply in task sidecar
+    if apply_task_id:
+        try:
+            record_apply_on_task(project_root, apply_task_id, result.checkpoint.checkpoint_id)
+            orchestrator.audit_logger.write(
+                AuditEvent(
+                    type="task_apply_wired",
+                    timestamp=utc_now_iso(),
+                    patch_id=result.proposal.id,
+                    checkpoint_id=result.checkpoint.checkpoint_id,
+                    message=f"apply wired to task {apply_task_id}",
+                ),
+                task_id=apply_task_id,
+            )
+        except Exception:
+            pass
+
     if json_output:
         print(render_json(CLIJSONResponse(
             command="apply",
@@ -178,6 +239,7 @@ def apply(
                 "patch_id": result.proposal.id,
                 "checkpoint_id": result.checkpoint.checkpoint_id,
                 "files": list(result.files),
+                "task_id": apply_task_id,
             },
         )))
         return
@@ -206,8 +268,16 @@ def rollback(last: bool = typer.Option(False, "--last", help="Rollback the lates
         console.print(f"[red]Blocked by tool gate:[/red] {gate_result.reason}")
         raise typer.Exit(code=1)
 
+    # Wire task sidecar (experimental)
     try:
-        result = AgentOrchestrator(project_root).rollback_last()
+        current_task_for_rollback = get_or_create_current_task(project_root, "rollback")
+    except Exception:
+        current_task_for_rollback = None
+    rollback_task_id = current_task_for_rollback.task_id if current_task_for_rollback else None
+
+    rollback_orchestrator = AgentOrchestrator(project_root)
+    try:
+        result = rollback_orchestrator.rollback_last()
     except FileNotFoundError as exc:
         log_cli_error("cli.rollback", "rollback failed", exc)
         console.print(f"[red]Rollback failed:[/red] {exc}")
@@ -216,6 +286,22 @@ def rollback(last: bool = typer.Option(False, "--last", help="Rollback the lates
         log_cli_error("cli.rollback", "rollback failed", exc)
         console.print(f"[red]Rollback failed:[/red] {exc}")
         raise typer.Exit(code=1) from exc
+
+    # Record rollback in task sidecar
+    if rollback_task_id:
+        try:
+            record_rollback_on_task(project_root, rollback_task_id, result.checkpoint.checkpoint_id)
+            rollback_orchestrator.audit_logger.write(
+                AuditEvent(
+                    type="task_rollback_wired",
+                    timestamp=utc_now_iso(),
+                    checkpoint_id=result.checkpoint.checkpoint_id,
+                    message=f"rollback wired to task {rollback_task_id}",
+                ),
+                task_id=rollback_task_id,
+            )
+        except Exception:
+            pass
 
     console.print(
         Panel.fit(
@@ -361,6 +447,13 @@ def run_command(
                 console.print(f"[red]Blocked by tool gate:[/red] {gate_result.reason}")
             raise typer.Exit(code=1)
 
+    # Wire task sidecar (experimental)
+    try:
+        current_task_for_run = get_or_create_current_task(project_root, "run", command)
+    except Exception:
+        current_task_for_run = None
+    run_task_id = current_task_for_run.task_id if current_task_for_run else None
+
     result = runner.run(command, approved=approved)
     runtime_logger().info(
         "cli.run",
@@ -370,7 +463,8 @@ def run_command(
         executed=str(result.executed),
         risk=str(result.risk.level),
     )
-    AgentOrchestrator(project_root).audit_logger.write(
+    run_orchestrator = AgentOrchestrator(project_root)
+    run_orchestrator.audit_logger.write(
         AuditEvent(
             type="shell_completed" if result.executed else "shell_blocked",
             timestamp=utc_now_iso(),
@@ -378,8 +472,15 @@ def run_command(
             command=command,
             exit_code=result.exit_code,
             message=f"risk={result.risk.level}; duration_ms={result.duration_ms}",
-        )
+        ),
+        task_id=run_task_id,
     )
+    # Record run in task sidecar
+    if run_task_id:
+        try:
+            record_run_on_task(project_root, run_task_id, command, result.exit_code)
+        except Exception:
+            pass
 
     if json_output:
         status = "success" if result.executed and result.exit_code == 0 else "error"

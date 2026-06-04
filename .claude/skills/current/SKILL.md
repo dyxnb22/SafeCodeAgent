@@ -5,13 +5,15 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v4.1.0
+# Current Baseline - v4.1.1
 
 ## Status
-Implemented. Git baseline: tag `v4.1.0`. Local working version: `v4.1.0`.
+Implemented. Git baseline: tag `v4.1.1`. Local working version: `v4.1.1`.
 
 ## Stage
-`v4.1.0` task-state-sidecar-and-cli — T-4.1.0-A task-state-sidecar: new `src/safecode/task/state.py` (`TaskState` Pydantic model, payload_version=1, status enum open|applied|interrupted|closed, `TaskIteration`, `TaskCommand`) and `src/safecode/task/store.py` (`TaskStore` with atomic writes, `.sac/tasks/<id>.json`, `INDEX`, `CURRENT`; refuses payload_version>1; missing files never crash). T-4.1.0-B task-cli-core: `sac task new|list|show|switch|close|delete` registered in `cli.py`; all support `--json` via `CLIJSONResponse`; `new` requires non-empty goal, sets CURRENT; `delete` requires `--yes`; `show` redacts secrets; `list` deterministic. 58 new tests; full suite 3842 passed, 2 skipped.
+`v4.1.1` sac-status-and-task-wiring — T-4.1.1-A sac-status-cmd: new `src/safecode/cli_status.py`; `sac status [--json]`; pure `next_step(state, pending_patch_exists)` truth table; TTY/non-TTY deterministic; never writes audit events. T-4.1.1-B wire-edit-apply-rollback-into-task: new `src/safecode/task/wiring.py`; `get_or_create_current_task()` + record helpers; `sac edit|apply|rollback|fix|run` now attach to CURRENT task; task sidecar mutated on each command; `AuditLogger.write()` extended with optional `task_id` keyword stuffed into metadata; AuditEvent field set unchanged. 26 new tests; full suite 3868 passed, 2 skipped.
+
+Previous: `v4.1.0` task-state-sidecar-and-cli — T-4.1.0-A task-state-sidecar: new `src/safecode/task/state.py` (`TaskState` Pydantic model, payload_version=1, status enum open|applied|interrupted|closed, `TaskIteration`, `TaskCommand`) and `src/safecode/task/store.py` (`TaskStore` with atomic writes, `.sac/tasks/<id>.json`, `INDEX`, `CURRENT`; refuses payload_version>1; missing files never crash). T-4.1.0-B task-cli-core: `sac task new|list|show|switch|close|delete` registered in `cli.py`; all support `--json` via `CLIJSONResponse`; `new` requires non-empty goal, sets CURRENT; `delete` requires `--yes`; `show` redacts secrets; `list` deterministic. 58 new tests; full suite 3842 passed, 2 skipped.
 
 Previous: `v4.0.1` post-v4-roadmap-metadata-alignment — documentation and metadata patch only. `README.md`, `.claude/versions.json`, `docs/version_implementation_matrix.md`, `docs/product-commercialization-roadmap.md`, and `uv.lock` now agree that the active forward plan is `docs/version-plans/v4.1-to-v4.8-shell-first-roadmap.md`, with `docs/version-plans/v3.7-to-v4.0-product-roadmap.md` preserved as the previous plan and `docs/commercial-v1-readiness-audit-v3.11.x.md` as the current readiness baseline. No runtime behavior changes and no stable contract changes.
 
@@ -98,6 +100,29 @@ Previous: `v3.3.1` MCP stdio Config Argv — adds typed stdio server config and 
 Previous: `v3.3.0` MCP stdio Transport — adds a tightly-bounded stdio JSON-RPC client in `src/safecode/mcp/transport_stdio.py`; tested against local stub servers only; not wired into existing MCP runner; MCP remains experimental.
 
 Previous: v3.2.6 promoted LLM provider layer to documented stable contract; v3.2.5 added advisory live-provider CI lane; v3.2.4 added fan-out config; v3.2.3 added Anthropic; v3.2.2 added structured output validation.
+
+## v4.1.1 (sac-status-and-task-wiring)
+`src/safecode/cli_status.py` (new), `src/safecode/task/wiring.py` (new),
+`src/safecode/cli_core.py` updated, `src/safecode/cli_fix.py` updated,
+`src/safecode/audit/logger.py` updated, `src/safecode/cli.py` updated.
+`tests/test_cli_status.py` (new), `tests/test_audit_task_metadata.py` (new).
+
+Key additions:
+- `sac status [--json]` (experimental): shows task id/goal/status, pending patch
+  presence, last test outcome, last command, next safe step. Never writes audit events.
+- Pure function `next_step(state, pending_patch_exists) -> str` with 6-state truth table:
+  no task; open+patch; open+failed test; open+no patch; applied; interrupted; closed.
+- `src/safecode/task/wiring.py`: `get_or_create_current_task()` (returns CURRENT task
+  or auto-creates if none/closed); `record_edit_on_task()`, `record_apply_on_task()`,
+  `record_rollback_on_task()`, `record_fix_on_task()`, `record_run_on_task()`.
+- `sac edit`: auto-attaches to task; writes `task_edit_wired` audit event with task_id.
+- `sac apply`: auto-attaches; records status=applied + checkpoint id; clears patch_id.
+- `sac rollback`: auto-attaches; records status=open + checkpoint id.
+- `sac fix`: auto-attaches; records test iteration with command/exit_code/tail_sha.
+- `sac run`: auto-attaches; updates last_command; writes audit event with task_id.
+- `AuditLogger.write(event, *, task_id=None)`: stuffs task_id into metadata["task_id"].
+  AuditEvent field set unchanged.
+- 26 new tests. Full suite: 3868 passed, 2 skipped.
 
 ## v4.1.0 (task-state-sidecar-and-cli)
 `src/safecode/task/state.py` (new), `src/safecode/task/store.py` (new),

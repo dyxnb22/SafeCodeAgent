@@ -15,6 +15,7 @@ from safecode.context.redactor import redact_secrets
 from safecode.patch.parser import PatchParseError
 from safecode.patch.validator import PatchValidationError
 from safecode.project.test_detector import ProjectTestDetector
+from safecode.task.wiring import get_or_create_current_task, record_fix_on_task
 
 
 def _run_test_command(project_root: Path, command: str) -> tuple[str, int]:
@@ -59,6 +60,13 @@ def run_fix(
             return 1
         cmd = candidates[0].command
 
+    # Wire task sidecar (experimental)
+    try:
+        current_task_for_fix = get_or_create_current_task(project_root, "fix")
+    except Exception:
+        current_task_for_fix = None
+    fix_task_id = current_task_for_fix.task_id if current_task_for_fix else None
+
     if not json_output:
         console.print(f"[blue]Running test command:[/blue] {cmd}")
 
@@ -78,7 +86,7 @@ def run_fix(
 
     # Step 3 & 4: redact failure context
     redacted_output = redact_secrets(raw_output)
-    task = (
+    fix_task_str = (
         f"Fix the failing test.\n"
         f"Test command: {cmd}\n"
         f"Exit code: {exit_code}\n\n"
@@ -88,9 +96,16 @@ def run_fix(
     if not json_output:
         console.print(f"[yellow]Test failed (exit {exit_code}). Proposing a fix...[/yellow]")
 
+    # Record the fix iteration in the task sidecar (experimental)
+    if fix_task_id:
+        try:
+            record_fix_on_task(project_root, fix_task_id, cmd, exit_code, redacted_output)
+        except Exception:
+            pass
+
     # Step 5: invoke AgentOrchestrator.edit() — leaves pending patch for user review
     try:
-        edit_result = AgentOrchestrator(project_root).edit(task)
+        edit_result = AgentOrchestrator(project_root).edit(fix_task_str)
     except (PatchParseError, PatchValidationError) as exc:
         log_cli_error("cli.fix", "patch proposal failed", exc)
         if json_output:
@@ -115,6 +130,7 @@ def run_fix(
                 "diff_text": edit_result.diff_text,
                 "test_command": cmd,
                 "test_exit_code": exit_code,
+                "task_id": fix_task_id,
             },
         )))
     else:

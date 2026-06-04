@@ -20,8 +20,15 @@ class AuditLogger:
         self.log_file = self.project_root / self.config.sac_dir / "logs" / "events.jsonl"
         self.anchor_store = AuditAnchorStore(project_root)
 
-    def write(self, event: AuditEvent) -> None:
-        """Append one event to .sac/logs/events.jsonl."""
+    def write(self, event: AuditEvent, *, task_id: str | None = None) -> None:
+        """Append one event to .sac/logs/events.jsonl.
+
+        If task_id is provided it is stored in the existing metadata mapping under
+        the key "task_id". The AuditEvent field set is not changed.
+        """
+        if task_id is not None:
+            event.metadata = dict(event.metadata)
+            event.metadata["task_id"] = task_id
         self.log_file.parent.mkdir(parents=True, exist_ok=True)
         previous_hash = self._last_hash()
         event.previous_hash = previous_hash
