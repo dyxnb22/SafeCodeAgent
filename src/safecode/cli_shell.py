@@ -174,17 +174,20 @@ def _slash_commit(project_root: Path, task_id: Optional[str], *, is_tty: bool) -
 def _slash_debug(project_root: Path, task_id: Optional[str]) -> str:
     """Return last failure debug info."""
     try:
-        from safecode.debug.last_failure import build_last_failure_summary
-        summary = build_last_failure_summary(project_root, task_id=task_id)
-        if summary is None:
+        from safecode.cli_debug import find_last_failure
+
+        failure = find_last_failure(project_root, task_id=task_id)
+        if failure is None:
             return "No recent failure found."
+        data = failure.to_data()
         lines = [
-            f"category: {summary.category}",
-            f"message: {summary.message}",
-            f"source: {summary.source}",
+            f"category: {data.get('category')}",
+            f"message: {data.get('message')}",
+            f"source: {data.get('source')}",
         ]
-        if summary.suggested_command:
-            lines.append(f"suggested: {summary.suggested_command}")
+        suggested = data.get("suggested_next_command")
+        if suggested:
+            lines.append(f"suggested: {suggested}")
         return "\n".join(lines)
     except Exception as exc:
         return f"Debug info unavailable: {exc}"

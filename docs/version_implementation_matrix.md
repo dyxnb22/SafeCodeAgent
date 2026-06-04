@@ -498,9 +498,11 @@ Historical plan: `docs/version-plans/v2.8-to-v3.0-product-architecture-roadmap.m
 | `v4.1.1` ✅ | `main` | `src/safecode/cli_status.py`, `src/safecode/task/wiring.py`, `src/safecode/cli_core.py`, `src/safecode/cli_fix.py`, `src/safecode/audit/logger.py`, `tests/test_cli_status.py`, `tests/test_audit_task_metadata.py` | T-4.1.1-A sac-status-cmd: `sac status [--json]`; pure `next_step(state, pending_patch_exists)` with truth-table coverage (6 states); TTY/non-TTY deterministic; never writes audit events. T-4.1.1-B wire-edit-apply-rollback-into-task: `sac edit|apply|rollback|fix|run` attach to CURRENT task (auto-create if none/closed); task sidecar mutated on each command; `AuditLogger.write()` extended with optional `task_id` keyword (metadata only; field set unchanged); 26 targeted tests; full suite 3868 passed, 2 skipped; contract snapshots green; preflight passed. |
 | `v4.1.2` ✅ | `main` | `src/safecode/audit/logger.py`, `src/safecode/cli_core.py`, `tests/test_history.py`, `tests/test_history_task_filter.py`, `docs/version-notes/v4.1.2-task-history-filter-and-docs.md` | T-4.1.2-A history-task-filter: `sac history --task <id>` filters output to events with exact `metadata.task_id` match (EXPERIMENTAL); `AuditLogger.read_by_task_id(task_id, limit=200)` added (exact match, empty task_id returns [], corrupted lines skipped); field set unchanged. T-4.1.2-B v4.1-docs-cut: README core commands updated with `sac task`, `sac status`, `sac history --task`; `docs/mvp-user-guide.md` updated with task-first v4.1 flow; all v4.1 surfaces marked EXPERIMENTAL; stable contract snapshots unchanged. 17 targeted history tests; full suite 3885 passed, 2 skipped; contract snapshots green. |
 
-## Active Forward Plan After v4.8.2
+## Current Project Status After v4.9.3
 
 Completed plan: `docs/version-plans/v4.9-ai-shell-mvp-roadmap.md` (v4.9.3 complete).
+
+Current status and forward plan: `docs/project-final-status-and-roadmap.md`.
 
 Completed shell-first plan: `docs/version-plans/v4.1-to-v4.8-shell-first-roadmap.md`.
 

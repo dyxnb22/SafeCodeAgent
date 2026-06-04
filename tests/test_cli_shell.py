@@ -132,6 +132,29 @@ class TestShellTTYBehaviour:
         assert result.exit_code == 0
         assert "Unknown slash command" in result.output
 
+    def test_non_tty_debug_reuses_last_failure(self, tmp_path, monkeypatch):
+        """/debug reports the same last-failure evidence as the debug CLI."""
+        from typer.testing import CliRunner
+        from safecode.cli import app
+        from safecode.logs.runtime import RuntimeLogger
+
+        RuntimeLogger(tmp_path).write(
+            "error",
+            "test",
+            "command failed",
+            failure_category="command_timeout",
+            details={"command": "pytest -q", "task_id": "task-1"},
+        )
+
+        monkeypatch.chdir(tmp_path)
+        runner = CliRunner()
+        result = runner.invoke(app, ["shell", "--non-tty"], input="/debug\n/exit\n")
+        assert result.exit_code == 0
+        assert "category: command_timeout" in result.output
+        assert "source: runtime_log" in result.output
+        assert "suggested:" in result.output
+        assert "Debug info unavailable" not in result.output
+
 
 # ---------------------------------------------------------------------------
 # Session persistence and corruption tolerance

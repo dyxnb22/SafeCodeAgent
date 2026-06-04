@@ -2,6 +2,15 @@
 
 ## Planning Revision
 
+Current status after `v4.9.3`:
+
+- `docs/project-final-status-and-roadmap.md`
+
+The current stance is: SafeCode now has an EXPERIMENTAL Claude Code-like local
+AI shell MVP around existing SafeCode primitives, but it is not full Claude Code
+parity. The shell can route prompts to ask/edit/fix/run/status/apply/commit/
+debug/overview flows while preserving explicit approval gates.
+
 As of baseline `v2.7.9`, the active product and architecture plan for v2.8.x,
 v2.9.x, and v3.0.0 is:
 
@@ -14,32 +23,31 @@ As of baseline `v3.6.6`, the active forward execution plan is:
 
 This document remains useful as historical productization context, but its
 older "Recommended Next Move" and v2.6-era projections are superseded by the
-v2.8-v3.0 roadmap and then by the v3.7-v4.0 roadmap. The current stance is:
-v3.6.6 is a commercial-v1 documentation cut, not public ship readiness; v4.0
-should only promote contracts that are backed by distribution, CI, audit, and
-snapshot evidence.
+v2.8-v3.0 roadmap, then by the v3.7-v4.0 roadmap, then by the v4.1-v4.8
+shell-first train, and then by the completed v4.9 AI shell MVP plan.
 
 ## Current Readiness
 
 SafeCode Agent is already useful as a safety-first local runtime for controlled
 patches, command policy, audit, rollback, and policy-gated sandbox execution.
-It is not yet a Claude Code-like product.
+As of v4.9.3 it has an EXPERIMENTAL Claude Code-like shell MVP, but it is not
+yet a full Claude Code replacement.
 
 Practical readiness:
 
 - Safety/runtime foundation: high. The project has diff review, checkpoint,
   rollback, command policy, network policy, audit anchoring, approval stores,
   sandbox planning, Noop policy-gated execution, and broad security tests.
-- Local CLI usability: medium. Core commands exist and are testable, but the
-  user still drives most steps manually.
-- Autonomous coding-agent behavior: low to medium. `ask`, `edit`, `apply`,
-  `run`, MCP, and subagents exist as separate commands, but there is no
-  continuous agent loop that plans, chooses tools, observes failures, and asks
-  for approval at the right time.
-- Claude Code-like product experience: early. The runtime has many safety
-  primitives, but lacks the interactive loop, polished context engine, tool
-  orchestration, IDE/TUI surface, install/update flow, and large evaluation
-  harness that make the product feel dependable in daily use.
+- Local CLI usability: medium-high. Core daily-loop commands exist and `sac shell`
+  now unifies them behind slash commands and natural-language routing.
+- Autonomous coding-agent behavior: medium. `ask`, `edit`, `fix`, `run`,
+  `apply`, `commit`, `debug`, and `overview` are available from the shell, but
+  long autonomous multi-tool task completion is still intentionally bounded by
+  approval gates and incomplete.
+- Claude Code-like product experience: MVP. The runtime has many safety
+  primitives and a shell entrypoint, but still lacks a polished context engine,
+  mature IDE/TUI surface, public install/update flow, and large live-provider
+  evaluation history.
 
 Estimated distance:
 

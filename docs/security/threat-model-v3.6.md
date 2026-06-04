@@ -265,6 +265,29 @@ review is the semi-annual review below.
 
 ---
 
+## v4.9 AI Shell Addendum
+
+The v4.9 train added `sac shell` as an EXPERIMENTAL unified local AI shell. It
+does not introduce a new stable contract and does not weaken the threat model
+above. The shell aggregates existing SafeCode primitives and delegates mutation
+paths to the same approval-gated edit/apply/run/commit surfaces.
+
+**New experimental surfaces and their threat-model implications:**
+
+| Surface | Threat-model note |
+|---|---|
+| `sac shell` | Local REPL only; no hosted service behavior; session state is stored under `.sac/shell/`; corrupt or future-version session files fail safe. |
+| Natural-language router | Ambiguous input defaults to read-only ask; write-class intents require explicit confirmation; non-TTY mutation requests print CLI instructions instead of mutating. |
+| `/overview` | Read-only bounded local context builder; no embeddings, vector database, RAG service, or network dependency; secrets are redacted and paths remain under project root. |
+| `/apply` and `/commit` | Delegate to existing apply/commit gates; require TTY confirmation; never auto-apply or auto-commit. |
+| `/debug` | Read-only wrapper over `sac debug last-failure`; never executes project commands. |
+| `sac smoke ai-shell` | Deterministic mock-provider smoke suite; hidden from root help; no live provider or network requirement. |
+
+The v4.9 AI shell train is complete as of v4.9.3. The consolidated current
+status and forward plan is `docs/project-final-status-and-roadmap.md`.
+
+---
+
 ## Review Cadence
 
 This document should be reviewed:

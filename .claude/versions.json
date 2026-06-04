@@ -6,8 +6,8 @@
   "runtime_summary": ".claude/skills/shared/core-runtime.md",
   "version_index": "docs/version_implementation_matrix.md",
   "release_roadmap": "docs/release_roadmap_v0_1_to_v1_0.md",
-  "active_planning_roadmap": "docs/version-plans/v4.9-ai-shell-mvp-roadmap.md",
-  "previous_planning_roadmap": "docs/version-plans/v4.1-to-v4.8-shell-first-roadmap.md",
+  "active_planning_roadmap": "docs/project-final-status-and-roadmap.md",
+  "previous_planning_roadmap": "docs/version-plans/v4.9-ai-shell-mvp-roadmap.md",
   "readiness_audit": "docs/commercial-v1-readiness-audit-v3.11.x.md",
   "architecture_reference": "docs/product-commercialization-roadmap.md",
   "version_notes": "docs/version-notes/",
@@ -293,7 +293,7 @@
       "range": "v4.9.x",
       "name": "AI Shell MVP",
       "depends_on": "v4.8.2",
-      "notes": "Active plan in docs/version-plans/v4.9-ai-shell-mvp-roadmap.md: add an experimental Claude Code-like local AI shell around existing SafeCode primitives. RAG, embeddings, vector storage, LangGraph, stable contract promotion, and v5 scheduling are out of scope."
+      "notes": "Completed plan in docs/version-plans/v4.9-ai-shell-mvp-roadmap.md: experimental sac shell around existing SafeCode primitives, natural-language router, project overview context, docs, and smoke coverage. Current forward plan is docs/project-final-status-and-roadmap.md. RAG, embeddings, vector storage, LangGraph, stable contract promotion, and v5 scheduling remain out of scope unless separately planned."
     }
   ],
   "latest_tags": [

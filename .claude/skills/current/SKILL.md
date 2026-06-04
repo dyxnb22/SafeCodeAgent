@@ -13,8 +13,10 @@ Implemented. Git baseline: tag `v4.9.3`. Local working version: `v4.9.3`.
 ## Stage
 `v4.9.3` ai-shell-docs-and-smoke — T-4.9.3-A: `docs/tutorials/ai-shell-first-hour.md` shell-first tutorial added; README, MVP guide, troubleshooting, public-contracts, versioning-policy updated with v4.9 EXPERIMENTAL surfaces; `sac smoke ai-shell` with 6 deterministic scenarios; docs claims guard; v4.9 adds zero stable contracts; no v5 scheduled. `v4.9.2` project-overview-context: `build_project_overview()` aggregates stack/git/profile/entrypoints/test-dirs/high-signal-files/pinned-files/current-task/recent-failures; bounded by _MAX_OVERVIEW_BYTES; secrets redacted; no RAG. `v4.9.1` natural-language-router: intent classifier routes ask/edit/fix/run/status/apply/commit/debug/overview/exit; ambiguous defaults to read-only ask; write-class needs confirmation. `v4.9.0` shell-session-and-repl: `sac shell` EXPERIMENTAL REPL; TTY/non-TTY modes; slash commands; session state under `.sac/shell/`; fail-safe corrupt file handling; task/audit wiring; no auto-apply.
 
-## Active Forward Plan
-The v4.9 AI shell train is complete. No active forward plan. v4.9 adds no stable contracts and does not schedule v5.
+## Current Forward Plan
+The v4.9 AI shell train is complete. Current status and next roadmap:
+`docs/project-final-status-and-roadmap.md`. v4.9 adds no stable contracts and
+does not schedule v5.
 
 Previous: `v4.8.2` final-v4-shell-first-docs-cut — T-4.8.2-A v4.8-final-docs-cut: README adds Python tutorial link and task-first daily loop summary (17-command surface, v4.x train complete, no v5.0 promise); `docs/mvp-user-guide.md` updated to v4.8.x with new Task-First Daily Loop section; `docs/public-contracts.md` adds v4.x series contract summary (zero new stable contracts v4.0–v4.8, all new surfaces EXPERIMENTAL); `docs/versioning-policy.md` adds v4.x train closure section and policy changelog entry; `docs/security/threat-model-v3.6.md` adds v4.x shell-first addendum table (task/profile/resume/commit/memory/debug/smoke surfaces). All existing tests pass; no stable public contract promoted; v4.x train is complete.
 
@@ -529,14 +531,16 @@ Key additions:
 - `SandboxPlanner` delegates recommendation to `self.strategy`; `_recommend()` method removed.
 - 20 new tests in `tests/test_sandbox_backend_strategy.py` proving strategy is independently testable.
 
-## Active Forward Plan
-The active plan after v4.8.2 is `docs/version-plans/v4.9-ai-shell-mvp-roadmap.md`.
+## Current Forward Plan
+The current project status and forward plan after v4.9.3 is
+`docs/project-final-status-and-roadmap.md`.
 
 Planning stance:
-- v4.9.x is AI Shell MVP: add `sac shell` as an EXPERIMENTAL Claude Code-like local shell around existing SafeCode primitives.
-- Focus on the user workflow: `cd` into a project, ask questions, understand the project, propose edits, run checks, apply approved patches, debug failures, resume state, and commit locally.
+- v4.9.x AI Shell MVP is complete as of v4.9.3.
+- `sac shell` is an EXPERIMENTAL Claude Code-like local shell around existing SafeCode primitives.
+- Focus next on hardening the shell workflow, improving live-provider coding quality, and reusing existing task/context/debug primitives.
 - Keep SafeCode's safety posture: no auto-apply, approval-gated mutation/run/commit paths, checkpoints, rollback, audit, task wiring, and dirty-tree guard.
-- Do not implement RAG, embeddings, vector storage, LangGraph, stable contract promotion, hosted behavior, IDE integration, remote execution, push/PR automation, or v5 scheduling in v4.9.
+- Do not promote v4.9 shell surfaces to stable contracts without a separate contract review and evidence pass.
 
 ## v2.8.1 (Diagnostic Migration: Doctor + Release + Policy)
 `src/safecode/doctor.py`, `src/safecode/release/check.py`, `src/safecode/release/smoke.py`, `src/safecode/release/preflight.py`, `src/safecode/release/signoff.py`, `src/safecode/policy/audit.py` updated.
