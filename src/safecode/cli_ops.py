@@ -1,4 +1,5 @@
 import warnings
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -428,6 +429,100 @@ def audit_verify() -> None:
     console.print(f"[{color}]{message}[/{color}]")
     if not ok:
         raise typer.Exit(code=1)
+
+
+@audit_app.command("query")
+def audit_query(
+    event_type: Optional[str] = typer.Option(None, "--type", help="[EXPERIMENTAL] Filter by audit event type."),
+    since: Optional[str] = typer.Option(None, "--since", help="[EXPERIMENTAL] ISO date/datetime lower bound."),
+    task: Optional[str] = typer.Option(None, "--task", help="[EXPERIMENTAL] Filter by metadata.task_id."),
+    limit: int = typer.Option(20, "--limit", min=1),
+    json_output: bool = typer.Option(False, "--json", help="Output result as JSON."),
+) -> None:
+    """Read-only audit event query with integrity verification."""
+    from safecode.cli_shared_json import CLIJSONResponse, render_json
+    from safecode.context.redactor import redact_secrets
+
+    logger = AuditLogger(Path.cwd())
+    ok, message = logger.verify_integrity()
+    if not ok:
+        if json_output:
+            print(render_json(CLIJSONResponse(command="audit query", status="error", error=message)))
+        else:
+            console.print(f"[red]{message}[/red]")
+        raise typer.Exit(code=1)
+
+    try:
+        since_dt = _parse_since(since) if since else None
+    except ValueError as exc:
+        if json_output:
+            print(render_json(CLIJSONResponse(command="audit query", status="error", error=str(exc))))
+        else:
+            console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(code=1) from exc
+
+    events = logger.iter_events()
+    if event_type is not None:
+        events = [event for event in events if event.type == event_type]
+    if task is not None:
+        events = [event for event in events if event.metadata.get("task_id") == task]
+    if since_dt is not None:
+        events = [event for event in events if _event_datetime(event.timestamp) >= since_dt]
+    events = events[-limit:]
+    data_events = [_redacted_audit_event(event, redact=redact_secrets) for event in events]
+    data = {"integrity": message, "events": data_events, "count": len(data_events)}
+    if json_output:
+        print(render_json(CLIJSONResponse(command="audit query", status="success", data=data)))
+        return
+
+    table = Table(title="SafeCode Audit Query [EXPERIMENTAL]")
+    table.add_column("Time")
+    table.add_column("Type")
+    table.add_column("Status")
+    table.add_column("Task")
+    table.add_column("Message")
+    for event in data_events:
+        table.add_row(
+            str(event["timestamp"]),
+            str(event["type"]),
+            str(event["status"]),
+            str(event["metadata"].get("task_id", "")),
+            str(event.get("message") or event.get("error") or ""),
+        )
+    console.print(table)
+
+
+def _parse_since(value: str) -> datetime:
+    raw = value.strip()
+    try:
+        if len(raw) == 10:
+            return datetime.fromisoformat(raw).replace(tzinfo=timezone.utc)
+        parsed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise ValueError("--since must be an ISO date or datetime.") from exc
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed
+
+
+def _event_datetime(value: str) -> datetime:
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return datetime.min.replace(tzinfo=timezone.utc)
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed
+
+
+def _redacted_audit_event(event, *, redact) -> dict:
+    data = event.model_dump(mode="json")
+    for field in ("message", "error", "command"):
+        if data.get(field):
+            data[field] = redact(str(data[field]))
+    data["files"] = [redact(str(path)) for path in data.get("files", [])]
+    data["metadata"] = {str(key): redact(str(value)) for key, value in data.get("metadata", {}).items()}
+    return data
 
 
 @hooks_app.command("approve")

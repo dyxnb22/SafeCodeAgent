@@ -21,6 +21,7 @@ from safecode.core.failure_category import (
 from safecode.logs.runtime import RuntimeLogger
 from safecode.memory.facade import MemoryFacade
 from safecode.task.store import TaskStore
+from safecode.debug.bundle import create_debug_bundle
 
 debug_app = typer.Typer(help="[EXPERIMENTAL] Inspect local debug artifacts.")
 
@@ -108,6 +109,35 @@ def last_failure(
         if value is not None:
             table.add_row(key, str(value))
     console.print(table)
+
+
+@debug_app.command("bundle")
+def bundle(
+    task: Optional[str] = typer.Option(None, "--task", help="[EXPERIMENTAL] Include a selected task sidecar."),
+    out: Optional[Path] = typer.Option(None, "--out", help="Output tar.gz path."),
+    force: bool = typer.Option(False, "--force", help="Overwrite an existing output path."),
+    json_output: bool = typer.Option(False, "--json", help="Output result as JSON."),
+) -> None:
+    """Create a redacted local debug bundle without project source code."""
+    project_root = Path.cwd()
+    try:
+        result = create_debug_bundle(project_root, task_id=task, out_path=out, force=force)
+    except (FileExistsError, ValueError) as exc:
+        if json_output:
+            print(render_json(CLIJSONResponse(command="debug bundle", status="error", error=str(exc))))
+            return
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(code=1) from exc
+
+    data = {
+        "path": str(result.path),
+        "size_bytes": result.size_bytes,
+        "manifest": result.manifest,
+    }
+    if json_output:
+        print(render_json(CLIJSONResponse(command="debug bundle", status="success", data=data)))
+        return
+    console.print(f"[green]Debug bundle written:[/green] {result.path}")
 
 
 def _runtime_candidates(project_root: Path, task_id: str | None) -> list[LastFailure]:

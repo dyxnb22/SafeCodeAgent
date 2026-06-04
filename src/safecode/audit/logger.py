@@ -47,6 +47,20 @@ class AuditLogger:
         recent_lines = lines[-limit:]
         return [AuditEvent(**json.loads(line)) for line in recent_lines if line.strip()]
 
+    def iter_events(self) -> list[AuditEvent]:
+        """Read all parseable audit events in file order without writing anything."""
+        if not self.log_file.exists():
+            return []
+        events: list[AuditEvent] = []
+        for line in self.log_file.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            try:
+                events.append(AuditEvent(**json.loads(line)))
+            except (json.JSONDecodeError, ValidationError, TypeError, ValueError):
+                continue
+        return events
+
     def read_by_task_id(self, task_id: str, limit: int = 200) -> list[AuditEvent]:
         """Read events with metadata['task_id'] == task_id (experimental, v4.1.2).
 
