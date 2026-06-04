@@ -21,6 +21,7 @@ from safecode.agent.schemas import (
     RecoverableContractFailure,
 )
 from safecode.agent.tools import ToolIntent
+from safecode.agent.loop import AgentLoop
 from safecode.eval.loop_runner import (
     LLMContractViolation,
     LoopEvalFixture,
@@ -258,6 +259,24 @@ class TestJournalLoopRetryEvent:
         session_id = "d" * 32
         ev = store.record_loop_retry(session_id, step=1, message="retry")
         assert ev.schema_version == 1
+
+
+class TestRecoverableRetryNotStuck:
+    def test_recoverable_retry_does_not_count_as_stuck_intent(self, tmp_path):
+        step = ScriptedStep(
+            tool_choice=AgentToolIntentResponse(
+                intent=ToolIntent(type="read", target="a.py", description="Read"),
+                rationale="read",
+            ),
+            first_fail_recoverable=True,
+        )
+        client = ScriptedLLMClient([step])
+
+        result = AgentLoop(tmp_path, llm_client=client).run("read once", max_steps=1)
+
+        assert result.stopped_reason == "max_steps_reached"
+        assert result.state.status != "aborted"
+        assert result.state.last_error is None
 
 
 # ── Retry bounded to one ──────────────────────────────────────────────────

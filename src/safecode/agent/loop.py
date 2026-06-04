@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import warnings
+import time
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -22,6 +23,9 @@ from safecode.subagents.merge_policy import merge_subagent_findings
 from safecode.subagents.synthesis import synthesize_findings
 from safecode.mcp.proposal import MCPWriteProposal, MCPWriteProposalStore
 from safecode.state.journal import AgentJournalStore
+from safecode.task.budget import TaskBudgetStore, record_budget_exceeded
+from safecode.task.state import TaskIteration
+from safecode.task.store import TaskStore
 
 
 DEFAULT_PLAN = [
@@ -59,6 +63,8 @@ class AgentLoop:
         self.llm_client = llm_client if llm_client is not None else create_llm_client(self.config)
         self.store = AgentSessionStore(project_root)
         self.journal = AgentJournalStore(project_root)
+        self._last_tool_intent_identity: tuple[str, str, str, str] | None = None
+        self._last_tool_intent_count = 0
 
     def step(self, goal: str | None = None) -> AgentStepResult:
         """Advance exactly one safe session step."""
@@ -157,6 +163,9 @@ class AgentLoop:
             raise ValueError(f"Unsupported tool choice response: {tool_choice.type}")
 
         routed = ToolIntentRouter().route(tool_choice.intent.model_dump(exclude_none=True))
+        stuck = self._abort_if_stuck_tool_intent(state, routed)
+        if stuck is not None:
+            return stuck
 
         if routed.executable_now and routed.route == "mcp.call_readonly":
             return self._execute_mcp_readonly_step(plan_item, state, routed)
@@ -211,8 +220,16 @@ class AgentLoop:
         next_goal = goal
         stopped_reason = "max_steps_reached"
         state: AgentSessionState | None = self.store.load()
+        started_at = time.monotonic()
+        budget_task_id = TaskStore(self.project_root).current_id()
+        budget = TaskBudgetStore(self.project_root).load(budget_task_id) if budget_task_id else None
+        step_budget = min(max_steps, budget.steps) if budget is not None else max_steps
 
-        for _ in range(max_steps):
+        for _ in range(step_budget):
+            if budget is not None and time.monotonic() - started_at >= budget.time_seconds:
+                state = self._record_budget_failure(state, budget_task_id, "time_seconds")
+                stopped_reason = "budget_exceeded"
+                break
             result = self.step(next_goal)
             steps.append(result)
             state = result.state
@@ -220,15 +237,119 @@ class AgentLoop:
             if result.stopped_for_approval:
                 stopped_reason = "approval_required"
                 break
+            if state.status == "aborted":
+                stopped_reason = "loop_stuck" if state.last_error and "loop_stuck" in state.last_error else "aborted"
+                break
             if state.status == "completed":
                 stopped_reason = "completed"
                 break
+        else:
+            if budget is not None and step_budget < max_steps:
+                state = self._record_budget_failure(state, budget_task_id, "steps")
+                stopped_reason = "budget_exceeded"
 
         if state is None:
             # This is only reachable if step() behavior changes.
             raise FileNotFoundError("No agent session found.")
 
         return AgentRunResult(state=state, steps=steps, stopped_reason=stopped_reason)
+
+    def _tool_intent_identity(self, routed: RoutedToolIntent) -> tuple[str, str, str, str]:
+        intent = routed.intent
+        return (
+            intent.type,
+            intent.target or "",
+            intent.tool_name or "",
+            intent.description or "",
+        )
+
+    def _abort_if_stuck_tool_intent(
+        self, state: AgentSessionState, routed: RoutedToolIntent
+    ) -> AgentStepResult | None:
+        if TaskStore(self.project_root).current_id() is None:
+            return None
+        identity = self._tool_intent_identity(routed)
+        if identity == self._last_tool_intent_identity:
+            self._last_tool_intent_count += 1
+        else:
+            self._last_tool_intent_identity = identity
+            self._last_tool_intent_count = 1
+        if self._last_tool_intent_count < 3:
+            return None
+
+        observation = "Aborted: repeated identical tool intent detected."
+        updated = state.model_copy(
+            update={
+                "pending_action": None,
+                "last_observation": observation,
+                "status": "aborted",
+                "last_error": "loop_stuck: repeated identical tool intent",
+            }
+        )
+        saved = self.store.save(updated)
+        self.journal.record_failure(
+            saved.session_id,
+            observation,
+            {
+                "failure_category": "loop_stuck",
+                "intent_identity": list(identity),
+                "consecutive_count": self._last_tool_intent_count,
+            },
+        )
+        self._record_loop_stuck_on_current_task()
+        return AgentStepResult(state=saved, observation=observation)
+
+    def _record_loop_stuck_on_current_task(self) -> None:
+        try:
+            task_store = TaskStore(self.project_root)
+            task_id = task_store.current_id()
+            if not task_id:
+                return
+            state = task_store.load(task_id)
+            if state is None:
+                return
+            iteration = TaskIteration(
+                iteration_index=state.next_iteration_index(),
+                event="loop",
+                mode="tool_intent",
+                status="failed",
+                failure_category="loop_stuck",
+            )
+            task_store.save(state.model_copy(update={"iterations": list(state.iterations) + [iteration]}))
+        except Exception:
+            pass
+
+    def _record_budget_failure(
+        self,
+        state: AgentSessionState | None,
+        task_id: str | None,
+        budget_name: str,
+    ) -> AgentSessionState:
+        observation = f"Budget exceeded: {budget_name}."
+        if task_id:
+            try:
+                record_budget_exceeded(self.project_root, task_id, budget_name)
+            except Exception:
+                pass
+
+        current = state or self.store.load()
+        if current is None:
+            raise FileNotFoundError("No agent session found.")
+        updated = current.model_copy(
+            update={
+                "pending_action": None,
+                "last_observation": observation,
+                "status": "aborted",
+                "last_error": f"budget_exceeded: {budget_name}",
+            }
+        )
+        saved = self.store.save(updated)
+        self.journal.record_failure(
+            saved.session_id,
+            observation,
+            {"failure_category": "budget_exceeded", "budget": budget_name, "task_id": task_id or ""},
+        )
+        return saved
 
     def _execute_mcp_readonly_step(
         self, plan_item: str, state: AgentSessionState, routed: RoutedToolIntent

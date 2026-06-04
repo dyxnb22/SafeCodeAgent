@@ -13,6 +13,7 @@ import typer
 from safecode.cli_shared import console
 from safecode.cli_shared_json import CLIJSONResponse, render_json
 from safecode.context.redactor import redact_secrets
+from safecode.task.budget import TaskBudget, TaskBudgetStore, resolve_budget_task
 from safecode.task.store import TaskStore
 
 task_app = typer.Typer(
@@ -20,6 +21,12 @@ task_app = typer.Typer(
     help="[EXPERIMENTAL] Manage task sidecars. (v4.1+)",
     no_args_is_help=True,
 )
+budget_app = typer.Typer(
+    name="budget",
+    help="[EXPERIMENTAL] Show or set per-task budgets. (v4.4+)",
+    no_args_is_help=True,
+)
+task_app.add_typer(budget_app, name="budget")
 
 
 def _store() -> TaskStore:
@@ -33,6 +40,93 @@ def _state_to_dict(state: object) -> dict:
     d = state.model_dump()
     d["goal"] = redact_secrets(d.get("goal") or "")
     return d
+
+
+def _budget_data(budget: TaskBudget) -> dict:
+    return {
+        "task_id": budget.task_id,
+        "steps": budget.steps,
+        "time_seconds": budget.time_seconds,
+        "retries": budget.retries,
+        "tokens": budget.tokens,
+        "experimental": True,
+    }
+
+
+@budget_app.command("show")
+def task_budget_show(
+    task_id: Optional[str] = typer.Option(None, "--task", help="Task id (default: CURRENT)."),
+    json_output: bool = typer.Option(False, "--json", help="Output result as JSON."),
+) -> None:
+    """[EXPERIMENTAL] Show the current per-task budget."""
+    project_root = Path.cwd()
+    tid, error = resolve_budget_task(project_root, task_id)
+    if error or tid is None:
+        if json_output:
+            print(render_json(CLIJSONResponse(command="task budget show", status="error", error=error or "Task not found.")))
+        else:
+            console.print(f"[red]{error or 'Task not found.'}[/red]")
+        raise typer.Exit(code=1)
+
+    budget = TaskBudgetStore(project_root).load(tid)
+    data = _budget_data(budget)
+    if json_output:
+        print(render_json(CLIJSONResponse(command="task budget show", status="success", data=data)))
+    else:
+        console.print("[bold][EXPERIMENTAL] Task Budget[/bold]")
+        console.print(f"task_id: {data['task_id']}")
+        console.print(f"steps: {data['steps']}")
+        console.print(f"time_seconds: {data['time_seconds']}")
+        console.print(f"retries: {data['retries']}")
+        console.print(f"tokens: {data['tokens']}")
+
+
+@budget_app.command("set")
+def task_budget_set(
+    task_id: Optional[str] = typer.Option(None, "--task", help="Task id (default: CURRENT)."),
+    steps: Optional[int] = typer.Option(None, "--steps", help="Positive step budget."),
+    time_seconds: Optional[int] = typer.Option(None, "--time-seconds", help="Positive wall-clock budget in seconds."),
+    retries: Optional[int] = typer.Option(None, "--retries", help="Positive retry budget."),
+    tokens: Optional[int] = typer.Option(None, "--tokens", help="Positive token budget."),
+    json_output: bool = typer.Option(False, "--json", help="Output result as JSON."),
+) -> None:
+    """[EXPERIMENTAL] Set one or more per-task budget values."""
+    project_root = Path.cwd()
+    tid, error = resolve_budget_task(project_root, task_id)
+    if error or tid is None:
+        if json_output:
+            print(render_json(CLIJSONResponse(command="task budget set", status="error", error=error or "Task not found.")))
+        else:
+            console.print(f"[red]{error or 'Task not found.'}[/red]")
+        raise typer.Exit(code=1)
+
+    updates = {
+        key: value
+        for key, value in {
+            "steps": steps,
+            "time_seconds": time_seconds,
+            "retries": retries,
+            "tokens": tokens,
+        }.items()
+        if value is not None
+    }
+    try:
+        budget = TaskBudgetStore(project_root).load(tid).model_copy(update=updates)
+        budget = TaskBudget(**budget.model_dump())
+    except Exception as exc:
+        msg = "Budget values must be positive integers."
+        if json_output:
+            print(render_json(CLIJSONResponse(command="task budget set", status="error", error=msg)))
+        else:
+            console.print(f"[red]{msg}[/red]")
+        raise typer.Exit(code=1) from exc
+
+    saved = TaskBudgetStore(project_root).save(budget)
+    data = _budget_data(saved)
+    if json_output:
+        print(render_json(CLIJSONResponse(command="task budget set", status="success", data=data)))
+    else:
+        console.print(f"[green]Budget updated:[/green] {saved.task_id}")
 
 
 @task_app.command("new")
