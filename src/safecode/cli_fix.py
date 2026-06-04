@@ -13,6 +13,7 @@ from safecode.agent.orchestrator import AgentOrchestrator
 from safecode.cli_shared import console, log_cli_error
 from safecode.cli_shared_json import CLIJSONResponse, render_json
 from safecode.context.redactor import redact_secrets
+from safecode.core.failure_category import FailureCategory
 from safecode.memory.facade import MemoryFacade
 from safecode.patch.parser import PatchParseError
 from safecode.patch.validator import PatchValidationError
@@ -314,6 +315,7 @@ def run_fix(
             except Exception:
                 pass
         msg = f"Test command timed out after {timeout_seconds} seconds."
+        log_cli_error("cli.fix", msg, TimeoutError(msg), failure_category=FailureCategory.COMMAND_TIMEOUT.value)
         if json_output:
             print(render_json(CLIJSONResponse(
                 command="fix",
@@ -350,7 +352,7 @@ def run_fix(
                 record_fix_on_task(project_root, fix_task_id, cmd, exit_code, redacted_output, mode="plain", status="failed")
             except Exception:
                 pass
-        log_cli_error("cli.fix", "patch proposal failed", exc)
+        log_cli_error("cli.fix", "patch proposal failed", exc, failure_category=FailureCategory.PATCH_PARSE_FAILED.value)
         if json_output:
             print(render_json(CLIJSONResponse(command="fix", status="error", error=str(exc))))
         else:
@@ -532,6 +534,7 @@ def run_fix_watch(
             except Exception:
                 pass
         msg = f"Test command timed out after {timeout_seconds} seconds."
+        log_cli_error("cli.fix", msg, TimeoutError(msg), failure_category=FailureCategory.COMMAND_TIMEOUT.value)
         if json_output:
             _json_fix_watch(
                 status="error",
@@ -707,7 +710,7 @@ def run_fix_watch(
             console.print("[yellow]Interrupted. resume with: sac resume[/yellow]")
         return 130
     except (PatchParseError, PatchValidationError) as exc:
-        log_cli_error("cli.fix", "patch proposal failed", exc)
+        log_cli_error("cli.fix", "patch proposal failed", exc, failure_category=FailureCategory.PATCH_PARSE_FAILED.value)
         if json_output:
             print(render_json(CLIJSONResponse(command="fix", status="error", error=str(exc))))
         else:

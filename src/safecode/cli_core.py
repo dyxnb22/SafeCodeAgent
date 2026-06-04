@@ -15,6 +15,7 @@ from safecode.agent.orchestrator import AgentOrchestrator
 from safecode.audit.logger import AuditLogger
 from safecode.audit.models import AuditEvent
 from safecode.config import grant_ephemeral_trust, revoke_ephemeral_trust
+from safecode.core.failure_category import FailureCategory
 from safecode.patch.parser import PatchParseError
 from safecode.patch.validator import PatchValidationError
 from safecode.shell.risk import RiskLevel
@@ -88,13 +89,20 @@ def edit(
         result = orchestrator.edit(effective_task)
     except KeyboardInterrupt:
         mark_task_interrupted(project_root, command_name="edit", hint=task, task_id=current_task.task_id if current_task else None)
+        runtime_logger().error(
+            "cli.edit",
+            "edit interrupted",
+            exc=KeyboardInterrupt(),
+            failure_category=FailureCategory.INTERRUPTED.value,
+            task_id=current_task.task_id if current_task else "",
+        )
         if json_output:
             print(render_json(CLIJSONResponse(command="edit", status="error", error="Interrupted. resume with: sac resume")))
         else:
             console.print("[yellow]Interrupted. resume with: sac resume[/yellow]")
         raise typer.Exit(code=130)
     except (PatchParseError, PatchValidationError) as exc:
-        log_cli_error("cli.edit", "patch proposal failed", exc)
+        log_cli_error("cli.edit", "patch proposal failed", exc, failure_category=FailureCategory.PATCH_PARSE_FAILED.value)
         if json_output:
             print(render_json(CLIJSONResponse(command="edit", status="error", error=str(exc))))
         else:
@@ -159,7 +167,7 @@ def apply(
     try:
         preview = orchestrator.preview_apply()
     except (FileNotFoundError, PatchValidationError) as exc:
-        log_cli_error("cli.apply", "apply preview failed", exc)
+        log_cli_error("cli.apply", "apply preview failed", exc, failure_category=FailureCategory.PATCH_APPLY_CONFLICT.value)
         if json_output:
             print(render_json(CLIJSONResponse(command="apply", status="error", error=str(exc))))
         else:
@@ -230,14 +238,14 @@ def apply(
     try:
         result = orchestrator.apply(preview.proposal)
     except PatchValidationError as exc:
-        log_cli_error("cli.apply", "apply command failed", exc)
+        log_cli_error("cli.apply", "apply command failed", exc, failure_category=FailureCategory.PATCH_APPLY_CONFLICT.value)
         if json_output:
             print(render_json(CLIJSONResponse(command="apply", status="error", error=str(exc))))
         else:
             console.print(f"[red]Apply failed:[/red] {exc}")
         raise typer.Exit(code=1) from exc
     except Exception as exc:
-        log_cli_error("cli.apply", "apply command failed", exc)
+        log_cli_error("cli.apply", "apply command failed", exc, failure_category=FailureCategory.PATCH_APPLY_CONFLICT.value)
         if json_output:
             print(render_json(CLIJSONResponse(command="apply", status="error", error=str(exc))))
         else:
@@ -334,11 +342,11 @@ def rollback(
     try:
         result = rollback_orchestrator.rollback_last()
     except FileNotFoundError as exc:
-        log_cli_error("cli.rollback", "rollback failed", exc)
+        log_cli_error("cli.rollback", "rollback failed", exc, failure_category=FailureCategory.PATCH_APPLY_CONFLICT.value)
         console.print(f"[red]Rollback failed:[/red] {exc}")
         raise typer.Exit(code=1) from exc
     except Exception as exc:
-        log_cli_error("cli.rollback", "rollback failed", exc)
+        log_cli_error("cli.rollback", "rollback failed", exc, failure_category=FailureCategory.PATCH_APPLY_CONFLICT.value)
         console.print(f"[red]Rollback failed:[/red] {exc}")
         raise typer.Exit(code=1) from exc
 
@@ -592,6 +600,14 @@ def run_command(
         result = runner.run(command, approved=approved)
     except KeyboardInterrupt:
         mark_task_interrupted(project_root, command_name="run", hint=command, task_id=run_task_id)
+        runtime_logger().error(
+            "cli.run",
+            "run interrupted",
+            exc=KeyboardInterrupt(),
+            failure_category=FailureCategory.INTERRUPTED.value,
+            command=command or "",
+            task_id=run_task_id or "",
+        )
         if json_output:
             print(render_json(CLIJSONResponse(command="run", status="error", error="Interrupted. resume with: sac resume")))
         else:
@@ -605,6 +621,27 @@ def run_command(
         executed=str(result.executed),
         risk=str(result.risk.level),
     )
+    if result.exit_code != 0:
+        if result.exit_code == 124:
+            category = FailureCategory.COMMAND_TIMEOUT.value
+        elif not result.executed and result.exit_code in {125, 126}:
+            category = FailureCategory.NETWORK_DISABLED.value if "network" in (result.stderr or "").lower() else FailureCategory.COMMAND_BLOCKED_BY_POLICY.value
+        elif result.exit_code == 127:
+            category = FailureCategory.DEPENDENCY_MISSING.value
+        else:
+            category = FailureCategory.UNKNOWN.value
+        runtime_logger().write(
+            "error",
+            "cli.run",
+            "shell command failed",
+            failure_category=category,
+            details={
+                "command": command or "",
+                "exit_code": str(result.exit_code),
+                "executed": str(result.executed),
+                "task_id": run_task_id or "",
+            },
+        )
     run_orchestrator = AgentOrchestrator(project_root)
     run_orchestrator.audit_logger.write(
         AuditEvent(

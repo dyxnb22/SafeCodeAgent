@@ -6,6 +6,7 @@ from rich.console import Console
 from rich.panel import Panel
 
 from safecode.logs.runtime import RuntimeLogger
+from safecode.core.failure_category import category_for_exception
 
 console = Console()
 
@@ -27,6 +28,6 @@ def runtime_logger() -> RuntimeLogger:
     return RuntimeLogger(Path.cwd())
 
 
-def log_cli_error(component: str, message: str, exc: BaseException) -> None:
+def log_cli_error(component: str, message: str, exc: BaseException, failure_category: str | None = None) -> None:
     """Persist CLI errors for later debugging."""
-    runtime_logger().error(component, message, exc=exc)
+    runtime_logger().error(component, message, exc=exc, failure_category=failure_category or category_for_exception(exc))

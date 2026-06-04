@@ -7,6 +7,8 @@ from pathlib import Path
 from pydantic import BaseModel, Field
 
 from safecode.config import SafeCodeConfig
+from safecode.context.redactor import redact_secrets
+from safecode.core.failure_category import category_for_exception, normalize_failure_category
 from safecode.utils.time import utc_now_iso
 
 
@@ -20,6 +22,7 @@ class RuntimeLogEvent(BaseModel):
     trace_id: str | None = None
     error_type: str | None = None
     traceback: str | None = None
+    failure_category: str | None = None
     details: dict[str, str] = Field(default_factory=dict)
 
 
@@ -41,17 +44,20 @@ class RuntimeLogger:
         message: str,
         exc: BaseException | None = None,
         trace_id: str | None = None,
+        failure_category: str | None = None,
         **details: str,
     ) -> RuntimeLogEvent:
         """Write an error event, including exception details when available."""
+        category = failure_category or (category_for_exception(exc) if exc else None)
         return self.write(
             "error",
             component,
-            message,
+            redact_secrets(message),
             trace_id=trace_id,
             error_type=type(exc).__name__ if exc else None,
-            traceback="".join(traceback.format_exception(exc)) if exc else None,
-            details=details,
+            traceback=redact_secrets("".join(traceback.format_exception(exc))) if exc else None,
+            failure_category=category,
+            details={key: redact_secrets(str(value)) for key, value in details.items()},
         )
 
     def write(
@@ -62,6 +68,7 @@ class RuntimeLogger:
         trace_id: str | None = None,
         error_type: str | None = None,
         traceback: str | None = None,
+        failure_category: str | None = None,
         details: dict[str, str] | None = None,
     ) -> RuntimeLogEvent:
         """Append one runtime log event."""
@@ -69,11 +76,12 @@ class RuntimeLogger:
             timestamp=utc_now_iso(),
             level=level,
             component=component,
-            message=message,
+            message=redact_secrets(message),
             trace_id=trace_id,
             error_type=error_type,
-            traceback=traceback,
-            details=details or {},
+            traceback=redact_secrets(traceback) if traceback else None,
+            failure_category=normalize_failure_category(failure_category) if failure_category else None,
+            details={key: redact_secrets(str(value)) for key, value in (details or {}).items()},
         )
         self.log_file.parent.mkdir(parents=True, exist_ok=True)
         with self.log_file.open("a", encoding="utf-8") as file:
@@ -85,7 +93,14 @@ class RuntimeLogger:
         if not self.log_file.exists():
             return []
         lines = self.log_file.read_text(encoding="utf-8").splitlines()
-        events = [RuntimeLogEvent(**json.loads(line)) for line in lines if line.strip()]
+        events: list[RuntimeLogEvent] = []
+        for line in lines:
+            if not line.strip():
+                continue
+            try:
+                events.append(RuntimeLogEvent(**json.loads(line)))
+            except (json.JSONDecodeError, TypeError, ValueError):
+                continue
         if level:
             events = [event for event in events if event.level == level]
         return events[-limit:]

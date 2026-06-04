@@ -15,6 +15,7 @@ from safecode.agent.tools import RoutedToolIntent, ToolIntentRouter
 from safecode.config import SafeCodeConfig
 from safecode.context.collector import ContextCollector
 from safecode.context.redactor import redact_secrets
+from safecode.core.failure_category import FailureCategory
 from safecode.llm.factory import create_llm_client
 from safecode.mcp.loop_executor import MCPApprovedWriteExecutor, MCPReadToolExecutor
 from safecode.subagents.executor import SubagentDispatchExecutor
@@ -26,6 +27,7 @@ from safecode.state.journal import AgentJournalStore
 from safecode.task.budget import TaskBudgetStore, record_budget_exceeded
 from safecode.task.state import TaskIteration
 from safecode.task.store import TaskStore
+from safecode.logs.runtime import RuntimeLogger
 
 
 DEFAULT_PLAN = [
@@ -137,7 +139,14 @@ class AgentLoop:
                 self.journal.record_failure(
                     saved.session_id,
                     observation,
-                    {"error": observation, "after_retry": True},
+                    {"error": observation, "after_retry": True, "failure_category": "model_output_invalid"},
+                )
+                RuntimeLogger(self.project_root, self.config).write(
+                    "error",
+                    "agent.loop",
+                    observation,
+                    failure_category=FailureCategory.MODEL_OUTPUT_INVALID.value,
+                    details={"session_id": saved.session_id},
                 )
                 return AgentStepResult(state=saved, observation=observation, stopped_for_approval=False)
 
@@ -296,6 +305,13 @@ class AgentLoop:
                 "consecutive_count": self._last_tool_intent_count,
             },
         )
+        RuntimeLogger(self.project_root, self.config).write(
+            "error",
+            "agent.loop",
+            observation,
+            failure_category=FailureCategory.LOOP_STUCK.value,
+            details={"session_id": saved.session_id},
+        )
         self._record_loop_stuck_on_current_task()
         return AgentStepResult(state=saved, observation=observation)
 
@@ -348,6 +364,13 @@ class AgentLoop:
             saved.session_id,
             observation,
             {"failure_category": "budget_exceeded", "budget": budget_name, "task_id": task_id or ""},
+        )
+        RuntimeLogger(self.project_root, self.config).write(
+            "error",
+            "agent.loop",
+            observation,
+            failure_category=FailureCategory.BUDGET_EXCEEDED.value,
+            details={"task_id": task_id or "", "budget": budget_name},
         )
         return saved
 
@@ -519,7 +542,13 @@ class AgentLoop:
                 }
             )
             saved = self.store.save(updated)
-            self.journal.record_failure(saved.session_id, observation, {"error": str(exc)})
+            self.journal.record_failure(saved.session_id, observation, {"error": str(exc), "failure_category": "patch_parse_failed"})
+            RuntimeLogger(self.project_root, self.config).error(
+                "agent.loop",
+                observation,
+                exc=exc,
+                failure_category=FailureCategory.PATCH_PARSE_FAILED.value,
+            )
             return AgentStepResult(state=saved, observation=observation, stopped_for_approval=False)
 
         patch_files = [block.file_path.as_posix() for block in edit_result.proposal.blocks]

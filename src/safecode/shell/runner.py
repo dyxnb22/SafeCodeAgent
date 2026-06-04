@@ -7,6 +7,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from safecode.config import SafeCodeConfig
+from safecode.core.failure_category import FailureCategory
+from safecode.logs.runtime import RuntimeLogger
 from safecode.policy.commands import CommandDecision, CommandPolicy
 from safecode.sandbox.filesystem import FilesystemBoundary
 from safecode.sandbox.network import NetworkPolicy
@@ -71,10 +73,12 @@ class ShellRunner:
         risk = decision.risk
         if not decision.allowed:
             exit_code = 125 if decision.requires_approval else 126
+            self._log_failure(command, exit_code, decision.reason, FailureCategory.COMMAND_BLOCKED_BY_POLICY.value, executed=False)
             return ShellRunResult(command, risk, exit_code, "", decision.reason, 0, False)
 
         network_block = self._network_block_reason(risk.tokens)
         if network_block:
+            self._log_failure(command, 126, network_block, FailureCategory.NETWORK_DISABLED.value, executed=False)
             return ShellRunResult(command, risk, 126, "", network_block, 0, False)
 
         started = time.perf_counter()
@@ -91,9 +95,11 @@ class ShellRunner:
             )
         except subprocess.TimeoutExpired as exc:
             duration_ms = int((time.perf_counter() - started) * 1000)
+            self._log_failure(command, 124, "Command timed out.", FailureCategory.COMMAND_TIMEOUT.value, executed=True)
             return ShellRunResult(command, risk, 124, exc.stdout or "", exc.stderr or "Command timed out.", duration_ms, True)
         except FileNotFoundError as exc:
             duration_ms = int((time.perf_counter() - started) * 1000)
+            self._log_failure(command, 127, str(exc), FailureCategory.DEPENDENCY_MISSING.value, executed=False)
             return ShellRunResult(command, risk, 127, "", str(exc), duration_ms, False)
         duration_ms = int((time.perf_counter() - started) * 1000)
         return ShellRunResult(
@@ -165,6 +171,22 @@ class ShellRunner:
             if any(token in {"pip", "tool", "run"} for token in lowered_args):
                 return self._check_network_policy(policy, None, command)
         return None
+
+    def _log_failure(self, command: str, exit_code: int, message: str, category: str, *, executed: bool) -> None:
+        try:
+            RuntimeLogger(self.project_root, self.config).write(
+                "error",
+                "shell.runner",
+                message,
+                failure_category=category,
+                details={
+                    "command": command,
+                    "exit_code": str(exit_code),
+                    "executed": str(executed),
+                },
+            )
+        except Exception:
+            pass
 
     def _check_network_policy(self, policy: NetworkPolicy, target: str | None, label: str) -> str | None:
         if not self.config.sandbox.network_enabled:

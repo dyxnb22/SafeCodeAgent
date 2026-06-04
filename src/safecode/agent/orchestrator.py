@@ -10,6 +10,7 @@ from safecode.audit.models import AuditEvent
 from safecode.checkpoint.manager import CheckpointManager
 from safecode.checkpoint.models import CheckpointMetadata
 from safecode.config import SafeCodeConfig
+from safecode.core.failure_category import FailureCategory, category_for_exception
 from safecode.context.collector import ContextCollector
 from safecode.hooks.runner import HookRunner, HookRunSummary
 from safecode.llm.factory import create_llm_client
@@ -21,6 +22,7 @@ from safecode.patch.validator import PatchValidator
 from safecode.trace.events import TraceLogger
 from safecode.utils.time import utc_now_iso
 from safecode.metrics.writer import make_metrics_writer
+from safecode.logs.runtime import RuntimeLogger
 
 
 @dataclass
@@ -99,12 +101,42 @@ class AgentOrchestrator:
         diff_plan = planner.predict(task)
 
         context = self.context_collector.collect()
-        patch_response = self.llm_client.propose_patch(task, context)
-        proposal = PatchParser().parse(patch_response.patch_text, task=task)
+        try:
+            patch_response = self.llm_client.propose_patch(task, context)
+        except Exception as exc:
+            RuntimeLogger(self.project_root, self.config).error(
+                "agent.orchestrator",
+                "model patch proposal failed",
+                exc=exc,
+                trace_id=trace_id,
+                failure_category=category_for_exception(exc),
+            )
+            raise
+        try:
+            proposal = PatchParser().parse(patch_response.patch_text, task=task)
+        except Exception as exc:
+            RuntimeLogger(self.project_root, self.config).error(
+                "agent.orchestrator",
+                "patch parse failed",
+                exc=exc,
+                trace_id=trace_id,
+                failure_category=FailureCategory.PATCH_PARSE_FAILED.value,
+            )
+            raise
 
         scope_result = planner.compare(diff_plan, proposal)
 
-        PatchValidator(self.project_root).validate(proposal)
+        try:
+            PatchValidator(self.project_root).validate(proposal)
+        except Exception as exc:
+            RuntimeLogger(self.project_root, self.config).error(
+                "agent.orchestrator",
+                "patch validation failed",
+                exc=exc,
+                trace_id=trace_id,
+                failure_category=FailureCategory.PATCH_APPLY_CONFLICT.value,
+            )
+            raise
         diff_text = build_unified_diff(self.project_root, proposal)
         pending_patch_path = self._save_pending_patch(proposal)
         self.trace_logger.write(trace_id, "edit.patch_saved", proposal.id)
@@ -138,8 +170,17 @@ class AgentOrchestrator:
         pending_patch_path = self._pending_patch_path()
         proposal = self._load_pending_patch(pending_patch_path)
 
-        PatchValidator(self.project_root).validate(proposal)
-        diff_text = build_unified_diff(self.project_root, proposal)
+        try:
+            PatchValidator(self.project_root).validate(proposal)
+            diff_text = build_unified_diff(self.project_root, proposal)
+        except Exception as exc:
+            RuntimeLogger(self.project_root, self.config).error(
+                "agent.orchestrator",
+                "apply preview failed",
+                exc=exc,
+                failure_category=FailureCategory.PATCH_APPLY_CONFLICT.value,
+            )
+            raise
         return ApplyPreview(
             proposal=proposal,
             diff_text=diff_text,
@@ -150,10 +191,20 @@ class AgentOrchestrator:
         """Checkpoint and apply a previously previewed pending patch."""
         trace_id = self.trace_logger.new_trace_id()
         self.trace_logger.write(trace_id, "apply.start", proposal.id)
-        PatchValidator(self.project_root).validate(proposal)
-        checkpoint = CheckpointManager(self.project_root).create(proposal)
-        self.trace_logger.write(trace_id, "apply.checkpoint_created", checkpoint.checkpoint_id)
-        PatchApplier(self.project_root).apply(proposal)
+        try:
+            PatchValidator(self.project_root).validate(proposal)
+            checkpoint = CheckpointManager(self.project_root).create(proposal)
+            self.trace_logger.write(trace_id, "apply.checkpoint_created", checkpoint.checkpoint_id)
+            PatchApplier(self.project_root).apply(proposal)
+        except Exception as exc:
+            RuntimeLogger(self.project_root, self.config).error(
+                "agent.orchestrator",
+                "patch apply failed",
+                exc=exc,
+                trace_id=trace_id,
+                failure_category=FailureCategory.PATCH_APPLY_CONFLICT.value,
+            )
+            raise
         hooks = HookRunner(self.project_root, self.config).run_after_apply()
         self._pending_patch_path().unlink(missing_ok=True)
         self.trace_logger.write(trace_id, "apply.completed", proposal.id)
@@ -187,7 +238,17 @@ class AgentOrchestrator:
         """Restore the latest checkpoint and audit the rollback."""
         trace_id = self.trace_logger.new_trace_id()
         self.trace_logger.write(trace_id, "rollback.start", "latest")
-        checkpoint = CheckpointManager(self.project_root).rollback_last()
+        try:
+            checkpoint = CheckpointManager(self.project_root).rollback_last()
+        except Exception as exc:
+            RuntimeLogger(self.project_root, self.config).error(
+                "agent.orchestrator",
+                "rollback failed",
+                exc=exc,
+                trace_id=trace_id,
+                failure_category=FailureCategory.PATCH_APPLY_CONFLICT.value,
+            )
+            raise
         files = [operation.path for operation in checkpoint.file_operations]
         self.trace_logger.write(trace_id, "rollback.completed", checkpoint.checkpoint_id)
         self.audit_logger.write(

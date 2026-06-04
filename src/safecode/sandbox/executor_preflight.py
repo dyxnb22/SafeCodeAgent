@@ -10,6 +10,8 @@ from pathlib import Path
 from safecode.audit.logger import AuditLogger
 from safecode.audit.models import AuditEvent
 from safecode.config import SafeCodeConfig
+from safecode.core.failure_category import FailureCategory
+from safecode.logs.runtime import RuntimeLogger
 from safecode.sandbox.adapter import (
     DockerSandboxAdapter,
     LinuxBubblewrapAdapter,
@@ -119,6 +121,14 @@ class SandboxExecutorPreflight:
         backend = normalize_executor_backend(backend_name)
         result = self._run_backend(backend)
         self._audit(result)
+        if not result.passed:
+            RuntimeLogger(self.project_root, self.config).write(
+                "error",
+                "sandbox.executor_preflight",
+                "Sandbox executor preflight blocked.",
+                failure_category=FailureCategory.SANDBOX_PREFLIGHT_FAILED.value,
+                details={"backend": result.backend},
+            )
         if result.passed:
             self._save(result)
         return result

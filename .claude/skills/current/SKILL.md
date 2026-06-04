@@ -5,13 +5,15 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v4.6.2
+# Current Baseline - v4.7.0
 
 ## Status
-Implemented. Git baseline: tag `v4.6.2`. Local working version: `v4.6.2`.
+Implemented. Git baseline: tag `v4.7.0`. Local working version: `v4.7.0`.
 
 ## Stage
-`v4.6.2` memory-docs — T-4.6.2-A v4.6-docs-cut: README Core Commands documents experimental `sac memory show|pin|unpin|add-note|clear`; MVP guide documents unified memory layout, project notes, task notes, pinned files with context quota, and recent failures helping `sac fix`; troubleshooting covers pinned missing files, outside-root pin refusal, memory secret rejection, and stale recent-failure context. Docs guards verify documented v4.6 commands exist. All v4.6 surfaces remain EXPERIMENTAL; no stable contract promoted.
+`v4.7.0` failure-taxonomy-and-debug-last-failure — T-4.7.0-A runtime-failure-taxonomy: new experimental runtime-wide `FailureCategory` table covers model output, patch, command, network/provider, sandbox, interruption, loop, budget, dependency, and unknown failures; runtime logs gain an additive optional `failure_category` field while older logs still parse; existing failure paths write redacted category breadcrumbs where doing so does not violate no-I/O classification invariants. T-4.7.0-B sac-debug-last-failure: new experimental `sac debug last-failure [--task <id>] [--json]` reads runtime logs, task sidecars, recent-failure memory, and audit events without executing commands, returning a redacted deterministic category/message/source/task/command/file summary plus the table-derived suggested command. No stable public contract promoted.
+
+Previous: `v4.6.2` memory-docs — T-4.6.2-A v4.6-docs-cut: README Core Commands documents experimental `sac memory show|pin|unpin|add-note|clear`; MVP guide documents unified memory layout, project notes, task notes, pinned files with context quota, and recent failures helping `sac fix`; troubleshooting covers pinned missing files, outside-root pin refusal, memory secret rejection, and stale recent-failure context. Docs guards verify documented v4.6 commands exist. All v4.6 surfaces remain EXPERIMENTAL; no stable contract promoted.
 
 Previous: `v4.6.1` pinned-context-and-fix-memory — T-4.6.1-A pinned-files-in-context: `ContextSelector` reads pinned files from `MemoryFacade`, includes safe pinned files even when they do not match query tokens, caps pinned selections to a bounded quota, preserves keyword-selected files, exposes deterministic `pinned_missing` warnings through selector and collector metadata, and keeps ignore, root-boundary, sensitive-path, and binary-file gates intact. T-4.6.1-B recent-failures-into-fix: `sac fix` and `sac fix --watch` record redacted bounded recent failures to `.sac/memory/recent-failures.jsonl`, keep the newest 200 entries, and include the newest three failures as bounded task context in the prompt to `AgentOrchestrator.edit()`. Existing edit retry-from-last-failure behavior remains available. All v4.6 surfaces remain EXPERIMENTAL; no stable contract promoted.
 
