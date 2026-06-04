@@ -4,6 +4,7 @@ import os
 import tomllib
 import warnings
 from pathlib import Path
+from uuid import uuid4
 
 from pydantic import BaseModel, Field
 
@@ -51,6 +52,20 @@ class LLMConfig(BaseModel):
     fallback_base_url: str | None = None
 
 
+class TrustRoot(BaseModel):
+    """User-level per-directory trust declaration."""
+
+    path: str
+    policy: str = "balanced"
+    include_subdirectories: bool = True
+
+
+class TrustConfig(BaseModel):
+    """Trust declarations. Only user-level config may grant trust."""
+
+    roots: list[TrustRoot] = Field(default_factory=list)
+
+
 class SafeCodeConfig(BaseModel):
     """Runtime configuration with safe defaults."""
 
@@ -64,6 +79,7 @@ class SafeCodeConfig(BaseModel):
     sandbox: SandboxPolicy = Field(default_factory=SandboxPolicy)
     hooks: HookConfig = Field(default_factory=HookConfig)
     llm: LLMConfig = Field(default_factory=LLMConfig)
+    trust: TrustConfig = Field(default_factory=TrustConfig)
 
     @classmethod
     def load(cls, project_root: Path) -> "SafeCodeConfig":
@@ -276,7 +292,103 @@ def merge_trusted_config(user_config: SafeCodeConfig, project_config: SafeCodeCo
         user_config.hooks.allow_medium_after_apply and project_config.hooks.allow_medium_after_apply
     )
     merged.llm = user_config.llm.model_copy(deep=True)
+    merged.trust = user_config.trust.model_copy(deep=True)
     return merged
+
+
+_EPHEMERAL_TRUST_GRANTS: dict[str, TrustRoot] = {}
+
+
+def grant_ephemeral_trust(path: Path, policy: str = "balanced") -> str:
+    """Grant process-local trust until this Python process exits."""
+    grant = TrustRoot(path=str(path.expanduser().resolve()), policy=policy, include_subdirectories=True)
+    grant_id = uuid4().hex
+    _EPHEMERAL_TRUST_GRANTS[grant_id] = grant
+    return grant_id
+
+
+def revoke_ephemeral_trust(grant_id: str) -> bool:
+    """Revoke a process-local trust grant."""
+    return _EPHEMERAL_TRUST_GRANTS.pop(grant_id, None) is not None
+
+
+def clear_ephemeral_trust() -> int:
+    """Clear all process-local trust grants; primarily useful for tests/session teardown."""
+    count = len(_EPHEMERAL_TRUST_GRANTS)
+    _EPHEMERAL_TRUST_GRANTS.clear()
+    return count
+
+
+def effective_trust_for_path(project_root: Path, target_path: Path | None = None) -> dict:
+    """Return audited effective trust state for a path.
+
+    Project-local config is intentionally ignored for trust grants. User-level
+    roots and process-local ephemeral roots can only keep or strengthen the
+    effective policy; they never bypass approval, audit, rollback, checkpoint,
+    redaction, or command policy.
+    """
+    root = project_root.resolve()
+    target = (target_path or project_root).expanduser().resolve()
+    data = _read_toml(project_root / ".sac" / "config.toml")
+    attempted_project_trust = "trust" in data
+    config = SafeCodeConfig.load(project_root)
+    matched: list[TrustRoot] = []
+    for trust_root in [*config.trust.roots, *_EPHEMERAL_TRUST_GRANTS.values()]:
+        if _trust_root_matches(trust_root, target):
+            matched.append(trust_root)
+
+    effective_policy = config.policy
+    for match in matched:
+        effective_policy = _stricter_policy(effective_policy, match.policy)
+    result = {
+        "trusted": bool(matched),
+        "path": str(target),
+        "project_root": str(root),
+        "effective_policy": effective_policy,
+        "matched_roots": [str(Path(item.path).expanduser()) for item in matched],
+        "ephemeral_count": sum(1 for item in _EPHEMERAL_TRUST_GRANTS.values() if _trust_root_matches(item, target)),
+        "project_trust_blocked": attempted_project_trust,
+    }
+    _audit_trust_lookup(project_root, result)
+    return result
+
+
+def _trust_root_matches(trust_root: TrustRoot, target: Path) -> bool:
+    try:
+        root = Path(trust_root.path).expanduser().resolve()
+    except OSError:
+        return False
+    if target == root:
+        return True
+    if not trust_root.include_subdirectories:
+        return False
+    try:
+        target.relative_to(root)
+        return True
+    except ValueError:
+        return False
+
+
+def _audit_trust_lookup(project_root: Path, result: dict) -> None:
+    from safecode.audit.logger import AuditLogger
+    from safecode.audit.models import AuditEvent
+    from safecode.utils.time import utc_now_iso
+
+    AuditLogger(project_root, SafeCodeConfig.load(project_root)).write(
+        AuditEvent(
+            type="trust_config_lookup",
+            timestamp=utc_now_iso(),
+            status="blocked" if result["project_trust_blocked"] else "success",
+            message="Project trust config blocked." if result["project_trust_blocked"] else "Trust config lookup completed.",
+            metadata={
+                "trusted": str(result["trusted"]).lower(),
+                "effective_policy": str(result["effective_policy"]),
+                "matched_root_count": str(len(result["matched_roots"])),
+                "ephemeral_count": str(result["ephemeral_count"]),
+                "project_trust_blocked": str(result["project_trust_blocked"]).lower(),
+            },
+        )
+    )
 
 
 def _stricter_policy(left: str, right: str) -> str:

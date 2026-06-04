@@ -7,7 +7,7 @@ from rich.panel import Panel
 
 from safecode.cli_agent import agent_app
 from safecode.cli_context import context_app
-from safecode.cli_core import core_app
+from safecode.cli_core import core_app, trust_app
 from safecode.cli_mcp import mcp_app, mcp_discard
 from safecode.cli_ops import audit_app, export_app, hooks_app, ide_app, logs_app, ops_app, queue_app, release_app, report_app
 from safecode.cli_project import config_app, index_app, progress_app, skills_app, tools_app
@@ -204,6 +204,7 @@ for command in ops_app.registered_commands:
     app.registered_commands.append(command)
 
 app.add_typer(context_app, name="context")
+app.add_typer(trust_app, name="trust")
 app.add_typer(config_app, name="config")
 app.add_typer(skills_app, name="skills")
 app.add_typer(tools_app, name="tools")

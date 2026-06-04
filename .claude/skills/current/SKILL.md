@@ -5,13 +5,15 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v3.10.2
+# Current Baseline - v3.11.0
 
 ## Status
-Implemented. Git baseline: tag `v3.10.2`. Local working version: `v3.10.2`.
+Implemented. Git baseline: tag `v3.11.0`. Local working version: `v3.11.0`.
 
 ## Stage
-`v3.10.2` context-budgets-stack-tutorials — T-3.10.2-A context-budget-docs: new `docs/context-budgets.md`; documents p50 context-pack budget per language preset (baseline-fixture-derived from `tests/snapshots/bench/`); ties to `ContextBudget`/`ContextBudgetPacker`; no unsupported performance claims; 20 new tests in `tests/test_context_budgets_docs.py`. T-3.10.2-B per-stack-tutorial-ts-go: `docs/tutorials/typescript-first-hour.md` and `docs/tutorials/go-first-hour.md` with required sections (`sac quickstart`, `sac ask`, `sac edit`, `sac apply`, `sac rollback`, `sac fix`, safety notes), cross-references, README links; 18 new tests added to `tests/test_landing_docs.py`. Full suite: 3763 passed, 2 skipped.
+`v3.11.0` directory-ephemeral-trust — T-3.11.0-A per-directory-trust: user-level `trust.roots` config applies only from trusted user config, may include subdirectories, and project-local trust declarations are ignored/blocked with `trust_config_lookup` audit events; effective trust never bypasses approval, audit, redaction, checkpoint, rollback, or policy strictness; 4 new tests in `tests/test_per_directory_trust.py`. T-3.11.0-B ephemeral-trust: `sac trust grant --until-end-of-session` adds process-local trust only, never writes config/disk grant state, supports revoke, and audits grant/revoke; 4 new tests in `tests/test_ephemeral_trust.py`. Full suite: 3754 passed, 2 skipped.
+
+Previous: `v3.10.2` context-budgets-stack-tutorials — T-3.10.2-A context-budget-docs: new `docs/context-budgets.md`; documents p50 context-pack budget per language preset (baseline-fixture-derived from `tests/snapshots/bench/`); ties to `ContextBudget`/`ContextBudgetPacker`; no unsupported performance claims; 20 new tests in `tests/test_context_budgets_docs.py`. T-3.10.2-B per-stack-tutorial-ts-go: `docs/tutorials/typescript-first-hour.md` and `docs/tutorials/go-first-hour.md` with required sections (`sac quickstart`, `sac ask`, `sac edit`, `sac apply`, `sac rollback`, `sac fix`, safety notes), cross-references, README links; 18 new tests added to `tests/test_landing_docs.py`. Full suite: 3763 passed, 2 skipped.
 
 Previous: `v3.10.1` ci-gates-live-provider — T-3.10.1-A loop-eval-blocking: promotion deferred (no clean CI train recorded); loop-eval remains advisory (`continue-on-error: true`); 4 new tests in `tests/test_eval_loop_mode_ci_gate.py` encoding current truthful state. T-3.10.1-B live-provider-lane-record: v3.10.x release train history recorded in `docs/providers.md`; lane remains advisory; no credential handling changes; 7 new tests in `tests/test_ci_live_lane.py`. Full suite: 3711 passed, 2 skipped.
 

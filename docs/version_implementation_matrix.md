@@ -468,6 +468,12 @@ Historical plan: `docs/version-plans/v2.8-to-v3.0-product-architecture-roadmap.m
 | `v3.10.1` ✅ | `main` | `.github/workflows/ci.yml`, `docs/providers.md`, `tests/test_eval_loop_mode_ci_gate.py`, `tests/test_ci_live_lane.py` | T-3.10.1-A loop-eval-blocking: promotion deferred (no clean CI train recorded locally); loop-eval remains advisory (`continue-on-error: true`); 4 new tests in `tests/test_eval_loop_mode_ci_gate.py` encoding truthful current state. T-3.10.1-B live-provider-lane-record: v3.10.x release train history table added to `docs/providers.md`; lane remains advisory; no credential handling changes; 7 new tests in `tests/test_ci_live_lane.py`; targeted → 45 pass; full regression → 3711 passed, 2 skipped |
 | `v3.10.2` ✅ | `main` | `docs/context-budgets.md`, `docs/tutorials/typescript-first-hour.md`, `docs/tutorials/go-first-hour.md`, `README.md`, `tests/test_context_budgets_docs.py`, `tests/test_landing_docs.py` | T-3.10.2-A context-budget-docs: `docs/context-budgets.md` documents default 40,000-char budget; p50 fixture numbers from bench snapshots; tied to `ContextBudget`/`ContextBudgetPacker`; 20 new tests. T-3.10.2-B per-stack-tutorial-ts-go: TypeScript and Go "first hour" tutorials with quickstart/ask/edit/apply/rollback/fix/safety sections; cross-references; README links; 18 new tests in `tests/test_landing_docs.py`; targeted → 52 pass; full regression → 3746 passed, 2 skipped |
 
+## v3.11.x: Policy Management and Sandbox Executor Preflight
+
+| 版本 | 分支 | 主要入口 | 验收命令 / 结果 |
+|---|---|---|---|
+| `v3.11.0` ✅ | `main` | `src/safecode/config.py`, `src/safecode/cli_core.py`, `tests/test_per_directory_trust.py`, `tests/test_ephemeral_trust.py` | T-3.11.0-A per-directory-trust: user-level `trust.roots` apply to explicit roots/subdirectories; project-local trust declarations are blocked and audited. T-3.11.0-B ephemeral-trust: `sac trust grant --until-end-of-session` creates process-local grants only and audits grant/revoke; targeted → 8 passed; full regression → 3754 passed, 2 skipped |
+
 ## Active Forward Plan After v3.6.6
 
 Active plan: `docs/version-plans/v3.7-to-v4.0-product-roadmap.md`.

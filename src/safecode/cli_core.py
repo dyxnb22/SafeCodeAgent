@@ -12,7 +12,9 @@ from safecode.cli_shared_json import CLIJSONResponse, render_json
 
 from safecode.agent.approvals import HumanCheckpointPresenter
 from safecode.agent.orchestrator import AgentOrchestrator
+from safecode.audit.logger import AuditLogger
 from safecode.audit.models import AuditEvent
+from safecode.config import grant_ephemeral_trust, revoke_ephemeral_trust
 from safecode.patch.parser import PatchParseError
 from safecode.patch.validator import PatchValidationError
 from safecode.shell.risk import RiskLevel
@@ -21,6 +23,7 @@ from safecode.tools.gate import GateError, ToolCallGate
 from safecode.utils.time import utc_now_iso
 
 core_app = typer.Typer()
+trust_app = typer.Typer(help="Manage session-local trust grants.")
 
 
 @core_app.command()
@@ -254,6 +257,59 @@ def history() -> None:
     console.print(table)
 
 
+@trust_app.command("grant")
+def trust_grant(
+    path: str = typer.Argument(".", help="Directory to trust for this session."),
+    until_end_of_session: bool = typer.Option(
+        False,
+        "--until-end-of-session",
+        help="Grant process-local trust only; never persists to config.",
+    ),
+    policy: str = typer.Option("balanced", "--policy", help="Trust policy: strict, balanced, experimental."),
+) -> None:
+    """Grant trust for this process only."""
+    if not until_end_of_session:
+        console.print("[red]Trust grants must be ephemeral in v3.11.0: pass --until-end-of-session.[/red]")
+        raise typer.Exit(1)
+    project_root = Path.cwd()
+    grant_id = grant_ephemeral_trust(Path(path), policy)
+    AuditLogger(project_root).write(
+        AuditEvent(
+            type="ephemeral_trust_granted",
+            timestamp=utc_now_iso(),
+            status="success",
+            message="Ephemeral trust granted until process exit.",
+            metadata={
+                "grant_id": grant_id,
+                "path": str(Path(path).expanduser().resolve()),
+                "policy": policy,
+                "persisted": "false",
+            },
+        )
+    )
+    console.print(f"Ephemeral trust granted: {grant_id}")
+
+
+@trust_app.command("revoke")
+def trust_revoke(grant_id: str) -> None:
+    """Revoke a session-local trust grant."""
+    project_root = Path.cwd()
+    revoked = revoke_ephemeral_trust(grant_id)
+    AuditLogger(project_root).write(
+        AuditEvent(
+            type="ephemeral_trust_revoked",
+            timestamp=utc_now_iso(),
+            status="success" if revoked else "blocked",
+            message="Ephemeral trust revoked." if revoked else "Ephemeral trust grant not found.",
+            metadata={"grant_id": grant_id, "persisted": "false"},
+        )
+    )
+    if not revoked:
+        console.print("[yellow]No matching ephemeral trust grant.[/yellow]")
+        raise typer.Exit(1)
+    console.print(f"Ephemeral trust revoked: {grant_id}")
+
+
 @core_app.command("run")
 def run_command(
     command: str,
@@ -371,4 +427,3 @@ def _inject_last_failure_context(project_root: Path, task: str) -> str:
 
     redacted = redact_secrets(failure_ctx)
     return f"[Previous failure context]\n{redacted}\n\n[Task]\n{task}"
-
