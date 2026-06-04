@@ -5,13 +5,15 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v4.2.0
+# Current Baseline - v4.2.1
 
 ## Status
-Implemented. Git baseline: tag `v4.2.0`. Local working version: `v4.2.0`.
+Implemented. Git baseline: tag `v4.2.1`. Local working version: `v4.2.1`.
 
 ## Stage
-`v4.2.0` project-profile — T-4.2.0-A project-profile-detector: new `src/safecode/project/profile.py`; `ProjectProfile` Pydantic model (payload_version=1, test/lint/typecheck/build: ProfileCommand|None, user_overrides: frozenset[str]); `ProfileCommand` (command: tuple[str,...], stack, source: detected|user|none, missing_dependency: bool); atomic persist to `.sac/project_profile.json`; detect for Python (pytest/ruff/mypy), Node (npm/pnpm/yarn package.json scripts), Go (go test/vet/build), Rust (cargo test/clippy/check/build); missing tool → missing_dependency=True (command kept visible); user overrides survive detect and always win; detection never executes project commands. T-4.2.0-B sac-profile-cli: new `src/safecode/cli_profile.py`; `sac profile detect|show|set <kind> "<cmd>"|clear <kind>`; `set` parses with shlex.split and rejects ; | & $ ` and newline; `show --json` deterministic; profile_app registered in cli.py; fixed matrix heading from v4.0.1 to v4.1.2. 87 new tests; full suite 3972 passed, 2 skipped; contract snapshots green.
+`v4.2.1` run-suite-and-fix-profile — T-4.2.1-A sac-run-suite: `sac run --suite test|lint|typecheck|build`; reads `.sac/project_profile.json`; missing profile → "run sac profile detect" guidance (exit 1); missing kind → actionable next-step (exit 1); auto-approved (treated as --yes=True); high-risk still blocked via policy; exit codes 125/126 per v2.8.8; audit/task wiring unchanged from sac run. T-4.2.1-B fix-uses-profile: `sac fix` precedence: --test-command > profile test command > ProjectTestDetector; profile never auto-set by `sac fix`. 43 new tests; full suite 3991 passed, 2 skipped; contract snapshots green.
+
+Previous: `v4.2.0` project-profile — T-4.2.0-A project-profile-detector: new `src/safecode/project/profile.py`; `ProjectProfile` Pydantic model (payload_version=1, test/lint/typecheck/build: ProfileCommand|None, user_overrides: frozenset[str]); `ProfileCommand` (command: tuple[str,...], stack, source: detected|user|none, missing_dependency: bool); atomic persist to `.sac/project_profile.json`; detect for Python (pytest/ruff/mypy), Node (npm/pnpm/yarn package.json scripts), Go (go test/vet/build), Rust (cargo test/clippy/check/build); missing tool → missing_dependency=True (command kept visible); user overrides survive detect and always win; detection never executes project commands. T-4.2.0-B sac-profile-cli: new `src/safecode/cli_profile.py`; `sac profile detect|show|set <kind> "<cmd>"|clear <kind>`; `set` parses with shlex.split and rejects ; | & $ ` and newline; `show --json` deterministic; profile_app registered in cli.py; fixed matrix heading from v4.0.1 to v4.1.2. 87 new tests; full suite 3972 passed, 2 skipped; contract snapshots green.
 
 Previous: `v4.1.2` task-history-filter-and-docs — T-4.1.2-A history-task-filter: `sac history --task <id>` (EXPERIMENTAL) filters audit table to events with exact `metadata.task_id` match; `AuditLogger.read_by_task_id(task_id, limit=200)` added (empty id → [], missing file → [], corrupted lines skipped, raw events returned); `AuditEvent` field set unchanged. T-4.1.2-B v4.1-docs-cut: README Core Commands updated with `sac task`, `sac status`, `sac history --task` (all EXPERIMENTAL); `docs/mvp-user-guide.md` version updated to v4.1.x and "Task-First Flow (v4.1, EXPERIMENTAL)" section added. 17 new targeted tests; full suite 3885 passed, 2 skipped; contract snapshots green.
 

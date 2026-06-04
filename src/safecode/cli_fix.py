@@ -45,20 +45,29 @@ def run_fix(
     test_command: Optional[str] = None,
 ) -> int:
     """Core fix logic. Returns exit code."""
+    from safecode.project.profile import load_profile
+
     # Step 1: determine test command
+    # Precedence: --test-command explicit override > project profile > ProjectTestDetector
     if test_command:
         cmd = test_command
     else:
-        detector = ProjectTestDetector(project_root)
-        candidates = detector.detect()
-        if not candidates:
-            msg = "No test command detected in this project. Use --test-command to specify one."
-            if json_output:
-                print(render_json(CLIJSONResponse(command="fix", status="error", error=msg)))
-            else:
-                console.print(f"[red]{msg}[/red]")
-            return 1
-        cmd = candidates[0].command
+        # Try project profile first (v4.2.1+, EXPERIMENTAL)
+        profile = load_profile(project_root)
+        profile_cmd = profile.test if profile else None
+        if profile_cmd is not None:
+            cmd = " ".join(profile_cmd.command)
+        else:
+            detector = ProjectTestDetector(project_root)
+            candidates = detector.detect()
+            if not candidates:
+                msg = "No test command detected in this project. Use --test-command to specify one."
+                if json_output:
+                    print(render_json(CLIJSONResponse(command="fix", status="error", error=msg)))
+                else:
+                    console.print(f"[red]{msg}[/red]")
+                return 1
+            cmd = candidates[0].command
 
     # Wire task sidecar (experimental)
     try:

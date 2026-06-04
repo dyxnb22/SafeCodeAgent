@@ -220,3 +220,102 @@ class TestFixCLI:
                 catch_exceptions=False,
             )
         assert result.exit_code == 0
+
+
+# ---------------------------------------------------------------------------
+# v4.2.1: fix uses profile (T-4.2.1-B)
+# ---------------------------------------------------------------------------
+
+class TestRunFixProfilePrecedence:
+    """Precedence: --test-command > profile > ProjectTestDetector."""
+
+    def test_explicit_flag_wins_over_profile(self, tmp_path: Path) -> None:
+        """When --test-command is given, profile is not consulted."""
+        from safecode.project.profile import ProfileCommand, ProjectProfile, save_profile
+        profile = ProjectProfile(
+            test=ProfileCommand(command=("profile-test",), stack="x", source="detected"),
+        )
+        save_profile(tmp_path, profile)
+
+        with patch("safecode.cli_fix._run_test_command") as mock_run:
+            mock_run.return_value = ("ok", 0)
+            code = run_fix(tmp_path, test_command="explicit-test")
+
+        assert code == 0
+        mock_run.assert_called_once_with(tmp_path, "explicit-test")
+
+    def test_profile_wins_over_detector(self, tmp_path: Path) -> None:
+        """When profile exists with a test command, detector is not called."""
+        from safecode.project.profile import ProfileCommand, ProjectProfile, save_profile
+        profile = ProjectProfile(
+            test=ProfileCommand(command=("profile-test", "-v"), stack="x", source="detected"),
+        )
+        save_profile(tmp_path, profile)
+
+        with (
+            patch("safecode.cli_fix._run_test_command") as mock_run,
+            patch("safecode.cli_fix.ProjectTestDetector") as MockDetector,
+            patch("safecode.cli_fix.AgentOrchestrator") as MockOrch,
+        ):
+            mock_run.return_value = ("fail", 1)
+            MockOrch.return_value.edit.return_value = _make_edit_result(tmp_path)
+            code = run_fix(tmp_path)
+
+        assert code == 0
+        mock_run.assert_called_once_with(tmp_path, "profile-test -v")
+        # Detector should not have been called
+        MockDetector.return_value.detect.assert_not_called()
+
+    def test_detector_used_when_no_profile(self, tmp_path: Path) -> None:
+        """Without a profile, falls back to ProjectTestDetector as before."""
+        candidate = MagicMock()
+        candidate.command = "pytest -q"
+
+        with (
+            patch("safecode.cli_fix.ProjectTestDetector") as MockDetector,
+            patch("safecode.cli_fix._run_test_command") as mock_run,
+            patch("safecode.cli_fix.AgentOrchestrator") as MockOrch,
+        ):
+            MockDetector.return_value.detect.return_value = [candidate]
+            mock_run.return_value = ("fail", 1)
+            MockOrch.return_value.edit.return_value = _make_edit_result(tmp_path)
+            code = run_fix(tmp_path)
+
+        assert code == 0
+        mock_run.assert_called_once_with(tmp_path, "pytest -q")
+
+    def test_profile_with_no_test_command_falls_back_to_detector(self, tmp_path: Path) -> None:
+        """Profile exists but no 'test' command → fall back to detector."""
+        from safecode.project.profile import ProjectProfile, save_profile
+        profile = ProjectProfile()  # all commands None
+        save_profile(tmp_path, profile)
+
+        candidate = MagicMock()
+        candidate.command = "detected-test"
+
+        with (
+            patch("safecode.cli_fix.ProjectTestDetector") as MockDetector,
+            patch("safecode.cli_fix._run_test_command") as mock_run,
+            patch("safecode.cli_fix.AgentOrchestrator") as MockOrch,
+        ):
+            MockDetector.return_value.detect.return_value = [candidate]
+            mock_run.return_value = ("ok", 0)
+            code = run_fix(tmp_path)
+
+        assert code == 0
+        mock_run.assert_called_once_with(tmp_path, "detected-test")
+
+    def test_profile_override_never_auto_set_by_fix(self, tmp_path: Path) -> None:
+        """sac fix must never write a user override to the profile."""
+        from safecode.project.profile import load_profile
+
+        with (
+            patch("safecode.cli_fix._run_test_command") as mock_run,
+            patch("safecode.cli_fix.AgentOrchestrator") as MockOrch,
+        ):
+            mock_run.return_value = ("ok", 0)
+            run_fix(tmp_path, test_command="pytest -q")
+
+        # Profile should not have been written at all
+        profile = load_profile(tmp_path)
+        assert profile is None

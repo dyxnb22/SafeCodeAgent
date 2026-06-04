@@ -407,12 +407,64 @@ def trust_revoke(grant_id: str) -> None:
 
 @core_app.command("run")
 def run_command(
-    command: str,
+    command: Optional[str] = typer.Argument(None, help="Shell command to run."),
     yes: bool = typer.Option(False, "--yes", "-y", help="Approve medium/high risk commands."),
     json_output: bool = typer.Option(False, "--json", help="Output result as JSON."),
+    suite: Optional[str] = typer.Option(
+        None, "--suite",
+        help="[EXPERIMENTAL] Run a project profile suite: test|lint|typecheck|build. (v4.2+)",
+    ),
 ) -> None:
     """Run a shell command through SafeCode risk checks."""
+    from safecode.project.profile import load_profile, _VALID_KINDS
+
     project_root = Path.cwd()
+
+    # Resolve the effective command string
+    if suite is not None:
+        # --suite mode (EXPERIMENTAL, v4.2+)
+        if suite not in _VALID_KINDS:
+            msg = f"Unknown suite kind: {suite!r}. Must be one of: {sorted(_VALID_KINDS)}"
+            if json_output:
+                print(render_json(CLIJSONResponse(command="run", status="error", error=msg)))
+            else:
+                console.print(f"[red]{msg}[/red]")
+            raise typer.Exit(code=1)
+
+        profile = load_profile(project_root)
+        if profile is None:
+            msg = "No project profile found. Run 'sac profile detect' first."
+            if json_output:
+                print(render_json(CLIJSONResponse(command="run", status="error", error=msg)))
+            else:
+                console.print(f"[yellow]{msg}[/yellow]")
+            raise typer.Exit(code=1)
+
+        suite_cmd = getattr(profile, suite)
+        if suite_cmd is None:
+            msg = (
+                f"No '{suite}' command in project profile. "
+                f"Run 'sac profile detect' or 'sac profile set {suite} \"<cmd>\"'."
+            )
+            if json_output:
+                print(render_json(CLIJSONResponse(command="run", status="error", error=msg)))
+            else:
+                console.print(f"[yellow]{msg}[/yellow]")
+            raise typer.Exit(code=1)
+
+        command = " ".join(suite_cmd.command)
+        # Suite commands are pre-approved by the user's explicit selection; treat as --yes
+        yes = True
+        if not json_output:
+            console.print(f"[blue]Suite '{suite}':[/blue] {command}")
+    elif command is None:
+        msg = "Either provide a COMMAND argument or use --suite <kind>."
+        if json_output:
+            print(render_json(CLIJSONResponse(command="run", status="error", error=msg)))
+        else:
+            console.print(f"[red]{msg}[/red]")
+        raise typer.Exit(code=1)
+
     runner = ShellRunner(project_root)
     risk = runner.assess(command)
     if not json_output:
