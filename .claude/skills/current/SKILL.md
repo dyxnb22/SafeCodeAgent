@@ -5,13 +5,15 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v3.99.0
+# Current Baseline - v3.99.1
 
 ## Status
-Implemented. Git baseline: tag `v3.99.0`. Local working version: `v3.99.0`.
+Implemented. Git baseline: tag `v3.99.1`. Local working version: `v3.99.1`.
 
 ## Stage
-`v3.99.0` v4-readiness-audit — T-3.99.0-A v4-readiness-audit: new `docs/commercial-v1-readiness-audit-v3.11.x.md` re-audits current v3.11.x reality against the v4.0 readiness goals; PyPI distribution, VS Code release evidence, loop-eval blocking, live-provider green train, CI bench evidence, and sandbox real-execution contract promotion are explicitly deferred rather than claimed shipped. T-3.99.0-B versioning-policy-doc: `docs/versioning-policy.md` now states patch never changes public contracts, minor may add experimental surfaces, major is reserved for public contract changes, and the v4.0 churn budget is at most two new stable contracts with zero v3.0 breaking changes; README links the current audit and policy. Targeted/full/preflight validation run in release train.
+`v3.99.1` promotion-decisions — T-3.99.1-A promotion-decision-pass: `docs/public-contracts.md` records v4.0 candidate decisions with evidence. CLI `--json` envelope and MCP read execution are treated as already-stable promotions from v3.7.2/v3.8.2; IDE JSON-RPC, `sac report html`, and sandbox real-execution opt-in are deferred; TUI stable promotion is rejected for v4.0. `tests/test_public_contract_snapshots.py` pins the decision table and verifies deferred surfaces are not stable-contract headings. No runtime features or new stable contracts added in v3.99.1.
+
+Previous: `v3.99.0` v4-readiness-audit — T-3.99.0-A v4-readiness-audit: new `docs/commercial-v1-readiness-audit-v3.11.x.md` re-audits current v3.11.x reality against the v4.0 readiness goals; PyPI distribution, VS Code release evidence, loop-eval blocking, live-provider green train, CI bench evidence, and sandbox real-execution contract promotion are explicitly deferred rather than claimed shipped. T-3.99.0-B versioning-policy-doc: `docs/versioning-policy.md` now states patch never changes public contracts, minor may add experimental surfaces, major is reserved for public contract changes, and the v4.0 churn budget is at most two new stable contracts with zero v3.0 breaking changes; README links the current audit and policy. Targeted/full/preflight validation run in release train.
 
 Previous: `v3.11.2` sandbox-executor-preflight — T-3.11.2-A sandbox-executor-preflight: new `src/safecode/sandbox/executor_preflight.py`; `sac sandbox executor-preflight <backend>` accepts noop/docker/seatbelt/bubblewrap aliases; records passing preflight state; real Docker/Seatbelt/Bubblewrap execution now requires both a passing backend preflight record and explicit env opt-in (`SAFECODE_SANDBOX_DOCKER=1`, `SAFECODE_SANDBOX_SEATBELT=1`, `SAFECODE_SANDBOX_BUBBLEWRAP=1`); approval claim remains after preflight/env gates. T-3.11.2-B sandbox-promotion-docs: docs/install-update.md and threat model document backend promotion state; `sac doctor` reports Noop/promotion state per backend; default recommendation remains Noop. 6 new tests in `tests/test_sandbox_executor_preflight.py`, threat-model docs extended; full suite: 3767 passed, 2 skipped.
 

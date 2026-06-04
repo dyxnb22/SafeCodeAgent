@@ -557,3 +557,59 @@ class TestMCPReadContract:
         doc = (Path(__file__).parent.parent / "docs" / "public-contracts.md").read_text(encoding="utf-8")
         assert "MCP Read Execution Contract" in doc
         assert "MCPReadOnlyRunner.call_readonly" in doc
+
+
+class TestV40PromotionDecisions:
+    """v3.99.1 promotion decision pass for the v4.0 contract cut."""
+
+    def _doc(self) -> str:
+        return (Path(__file__).parent.parent / "docs" / "public-contracts.md").read_text(encoding="utf-8")
+
+    def test_decision_section_exists(self) -> None:
+        doc = self._doc()
+        assert "v4.0 Promotion Decision Pass" in doc
+
+    def test_cli_json_envelope_promoted_already_stable(self) -> None:
+        doc = self._doc()
+        assert "CLI `--json` envelope" in doc
+        assert "promote (already stable)" in doc
+        assert "cli_json_envelope.json" in doc
+
+    def test_mcp_read_execution_promoted_already_stable(self) -> None:
+        doc = self._doc()
+        assert "MCP read execution" in doc
+        assert "mcp_read_contract.json" in doc
+
+    def test_ide_jsonrpc_deferred(self) -> None:
+        doc = self._doc()
+        assert "IDE JSON-RPC" in doc
+        assert "**defer**" in doc
+        assert "no VSIX build or release-cycle consumption evidence" in doc
+
+    def test_tui_rejected_for_v40_stable_promotion(self) -> None:
+        doc = self._doc()
+        assert "TUI interactive" in doc
+        assert "reject stable promotion at v4.0" in doc
+
+    def test_report_html_deferred(self) -> None:
+        doc = self._doc()
+        assert "`sac report html`" in doc
+        assert "not snapshot-promoted as a public contract" in doc
+
+    def test_sandbox_real_execution_opt_in_deferred(self) -> None:
+        doc = self._doc()
+        assert "Sandbox real-execution opt-in" in doc
+        assert "host-local" in doc
+        assert "insufficient for a stable v4 contract" in doc
+
+    def test_no_new_stable_contract_promoted_by_v3991(self) -> None:
+        doc = self._doc()
+        assert "No new stable contract is promoted by v3.99.1 itself" in doc
+
+    def test_deferred_surfaces_are_not_listed_as_stable_contract_headings(self) -> None:
+        doc = self._doc()
+        stable, _experimental = doc.split("## Experimental Surfaces", 1)
+        assert "IDE JSON-RPC Contract" not in stable
+        assert "TUI Interactive Contract" not in stable
+        assert "HTML Report Contract" not in stable
+        assert "Sandbox Real Execution Opt-In Contract" not in stable

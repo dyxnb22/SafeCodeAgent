@@ -299,6 +299,26 @@ Default for unknown server: `denied`.
 
 ## Experimental Surfaces
 
+### v4.0 Promotion Decision Pass
+
+The v3.99.1 promotion pass reviewed candidate surfaces for the v4.0 contract
+cut. A surface may be stable only when docs, snapshot, tests, and release
+history support the claim.
+
+| Candidate | Decision | Rationale | Evidence |
+|---|---|---|---|
+| CLI `--json` envelope | **promote (already stable)** | The envelope has been documented, snapshot-tested, and stable since v3.7.2. | Section 11; `tests/snapshots/contracts/cli_json_envelope.json`; `TestCLIJSONEnvelopeContract`; v3.7.2 release note |
+| MCP read execution | **promote (already stable)** | The read path has explicit scope/classification gates, snapshot coverage, and has remained stable since v3.8.2. | Section 12; `tests/snapshots/contracts/mcp_read_contract.json`; `TestMCPReadContract`; v3.8.2 release note |
+| IDE JSON-RPC | **defer** | The VS Code extension has manifest parity tests, but no VSIX build or release-cycle consumption evidence. | `vscode-extension/`; `tests/test_ide_extension_manifest_contract.py`; v3.9.2 release note |
+| TUI interactive | **reject stable promotion at v4.0** | The Rich TUI is frozen experimental and has no stable automation-oriented output contract. | Experimental-surface table; `tests/test_tui_interactive_smoke.py`; v3.9.2 release note |
+| `sac report html` | **defer** | HTML report rendering is implemented and tested, but not snapshot-promoted as a public contract. | `src/safecode/report/session_html.py`; `tests/test_report_html.py`; v3.6.3 release note |
+| Sandbox real-execution opt-in | **defer** | Executor preflight and env gates exist, but backend pass evidence is host-local and insufficient for a stable v4 contract. | `src/safecode/sandbox/executor_preflight.py`; `tests/test_sandbox_executor_preflight.py`; v3.11.2 release note |
+
+No new stable contract is promoted by v3.99.1 itself. The v4.0 cut may preserve
+the already-stable CLI JSON envelope and MCP read execution contracts, but it
+must not promote IDE JSON-RPC, TUI, HTML report, or sandbox real-execution based
+on v3.99.1 evidence.
+
 The following are explicitly experimental. They may change, be removed, or be
 promoted to stable contracts in a future release.
 
