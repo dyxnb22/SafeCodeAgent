@@ -47,6 +47,30 @@ class AuditLogger:
         recent_lines = lines[-limit:]
         return [AuditEvent(**json.loads(line)) for line in recent_lines if line.strip()]
 
+    def read_by_task_id(self, task_id: str, limit: int = 200) -> list[AuditEvent]:
+        """Read events with metadata['task_id'] == task_id (experimental, v4.1.2).
+
+        Missing or unknown task id returns an empty list, never crashes.
+        Output is redacted by the caller (this method returns raw events).
+        """
+        if not task_id or not self.log_file.exists():
+            return []
+        try:
+            lines = self.log_file.read_text(encoding="utf-8").splitlines()
+            events: list[AuditEvent] = []
+            for line in lines:
+                if not line.strip():
+                    continue
+                try:
+                    event = AuditEvent(**json.loads(line))
+                    if event.metadata.get("task_id") == task_id:
+                        events.append(event)
+                except (json.JSONDecodeError, ValueError, TypeError):
+                    continue
+            return events[-limit:]
+        except OSError:
+            return []
+
     def verify_integrity(self) -> tuple[bool, str]:
         """Verify the audit hash chain."""
         if not self.log_file.exists():

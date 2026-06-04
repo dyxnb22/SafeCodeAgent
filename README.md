@@ -84,8 +84,21 @@ sac rollback --last
 sac fix                             # run last failing test, propose a repair patch
 sac fix --test-command "go test ./..."  # override test command
 sac run "git status --short" --yes
+sac history                         # show recent audit events
+sac history --task <task-id>        # [EXPERIMENTAL] filter by task id
 sac doctor
 sac version
+```
+
+**Task commands (v4.1, EXPERIMENTAL):**
+```bash
+sac task new "Fix auth regression"  # create a task and set it as current
+sac task list                       # list all tasks
+sac task show                       # show current task details
+sac task switch <task-id>           # switch current task
+sac task close                      # mark current task closed
+sac task delete <task-id> --yes     # delete a task
+sac status                          # show current task status and next recommended step
 ```
 
 Use `--json` on most commands for machine-readable output:
@@ -93,6 +106,8 @@ Use `--json` on most commands for machine-readable output:
 sac fix --json
 sac edit "task" --json
 sac ask "question" --json
+sac task list --json
+sac status --json
 ```
 
 ## Safety Defaults

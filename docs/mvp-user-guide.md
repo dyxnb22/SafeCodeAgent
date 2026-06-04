@@ -1,8 +1,38 @@
 # SafeCode MVP User Guide
 
-This guide covers the v3.7.x path for a new user: install SafeCode, set up
+This guide covers the v4.1.x path for a new user: install SafeCode, set up
 your provider, run a coding task, fix a failing test, and review/apply the
 proposed patches safely.
+
+## Task-First Flow (v4.1, EXPERIMENTAL)
+
+v4.1 adds an optional task layer that groups edits, applies, rollbacks, and
+fix runs under a named task with a sidecar journal. All task commands are
+**EXPERIMENTAL** and their interface may change in v4.2+.
+
+```bash
+# Start a named task (creates .sac/tasks/<id>.json and sets CURRENT)
+sac task new "Fix calculator add function"
+
+# Subsequent sac edit / apply / rollback / fix / run calls attach to CURRENT
+sac edit "Fix the add function"
+sac apply
+
+# Check current task and next recommended step
+sac status
+
+# Show all tasks
+sac task list
+
+# Show events for a specific task (EXPERIMENTAL)
+sac history --task <task-id>
+
+# Close the task when done
+sac task close
+```
+
+If no task is active when you run `sac edit` (or another wiring command),
+SafeCode auto-creates one so the workflow stays unblocked.
 
 ## Quickstart (fastest path)
 

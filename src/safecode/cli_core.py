@@ -313,9 +313,18 @@ def rollback(last: bool = typer.Option(False, "--last", help="Rollback the lates
 
 
 @core_app.command()
-def history() -> None:
+def history(
+    task: Optional[str] = typer.Option(
+        None, "--task", help="[EXPERIMENTAL] Filter by task id (exact match on metadata.task_id).",
+    ),
+) -> None:
     """Show recent SafeCode Agent audit events."""
     events = AgentOrchestrator(Path.cwd()).history()
+
+    # Apply --task filter if specified (experimental, v4.1.2)
+    if task is not None:
+        events = [e for e in events if e.metadata.get("task_id") == task]
+
     if not events:
         console.print("[yellow]No audit events found.[/yellow]")
         return

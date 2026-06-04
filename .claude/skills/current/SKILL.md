@@ -5,13 +5,15 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v4.1.1
+# Current Baseline - v4.1.2
 
 ## Status
-Implemented. Git baseline: tag `v4.1.1`. Local working version: `v4.1.1`.
+Implemented. Git baseline: tag `v4.1.2`. Local working version: `v4.1.2`.
 
 ## Stage
-`v4.1.1` sac-status-and-task-wiring — T-4.1.1-A sac-status-cmd: new `src/safecode/cli_status.py`; `sac status [--json]`; pure `next_step(state, pending_patch_exists)` truth table; TTY/non-TTY deterministic; never writes audit events. T-4.1.1-B wire-edit-apply-rollback-into-task: new `src/safecode/task/wiring.py`; `get_or_create_current_task()` + record helpers; `sac edit|apply|rollback|fix|run` now attach to CURRENT task; task sidecar mutated on each command; `AuditLogger.write()` extended with optional `task_id` keyword stuffed into metadata; AuditEvent field set unchanged. 26 new tests; full suite 3868 passed, 2 skipped.
+`v4.1.2` task-history-filter-and-docs — T-4.1.2-A history-task-filter: `sac history --task <id>` (EXPERIMENTAL) filters audit table to events with exact `metadata.task_id` match; `AuditLogger.read_by_task_id(task_id, limit=200)` added (empty id → [], missing file → [], corrupted lines skipped, raw events returned); `AuditEvent` field set unchanged. T-4.1.2-B v4.1-docs-cut: README Core Commands updated with `sac task`, `sac status`, `sac history --task` (all EXPERIMENTAL); `docs/mvp-user-guide.md` version updated to v4.1.x and "Task-First Flow (v4.1, EXPERIMENTAL)" section added. 17 new targeted tests; full suite 3885 passed, 2 skipped; contract snapshots green.
+
+Previous: `v4.1.1` sac-status-and-task-wiring — T-4.1.1-A sac-status-cmd: new `src/safecode/cli_status.py`; `sac status [--json]`; pure `next_step(state, pending_patch_exists)` truth table; TTY/non-TTY deterministic; never writes audit events. T-4.1.1-B wire-edit-apply-rollback-into-task: new `src/safecode/task/wiring.py`; `get_or_create_current_task()` + record helpers; `sac edit|apply|rollback|fix|run` now attach to CURRENT task; task sidecar mutated on each command; `AuditLogger.write()` extended with optional `task_id` keyword stuffed into metadata; AuditEvent field set unchanged. 26 new tests; full suite 3868 passed, 2 skipped.
 
 Previous: `v4.1.0` task-state-sidecar-and-cli — T-4.1.0-A task-state-sidecar: new `src/safecode/task/state.py` (`TaskState` Pydantic model, payload_version=1, status enum open|applied|interrupted|closed, `TaskIteration`, `TaskCommand`) and `src/safecode/task/store.py` (`TaskStore` with atomic writes, `.sac/tasks/<id>.json`, `INDEX`, `CURRENT`; refuses payload_version>1; missing files never crash). T-4.1.0-B task-cli-core: `sac task new|list|show|switch|close|delete` registered in `cli.py`; all support `--json` via `CLIJSONResponse`; `new` requires non-empty goal, sets CURRENT; `delete` requires `--yes`; `show` redacts secrets; `list` deterministic. 58 new tests; full suite 3842 passed, 2 skipped.
 
