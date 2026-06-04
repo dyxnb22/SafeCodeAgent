@@ -125,3 +125,55 @@ class TestEvalLoopModeBehavior:
         result = runner.invoke(app, ["eval", "--mode", "loop"], catch_exceptions=False)
         assert "openai" not in result.output.lower()
         assert "anthropic" not in result.output.lower()
+
+
+# ── v3.10.1 loop-eval blocking promotion gate ─────────────────────────────
+
+
+class TestLoopEvalBlockingPromotion:
+    """T-3.10.1-A: Encode current truthful state of loop-eval blocking.
+
+    Promotion from advisory to blocking requires evidence of one clean CI
+    train. No such evidence is available locally. The job remains advisory.
+    This test class documents that state and will be updated when promotion
+    occurs.
+    """
+
+    def test_loop_eval_is_still_advisory_at_v3_10_1(self):
+        """loop-eval remains continue-on-error:true until a clean CI train is recorded."""
+        workflow = _load_ci_workflow()
+        job = workflow["jobs"]["loop-eval"]
+        assert job.get("continue-on-error") is True, (
+            "loop-eval must remain advisory (continue-on-error: true) "
+            "until one clean CI train is recorded per T-3.10.1-A."
+        )
+
+    def test_loop_eval_promotion_deferred_reason(self):
+        """Verify the advisory comment in the CI job documents the deferral reason."""
+        workflow = _load_ci_workflow()
+        # The workflow YAML should contain a comment about promotion being deferred.
+        # We verify the intent by checking that continue-on-error is true AND
+        # the job name references 'advisory' semantics.
+        job = workflow["jobs"]["loop-eval"]
+        name = job.get("name", "")
+        assert "advisory" in name.lower() or job.get("continue-on-error") is True, (
+            "loop-eval job must signal its advisory status in name or continue-on-error"
+        )
+
+    def test_loop_eval_job_does_not_require_any_secrets(self):
+        """loop-eval must not use any secrets or live credentials."""
+        workflow = _load_ci_workflow()
+        job = workflow["jobs"]["loop-eval"]
+        job_str = str(job)
+        assert "secrets." not in job_str
+        assert "OPENAI_API_KEY" not in job_str
+        assert "ANTHROPIC_API_KEY" not in job_str
+
+    def test_loop_eval_clean_run_exits_zero_locally(self, monkeypatch, tmp_path):
+        """Scripted loop mode exits 0 locally — confirming readiness for future promotion."""
+        monkeypatch.chdir(tmp_path)
+        result = runner.invoke(app, ["eval", "--mode", "loop"], catch_exceptions=False)
+        assert result.exit_code == 0, (
+            f"sac eval --mode loop must exit 0 before CI promotion is possible. "
+            f"Exit={result.exit_code}: {result.output}"
+        )

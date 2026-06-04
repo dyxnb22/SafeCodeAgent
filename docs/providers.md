@@ -122,6 +122,21 @@ A `live-provider` CI job is available but **advisory and opt-in**:
 - Does not block merges (`continue-on-error: true`).
 - No API keys in any repository file; injected via GitHub Actions secrets at runtime.
 
+### Release Train History (v3.10.1)
+
+| Release | Live-provider lane status | Promoted to blocking? | Notes |
+|---|---|---|---|
+| v3.10.0 | Advisory | No | First eval-bench-metrics release; no recorded CI run |
+| v3.10.1 | Advisory | No | No clean live-provider CI train recorded; promotion deferred |
+
+**Promotion criteria**: Promotion from advisory to blocking requires at least one
+recorded clean CI train (all fixtures pass with live providers). Until that evidence
+exists, the lane remains advisory (`continue-on-error: true`).
+
+**Credential handling**: No changes to credential handling in this release train.
+API keys are never stored in repository files; they are injected at CI runtime via
+GitHub Actions secrets only when `ENABLE_LIVE_LLM_TESTS=true` is set.
+
 ---
 
 ## Experimental Features

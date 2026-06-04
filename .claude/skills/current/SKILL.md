@@ -5,13 +5,15 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v3.10.0
+# Current Baseline - v3.10.1
 
 ## Status
-Implemented. Git baseline: tag `v3.10.0`. Local working version: `v3.10.0`.
+Implemented. Git baseline: tag `v3.10.1`. Local working version: `v3.10.1`.
 
 ## Stage
-`v3.10.0` eval-bench-metrics — T-3.10.0-A `sac eval bench`: new `src/safecode/eval/bench.py`; `EvalBenchRunner` collects wall time, step count, pending-patch hash per fixture; baseline snapshots under `tests/snapshots/bench/`; ±20% tolerance; mocked-clock injectable for deterministic CI; `sac eval --mode bench` and `--update-baseline` CLI; 27 new tests in `tests/test_eval_bench.py`. T-3.10.0-B live-session-metrics: new `src/safecode/metrics/writer.py`; `MetricsWriter` writes JSONL to `.sac/metrics.jsonl`; disabled by default; `SAFECODE_METRICS=1` opt-in; captures step start/end, tool intent, pending patch size (byte count only), retry; 1 MiB size bound; never raises; minimal wiring in `AgentOrchestrator.edit()`; 26 new tests in `tests/test_metrics_writer.py`. Full suite: 3700 passed, 2 skipped.
+`v3.10.1` ci-gates-live-provider — T-3.10.1-A loop-eval-blocking: promotion deferred (no clean CI train recorded); loop-eval remains advisory (`continue-on-error: true`); 4 new tests in `tests/test_eval_loop_mode_ci_gate.py` encoding current truthful state. T-3.10.1-B live-provider-lane-record: v3.10.x release train history recorded in `docs/providers.md`; lane remains advisory; no credential handling changes; 7 new tests in `tests/test_ci_live_lane.py`. Full suite: 3711 passed, 2 skipped.
+
+Previous: `v3.10.0` eval-bench-metrics — T-3.10.0-A `sac eval bench`: new `src/safecode/eval/bench.py`; `EvalBenchRunner` collects wall time, step count, pending-patch hash per fixture; baseline snapshots under `tests/snapshots/bench/`; ±20% tolerance; mocked-clock injectable for deterministic CI; `sac eval --mode bench` and `--update-baseline` CLI; 27 new tests in `tests/test_eval_bench.py`. T-3.10.0-B live-session-metrics: new `src/safecode/metrics/writer.py`; `MetricsWriter` writes JSONL to `.sac/metrics.jsonl`; disabled by default; `SAFECODE_METRICS=1` opt-in; captures step start/end, tool intent, pending patch size (byte count only), retry; 1 MiB size bound; never raises; minimal wiring in `AgentOrchestrator.edit()`; 26 new tests in `tests/test_metrics_writer.py`. Full suite: 3700 passed, 2 skipped.
 
 Previous: `v3.9.3` v3.9.x docs cut — Documentation-only. `README.md` install section updated (local dev, pipx, TestPyPI, offline wheel); Release Flow updated (sync-versions-json step, tag-move pattern, TestPyPI/production publish commands); "IDE and TUI Status" section added. `docs/install-update.md` reflects all v3.9.x additions (signing mechanism, TestPyPI rehearsal, pipx). Version matrix rows v3.9.0–v3.9.3 complete. Claims-vs-implementation table in version note. No runtime changes. Full suite: 3647 passed, 2 skipped.
 

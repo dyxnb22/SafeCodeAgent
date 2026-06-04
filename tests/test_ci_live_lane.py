@@ -200,3 +200,62 @@ class TestNoSecretsInRepository:
                 assert pattern not in content, (
                     f"Doc file {doc_file.name} contains suspicious credential pattern: {pattern!r}"
                 )
+
+
+# ---------------------------------------------------------------------------
+# v3.10.1: Live-provider lane record tests
+# ---------------------------------------------------------------------------
+
+
+_PROVIDERS_DOC = Path(__file__).parent.parent / "docs" / "providers.md"
+_VERSION_NOTE_3101 = (
+    Path(__file__).parent.parent
+    / "docs"
+    / "version-notes"
+    / "v3.10.1-ci-gates-live-provider.md"
+)
+
+
+class TestLiveProviderLaneRecord:
+    """T-3.10.1-B: Live-provider lane remains advisory; one release-train status recorded."""
+
+    def test_live_provider_lane_still_advisory(self) -> None:
+        ci = _load_ci()
+        job = ci["jobs"]["live-provider"]
+        assert job.get("continue-on-error") is True, (
+            "live-provider job must remain advisory (continue-on-error: true) "
+            "until explicitly promoted per T-3.10.1-B evidence requirement."
+        )
+
+    def test_providers_doc_mentions_live_lane_status(self) -> None:
+        assert _PROVIDERS_DOC.exists(), "docs/providers.md must exist"
+        content = _PROVIDERS_DOC.read_text(encoding="utf-8")
+        assert "live" in content.lower(), "providers.md must document live CI lane"
+        assert "advisory" in content.lower(), "providers.md must document advisory status"
+
+    def test_providers_doc_v3_10_1_release_train_section(self) -> None:
+        content = _PROVIDERS_DOC.read_text(encoding="utf-8")
+        assert "v3.10" in content or "release train" in content.lower(), (
+            "providers.md must record v3.10.x release train status"
+        )
+
+    def test_version_note_exists(self) -> None:
+        assert _VERSION_NOTE_3101.exists(), (
+            "Version note docs/version-notes/v3.10.1-ci-gates-live-provider.md must exist"
+        )
+
+    def test_version_note_mentions_advisory(self) -> None:
+        content = _VERSION_NOTE_3101.read_text(encoding="utf-8")
+        assert "advisory" in content.lower()
+
+    def test_version_note_mentions_live_provider(self) -> None:
+        content = _VERSION_NOTE_3101.read_text(encoding="utf-8")
+        assert "live" in content.lower() and "provider" in content.lower()
+
+    def test_live_lane_no_credential_change(self) -> None:
+        """Credential handling must not change — secrets stay out of workflow env on default path."""
+        ci = _load_ci()
+        test_job = ci["jobs"]["test"]
+        env = test_job.get("env", {}) or {}
+        assert "OPENAI_API_KEY" not in env
+        assert "ANTHROPIC_API_KEY" not in env
