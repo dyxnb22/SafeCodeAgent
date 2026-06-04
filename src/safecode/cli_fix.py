@@ -23,6 +23,7 @@ from safecode.task.wiring import (
     record_fix_on_task,
     redacted_tail_hash,
 )
+from safecode.task.recovery import mark_task_interrupted
 
 _DEFAULT_MAX_ITERATIONS = 3
 _DEFAULT_TIMEOUT_SECONDS = 120
@@ -219,7 +220,15 @@ def run_fix(
         console.print(f"[blue]Running test command:[/blue] {cmd}")
 
     # Step 2: run the test
-    run = _run_single_test(project_root, cmd, timeout_seconds)
+    try:
+        run = _run_single_test(project_root, cmd, timeout_seconds)
+    except KeyboardInterrupt:
+        mark_task_interrupted(project_root, command_name="fix", hint=cmd, task_id=fix_task_id)
+        if json_output:
+            print(render_json(CLIJSONResponse(command="fix", status="error", error="Interrupted. resume with: sac resume")))
+        else:
+            console.print("[yellow]Interrupted. resume with: sac resume[/yellow]")
+        return 130
     raw_output, exit_code = run.output, run.exit_code
 
     if exit_code == 0:
@@ -279,6 +288,13 @@ def run_fix(
     # Step 5: invoke AgentOrchestrator.edit() — leaves pending patch for user review
     try:
         edit_result = AgentOrchestrator(project_root).edit(fix_task_str)
+    except KeyboardInterrupt:
+        mark_task_interrupted(project_root, command_name="fix", hint=cmd, task_id=fix_task_id)
+        if json_output:
+            print(render_json(CLIJSONResponse(command="fix", status="error", error="Interrupted. resume with: sac resume")))
+        else:
+            console.print("[yellow]Interrupted. resume with: sac resume[/yellow]")
+        return 130
     except (PatchParseError, PatchValidationError) as exc:
         if fix_task_id:
             try:
@@ -396,7 +412,15 @@ def run_fix_watch(
     if not json_output:
         label = "profile suites" if rerun_suite == "all" else cmd
         console.print(f"[blue]Running test command:[/blue] {label}")
-    run = _run_profile_suites(project_root, timeout_seconds) if rerun_suite == "all" else _run_single_test(project_root, cmd, timeout_seconds)
+    try:
+        run = _run_profile_suites(project_root, timeout_seconds) if rerun_suite == "all" else _run_single_test(project_root, cmd, timeout_seconds)
+    except KeyboardInterrupt:
+        mark_task_interrupted(project_root, command_name="fix --watch", hint=cmd, task_id=task_id)
+        if json_output:
+            print(render_json(CLIJSONResponse(command="fix", status="error", error="Interrupted. resume with: sac resume")))
+        else:
+            console.print("[yellow]Interrupted. resume with: sac resume[/yellow]")
+        return 130
     cmd = run.command or cmd
     raw_output, exit_code = run.output, run.exit_code
     redacted_output = redact_secrets(raw_output)
@@ -615,6 +639,13 @@ def run_fix_watch(
 
     try:
         edit_result = AgentOrchestrator(project_root).edit(_failure_task_text(cmd, exit_code, redacted_output))
+    except KeyboardInterrupt:
+        mark_task_interrupted(project_root, command_name="fix --watch", hint=cmd, task_id=task_id)
+        if json_output:
+            print(render_json(CLIJSONResponse(command="fix", status="error", error="Interrupted. resume with: sac resume")))
+        else:
+            console.print("[yellow]Interrupted. resume with: sac resume[/yellow]")
+        return 130
     except (PatchParseError, PatchValidationError) as exc:
         log_cli_error("cli.fix", "patch proposal failed", exc)
         if json_output:

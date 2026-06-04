@@ -28,6 +28,7 @@ from safecode.task.wiring import (
     record_rollback_on_task,
     record_run_on_task,
 )
+from safecode.task.recovery import mark_task_interrupted
 
 core_app = typer.Typer()
 trust_app = typer.Typer(help="Manage session-local trust grants.")
@@ -85,6 +86,13 @@ def edit(
     orchestrator = AgentOrchestrator(project_root)
     try:
         result = orchestrator.edit(effective_task)
+    except KeyboardInterrupt:
+        mark_task_interrupted(project_root, command_name="edit", hint=task, task_id=current_task.task_id if current_task else None)
+        if json_output:
+            print(render_json(CLIJSONResponse(command="edit", status="error", error="Interrupted. resume with: sac resume")))
+        else:
+            console.print("[yellow]Interrupted. resume with: sac resume[/yellow]")
+        raise typer.Exit(code=130)
     except (PatchParseError, PatchValidationError) as exc:
         log_cli_error("cli.edit", "patch proposal failed", exc)
         if json_output:
@@ -515,7 +523,15 @@ def run_command(
         current_task_for_run = None
     run_task_id = current_task_for_run.task_id if current_task_for_run else None
 
-    result = runner.run(command, approved=approved)
+    try:
+        result = runner.run(command, approved=approved)
+    except KeyboardInterrupt:
+        mark_task_interrupted(project_root, command_name="run", hint=command, task_id=run_task_id)
+        if json_output:
+            print(render_json(CLIJSONResponse(command="run", status="error", error="Interrupted. resume with: sac resume")))
+        else:
+            console.print("[yellow]Interrupted. resume with: sac resume[/yellow]")
+        raise typer.Exit(code=130)
     runtime_logger().info(
         "cli.run",
         "shell command evaluated",

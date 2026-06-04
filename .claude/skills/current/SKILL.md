@@ -5,13 +5,15 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v4.3.2
+# Current Baseline - v4.4.0
 
 ## Status
-Implemented. Git baseline: tag `v4.3.2`. Local working version: `v4.3.2`.
+Implemented. Git baseline: tag `v4.4.0`. Local working version: `v4.4.0`.
 
 ## Stage
-`v4.3.2` fix-watch-docs — T-4.3.2-A v4.3-docs-cut: README Core Commands documents experimental `sac fix --watch`, `--max-iterations`, `--timeout-seconds`, and `--rerun-suite`; MVP guide documents the approval-gated loop `sac fix --watch` → review → `sac apply` → `sac fix --watch`; troubleshooting documents `loop_no_progress`, `command_timeout`, max iterations reached, blocked suite command, and missing profile suite. All v4.3 surfaces are marked EXPERIMENTAL; `sac fix --watch` never auto-applies; no stable contract promoted. Docs guard tests extended.
+`v4.4.0` resume-and-interrupt — T-4.4.0-A sac-resume: new experimental top-level `sac resume [<task_id>] [--json]`; selects explicit task, CURRENT, or newest open/interrupted task; refuses closed tasks; sets CURRENT; reopens interrupted tasks to open; prints a redacted passive resume summary (task id, goal, last command, last fix iteration, pending patch state, next safe step) without running fix/edit/apply/run. T-4.4.0-B sigint-durable-interrupt: `sac edit`, `sac fix`, `sac fix --watch`, and `sac run` catch KeyboardInterrupt only, mark the current task interrupted with an append-only iteration marker, record journal/audit interruption metadata where available, print `resume with: sac resume`, and exit 130. Pending patch files are not modified. All v4.4.0 surfaces are EXPERIMENTAL; no stable contract promoted.
+
+Previous: `v4.3.2` fix-watch-docs — T-4.3.2-A v4.3-docs-cut: README Core Commands documents experimental `sac fix --watch`, `--max-iterations`, `--timeout-seconds`, and `--rerun-suite`; MVP guide documents the approval-gated loop `sac fix --watch` → review → `sac apply` → `sac fix --watch`; troubleshooting documents `loop_no_progress`, `command_timeout`, max iterations reached, blocked suite command, and missing profile suite. All v4.3 surfaces are marked EXPERIMENTAL; `sac fix --watch` never auto-applies; no stable contract promoted. Docs guard tests extended.
 
 Previous: `v4.3.1` fix-loop-guards — T-4.3.1-A no-progress-stop: `sac fix --watch` stops before proposing a follow-up patch when the current failing redacted tail hash matches the previous failing fix iteration; task sidecar and JSON use experimental `failure_category: loop_no_progress` and suggest `sac status` / manual inspection. T-4.3.1-B fix-timeout-and-broader-tests: `sac fix --timeout-seconds N` added (default 120); command timeout exits 124, records `failure_category: command_timeout`, and does not propose a patch; `--rerun-suite test|all` added, with `all` running profile suites in deterministic order `test`, `lint`, `typecheck`, `build` through `ShellRunner`/policy, skipping missing suites with JSON notes, and stopping safely on blocked suite commands. Targeted slice green.
 

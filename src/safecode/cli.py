@@ -21,6 +21,7 @@ from safecode.cli_quickstart import register as _register_quickstart
 from safecode.cli_fix import register as _register_fix
 from safecode.cli_task import task_app
 from safecode.cli_status import register as _register_status
+from safecode.cli_resume import register as _register_resume
 from safecode.cli_profile import profile_app
 from safecode.config import SafeCodeConfig, _stricter_policy
 from safecode.setup import write_setup
@@ -200,6 +201,7 @@ def setup(
 _register_quickstart(app)
 _register_fix(app)
 _register_status(app)
+_register_resume(app)
 
 # Core commands stay at the root for backward compatibility.
 for command in core_app.registered_commands:
