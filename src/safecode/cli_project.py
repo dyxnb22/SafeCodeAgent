@@ -7,6 +7,7 @@ from rich.syntax import Syntax
 from rich.table import Table
 
 from safecode.cli_shared import console, log_cli_error, runtime_logger, show_human_checkpoint
+from safecode.cli_shared_json import CLIJSONResponse, render_json
 
 from safecode.config import SafeCodeConfig, ensure_config_file
 from safecode.index.files import FileIndexer
@@ -15,7 +16,7 @@ from safecode.index.repo_map import RepoMapBuilder
 from safecode.skills.loader import SkillLoader
 from safecode.state.progress import ProgressState, ProgressStore
 from safecode.tools.registry import PermissionCategory, ToolRegistry, ToolRiskLevel
-from safecode.policy.audit import audit_policy, render_policy_audit
+from safecode.policy.audit import audit_policy, diff_policy, render_policy_audit, render_policy_diff
 
 config_app = typer.Typer(help="Manage SafeCode project config.")
 skills_app = typer.Typer(help="List and inspect skills.")
@@ -45,6 +46,34 @@ def config_policy_audit() -> None:
     console.print(render_policy_audit(result))
     if not result.ok:
         raise typer.Exit(1)
+
+
+@config_app.command("diff")
+def config_diff(
+    against: str = typer.Option(..., "--against", help="Compare against preset: strict, balanced, experimental."),
+    json_output: bool = typer.Option(False, "--json", help="Output result as JSON."),
+) -> None:
+    """Show knob-by-knob delta between effective config and a named preset."""
+    try:
+        result = diff_policy(Path.cwd(), against)
+    except ValueError as exc:
+        if json_output:
+            print(render_json(CLIJSONResponse(command="config diff", status="error", error=str(exc))))
+        else:
+            console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(1) from exc
+    if json_output:
+        print(
+            render_json(
+                CLIJSONResponse(
+                    command="config diff",
+                    status="success",
+                    data=result.to_dict(),
+                )
+            )
+        )
+        return
+    console.print(render_policy_diff(result))
 
 
 @skills_app.command("list")
@@ -216,4 +245,3 @@ def progress_set(goal: str, next_step: str = typer.Option("", "--next")) -> None
     state = ProgressState(goal=goal, completed=[], next_steps=[next_step] if next_step else [], blockers=[])
     ProgressStore(Path.cwd()).write(state)
     console.print("[green]Progress updated.[/green]")
-

@@ -10,6 +10,7 @@ from pathlib import Path
 from safecode.config import (
     KNOWN_POLICY_NAMES,
     POLICY_PRESETS,
+    SafeCodeConfig,
     is_known_policy_name,
     normalize_policy_name,
 )
@@ -59,6 +60,43 @@ class PolicyAuditResult:
         ]
 
 
+@dataclass(frozen=True)
+class PolicyDiffEntry:
+    """One effective-config knob delta against a named preset."""
+
+    knob: str
+    effective: object
+    preset: object
+    matches: bool
+
+
+@dataclass(frozen=True)
+class PolicyDiffResult:
+    """Structured policy diff result."""
+
+    against: str
+    entries: list[PolicyDiffEntry]
+
+    @property
+    def has_differences(self) -> bool:
+        return any(not entry.matches for entry in self.entries)
+
+    def to_dict(self) -> dict:
+        return {
+            "against": self.against,
+            "has_differences": self.has_differences,
+            "entries": [
+                {
+                    "knob": entry.knob,
+                    "effective": entry.effective,
+                    "preset": entry.preset,
+                    "matches": entry.matches,
+                }
+                for entry in self.entries
+            ],
+        }
+
+
 def _read_project_policy(project_root: Path) -> str | None:
     path = project_root / ".sac" / "config.toml"
     if not path.is_file():
@@ -82,6 +120,70 @@ def _preset_invariant_issues() -> list[str]:
         if preset.get("network_enabled") is not False:
             issues.append(f"{name}: network_enabled must be false by default.")
     return issues
+
+
+_DIFF_KNOBS = (
+    ("hooks.allow_medium_after_apply", "allow_medium_after_apply"),
+    ("sandbox.network_allowlist", "network_allowlist"),
+    ("sandbox.network_enabled", "network_enabled"),
+    ("sandbox.restrict_to_project_root", "restrict_to_project_root"),
+    ("shell.allow_readonly_without_confirm", "allow_readonly_without_confirm"),
+    ("shell.allowed_commands", "allowed_commands"),
+    ("shell.block_high_risk", "block_high_risk"),
+    ("shell.require_confirm_for_medium", "require_confirm_for_medium"),
+)
+
+
+def diff_policy(project_root: Path, against: str) -> PolicyDiffResult:
+    """Compare effective policy knobs with a named preset."""
+    canonical = normalize_policy_name(against)
+    preset = POLICY_PRESETS.get(canonical)
+    if preset is None:
+        raise ValueError(f"Unknown policy preset: {against!r}.")
+    config = SafeCodeConfig.load(project_root)
+    entries: list[PolicyDiffEntry] = []
+    for knob, preset_key in _DIFF_KNOBS:
+        effective = _effective_knob(config, knob)
+        preset_value = _normalize_diff_value(preset[preset_key])
+        effective_value = _normalize_diff_value(effective)
+        entries.append(
+            PolicyDiffEntry(
+                knob=knob,
+                effective=effective_value,
+                preset=preset_value,
+                matches=effective_value == preset_value,
+            )
+        )
+    return PolicyDiffResult(against=canonical, entries=entries)
+
+
+def _effective_knob(config: SafeCodeConfig, knob: str) -> object:
+    current: object = config
+    for part in knob.split("."):
+        current = getattr(current, part)
+    return current
+
+
+def _normalize_diff_value(value: object) -> object:
+    if isinstance(value, list):
+        return sorted(str(item) for item in value)
+    return value
+
+
+def render_policy_diff(result: PolicyDiffResult) -> str:
+    """Render deterministic policy diff output."""
+    lines = [
+        "SafeCode Policy Diff",
+        "====================",
+        f"Against: {result.against}",
+        f"Differences: {'yes' if result.has_differences else 'no'}",
+        "",
+        "Knobs:",
+    ]
+    for entry in result.entries:
+        marker = "!=" if not entry.matches else "=="
+        lines.append(f"  {entry.knob}: {entry.effective!r} {marker} {entry.preset!r}")
+    return "\n".join(lines)
 
 
 def audit_policy(project_root: Path, *, env_policy: str | None = None) -> PolicyAuditResult:

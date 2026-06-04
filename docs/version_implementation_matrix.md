@@ -473,6 +473,7 @@ Historical plan: `docs/version-plans/v2.8-to-v3.0-product-architecture-roadmap.m
 | 版本 | 分支 | 主要入口 | 验收命令 / 结果 |
 |---|---|---|---|
 | `v3.11.0` ✅ | `main` | `src/safecode/config.py`, `src/safecode/cli_core.py`, `tests/test_per_directory_trust.py`, `tests/test_ephemeral_trust.py` | T-3.11.0-A per-directory-trust: user-level `trust.roots` apply to explicit roots/subdirectories; project-local trust declarations are blocked and audited. T-3.11.0-B ephemeral-trust: `sac trust grant --until-end-of-session` creates process-local grants only and audits grant/revoke; targeted → 8 passed; full regression → 3754 passed, 2 skipped |
+| `v3.11.1` ✅ | `main` | `src/safecode/cli_project.py`, `src/safecode/policy/audit.py`, `tests/test_policy_diff.py` | T-3.11.1-A policy-diff: `sac config diff --against strict\|balanced\|experimental`; deterministic knob-by-knob output; `--json` via `CLIJSONResponse`; preset definitions unchanged; targeted → 5 passed; full regression → 3759 passed, 2 skipped |
 
 ## Active Forward Plan After v3.6.6
 

@@ -5,13 +5,15 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v3.11.0
+# Current Baseline - v3.11.1
 
 ## Status
-Implemented. Git baseline: tag `v3.11.0`. Local working version: `v3.11.0`.
+Implemented. Git baseline: tag `v3.11.1`. Local working version: `v3.11.1`.
 
 ## Stage
-`v3.11.0` directory-ephemeral-trust — T-3.11.0-A per-directory-trust: user-level `trust.roots` config applies only from trusted user config, may include subdirectories, and project-local trust declarations are ignored/blocked with `trust_config_lookup` audit events; effective trust never bypasses approval, audit, redaction, checkpoint, rollback, or policy strictness; 4 new tests in `tests/test_per_directory_trust.py`. T-3.11.0-B ephemeral-trust: `sac trust grant --until-end-of-session` adds process-local trust only, never writes config/disk grant state, supports revoke, and audits grant/revoke; 4 new tests in `tests/test_ephemeral_trust.py`. Full suite: 3754 passed, 2 skipped.
+`v3.11.1` policy-diff — T-3.11.1-A policy-diff: `sac config diff --against strict|balanced|experimental` compares effective config to named preset knob-by-knob; deterministic sorted output; `--json` uses `CLIJSONResponse`; diff surface is limited to policy knobs and does not expose provider/base-url or secret-bearing config; preset definitions unchanged; 5 new tests in `tests/test_policy_diff.py`. Full suite: 3759 passed, 2 skipped.
+
+Previous: `v3.11.0` directory-ephemeral-trust — T-3.11.0-A per-directory-trust: user-level `trust.roots` config applies only from trusted user config, may include subdirectories, and project-local trust declarations are ignored/blocked with `trust_config_lookup` audit events; effective trust never bypasses approval, audit, redaction, checkpoint, rollback, or policy strictness; 4 new tests in `tests/test_per_directory_trust.py`. T-3.11.0-B ephemeral-trust: `sac trust grant --until-end-of-session` adds process-local trust only, never writes config/disk grant state, supports revoke, and audits grant/revoke; 4 new tests in `tests/test_ephemeral_trust.py`. Full suite: 3754 passed, 2 skipped.
 
 Previous: `v3.10.2` context-budgets-stack-tutorials — T-3.10.2-A context-budget-docs: new `docs/context-budgets.md`; documents p50 context-pack budget per language preset (baseline-fixture-derived from `tests/snapshots/bench/`); ties to `ContextBudget`/`ContextBudgetPacker`; no unsupported performance claims; 20 new tests in `tests/test_context_budgets_docs.py`. T-3.10.2-B per-stack-tutorial-ts-go: `docs/tutorials/typescript-first-hour.md` and `docs/tutorials/go-first-hour.md` with required sections (`sac quickstart`, `sac ask`, `sac edit`, `sac apply`, `sac rollback`, `sac fix`, safety notes), cross-references, README links; 18 new tests added to `tests/test_landing_docs.py`. Full suite: 3763 passed, 2 skipped.
 
