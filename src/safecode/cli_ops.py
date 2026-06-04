@@ -21,7 +21,6 @@ from safecode.hooks.approvals import HookApprovalStore
 from safecode.ide.bridge import pending_diff_target, selected_file_targets
 from safecode.ide.manifest import render_manifest, write_manifest
 from safecode.logs.runtime import RuntimeLogger
-from safecode.memory.store import MemoryStore
 from safecode.project.rules import ProjectRules
 from safecode.queue.store import QueueStore
 from safecode.release.bump import bump_versions, render_bump_result
@@ -56,13 +55,6 @@ def rules(init: bool = typer.Option(False, "--init")) -> None:
     if init:
         rules_store.ensure()
     console.print(rules_store.read() or "[yellow]No SAC.md found. Run sac rules --init.[/yellow]")
-
-
-@ops_app.command("memory", hidden=True)
-def memory_set(key: str, value: str) -> None:
-    """Remember a low-risk project fact."""
-    MemoryStore(Path.cwd()).remember(key, value)
-    console.print("[green]Memory updated.[/green]")
 
 
 @report_app.callback(invoke_without_command=True)

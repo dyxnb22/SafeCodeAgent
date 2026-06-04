@@ -24,6 +24,7 @@ from safecode.cli_status import register as _register_status
 from safecode.cli_resume import register as _register_resume
 from safecode.cli_commit import register as _register_commit
 from safecode.cli_profile import profile_app
+from safecode.cli_memory import memory_app
 from safecode.config import SafeCodeConfig, _stricter_policy
 from safecode.setup import write_setup
 
@@ -213,6 +214,7 @@ for command in ops_app.registered_commands:
 
 app.add_typer(task_app, name="task")
 app.add_typer(profile_app, name="profile")
+app.add_typer(memory_app, name="memory", hidden=True)
 app.add_typer(context_app, name="context")
 app.add_typer(trust_app, name="trust")
 app.add_typer(config_app, name="config")

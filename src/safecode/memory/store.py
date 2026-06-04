@@ -3,11 +3,14 @@
 import json
 from pathlib import Path
 
+from safecode.memory.facade import MemoryFacade
+
 
 class MemoryStore:
-    """Persist simple non-secret project facts in .sac/memory.json."""
+    """Compatibility wrapper for legacy low-risk project facts."""
 
     def __init__(self, project_root: Path) -> None:
+        self.project_root = project_root
         self.path = project_root / ".sac" / "memory.json"
 
     def read(self) -> dict[str, str]:
@@ -20,10 +23,7 @@ class MemoryStore:
         """Store one low-risk fact."""
         if self._looks_sensitive(key, value):
             raise ValueError("Refusing to store a value that looks sensitive.")
-        data = self.read()
-        data[key] = value
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        self.path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+        MemoryFacade(self.project_root).add_note(f"- {key}: {value}")
 
     def _looks_sensitive(self, key: str, value: str) -> bool:
         lowered = f"{key} {value}".lower()
