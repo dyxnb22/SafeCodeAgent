@@ -63,6 +63,11 @@ and the readiness audit
 For why SafeCode, see [docs/why-safecode.md](docs/why-safecode.md).
 For a comparison with other approaches, see [docs/compare.md](docs/compare.md).
 For troubleshooting help, see [docs/troubleshooting.md](docs/troubleshooting.md).
+For context budget configuration, see [docs/context-budgets.md](docs/context-budgets.md).
+
+**Per-stack tutorials**:
+- [TypeScript: First Hour](docs/tutorials/typescript-first-hour.md)
+- [Go: First Hour](docs/tutorials/go-first-hour.md)
 
 ## Core Commands
 

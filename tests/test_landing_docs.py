@@ -137,3 +137,88 @@ def test_readme_links_to_compare() -> None:
 def test_readme_links_to_troubleshooting() -> None:
     text = README.read_text(encoding="utf-8")
     assert "docs/troubleshooting.md" in text
+
+
+# ---------------------------------------------------------------------------
+# v3.10.2: Per-stack tutorials (TypeScript, Go)
+# ---------------------------------------------------------------------------
+
+TS_TUTORIAL = ROOT / "docs" / "tutorials" / "typescript-first-hour.md"
+GO_TUTORIAL = ROOT / "docs" / "tutorials" / "go-first-hour.md"
+
+
+def test_typescript_tutorial_exists() -> None:
+    assert TS_TUTORIAL.is_file(), "docs/tutorials/typescript-first-hour.md must exist"
+
+
+def test_go_tutorial_exists() -> None:
+    assert GO_TUTORIAL.is_file(), "docs/tutorials/go-first-hour.md must exist"
+
+
+def test_typescript_tutorial_has_required_sections() -> None:
+    text = TS_TUTORIAL.read_text(encoding="utf-8")
+    for section in ("sac quickstart", "sac ask", "sac edit", "sac apply", "sac rollback"):
+        assert section in text, f"TypeScript tutorial missing section for: {section}"
+
+
+def test_go_tutorial_has_required_sections() -> None:
+    text = GO_TUTORIAL.read_text(encoding="utf-8")
+    for section in ("sac quickstart", "sac ask", "sac edit", "sac apply", "sac rollback"):
+        assert section in text, f"Go tutorial missing section for: {section}"
+
+
+def test_typescript_tutorial_mentions_package_json() -> None:
+    text = TS_TUTORIAL.read_text(encoding="utf-8")
+    assert "package.json" in text
+
+
+def test_go_tutorial_mentions_go_mod() -> None:
+    text = GO_TUTORIAL.read_text(encoding="utf-8")
+    assert "go.mod" in text
+
+
+def test_typescript_tutorial_mentions_sac_fix() -> None:
+    text = TS_TUTORIAL.read_text(encoding="utf-8")
+    assert "sac fix" in text
+
+
+def test_go_tutorial_mentions_sac_fix() -> None:
+    text = GO_TUTORIAL.read_text(encoding="utf-8")
+    assert "sac fix" in text
+
+
+def test_typescript_tutorial_no_unsupported_claims() -> None:
+    text = TS_TUTORIAL.read_text(encoding="utf-8")
+    forbidden = ["automatically refactors", "AI pair programmer guarantees", "zero bugs"]
+    for claim in forbidden:
+        assert claim.lower() not in text.lower(), f"Unsupported claim in TS tutorial: {claim!r}"
+
+
+def test_go_tutorial_no_unsupported_claims() -> None:
+    text = GO_TUTORIAL.read_text(encoding="utf-8")
+    forbidden = ["automatically refactors", "AI pair programmer guarantees", "zero bugs"]
+    for claim in forbidden:
+        assert claim.lower() not in text.lower(), f"Unsupported claim in Go tutorial: {claim!r}"
+
+
+def test_readme_links_to_typescript_tutorial() -> None:
+    text = README.read_text(encoding="utf-8")
+    assert "typescript-first-hour.md" in text or "TypeScript" in text
+
+
+def test_readme_links_to_go_tutorial() -> None:
+    text = README.read_text(encoding="utf-8")
+    assert "go-first-hour.md" in text or ("Go" in text and "tutorial" in text.lower())
+
+
+def test_tutorials_cross_reference_each_other() -> None:
+    ts_text = TS_TUTORIAL.read_text(encoding="utf-8")
+    go_text = GO_TUTORIAL.read_text(encoding="utf-8")
+    assert "go-first-hour" in ts_text, "TypeScript tutorial should link to Go tutorial"
+    assert "typescript-first-hour" in go_text, "Go tutorial should link to TypeScript tutorial"
+
+
+def test_tutorials_mention_safety_notes() -> None:
+    for path, label in [(TS_TUTORIAL, "TypeScript"), (GO_TUTORIAL, "Go")]:
+        text = path.read_text(encoding="utf-8")
+        assert "safety" in text.lower(), f"{label} tutorial should have a safety notes section"
