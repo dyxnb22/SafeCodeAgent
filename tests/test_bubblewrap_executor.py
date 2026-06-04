@@ -35,6 +35,7 @@ from safecode.sandbox.execution import (
     SandboxExecutionProposal,
     SandboxExecutionResultStore,
 )
+from safecode.sandbox.executor_preflight import SandboxExecutorPreflight
 from safecode.utils.time import utc_now_iso
 
 
@@ -400,11 +401,14 @@ class TestBubblewrapGateLifecycle:
         monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor))
         ad = tmp_path.parent / f"approvals-{tmp_path.name}"
         monkeypatch.setenv("SAFECODE_SANDBOX_APPROVAL_DIR", str(ad))
+        monkeypatch.setenv("SAFECODE_SANDBOX_BUBBLEWRAP", "1")
 
         gate = SandboxExecutionGate(tmp_path)
         plan = _make_plan_for_gate(tmp_path)
         proposal = gate.propose(plan, "shell")
         gate.approve()
+        self._patch_bwrap_available(monkeypatch)
+        SandboxExecutorPreflight(tmp_path).run("bubblewrap")
         return gate, proposal.proposal_id
 
     def _patch_bwrap_available(self, monkeypatch):

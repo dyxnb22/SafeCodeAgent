@@ -51,6 +51,7 @@ from safecode.sandbox.execution import (
     SandboxExecutionProposal,
     SandboxExecutionResultStore,
 )
+from safecode.sandbox.executor_preflight import SandboxExecutorPreflight
 from safecode.sandbox.seatbelt import MacOSSeatbeltExecutor, SeatbeltProfileBuilder
 from safecode.utils.time import utc_now_iso
 
@@ -207,6 +208,8 @@ def _setup_docker_gate(tmp_path: Path, monkeypatch, run_fn=None):
     proposal = gate.propose(plan, "test")
     gate.approve()
     _mock_backend_available(monkeypatch, SandboxBackend.DOCKER)
+    monkeypatch.setenv("SAFECODE_SANDBOX_DOCKER", "1")
+    SandboxExecutorPreflight(tmp_path).run("docker")
     monkeypatch.setattr(DockerDaemonChecker, "check", lambda self: (True, ""))
     if run_fn is not None:
         import safecode.sandbox.docker as _m
@@ -226,6 +229,8 @@ def _setup_seatbelt_gate(tmp_path: Path, monkeypatch, run_fn=None):
     proposal = gate.propose(plan, "test")
     gate.approve()
     _mock_backend_available(monkeypatch, SandboxBackend.MACOS_SEATBELT)
+    monkeypatch.setenv("SAFECODE_SANDBOX_SEATBELT", "1")
+    SandboxExecutorPreflight(tmp_path).run("seatbelt")
     import safecode.sandbox.seatbelt as _sm
     monkeypatch.setattr(_sm.shutil, "which", lambda name: "/usr/bin/sandbox-exec")
     if run_fn is not None:
@@ -245,6 +250,8 @@ def _setup_bwrap_gate(tmp_path: Path, monkeypatch, run_fn=None):
     proposal = gate.propose(plan, "test")
     gate.approve()
     _mock_backend_available(monkeypatch, SandboxBackend.LINUX_BUBBLEWRAP)
+    monkeypatch.setenv("SAFECODE_SANDBOX_BUBBLEWRAP", "1")
+    SandboxExecutorPreflight(tmp_path).run("bubblewrap")
     import safecode.sandbox.bubblewrap as _bm
     monkeypatch.setattr(_bm.shutil, "which", lambda name: "/usr/bin/bwrap")
     if run_fn is not None:

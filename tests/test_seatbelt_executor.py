@@ -27,6 +27,7 @@ from safecode.sandbox.execution import (
     SandboxExecutionProposal,
     SandboxExecutionResultStore,
 )
+from safecode.sandbox.executor_preflight import SandboxExecutorPreflight
 from safecode.sandbox.seatbelt import (
     MacOSSeatbeltExecutor,
     SeatbeltExecutionResult,
@@ -365,11 +366,14 @@ class TestSeatbeltGateLifecycle:
         monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(anchor))
         ad = tmp_path.parent / f"approvals-{tmp_path.name}"
         monkeypatch.setenv("SAFECODE_SANDBOX_APPROVAL_DIR", str(ad))
+        monkeypatch.setenv("SAFECODE_SANDBOX_SEATBELT", "1")
 
         gate = SandboxExecutionGate(tmp_path)
         plan = _make_plan_for_gate(tmp_path)
         proposal = gate.propose(plan, "shell")
         gate.approve()
+        self._patch_seatbelt_available(monkeypatch)
+        SandboxExecutorPreflight(tmp_path).run("seatbelt")
         return gate, proposal.proposal_id
 
     def _patch_seatbelt_available(self, monkeypatch):
@@ -541,6 +545,8 @@ class TestNoopDockerRegressionAfterSeatbelt:
             ]
 
         monkeypatch.setattr(SandboxCapabilityDetector, "detect_all", patched_detect_all)
+        monkeypatch.setenv("SAFECODE_SANDBOX_DOCKER", "1")
+        SandboxExecutorPreflight(tmp_path).run("docker")
         monkeypatch.setattr(DockerDaemonChecker, "check", lambda self: (False, "no daemon in test"))
 
         result = gate.execute_pending()

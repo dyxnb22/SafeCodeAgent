@@ -42,6 +42,7 @@ from safecode.sandbox.execution import (
     SandboxExecutionResultRecord,
     SandboxExecutionResultStore,
 )
+from safecode.sandbox.executor_preflight import SandboxExecutorPreflight
 
 runner = CliRunner()
 
@@ -288,6 +289,8 @@ class TestBlockedPaths:
             ]
 
         monkeypatch.setattr(SandboxCapabilityDetector, "detect_all", patched_detect_all)
+        monkeypatch.setenv("SAFECODE_SANDBOX_DOCKER", "1")
+        SandboxExecutorPreflight(tmp_path).run("docker")
 
         # Make daemon check fail at execution time
         monkeypatch.setattr(

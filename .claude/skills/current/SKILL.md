@@ -5,13 +5,15 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v3.11.1
+# Current Baseline - v3.11.2
 
 ## Status
-Implemented. Git baseline: tag `v3.11.1`. Local working version: `v3.11.1`.
+Implemented. Git baseline: tag `v3.11.2`. Local working version: `v3.11.2`.
 
 ## Stage
-`v3.11.1` policy-diff — T-3.11.1-A policy-diff: `sac config diff --against strict|balanced|experimental` compares effective config to named preset knob-by-knob; deterministic sorted output; `--json` uses `CLIJSONResponse`; diff surface is limited to policy knobs and does not expose provider/base-url or secret-bearing config; preset definitions unchanged; 5 new tests in `tests/test_policy_diff.py`. Full suite: 3759 passed, 2 skipped.
+`v3.11.2` sandbox-executor-preflight — T-3.11.2-A sandbox-executor-preflight: new `src/safecode/sandbox/executor_preflight.py`; `sac sandbox executor-preflight <backend>` accepts noop/docker/seatbelt/bubblewrap aliases; records passing preflight state; real Docker/Seatbelt/Bubblewrap execution now requires both a passing backend preflight record and explicit env opt-in (`SAFECODE_SANDBOX_DOCKER=1`, `SAFECODE_SANDBOX_SEATBELT=1`, `SAFECODE_SANDBOX_BUBBLEWRAP=1`); approval claim remains after preflight/env gates. T-3.11.2-B sandbox-promotion-docs: docs/install-update.md and threat model document backend promotion state; `sac doctor` reports Noop/promotion state per backend; default recommendation remains Noop. 6 new tests in `tests/test_sandbox_executor_preflight.py`, threat-model docs extended; full suite: 3767 passed, 2 skipped.
+
+Previous: `v3.11.1` policy-diff — T-3.11.1-A policy-diff: `sac config diff --against strict|balanced|experimental` compares effective config to named preset knob-by-knob; deterministic sorted output; `--json` uses `CLIJSONResponse`; diff surface is limited to policy knobs and does not expose provider/base-url or secret-bearing config; preset definitions unchanged; 5 new tests in `tests/test_policy_diff.py`. Full suite: 3759 passed, 2 skipped.
 
 Previous: `v3.11.0` directory-ephemeral-trust — T-3.11.0-A per-directory-trust: user-level `trust.roots` config applies only from trusted user config, may include subdirectories, and project-local trust declarations are ignored/blocked with `trust_config_lookup` audit events; effective trust never bypasses approval, audit, redaction, checkpoint, rollback, or policy strictness; 4 new tests in `tests/test_per_directory_trust.py`. T-3.11.0-B ephemeral-trust: `sac trust grant --until-end-of-session` adds process-local trust only, never writes config/disk grant state, supports revoke, and audits grant/revoke; 4 new tests in `tests/test_ephemeral_trust.py`. Full suite: 3754 passed, 2 skipped.
 

@@ -187,6 +187,13 @@ not provide complete containment on all OS/kernel configurations.
   boundary, only a gating mechanism.
 - Backend unavailability (daemon not running, binary not found) always fails
   closed — it never degrades silently to an unconstrained execution path.
+- Real Docker, macOS Seatbelt, and Linux Bubblewrap execution requires both a
+  passing current-host executor preflight and explicit env opt-in:
+  `SAFECODE_SANDBOX_DOCKER=1`, `SAFECODE_SANDBOX_SEATBELT=1`, or
+  `SAFECODE_SANDBOX_BUBBLEWRAP=1`.
+- `sac sandbox executor-preflight <backend>` records backend promotion state;
+  `sac doctor` reports each backend as policy-gated, preview, or opt-in real
+  execution. The default recommendation remains Noop.
 
 ---
 

@@ -24,6 +24,7 @@ from safecode.sandbox.execution import (
     SandboxExecutionProposal,
     SandboxExecutionProposalStore,
 )
+from safecode.sandbox.executor_preflight import SandboxExecutorPreflight
 from safecode.sandbox.factory import SandboxAdapterFactory
 
 runner = CliRunner()
@@ -365,6 +366,8 @@ class TestDockerExecutionGate:
             ]
 
         monkeypatch.setattr(SandboxCapabilityDetector, "detect_all", patched_detect_all)
+        monkeypatch.setenv("SAFECODE_SANDBOX_DOCKER", "1")
+        SandboxExecutorPreflight(tmp_path).run("docker")
 
         # Daemon is unreachable at execution time
         monkeypatch.setattr(
@@ -429,6 +432,8 @@ class TestDockerExecutionGate:
             ]
 
         monkeypatch.setattr(SandboxCapabilityDetector, "detect_all", patched_detect_all)
+        monkeypatch.setenv("SAFECODE_SANDBOX_DOCKER", "1")
+        SandboxExecutorPreflight(tmp_path).run("docker")
         monkeypatch.setattr(
             DockerDaemonChecker,
             "check",

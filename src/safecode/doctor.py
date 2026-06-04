@@ -125,6 +125,7 @@ class Doctor:
             ),
         ]
         diagnostics.append(self._last_session_cost_diagnostic())
+        diagnostics.extend(self._sandbox_promotion_diagnostics())
         diagnostics.append(self._update_check_diagnostic())
         if release:
             diagnostics.extend(self.run_release_diagnostics())
@@ -177,6 +178,33 @@ class Doctor:
             status=DiagnosticStatus.PASS,
             message=f"up to date ({__version__})",
         )
+
+    def _sandbox_promotion_diagnostics(self) -> list[Diagnostic]:
+        """Report sandbox executor promotion state per backend."""
+        from safecode.sandbox.executor_preflight import executor_env_var, has_executor_preflight_pass
+
+        diagnostics: list[Diagnostic] = [
+            Diagnostic(
+                name="sandbox_promotion_noop",
+                status=DiagnosticStatus.PASS,
+                message="policy-gated default; no OS containment; Noop remains recommended default",
+            )
+        ]
+        for backend in ("docker", "macos_seatbelt", "linux_bubblewrap"):
+            env_var = executor_env_var(backend)
+            passed = has_executor_preflight_pass(self.project_root, backend)
+            opted_in = bool(env_var and os.getenv(env_var) == "1")
+            if passed and opted_in:
+                status = DiagnosticStatus.PASS
+                message = f"opt-in real execution enabled ({env_var}=1, preflight passed)"
+            elif passed:
+                status = DiagnosticStatus.WARN
+                message = f"preflight passed; set {env_var}=1 to opt in"
+            else:
+                status = DiagnosticStatus.SKIP
+                message = f"preview; run sac sandbox executor-preflight {backend}"
+            diagnostics.append(Diagnostic(name=f"sandbox_promotion_{backend}", status=status, message=message))
+        return diagnostics
 
     def run(self, *, release: bool = False) -> list[DoctorCheck]:
         """Run environment checks, optionally including release diagnostics.

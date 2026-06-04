@@ -68,3 +68,16 @@ def test_threat_model_mentions_audit_hash_chain() -> None:
 def test_threat_model_mentions_network_disabled_by_default() -> None:
     text = _text().lower()
     assert "disabled by default" in text
+
+
+def test_threat_model_mentions_executor_preflight_promotion_state() -> None:
+    text = _text()
+    assert "sac sandbox executor-preflight <backend>" in text
+    assert "SAFECODE_SANDBOX_DOCKER=1" in text
+    assert "SAFECODE_SANDBOX_SEATBELT=1" in text
+    assert "SAFECODE_SANDBOX_BUBBLEWRAP=1" in text
+
+
+def test_threat_model_sandbox_default_remains_noop() -> None:
+    text = _text().lower()
+    assert "default recommendation remains noop" in text

@@ -13,6 +13,7 @@ from safecode.cli_shared import console
 from safecode.config import SafeCodeConfig
 from safecode.sandbox.capabilities import SandboxBackend
 from safecode.sandbox.execution import SandboxExecutionResultStore
+from safecode.sandbox.executor_preflight import SandboxExecutorPreflight
 from safecode.sandbox.factory import SandboxAdapterFactory
 from safecode.sandbox.planner import SandboxPlanner
 
@@ -122,6 +123,7 @@ def sandbox_plan(
             readonly_filesystem=readonly_fs,
             timeout_seconds=timeout,
         )
+
     except PermissionError as exc:
         console.print(f"[red]Sandbox plan blocked:[/red] {exc}")
         raise typer.Exit(code=1) from exc
@@ -240,3 +242,33 @@ def sandbox_plan(
                 title="Dry Run",
             )
         )
+
+
+def sandbox_executor_preflight(
+    backend: str = typer.Argument(..., help="Backend: docker, seatbelt, bubblewrap, noop."),
+) -> None:
+    """Run the executor promotion preflight for one backend."""
+    project_root = Path.cwd()
+    try:
+        result = SandboxExecutorPreflight(project_root).run(backend)
+    except ValueError as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(1) from exc
+
+    table = Table(title="Sandbox Executor Preflight")
+    table.add_column("Field")
+    table.add_column("Value")
+    table.add_row("Backend", result.backend)
+    table.add_row("Passed", "[green]yes[/green]" if result.passed else "[red]no[/red]")
+    table.add_row("Promotion", result.promotion_state)
+    table.add_row("Env Opt-in", result.env_var or "(not required for Noop)")
+    for name, ok in sorted(result.checks.items()):
+        table.add_row(name, "[green]pass[/green]" if ok else "[red]fail[/red]")
+    console.print(table)
+
+    if result.reasons:
+        console.print(Panel("\n".join(f"- {reason}" for reason in result.reasons), title="[yellow]Reasons[/yellow]"))
+    if result.warnings:
+        console.print(Panel("\n".join(f"- {warning}" for warning in result.warnings), title="[dim]Warnings[/dim]"))
+    if not result.passed:
+        raise typer.Exit(1)

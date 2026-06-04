@@ -23,7 +23,7 @@ from safecode.cli_sandbox_proposal import (
     sandbox_propose,
     sandbox_revoke,
 )
-from safecode.cli_sandbox_status import sandbox_plan, sandbox_status
+from safecode.cli_sandbox_status import sandbox_executor_preflight, sandbox_plan, sandbox_status
 
 sandbox_app = typer.Typer(help="Check OS sandbox capabilities and recommendations.")
 
@@ -37,6 +37,7 @@ sandbox_app.command("approve")(sandbox_approve)
 sandbox_app.command("approvals")(sandbox_approvals)
 sandbox_app.command("revoke")(sandbox_revoke)
 sandbox_app.command("preflight")(sandbox_preflight)
+sandbox_app.command("executor-preflight")(sandbox_executor_preflight)
 sandbox_app.add_typer(executions_app, name="executions")
 sandbox_app.command("last-execution")(sandbox_last_execution)
 sandbox_app.command("execution")(sandbox_execution_show)

@@ -664,6 +664,30 @@ class SandboxExecutionGate:
                 message=reasons,
             )
 
+        from safecode.sandbox.executor_preflight import real_execution_enabled  # lazy to avoid circular import
+
+        enabled, enable_reason = real_execution_enabled(self.project_root, proposal.backend)
+        if not enabled:
+            self._audit(
+                "sandbox_execution_blocked",
+                proposal.proposal_id,
+                proposal.backend,
+                proposal.purpose,
+                proposal.command[0] if proposal.command else "",
+                proposal.command_hash,
+                enable_reason,
+            )
+            return SandboxExecutionResult(
+                proposal_id=proposal.proposal_id,
+                executed=False,
+                exit_code=None,
+                stdout="",
+                stderr=enable_reason,
+                backend=proposal.backend,
+                dry_run=True,
+                message=enable_reason,
+            )
+
         # v1.8.2: atomically claim approval BEFORE execution to close
         # the TOCTOU window between preflight and ShellRunner.run().
         approval_store = SandboxExecutionApprovalStore(self.project_root)

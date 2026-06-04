@@ -159,6 +159,19 @@ pipx install dist/safecode_agent-X.Y.Z-py3-none-any.whl
 
 ## Current Enforcement Boundaries
 
-- Sandbox command execution currently runs through Noop plus Docker, macOS Seatbelt, and Linux Bubblewrap preview backends. Docker requires a reachable daemon, macOS Seatbelt requires `sandbox-exec`, and Linux Bubblewrap requires `bwrap`.
+- Sandbox command execution defaults to Noop. Noop is policy-gated only and is not an OS containment boundary.
+- Docker, macOS Seatbelt, and Linux Bubblewrap remain preview until the current host/backend passes:
+
+```bash
+sac sandbox executor-preflight docker
+sac sandbox executor-preflight seatbelt
+sac sandbox executor-preflight bubblewrap
+```
+
+- Real execution for preview backends is opt-in and requires both a passing executor preflight record and an explicit env var:
+  - Docker: `SAFECODE_SANDBOX_DOCKER=1`
+  - macOS Seatbelt: `SAFECODE_SANDBOX_SEATBELT=1`
+  - Linux Bubblewrap: `SAFECODE_SANDBOX_BUBBLEWRAP=1`
+- `sac doctor` reports promotion state per backend. The default recommendation remains Noop.
 - MCP support is currently a SafeCode subprocess JSON shim, not a full MCP JSON-RPC client.
 - Subagents currently collect read-only context/result summaries; they are not yet independent LLM investigations.
