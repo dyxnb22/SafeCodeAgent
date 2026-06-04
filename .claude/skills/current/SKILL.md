@@ -5,13 +5,15 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v3.9.0
+# Current Baseline - v3.9.1
 
 ## Status
-Implemented. Git baseline: tag `v3.9.0`. Local working version: `v3.9.0`.
+Implemented. Git baseline: tag `v3.9.1`. Local working version: `v3.9.1`.
 
 ## Stage
-`v3.9.0` signing truthing + TestPyPI rehearsal — Decision B on signing: `--sign` produces a **detached cosign or gpg signature** (not Sigstore Rekor); `_planned_steps()` labels the mechanism explicitly; `_check_sign_tooling()` error updated; module docstring clarifies. `docs/install-update.md` "Release Signing" section documents the mechanism; "TestPyPI Rehearsal" section documents `--repository test-pypi`. `docs/security/threat-model-v3.6.md` "Release Artifact Integrity" subsection added. `run_release_publish()` gains `repository` param; `_REPOSITORY_URLS` maps `pypi`/`test-pypi`; real uploads via `uv publish --publish-url <url>`; `SAFECODE_PUBLISH=1` required for both. `--repository` CLI option; JSON output includes `repository` field. 6 new tests `TestSigningMechanismDescription` in `tests/test_release_publish_dry_run.py`; 28 new tests in `tests/test_release_publish_repository.py`. Full suite: 3579 passed, 2 skipped.
+`v3.9.1` pipx/brew docs + versioning policy — `docs/versioning-policy.md` (new): patch/minor/major semantics, stable/experimental surfaces, v4.0 churn budget (≤2 new stable contracts; zero breaking v3.0 changes), brew strategy = **defer** (no production PyPI yet). `README.md` links versioning-policy.md. `tests/test_install_docs.py` (18 tests) enforces required install command fragments. `tests/test_versioning_policy_doc.py` (12 tests) enforces policy sections and README link. Full suite: 3617 passed, 2 skipped.
+
+Previous: `v3.9.0` signing truthing + TestPyPI rehearsal — Decision B on signing: `--sign` produces a **detached cosign or gpg signature** (not Sigstore Rekor); `_planned_steps()` labels the mechanism explicitly; `_check_sign_tooling()` error updated; module docstring clarifies. `docs/install-update.md` "Release Signing" section documents the mechanism; "TestPyPI Rehearsal" section documents `--repository test-pypi`. `docs/security/threat-model-v3.6.md` "Release Artifact Integrity" subsection added. `run_release_publish()` gains `repository` param; `_REPOSITORY_URLS` maps `pypi`/`test-pypi`; real uploads via `uv publish --publish-url <url>`; `SAFECODE_PUBLISH=1` required for both. `--repository` CLI option; JSON output includes `repository` field. 6 new tests `TestSigningMechanismDescription` in `tests/test_release_publish_dry_run.py`; 28 new tests in `tests/test_release_publish_repository.py`. Full suite: 3579 passed, 2 skipped.
 
 Previous: `v3.8.2` MCP write-proposal e2e + read contract promotion — `MCPApprovalStore` in `src/safecode/mcp/approval_grant.py`; single-use grants stored outside project root (`SAFECODE_MCP_APPROVAL_DIR`); `execute_granted_write(proposal_id, server, tool, ...)` on `MCPReadOnlyRunner`; consumes grant, routes through stdio, emits `mcp_granted_write_*` audit events, discards pending proposal (single-use); requires `SAFECODE_MCP_STDIO_RUNNER=1` + server `argv`. Section 12 "MCP Read Execution Contract" added to `docs/public-contracts.md`; snapshot at `tests/snapshots/contracts/mcp_read_contract.json`; `TestMCPReadContract` (16 tests); MCP read execution promoted to stable contract; write execution and lifecycle remain experimental. 19 new tests in `tests/test_mcp_write_proposal_e2e.py`. Full suite: 3545 passed, 2 skipped.
 

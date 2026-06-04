@@ -35,6 +35,7 @@ For a complete first run, follow [docs/mvp-user-guide.md](docs/mvp-user-guide.md
 
 For stable local safety contracts (v3.0), see [docs/public-contracts.md](docs/public-contracts.md).
 For LLM provider configuration and contract details, see [docs/providers.md](docs/providers.md).
+For release versioning semantics and the v4.0 contract churn budget, see [docs/versioning-policy.md](docs/versioning-policy.md).
 For the post-v3.0 commercial product architecture reference, see
 [docs/product-commercialization-roadmap.md](docs/product-commercialization-roadmap.md).
 For the active post-v3.6.6 execution plan, see
