@@ -5,13 +5,15 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v4.7.1
+# Current Baseline - v4.7.2
 
 ## Status
-Implemented. Git baseline: tag `v4.7.1`. Local working version: `v4.7.1`.
+Implemented. Git baseline: tag `v4.7.2`. Local working version: `v4.7.2`.
 
 ## Stage
-`v4.7.1` debug-bundle-and-audit-query — T-4.7.1-A sac-debug-bundle: new experimental `sac debug bundle [--task <id>] [--out <path>] [--force] [--json]` writes a redacted tar.gz containing manifest, version metadata, config snapshot, doctor-equivalent data without shelling through a string, runtime logs, verified audit events, selected task sidecars, project profile, and memory metadata only; it excludes project source code, refuses overwrites without `--force`, and caps output at 5 MiB. T-4.7.1-B sac-audit-query: new experimental read-only `sac audit query [--type <event_type>] [--since <date>] [--task <id>] [--limit N] [--json]` verifies audit integrity before returning deterministic filtered events and never writes audit events. No stable public contract promoted.
+`v4.7.2` debug-docs — T-4.7.2-A v4.7-docs-cut: README Core Commands documents experimental `sac debug last-failure`, `sac debug bundle`, and `sac audit query`; MVP guide documents the debug workflow (inspect last failure, create bundle, query audit by task/type/date); troubleshooting documents the experimental failure taxonomy with meaning, likely cause, and suggested command for every code category; docs guards verify category docs match the code table and documented commands exist. All v4.7 surfaces remain EXPERIMENTAL; no stable contract promoted.
+
+Previous: `v4.7.1` debug-bundle-and-audit-query — T-4.7.1-A sac-debug-bundle: new experimental `sac debug bundle [--task <id>] [--out <path>] [--force] [--json]` writes a redacted tar.gz containing manifest, version metadata, config snapshot, doctor-equivalent data without shelling through a string, runtime logs, verified audit events, selected task sidecars, project profile, and memory metadata only; it excludes project source code, refuses overwrites without `--force`, and caps output at 5 MiB. T-4.7.1-B sac-audit-query: new experimental read-only `sac audit query [--type <event_type>] [--since <date>] [--task <id>] [--limit N] [--json]` verifies audit integrity before returning deterministic filtered events and never writes audit events. No stable public contract promoted.
 
 Previous: `v4.7.0` failure-taxonomy-and-debug-last-failure — T-4.7.0-A runtime-failure-taxonomy: new experimental runtime-wide `FailureCategory` table covers model output, patch, command, network/provider, sandbox, interruption, loop, budget, dependency, and unknown failures; runtime logs gain an additive optional `failure_category` field while older logs still parse; existing failure paths write redacted category breadcrumbs where doing so does not violate no-I/O classification invariants. T-4.7.0-B sac-debug-last-failure: new experimental `sac debug last-failure [--task <id>] [--json]` reads runtime logs, task sidecars, recent-failure memory, and audit events without executing commands, returning a redacted deterministic category/message/source/task/command/file summary plus the table-derived suggested command. No stable public contract promoted.
 

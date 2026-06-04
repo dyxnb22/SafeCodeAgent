@@ -224,7 +224,48 @@ sac logs show --level error --traceback
 ```
 
 Runtime logs are structured JSONL at `.sac/logs/runtime.jsonl`. Each entry
-includes component, level, message, error type, traceback, and extra metadata.
+includes component, level, message, error type, traceback, optional
+experimental `failure_category`, and extra metadata.
+
+## Failure Taxonomy (v4.7, EXPERIMENTAL)
+
+Use the read-only failure inspector first:
+
+```bash
+sac debug last-failure
+sac debug last-failure --task <task-id> --json
+```
+
+The category names below are experimental runtime debugging labels, not stable
+public contracts. The suggested command must match the code table.
+
+| Category | Meaning | Likely Cause | Suggested Command |
+|---|---|---|---|
+| `model_output_invalid` | The model response did not match the expected agent schema. | Provider returned malformed JSON, wrong response type, or incomplete tool intent. | `sac logs show --level error --traceback` |
+| `patch_parse_failed` | SafeCode could not parse the proposed patch text. | The model emitted an invalid patch or mixed prose into patch content. | `sac edit --retry-from-last-failure "<task>"` |
+| `patch_apply_conflict` | Patch validation, preview, apply, or rollback could not safely continue. | Files changed since proposal, patch target missing, or checkpoint/apply validation failed. | `sac apply` |
+| `command_timeout` | A controlled command exceeded its timeout. | Test/profile command hung, took too long, or needs a narrower target. | `sac debug last-failure` |
+| `command_blocked_by_policy` | Command execution was refused by SafeCode policy or approval gates. | High-risk command, unapproved medium-risk command, or blocked MCP/write action. | `sac run "<command>" --yes` |
+| `network_disabled` | A command or provider path needed network access but policy disabled it. | Network defaults are off or target host is not allowlisted. | `sac doctor` |
+| `provider_auth_failed` | Provider authentication failed. | Missing, revoked, or incorrect API credential. | `sac setup --wizard` |
+| `provider_unavailable` | Provider request failed outside authentication. | Provider outage, rate limit, unsupported endpoint, or transport failure. | `sac doctor` |
+| `dependency_missing` | A required local executable or dependency was not found. | Test/profile tool is absent from PATH or project tooling is not installed. | `sac doctor` |
+| `sandbox_preflight_failed` | Sandbox executor promotion preflight did not pass. | Backend unavailable, env opt-in missing, or executor smoke check failed closed. | `sac sandbox executor-preflight <backend>` |
+| `interrupted` | A supported command was interrupted with Ctrl-C. | User interrupted edit/fix/run while a task was active. | `sac resume` |
+| `loop_no_progress` | Fix watch saw repeated equivalent failure output. | Consecutive repair attempts hit the same redacted failure-tail hash. | `sac status` |
+| `loop_stuck` | Agent loop emitted the same tool intent repeatedly. | The loop could not choose a new safe next action for the task. | `sac status` |
+| `budget_exceeded` | A per-task loop budget was exceeded. | Step or time budget was reached before completion. | `sac task budget show` |
+| `unknown` | SafeCode found a failure but could not classify it more specifically. | Legacy logs, unexpected exception shape, or incomplete failure metadata. | `sac logs show --level error --traceback` |
+
+For a portable local diagnostic archive:
+
+```bash
+sac debug bundle --out safecode-debug.tar.gz
+```
+
+The bundle is redacted, excludes project source code, verifies audit integrity
+before including audit events, and refuses to overwrite an existing path unless
+you pass `--force`.
 
 ---
 

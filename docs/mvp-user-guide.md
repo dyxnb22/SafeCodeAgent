@@ -1,6 +1,6 @@
 # SafeCode MVP User Guide
 
-This guide covers the v4.6.x path for a new user: install SafeCode, set up
+This guide covers the v4.7.x path for a new user: install SafeCode, set up
 your provider, run a coding task, fix a failing test, and review/apply the
 proposed patches safely.
 
@@ -146,6 +146,43 @@ a bounded redacted recent-failure entry. Later `sac fix` prompts include the
 newest three recent failures as task context, which can help repeated failures
 without exposing raw secret-bearing output.
 
+## Debug Workflow (v4.7, EXPERIMENTAL)
+
+When a run fails, start with the newest redacted failure summary:
+
+```bash
+sac debug last-failure
+sac debug last-failure --task <task-id> --json
+```
+
+The summary is read-only. It inspects SafeCode runtime logs, task sidecars,
+recent-failure memory, and audit events, then reports the experimental
+failure category, message, source, task id, command/file when known, and the
+suggested next command from the failure taxonomy table.
+
+To share local diagnostic context without project source code:
+
+```bash
+sac debug bundle --out safecode-debug.tar.gz
+sac debug bundle --task <task-id> --out safecode-debug.tar.gz --force
+```
+
+The bundle contains redacted SafeCode metadata only: manifest, version/config
+snapshot, doctor-equivalent data, runtime logs, verified audit events, selected
+task sidecars, project profile, and memory metadata. It excludes project source
+code, refuses overwrite unless `--force` is passed, and is capped at 5 MiB.
+
+For audit history, query verified events by task, type, or date:
+
+```bash
+sac audit query --task <task-id>
+sac audit query --type shell_blocked --limit 20
+sac audit query --since 2026-01-01 --json
+```
+
+`sac audit query` verifies audit integrity before returning events and never
+writes audit entries.
+
 ## Quickstart (fastest path)
 
 After installing, run the single guided entry point:
@@ -263,6 +300,9 @@ sac branch new my-branch --json
 sac diff --task --json
 sac memory show --json
 sac memory pin src/app.py --json
+sac debug last-failure --json
+sac debug bundle --out safecode-debug.tar.gz --json
+sac audit query --task <task-id> --json
 ```
 
 The JSON envelope format is a stable contract (`docs/public-contracts.md` Section 11):

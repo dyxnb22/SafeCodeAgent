@@ -195,3 +195,57 @@ def test_documented_v46_memory_commands_exist() -> None:
     clear_help = runner.invoke(app, ["memory", "clear", "--help"])
     assert clear_help.exit_code == 0
     assert "--yes" in clear_help.output
+
+
+def test_v47_debug_docs_cover_workflow() -> None:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    guide = (ROOT / "docs" / "mvp-user-guide.md").read_text(encoding="utf-8")
+    troubleshooting = (ROOT / "docs" / "troubleshooting.md").read_text(encoding="utf-8")
+    for text in (readme, guide, troubleshooting):
+        assert "sac debug last-failure" in text
+        assert "sac debug bundle" in text
+    for marker in (
+        "sac audit query",
+        "Failure Taxonomy (v4.7, EXPERIMENTAL)",
+        "EXPERIMENTAL",
+    ):
+        assert marker in troubleshooting or marker in guide or marker in readme
+
+
+def test_failure_category_docs_match_code_table() -> None:
+    from safecode.core.failure_category import SUGGESTED_COMMAND_BY_CATEGORY
+
+    troubleshooting = (ROOT / "docs" / "troubleshooting.md").read_text(encoding="utf-8")
+    documented: dict[str, str] = {}
+    for line in troubleshooting.splitlines():
+        if not line.startswith("| `"):
+            continue
+        columns = [part.strip() for part in line.strip().strip("|").split("|")]
+        if len(columns) != 4:
+            continue
+        category = columns[0].strip("`")
+        command = columns[3].strip("`")
+        documented[category] = command
+    assert documented == SUGGESTED_COMMAND_BY_CATEGORY
+
+
+def test_documented_v47_debug_and_audit_commands_exist() -> None:
+    debug_help = runner.invoke(app, ["debug", "--help"])
+    assert debug_help.exit_code == 0
+    assert "last-failure" in debug_help.output
+    assert "bundle" in debug_help.output
+
+    last_failure_help = runner.invoke(app, ["debug", "last-failure", "--help"])
+    assert last_failure_help.exit_code == 0
+    assert "--task" in last_failure_help.output
+    assert "--json" in last_failure_help.output
+
+    bundle_help = runner.invoke(app, ["debug", "bundle", "--help"])
+    assert bundle_help.exit_code == 0
+    for option in ("--task", "--out", "--force", "--json"):
+        assert option in bundle_help.output
+
+    query_help = runner.invoke(app, ["audit", "query", "--help"])
+    assert query_help.exit_code == 0
+    for option in ("--type", "--since", "--task", "--limit", "--json"):
+        assert option in query_help.output

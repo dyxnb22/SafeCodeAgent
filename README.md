@@ -89,6 +89,9 @@ sac memory pin <path>               # [EXPERIMENTAL] keep a file considered for 
 sac memory unpin <path>             # [EXPERIMENTAL] remove a pinned file
 sac memory add-note "text"          # [EXPERIMENTAL] add a non-secret project/task note
 sac memory clear --project --yes    # [EXPERIMENTAL] clear one memory scope
+sac debug last-failure              # [EXPERIMENTAL] summarize the latest redacted failure
+sac debug bundle --out bundle.tgz   # [EXPERIMENTAL] export redacted debug metadata, no source
+sac audit query --task <task-id>    # [EXPERIMENTAL] read-only verified audit filtering
 sac resume                          # [EXPERIMENTAL] recover an open/interrupted task safely
 sac fix                             # run last failing test, propose a repair patch
 sac fix --test-command "go test ./..."  # override test command
@@ -139,6 +142,23 @@ are redacted. Pinned files are considered during context selection but still
 consume a bounded context quota and never bypass ignore, sensitive-file, binary,
 redaction, or project-root gates. Recent failures can help `sac fix` by adding
 the newest three redacted failures as bounded task context.
+
+**Debug commands (v4.7, EXPERIMENTAL):**
+```bash
+sac debug last-failure
+sac debug last-failure --task <task-id> --json
+sac debug bundle --out safecode-debug.tar.gz
+sac debug bundle --task <task-id> --out safecode-debug.tar.gz --force
+sac audit query --type shell_blocked --limit 20
+sac audit query --task <task-id> --json
+```
+
+Debug surfaces are local and redacted. `last-failure` and `audit query` are
+read-only. `debug bundle` writes a tar.gz containing SafeCode metadata only:
+manifest, version/config/doctor snapshots, runtime logs, verified audit events,
+task sidecars, project profile, and memory metadata. It excludes project source
+code and refuses overwrite unless `--force` is set. All v4.7 debug surfaces are
+EXPERIMENTAL and do not promote a stable contract.
 
 **Task commands (v4.1, EXPERIMENTAL):**
 ```bash
