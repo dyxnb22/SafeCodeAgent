@@ -1,0 +1,82 @@
+{
+  "name": "safecode-agent",
+  "displayName": "SafeCode Agent",
+  "description": "Safety-first AI coding agent with diff review, checkpoints, and audit logs.",
+  "version": "3.9.2",
+  "publisher": "safecode",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": ["Other", "Machine Learning"],
+  "keywords": ["AI", "agent", "safety", "coding", "audit"],
+  "activationEvents": ["onStartupFinished"],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "safecode.ask",
+        "title": "SafeCode: Ask",
+        "category": "SafeCode"
+      },
+      {
+        "command": "safecode.edit",
+        "title": "SafeCode: Edit",
+        "category": "SafeCode"
+      },
+      {
+        "command": "safecode.apply",
+        "title": "SafeCode: Apply Pending Patch",
+        "category": "SafeCode"
+      },
+      {
+        "command": "safecode.rollback",
+        "title": "SafeCode: Rollback Last Change",
+        "category": "SafeCode"
+      },
+      {
+        "command": "safecode.openDiff",
+        "title": "SafeCode: Open Pending Diff",
+        "category": "SafeCode"
+      },
+      {
+        "command": "safecode.apiJsonrpc",
+        "title": "SafeCode: Start JSON-RPC Bridge",
+        "category": "SafeCode"
+      }
+    ],
+    "configuration": {
+      "title": "SafeCode Agent",
+      "properties": {
+        "safecode.sacExecutable": {
+          "type": "string",
+          "default": "sac",
+          "description": "Path to the 'sac' CLI executable. Defaults to 'sac' on PATH."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "package": "npx vsce package --no-dependencies",
+    "lint": "echo 'no linter configured yet'"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.3.0",
+    "@vscode/vsce": "^2.22.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/safecode/safecode-agent"
+  },
+  "license": "MIT",
+  "_safecodeNotes": {
+    "jsonrpcContractVersion": "1",
+    "transport": "stdio",
+    "launchCommand": ["sac", "api", "jsonrpc"],
+    "telemetry": "none",
+    "approvalGate": "modal prompt before apply",
+    "noMarketplacePublish": "not published to marketplace in this batch"
+  }
+}

@@ -310,8 +310,8 @@ promoted to stable contracts in a future release.
 | MCP write execution (`execute_approved_write`, `execute_granted_write`) | Approval gate; result handling subject to change |
 | MCP lifecycle (`sac mcp start/stop/restart`) | PID management; not yet stable |
 | Subagent payload evolution beyond v2 fields | v2 payload (synthesis + cancellation fields) promoted to supported at v3.4.3; v3+ fields remain experimental |
-| TUI (`sac tui dashboard`) | Rich rendering; not yet stable |
-| IDE bridge (`sac ide ...`) | Early manifest; subject to change |
+| TUI (`sac tui interactive`, `sac tui dashboard`) | **Frozen experimental at v3.9.2.** Rich-based; no Textual upgrade. Surface behavior is stable at v3.5.2 baseline but not promoted to a stable contract. Do not rely on output format for automation. |
+| IDE bridge (`sac ide ...`, `vscode-extension/`) | VSIX build deferred pending Node/tsc environment; manifest parity enforced by `tests/test_ide_extension_manifest_contract.py`; no marketplace publish in v3.9.x |
 
 ## Contract Test Coverage
 

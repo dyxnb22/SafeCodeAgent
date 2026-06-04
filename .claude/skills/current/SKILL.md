@@ -5,13 +5,15 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v3.9.1
+# Current Baseline - v3.9.2
 
 ## Status
-Implemented. Git baseline: tag `v3.9.1`. Local working version: `v3.9.1`.
+Implemented. Git baseline: tag `v3.9.2`. Local working version: `v3.9.2`.
 
 ## Stage
-`v3.9.1` pipx/brew docs + versioning policy — `docs/versioning-policy.md` (new): patch/minor/major semantics, stable/experimental surfaces, v4.0 churn budget (≤2 new stable contracts; zero breaking v3.0 changes), brew strategy = **defer** (no production PyPI yet). `README.md` links versioning-policy.md. `tests/test_install_docs.py` (18 tests) enforces required install command fragments. `tests/test_versioning_policy_doc.py` (12 tests) enforces policy sections and README link. Full suite: 3617 passed, 2 skipped.
+`v3.9.2` VS Code extension VSIX + TUI decision — `vscode-extension/` subtree with `package.json`, TypeScript entrypoint (`src/extension.ts`), `tsconfig.json`, `.vscodeignore`; extension spawns `sac api jsonrpc` via stdio; approval prompt is VS Code modal; no telemetry; no marketplace publish. **VSIX build deferred** (tsc absent; manual smoke procedure in version note). `tests/test_ide_extension_manifest_contract.py` (24 tests) enforces parity between `vscode-extension/package.json` and `src/safecode/ide/manifest.py`. TUI decision = **freeze experimental** (Option B; no Textual); `docs/public-contracts.md` updated; `TestTUIFrozenExperimental` (5 tests). Full suite: 3647 passed, 2 skipped.
+
+Previous: `v3.9.1` pipx/brew docs + versioning policy — `docs/versioning-policy.md` (new): patch/minor/major semantics, stable/experimental surfaces, v4.0 churn budget (≤2 new stable contracts; zero breaking v3.0 changes), brew strategy = **defer** (no production PyPI yet). `README.md` links versioning-policy.md. `tests/test_install_docs.py` (18 tests) enforces required install command fragments. `tests/test_versioning_policy_doc.py` (12 tests) enforces policy sections and README link. Full suite: 3617 passed, 2 skipped.
 
 Previous: `v3.9.0` signing truthing + TestPyPI rehearsal — Decision B on signing: `--sign` produces a **detached cosign or gpg signature** (not Sigstore Rekor); `_planned_steps()` labels the mechanism explicitly; `_check_sign_tooling()` error updated; module docstring clarifies. `docs/install-update.md` "Release Signing" section documents the mechanism; "TestPyPI Rehearsal" section documents `--repository test-pypi`. `docs/security/threat-model-v3.6.md` "Release Artifact Integrity" subsection added. `run_release_publish()` gains `repository` param; `_REPOSITORY_URLS` maps `pypi`/`test-pypi`; real uploads via `uv publish --publish-url <url>`; `SAFECODE_PUBLISH=1` required for both. `--repository` CLI option; JSON output includes `repository` field. 6 new tests `TestSigningMechanismDescription` in `tests/test_release_publish_dry_run.py`; 28 new tests in `tests/test_release_publish_repository.py`. Full suite: 3579 passed, 2 skipped.
 

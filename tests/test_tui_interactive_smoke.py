@@ -160,3 +160,61 @@ class TestExistingTuiDashboardUnchanged:
         result = runner.invoke(app, ["tui", "dashboard"])
         assert result.exit_code == 0
         assert "SafeCode TUI" in result.output
+
+
+# ── v3.9.2 T-3.9.2-B: TUI frozen experimental ────────────────────────────────
+
+
+class TestTUIFrozenExperimental:
+    """v3.9.2 decision: freeze sac tui interactive at v3.5.2 behavior (Option B).
+
+    The TUI is labeled EXPERIMENTAL in both help text and docs/public-contracts.md.
+    No Textual dependency introduced. Output remains Rich-based and deterministic.
+    """
+
+    def test_interactive_still_exits_zero(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        result = runner.invoke(app, ["tui", "interactive"])
+        assert result.exit_code == 0
+
+    def test_interactive_still_experimental_label(self):
+        result = runner.invoke(app, ["tui", "interactive", "--help"])
+        assert result.exit_code == 0
+        assert "experimental" in result.output.lower()
+
+    def test_no_textual_import(self):
+        """Textual must not be imported in the TUI module."""
+        import ast
+        tui_path = (
+            Path(__file__).parent.parent / "src" / "safecode" / "tui" / "interactive.py"
+        )
+        tree = ast.parse(tui_path.read_text(encoding="utf-8"))
+        imports = [
+            node.names[0].name
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Import)
+        ]
+        from_imports = [
+            node.module or ""
+            for node in ast.walk(tree)
+            if isinstance(node, ast.ImportFrom)
+        ]
+        all_imports = imports + from_imports
+        assert not any("textual" in m.lower() for m in all_imports), (
+            "Textual must not be imported in interactive.py (decision: freeze experimental)"
+        )
+
+    def test_public_contracts_labels_tui_frozen(self):
+        contracts = (
+            Path(__file__).parent.parent / "docs" / "public-contracts.md"
+        ).read_text(encoding="utf-8")
+        lower = contracts.lower()
+        assert "frozen" in lower or "freeze" in lower, (
+            "docs/public-contracts.md should document TUI as frozen experimental"
+        )
+
+    def test_non_tty_output_still_has_safecode_tui(self, tmp_path):
+        buf = io.StringIO()
+        with patch("sys.stdout", buf):
+            run_interactive(tmp_path)
+        assert "SafeCode TUI" in buf.getvalue()
