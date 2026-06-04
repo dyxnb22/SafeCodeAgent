@@ -17,19 +17,37 @@ collect context
 
 ## Install
 
-For local development:
+**Local development (primary):**
 
 ```bash
+git clone <repo>
 uv sync
 uv run sac --help
-```
-
-For a simple local tool install:
-
-```bash
-uv tool install .
 sac doctor
 ```
+
+**pipx (once available on PyPI):**
+
+```bash
+pipx install safecode-agent
+```
+
+**TestPyPI rehearsal install:**
+
+```bash
+pipx install --index-url https://test.pypi.org/simple/ \
+  --extra-index-url https://pypi.org/simple/ \
+  safecode-agent
+```
+
+**Offline wheel (build locally):**
+
+```bash
+uv build
+pipx install dist/safecode_agent-*.whl
+```
+
+See `docs/install-update.md` for the full install, update, and release signing guide.
 
 For a complete first run, follow [docs/mvp-user-guide.md](docs/mvp-user-guide.md).
 
@@ -199,18 +217,43 @@ For each release, keep the package version, runtime version, docs, and git tag
 in lockstep:
 
 ```bash
-sac release bump 2.6.13
+sac release bump X.Y.Z
 PYTHONPATH=src python3 -m pytest -q
-git add .
-git commit -m "Implement v2.6.13 <summary>"
-git tag -a v2.6.13 -m "v2.6.13 <summary>"
-sac release check
-sac release smoke
-sac release meta
-sac release preflight
-git describe --exact-match --tags HEAD
+git add -p
+git commit -m "Implement vX.Y.Z <summary>"
+git tag -a vX.Y.Z -m "vX.Y.Z <summary>"
+sac release preflight          # aggregates check, smoke, metadata, docs, versions governance
+sac release sync-versions-json # sync .claude/versions.json after tagging
+git add .claude/versions.json
+git commit -m "chore: sync versions.json to vX.Y.Z"
+git tag -d vX.Y.Z && git tag -a vX.Y.Z -m "vX.Y.Z <summary>"  # move tag to sync commit
+```
+
+**TestPyPI rehearsal before production publish:**
+
+```bash
+sac release publish --repository test-pypi          # dry-run (no network)
+SAFECODE_PUBLISH=1 sac release publish --no-dry-run --repository test-pypi
+```
+
+**Production publish:**
+
+```bash
+SAFECODE_PUBLISH=1 sac release publish --no-dry-run
 ```
 
 Never tag a release while `pyproject.toml` or `safecode.__version__` still
-reports an older version. `sac release preflight` is the final local gate; it
-aggregates the release check, smoke checks, metadata audit, and docs guard.
+reports an older version. `sac release preflight` is the final local gate.
+See `docs/install-update.md` for signing and TestPyPI details.
+
+## IDE and TUI Status (v3.9.x)
+
+**VS Code Extension (experimental):**
+- Source: `vscode-extension/` — TypeScript, spawns `sac api jsonrpc` over stdio.
+- Approval prompt is a VS Code modal. No telemetry. No marketplace publish in v3.9.x.
+- VSIX build requires Node.js + npm install + `npm run build` (tsc); see `docs/version-notes/v3.9.2-vscode-tui.md`.
+
+**TUI (`sac tui interactive`, experimental, frozen at v3.5.2):**
+- Rich-based; deterministic non-TTY static snapshot; Ctrl-C exits in TTY.
+- Frozen at v3.5.2 behavior. No Textual upgrade planned before v4.0 re-audit.
+- Do not rely on TUI output format for automation; surface is explicitly experimental.
