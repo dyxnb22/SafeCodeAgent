@@ -43,15 +43,36 @@ Environment variable overrides: `SAFECODE_LLM_PROVIDER`, `SAFECODE_LLM_MODEL`.
 
 ## Retry Semantics
 
-All real providers (`openai`, `openai-compatible`, `anthropic`) wrap requests in
+All real providers (`openai`, `openai-compatible`, `anthropic`, `deepseek`) wrap requests in
 `retry_call()` with bounded retry and jitter:
 
-- **Retryable**: HTTP 429 (Too Many Requests), HTTP 503 (Service Unavailable), `URLError`
-  (connection-level failures).
+- **Retryable**: HTTP 408, 429, 502, 503, 504, and `URLError` (connection-level failures).
 - **Not retried**: other 4xx/5xx, policy blocks (`PermissionError`), hard contract
   violations (`ValueError`), `RecoverableContractFailure` values.
 - **Parameters**: `max_attempts=3`, `base_delay=0.5s`, jitter = `uniform(0.5, 1.5) * base_delay * 2^attempt`.
-- **Retry-After**: honored when the `Retry-After` header is present on 429 responses.
+- **Retry-After**: honored when the `Retry-After` header is present on 429 responses;
+  capped at 30 seconds to prevent server-driven denial-of-service.
+- **RateLimitError**: when 429 retries are exhausted, a typed `RateLimitError` is raised
+  so callers can distinguish rate-limit exhaustion from other transport failures.
+
+## Reliability Knobs (v4.10.3+)
+
+The following `LLMConfig` fields control per-request reliability. All fields are
+bounded and configurable via `.sac/config.toml` under `[llm]`:
+
+| Field | Default | Description |
+|---|---|---|
+| `request_timeout_seconds` | `60` | Per-request HTTP timeout in seconds (minimum 1) |
+| `max_retries` | `3` | Maximum retry attempts (minimum 1) |
+| `retry_base_delay_seconds` | `0.5` | Base jitter delay in seconds (minimum 0.0) |
+
+**Progress callback** (optional, programmatic API only): `OpenAICompatibleLLMClient`
+accepts an optional `progress_callback(stage: str)` at construction. The stage names are:
+`request_started`, `retrying`, `rate_limited`, `response_received`, `parsed`, `failed`.
+This is not SSE or token streaming — it reports lifecycle stages only.
+
+**Network policy invariant**: all reliability knobs are applied after the network policy
+gate. Increasing timeout or retry count never bypasses the policy check.
 
 ---
 

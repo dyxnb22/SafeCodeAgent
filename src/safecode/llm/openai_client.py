@@ -65,6 +65,7 @@ class OpenAICompatibleLLMClient:
         session_id: str | None = None,
         sac_dir: Path | None = None,
         api_key_env: str = "OPENAI_API_KEY",
+        progress_callback: "Callable[[str], None] | None" = None,
     ) -> None:
         # Network policy is asserted against the raw base_url (before normalization).
         NetworkPolicy(config).assert_allowed(config.llm.base_url)
@@ -84,6 +85,11 @@ class OpenAICompatibleLLMClient:
             )
         self._session_id = session_id
         self._sac_dir = sac_dir
+        # Reliability config (v4.10.3)
+        self._request_timeout = getattr(config.llm, "request_timeout_seconds", 60)
+        self._max_retries = getattr(config.llm, "max_retries", 3)
+        self._retry_base_delay = getattr(config.llm, "retry_base_delay_seconds", 0.5)
+        self._progress_callback = progress_callback
 
     def ask(self, question: str, context: dict) -> AgentAnswer:
         """Answer a read-only question."""
@@ -193,7 +199,7 @@ class OpenAICompatibleLLMClient:
         def _do_request() -> dict:
             _last_http_error.clear()
             try:
-                with urllib.request.urlopen(request, timeout=60) as response:
+                with urllib.request.urlopen(request, timeout=self._request_timeout) as response:
                     return json.loads(response.read().decode("utf-8"))
             except urllib.error.HTTPError as exc:
                 _last_http_error.append(exc)
@@ -207,7 +213,14 @@ class OpenAICompatibleLLMClient:
             return None
 
         try:
-            data = retry_call(_do_request, log_fn=_log_retry, get_retry_after=_get_retry_after)
+            data = retry_call(
+                _do_request,
+                max_attempts=self._max_retries,
+                base_delay=self._retry_base_delay,
+                log_fn=_log_retry,
+                get_retry_after=_get_retry_after,
+                progress_callback=self._progress_callback,
+            )
         except urllib.error.URLError as exc:
             raise RuntimeError(f"LLM request failed: {exc}") from exc
 

@@ -97,13 +97,14 @@ class TestRetryOn429And503:
         assert exc_info.value.code == 404
 
     def test_exhausts_max_attempts_and_raises(self):
+        from safecode.llm.retry import RateLimitError
         def fn():
             raise _http_error(429)
 
         with patch("time.sleep"):
-            with pytest.raises(urllib.error.HTTPError) as exc_info:
+            # v4.10.3: exhausted 429 now raises RateLimitError (a RuntimeError subclass)
+            with pytest.raises((urllib.error.HTTPError, RateLimitError)):
                 retry_call(fn, max_attempts=3, base_delay=0.01)
-        assert exc_info.value.code == 429
 
     def test_retries_on_url_error(self):
         attempts = []

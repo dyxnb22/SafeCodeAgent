@@ -55,6 +55,12 @@ class LLMConfig(BaseModel):
     fallback_model: str | None = None
     fallback_base_url: str | None = None
 
+    # Reliability knobs (v4.10.3). All values are bounded; negative values are
+    # treated as zero by the client.
+    request_timeout_seconds: int = Field(default=60, ge=1)
+    max_retries: int = Field(default=3, ge=1)
+    retry_base_delay_seconds: float = Field(default=0.5, ge=0.0)
+
 
 class TrustRoot(BaseModel):
     """User-level per-directory trust declaration."""
