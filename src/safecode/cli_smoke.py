@@ -21,6 +21,7 @@ import typer
 
 from safecode.cli_shared import console
 from safecode.cli_shared_json import CLIJSONResponse, render_json
+from safecode.llm.factory import create_llm_client
 
 smoke_app = typer.Typer(help="[EXPERIMENTAL] Deterministic workflow smoke suite.")
 
@@ -651,3 +652,188 @@ def smoke_ai_shell(
         f"\n[bold]{'All' if result.all_passed else str(result.passed)}/{total} scenarios passed[/bold]"
     )
     raise typer.Exit(code=0 if result.all_passed else 1)
+
+
+# ---------------------------------------------------------------------------
+# Live-provider smoke (v4.10.4, EXPERIMENTAL, opt-in)
+# ---------------------------------------------------------------------------
+
+
+def _check_live_smoke_preconditions(project_root: Path) -> tuple[bool, str]:
+    """Check whether live-provider smoke is allowed to run.
+
+    Returns (allowed, reason). The reason is human-readable and safe to display.
+    Never logs secrets.
+    """
+    from urllib.parse import urlparse
+    from safecode.config import SafeCodeConfig
+
+    if os.getenv("SAFECODE_LIVE_SMOKE") != "1":
+        return False, "SAFECODE_LIVE_SMOKE is not set to 1. Set it to opt in to live provider tests."
+
+    try:
+        config = SafeCodeConfig.load(project_root)
+    except Exception:
+        return False, "Could not load SafeCode config."
+
+    provider = config.llm.provider
+    if provider == "mock":
+        return False, "Live smoke refuses to run with provider=mock (would be meaningless)."
+
+    # Static network policy check — no DNS or connect.
+    host = urlparse(config.llm.base_url).hostname or ""
+    if not config.sandbox.network_enabled:
+        return False, (
+            f"Network access is disabled by policy. "
+            f"Provider host '{host}' cannot be reached."
+        )
+    if config.sandbox.network_allowlist and host not in config.sandbox.network_allowlist:
+        return False, f"Host '{host}' is not in the network allowlist."
+
+    # Check for the provider API key (presence only — never echo the value).
+    from safecode.doctor import Doctor
+    key_env, key_present = Doctor._resolve_provider_key_env(provider, config)
+    if not key_present:
+        return False, f"Required API key env var not set: {key_env}"
+
+    return True, "all preconditions met"
+
+
+def _run_live_smoke_scenario_ask(config, project_root: Path) -> dict:
+    """Run one safe ask round-trip. Never applies patches or writes source files."""
+    from safecode.context.redactor import redact_secrets
+
+    start = time.monotonic()
+    try:
+        client = create_llm_client(config)
+        response = client.ask("What is 2+2?", {"context": "smoke test"})
+        latency_ms = int((time.monotonic() - start) * 1000)
+        answer = redact_secrets(str(response.content))[:200]
+        return {"scenario": "ask", "passed": True, "latency_ms": latency_ms,
+                "answer_preview": answer}
+    except Exception as exc:
+        latency_ms = int((time.monotonic() - start) * 1000)
+        return {"scenario": "ask", "passed": False, "latency_ms": latency_ms,
+                "error": f"{type(exc).__name__}: {str(exc)[:120]}"}
+
+
+def _run_live_smoke_scenario_propose_patch(config, project_root: Path) -> dict:
+    """Run one safe propose-patch round-trip. Never applies the patch."""
+    start = time.monotonic()
+    try:
+        client = create_llm_client(config)
+        response = client.propose_patch(
+            "Add a comment to an empty file.",
+            {"files": {"hello.py": "# placeholder\n"}},
+        )
+        latency_ms = int((time.monotonic() - start) * 1000)
+        # Only report patch presence — never return patch content directly.
+        has_patch = bool(response.patch_text and len(response.patch_text) > 0)
+        return {"scenario": "propose_patch", "passed": True, "latency_ms": latency_ms,
+                "patch_received": has_patch}
+    except Exception as exc:
+        latency_ms = int((time.monotonic() - start) * 1000)
+        return {"scenario": "propose_patch", "passed": False, "latency_ms": latency_ms,
+                "error": f"{type(exc).__name__}: {str(exc)[:120]}"}
+
+
+def _collect_secret_values() -> list[str]:
+    """Collect actual API key env var values so they can be redacted from output."""
+    _KEY_ENVS = (
+        "DEEPSEEK_API_KEY", "OPENAI_API_KEY", "SAFECODE_LLM_API_KEY",
+        "ANTHROPIC_API_KEY",
+    )
+    return [v for k in _KEY_ENVS if (v := os.environ.get(k, "")) and len(v) >= 8]
+
+
+def _redact_scenario_strings(scenario: dict, secrets: list[str]) -> dict:
+    """Return a copy of scenario with known secret values replaced."""
+    result = {}
+    for k, v in scenario.items():
+        if isinstance(v, str):
+            for secret in secrets:
+                v = v.replace(secret, "[REDACTED]")
+        result[k] = v
+    return result
+
+
+def run_live_provider_smoke(project_root: Path) -> dict:
+    """Run the live-provider smoke suite. Must only be called after precondition checks."""
+    from urllib.parse import urlparse
+    from safecode.config import SafeCodeConfig
+
+    config = SafeCodeConfig.load(project_root)
+    provider = config.llm.provider
+    model = config.llm.model
+    base_url = config.llm.base_url
+
+    secrets = _collect_secret_values()
+
+    raw_scenarios: list[dict] = [
+        _run_live_smoke_scenario_ask(config, project_root),
+        _run_live_smoke_scenario_propose_patch(config, project_root),
+    ]
+    scenarios = [_redact_scenario_strings(s, secrets) for s in raw_scenarios]
+
+    all_passed = all(s["passed"] for s in scenarios)
+    return {
+        "provider": provider,
+        "model": model,
+        "base_url": base_url,
+        "scenarios": scenarios,
+        "all_passed": all_passed,
+        "passed": sum(1 for s in scenarios if s["passed"]),
+        "failed": sum(1 for s in scenarios if not s["passed"]),
+        "total": len(scenarios),
+    }
+
+
+@smoke_app.command("live-provider", hidden=True)
+def smoke_live_provider(
+    json_output: bool = typer.Option(False, "--json", help="Output result as JSON."),
+) -> None:
+    """[EXPERIMENTAL] Opt-in live provider smoke (requires SAFECODE_LIVE_SMOKE=1).
+
+    Runs one safe ask and one safe edit/propose-patch round-trip.
+    Never applies patches, commits, runs project commands, or writes source files.
+    Output redacts secrets. Requires a non-mock provider and a valid API key env var.
+    """
+    project_root = Path.cwd()
+    allowed, reason = _check_live_smoke_preconditions(project_root)
+    if not allowed:
+        msg = f"[red]Live provider smoke refused: {reason}[/red]"
+        if json_output:
+            print(render_json(CLIJSONResponse(
+                command="smoke live-provider",
+                status="refused",
+                data={"allowed": False, "reason": reason},
+            )))
+        else:
+            console.print(msg)
+        raise typer.Exit(code=1)
+
+    result = run_live_provider_smoke(project_root)
+
+    if json_output:
+        status = "pass" if result["all_passed"] else "fail"
+        print(render_json(CLIJSONResponse(
+            command="smoke live-provider",
+            status=status,
+            data=result,
+        )))
+        raise typer.Exit(code=0 if result["all_passed"] else 1)
+
+    console.print(f"[bold]Live Provider Smoke[/bold] — provider={result['provider']} "
+                  f"model={result['model']}")
+    for scenario in result["scenarios"]:
+        icon = "[green]PASS[/green]" if scenario["passed"] else "[red]FAIL[/red]"
+        latency = scenario.get("latency_ms", 0)
+        console.print(f"  {icon}  {scenario['scenario']}  ({latency} ms)")
+        if not scenario["passed"]:
+            console.print(f"       {scenario.get('error', 'unknown error')}")
+
+    total = result["total"]
+    console.print(
+        f"\n[bold]{'All' if result['all_passed'] else str(result['passed'])}/{total} scenarios passed[/bold]"
+    )
+    raise typer.Exit(code=0 if result["all_passed"] else 1)

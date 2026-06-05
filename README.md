@@ -352,6 +352,21 @@ Real LLM mode also requires trusted user-level and project-level network policy.
 
 See [docs/mvp-user-guide.md](docs/mvp-user-guide.md#model-configuration) for the exact config files.
 
+### Real provider quickstart (DeepSeek, v4.10, EXPERIMENTAL)
+
+```bash
+export DEEPSEEK_API_KEY=sk-...
+sac setup --wizard          # choose 'deepseek' at the provider prompt
+sac doctor                  # verify provider key is detected (static check, no network call)
+SAFECODE_LIVE_SMOKE=1 sac smoke live-provider   # opt-in round-trip smoke test
+sac ask "What is 2+2?"
+```
+
+DeepSeek uses `https://api.deepseek.com` with the `deepseek-v4-pro` default model.
+API key is read from `DEEPSEEK_API_KEY`; it is never written to config files on disk.
+The `sac smoke live-provider` command requires `SAFECODE_LIVE_SMOKE=1` and refuses to run
+without a valid key, a non-mock provider, and an enabled network policy.
+
 ## First Demo Task
 
 Create and run a repeatable demo workflow:

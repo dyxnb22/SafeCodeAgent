@@ -39,6 +39,40 @@ class TestLiveOpenAIProvider:
         assert len(answer.content) > 0
 
 
+class TestLiveDeepSeekProvider:
+    """Smoke tests for the DeepSeek provider against a live endpoint (v4.10.4)."""
+
+    def test_ask_returns_nonempty_answer(self) -> None:
+        _require_env("DEEPSEEK_API_KEY")
+        from safecode.config import SafeCodeConfig
+        from safecode.llm.factory import create_llm_client
+
+        cfg = SafeCodeConfig()
+        cfg.llm.provider = "deepseek"
+        cfg.sandbox.network_enabled = True
+
+        client = create_llm_client(cfg)
+        answer = client.ask("What is 2+2?", {})
+        assert answer.content
+        assert len(answer.content) > 0
+
+    def test_run_live_provider_smoke_passes(self, tmp_path) -> None:
+        _require_env("DEEPSEEK_API_KEY")
+        from safecode.config import SafeCodeConfig
+        from safecode.cli_smoke import run_live_provider_smoke
+        from unittest.mock import patch
+
+        cfg = SafeCodeConfig()
+        cfg.llm.provider = "deepseek"
+        cfg.sandbox.network_enabled = True
+
+        with patch("safecode.config.SafeCodeConfig.load", return_value=cfg):
+            result = run_live_provider_smoke(tmp_path)
+
+        assert result["provider"] == "deepseek"
+        assert result["total"] == 2
+
+
 class TestLiveAnthropicProvider:
     """Smoke tests for the Anthropic provider against a live endpoint."""
 
