@@ -24,6 +24,11 @@ class FailureCategory(StrEnum):
     BUDGET_EXCEEDED = "budget_exceeded"
     UNKNOWN = "unknown"
 
+    @property
+    def next_command(self) -> str:
+        """Return the suggested next command for this failure category."""
+        return SUGGESTED_COMMAND_BY_CATEGORY.get(self.value, SUGGESTED_COMMAND_BY_CATEGORY[FailureCategory.UNKNOWN.value])
+
 
 SUGGESTED_COMMAND_BY_CATEGORY: dict[str, str] = {
     FailureCategory.MODEL_OUTPUT_INVALID.value: "sac logs show --level error --traceback",

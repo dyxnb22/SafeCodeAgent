@@ -328,6 +328,34 @@ app.add_typer(report_app, name="report", hidden=True)
 app.add_typer(smoke_app, name="smoke", hidden=True)
 
 
+@app.command("why", hidden=True)
+def why(
+    ctx: Context,
+) -> None:
+    """Show the last failure's category and suggested next command (v4.16.2, EXPERIMENTAL).
+
+    A shorter alias for: sac debug last-failure --short
+    """
+    from safecode.cli_debug import find_last_failure
+    from safecode.core.failure_category import suggested_command_for_category
+
+    failure = find_last_failure(Path.cwd())
+    if failure is None:
+        console.print("[dim]No recent failure recorded. Run 'sac logs show --level error' for details.[/dim]")
+        return
+
+    category = failure.category or "unknown"
+    message = failure.message or "no details"
+    cmd = failure.command or ""
+    suggested = suggested_command_for_category(category)
+
+    console.print(f"[bold]Problem:[/bold] {message}")
+    console.print(f"[bold]Category:[/bold] {category}")
+    if cmd:
+        console.print(f"[bold]Command:[/bold] {cmd}")
+    console.print(f"[bold]Next:[/bold] {suggested}")
+
+
 def main() -> None:
     """Console script entrypoint."""
     app()
