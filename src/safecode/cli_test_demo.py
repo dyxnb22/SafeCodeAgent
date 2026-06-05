@@ -12,6 +12,7 @@ from safecode.agent.approvals import HumanCheckpointPresenter
 from safecode.agent.orchestrator import AgentOrchestrator
 from safecode.audit.models import AuditEvent
 from safecode.demo.workflows import DemoWorkflow, DemoWorkflowSuite
+from safecode.demo.agent_loop_demo import run_agent_loop_demo
 from safecode.project.test_detector import ProjectTestDetector, TestCommandCandidate
 from safecode.shell.risk import RiskLevel
 from safecode.shell.runner import ShellRunner
@@ -195,3 +196,9 @@ def demo_materialize(
 
     console.print(Panel.fit(f"Demo workflow created: {project_root}", title="SafeCode Demo"))
 
+
+@demo_app.command("agent-loop")
+def demo_agent_loop() -> None:
+    """EXPERIMENTAL: run the deterministic mock-provider agent loop demo."""
+    result = run_agent_loop_demo(Path.cwd())
+    typer.echo(result.transcript.rstrip("\n"))
