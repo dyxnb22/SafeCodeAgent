@@ -15,6 +15,7 @@ All surfaces in this module are EXPERIMENTAL and carry no stable contract.
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 from typing import Optional
@@ -24,9 +25,10 @@ import typer
 from safecode.agent.loop import AgentLoop
 from safecode.cli_shared import console
 from safecode.cli_shared_json import CLIJSONResponse, render_json
+from safecode.context.redactor import redact_secrets
 
 _SHELL_BANNER = (
-    "[bold]SafeCode Shell[/bold] [dim](EXPERIMENTAL v4.9)[/dim]\n"
+    "[bold]SafeCode Shell[/bold] [dim](EXPERIMENTAL v4.17)[/dim]\n"
     "Ask questions, use /help for slash commands, /exit to quit."
 )
 
@@ -41,6 +43,7 @@ Slash commands:
   /apply            apply pending patch (requires confirmation)
   /commit           commit current task locally (requires confirmation)
   /debug            show last failure debug info
+  /clear            reset shell context (clear session history)
   /help             show this help
   /exit             exit the shell
 
@@ -50,6 +53,74 @@ Mutation actions (apply, commit) always require explicit confirmation.
 """
 
 _SHELL_PROMPT = "sac> "
+
+_SLASH_COMMANDS = [
+    "/status", "/task", "/overview", "/model", "/provider",
+    "/apply", "/commit", "/debug", "/clear", "/help", "/exit",
+    "/quit",
+]
+
+
+def _setup_readline() -> None:
+    """Configure readline with history, tab completion, and dedup."""
+    try:
+        import atexit
+        import readline
+    except ImportError:
+        return
+
+    hist_dir = os.path.expanduser("~/.safecode")
+    hist_file = os.path.join(hist_dir, "shell_history")
+    try:
+        os.makedirs(hist_dir, exist_ok=True)
+    except OSError:
+        return
+
+    try:
+        readline.read_history_file(hist_file)
+    except (OSError, FileNotFoundError):
+        pass
+
+    try:
+        readline.set_history_length(1000)
+    except Exception:
+        pass
+
+    class SlashCompleter:
+        def __init__(self, commands: list[str]) -> None:
+            self.commands = commands
+
+        def complete(self, text: str, state: int) -> str | None:
+            if text.startswith("/"):
+                matches = [c for c in self.commands if c.startswith(text)]
+                if state < len(matches):
+                    return matches[state]
+            return None
+
+    try:
+        readline.set_completer(SlashCompleter(_SLASH_COMMANDS).complete)
+        readline.parse_and_bind("tab: complete")
+    except Exception:
+        pass
+
+    atexit.register(readline.write_history_file, hist_file)
+
+
+def _maybe_render_markdown(response: str, *, is_tty: bool) -> None:
+    """Render a shell response using Rich Markdown when it looks like formatted text.
+
+    Only applies to TTY output. Falls back to plain console.print for non-TTY
+    or when the response is a simple status line.
+    """
+    if not is_tty:
+        print(response)
+        return
+    # Use Rich Markdown when response contains markdown-ish patterns
+    if "```" in response or response.startswith("#") or "\n-" in response or "\n|" in response:
+        from rich.markdown import Markdown
+        console.print(Markdown(redact_secrets(response)))
+    else:
+        console.print(redact_secrets(response))
 
 
 def _read_line(*, is_tty: bool) -> str | None:
@@ -397,6 +468,9 @@ def _handle_slash_command(
             False,
         )
 
+    if name == "/clear":
+        return "Shell context cleared. Start a new conversation.", "clear", False
+
     if name == "/apply":
         return _slash_apply(project_root, task_id, is_tty=is_tty), "apply", False
 
@@ -498,6 +572,7 @@ def run_shell(
 
     if is_tty and not json_output:
         console.print(_SHELL_BANNER)
+        _setup_readline()
 
     while True:
         line = _read_line(is_tty=is_tty)
@@ -557,10 +632,7 @@ def run_shell(
                 },
             )))
         else:
-            if is_tty:
-                console.print(response)
-            else:
-                print(response)
+            _maybe_render_markdown(response, is_tty=is_tty)
 
         if exit_shell:
             break
