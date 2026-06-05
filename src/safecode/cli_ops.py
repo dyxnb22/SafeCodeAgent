@@ -352,11 +352,12 @@ def release_sync_versions_json(
 def doctor(
     release: bool = typer.Option(False, "--release", help="Include release tag/docs/preflight diagnostics."),
     json_output: bool = typer.Option(False, "--json", help="Output result as JSON."),
+    live: bool = typer.Option(False, "--live", help="Attempt a lightweight connectivity ping to the provider (opt-in)."),
 ) -> None:
     """Check local install and project environment."""
     from safecode.cli_shared_json import CLIJSONResponse, render_json
 
-    diagnostics = Doctor(Path.cwd()).run_diagnostics(release=release)
+    diagnostics = Doctor(Path.cwd()).run_diagnostics(release=release, live=live)
     if json_output:
         all_passed = all(d.status == DiagnosticStatus.PASS for d in diagnostics)
         print(render_json(CLIJSONResponse(

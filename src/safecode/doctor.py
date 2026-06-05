@@ -78,12 +78,55 @@ class Doctor:
         self.project_root = project_root
         self._fetch_latest_version = fetch_latest_version or _fetch_latest_pypi_version
 
-    def run_diagnostics(self, *, release: bool = False) -> list[Diagnostic]:
+    @staticmethod
+    def _live_provider_ping(base_url: str, *, timeout: int = 5) -> Diagnostic:
+        """Attempt a lightweight HTTP GET to the provider base URL. No auth sent.
+
+        Opt-in only. Respects SAFECODE_DOCTOR_UPDATE_CHECK=0 for offline mode.
+        """
+        if os.getenv("SAFECODE_DOCTOR_UPDATE_CHECK") == "0":
+            return Diagnostic(
+                name="provider_connectivity",
+                status=DiagnosticStatus.SKIP,
+                message="offline mode (SAFECODE_DOCTOR_UPDATE_CHECK=0)",
+            )
+        if not base_url:
+            return Diagnostic(
+                name="provider_connectivity",
+                status=DiagnosticStatus.SKIP,
+                message="no base URL configured",
+            )
+        try:
+            from urllib.request import Request, urlopen
+            req = Request(base_url, method="GET")
+            req.add_header("User-Agent", "SafeCode-Doctor-LiveCheck/1.0")
+            with urlopen(req, timeout=timeout) as resp:
+                status = resp.status
+                if 100 <= status < 500:
+                    return Diagnostic(
+                        name="provider_connectivity",
+                        status=DiagnosticStatus.PASS,
+                        message=f"reachable: {base_url} (HTTP {status})",
+                    )
+                return Diagnostic(
+                    name="provider_connectivity",
+                    status=DiagnosticStatus.FAIL,
+                    message=f"unreachable: {base_url} (HTTP {status})",
+                )
+        except Exception as exc:
+            return Diagnostic(
+                name="provider_connectivity",
+                status=DiagnosticStatus.FAIL,
+                message=f"unreachable: {base_url} ({type(exc).__name__})",
+                hints=(f"Next: verify network access to {base_url}",),
+            )
+
+    def run_diagnostics(self, *, release: bool = False, live: bool = False) -> list[Diagnostic]:
         """Return typed diagnostics (v2.8.x substrate).
 
         The Provider section is computed statically (config, env var presence,
         network policy text). It never makes any provider network request.
-        Use ``sac smoke live-provider`` (v4.10.4) for an opt-in provider round-trip.
+        Pass ``live=True`` for opt-in provider connectivity ping (v4.17+).
         """
         approval_dir = os.getenv("SAFECODE_APPROVAL_DIR")
         sandbox_dir = os.getenv("SAFECODE_SANDBOX_APPROVAL_DIR")
@@ -136,6 +179,11 @@ class Doctor:
         diagnostics.extend(self._project_tooling_diagnostics())
         diagnostics.extend(self._provider_diagnostics())
         diagnostics.append(self._update_check_diagnostic())
+        if live:
+            from safecode.config import SafeCodeConfig
+            config = SafeCodeConfig.load(self.project_root)
+            base_url = config.llm.base_url
+            diagnostics.append(self._live_provider_ping(base_url))
         if release:
             diagnostics.extend(self.run_release_diagnostics())
         return diagnostics

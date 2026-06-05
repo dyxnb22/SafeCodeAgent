@@ -24,6 +24,7 @@ from typing import Optional
 import typer
 
 from safecode.cli_shared import console
+from safecode.core.diagnostic import DiagnosticStatus
 from safecode.llm.provider_profiles import (
     SUPPORTED_PROVIDERS,
     _PROVIDER_PRESETS,
@@ -190,7 +191,9 @@ def provider_list() -> None:
 
 
 @provider_app.command("status")
-def provider_status() -> None:
+def provider_status(
+    live: bool = typer.Option(False, "--live", help="Attempt a lightweight connectivity ping to the provider (opt-in)."),
+) -> None:
     """[EXPERIMENTAL] Show current effective provider and model status."""
     from safecode.config import SafeCodeConfig, _read_toml, _user_config_path
     path = _user_config_path().expanduser()
@@ -273,6 +276,17 @@ def provider_status() -> None:
         lines.append(f"[yellow]  -> Enable user network: sac provider add {active_name} --yes[/yellow]")
     if active_name and not project_network_enabled:
         lines.append("[yellow]  -> Enable project network: sac setup --yes --network[/yellow]")
+
+    if live:
+        lines.append("")
+        lines.append("[bold]Live Connectivity:[/bold]")
+        from safecode.doctor import Doctor
+        ping = Doctor._live_provider_ping(config.llm.base_url)
+        status_label = {DiagnosticStatus.PASS: "[green]PASS[/green]",
+                        DiagnosticStatus.FAIL: "[red]FAIL[/red]",
+                        DiagnosticStatus.SKIP: "[dim]SKIP[/dim]",
+                        DiagnosticStatus.WARN: "[yellow]WARN[/yellow]"}.get(ping.status, ping.status.value)
+        lines.append(f"  {status_label}  {ping.message}")
 
     for line in lines:
         console.print(line)
