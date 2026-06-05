@@ -1,13 +1,13 @@
 {
   "project": "SafeCode Agent",
-  "current_implemented_tag": "v4.12.1",
-  "current_local_version": "v4.11.5",
+  "current_implemented_tag": "v4.12.3",
+  "current_local_version": "v4.12.3",
   "current_baseline": ".claude/skills/current/SKILL.md",
   "runtime_summary": ".claude/skills/shared/core-runtime.md",
   "version_index": "docs/version_implementation_matrix.md",
   "release_roadmap": "docs/release_roadmap_v0_1_to_v1_0.md",
-  "active_planning_roadmap": "docs/version-plans/v4.10-to-v4.12-resume-mvp-roadmap.md",
-  "previous_planning_roadmap": "docs/project-final-status-and-roadmap.md",
+  "active_planning_roadmap": "docs/project-final-status-and-roadmap.md",
+  "previous_planning_roadmap": "docs/version-plans/v4.10-to-v4.12-resume-mvp-roadmap.md",
   "readiness_audit": "docs/commercial-v1-readiness-audit-v3.11.x.md",
   "architecture_reference": "docs/product-commercialization-roadmap.md",
   "version_notes": "docs/version-notes/",
@@ -299,7 +299,7 @@
       "range": "v4.10.x",
       "name": "DeepSeek Provider + Reliability",
       "depends_on": "v4.9.3",
-      "notes": "Completed (v4.10.0–v4.10.4): DeepSeek provider preset with api_key_env resolution and endpoint normalization; setup wizard deepseek option; provider doctor diagnostics (no live requests); rate-limit-aware retry and configurable timeout; opt-in live-provider smoke gated by SAFECODE_SMOKE_LIVE. Network policy and mock default unchanged. All surfaces EXPERIMENTAL. See docs/version-notes/v4.10.x-*.md."
+      "notes": "Completed (v4.10.0-v4.10.4): DeepSeek provider preset with api_key_env resolution and endpoint normalization; setup wizard deepseek option; provider doctor diagnostics (no live requests); rate-limit-aware retry and configurable timeout; opt-in live-provider smoke gated by SAFECODE_LIVE_SMOKE=1. Network policy and mock default unchanged. All surfaces EXPERIMENTAL. See docs/version-notes/v4.10.*."
     },
     {
       "range": "v4.11.x",
@@ -311,7 +311,7 @@
       "range": "v4.12.x",
       "name": "Resume-Ready MVP Cut",
       "depends_on": "v4.11.x",
-      "notes": "Planned: examples/fastapi-todo runnable demo target, sac demo agent-loop deterministic mock-provider scenario, recorded transcript, docs/tutorials/from-task-to-tested-commit.md, README demo front-door section, and v4.12.3 resume-MVP tag. No new stable contracts promoted in the v4.10-v4.12 train."
+      "notes": "Completed (v4.12.0-v4.12.3): examples/fastapi-todo runnable demo target, sac demo agent-loop deterministic mock-provider scenario, recorded transcript, docs/tutorials/from-task-to-tested-commit.md, README demo front-door section, release metadata, version notes, matrix, threat-model addendum, and v4.12.3 resume-MVP tag. No new stable contracts promoted in the v4.10-v4.12 train."
     }
   ],
   "latest_tags": [
@@ -556,7 +556,9 @@
     "v4.11.4",
     "v4.11.5",
     "v4.12.0",
-    "v4.12.1"
+    "v4.12.1",
+    "v4.12.2",
+    "v4.12.3"
   ],
   "local_versions": [
     "v2.8.0",

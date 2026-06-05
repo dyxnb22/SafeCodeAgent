@@ -283,8 +283,34 @@ paths to the same approval-gated edit/apply/run/commit surfaces.
 | `/debug` | Read-only wrapper over `sac debug last-failure`; never executes project commands. |
 | `sac smoke ai-shell` | Deterministic mock-provider smoke suite; hidden from root help; no live provider or network requirement. |
 
-The v4.9 AI shell train is complete as of v4.9.3. The consolidated current
-status and forward plan is `docs/project-final-status-and-roadmap.md`.
+## v4.10-v4.12 Resume-MVP Addendum
+
+The v4.10-v4.12 train is complete as of v4.12.3. All surfaces below remain
+EXPERIMENTAL and promote no new stable contracts.
+
+| Surface | Risk | Boundary |
+|---|---|---|
+| DeepSeek provider preset | Misconfigured endpoint, leaked key, unexpected provider response | Env-only keys, network policy gate, provider doctor no live request, live smoke gated by `SAFECODE_LIVE_SMOKE=1` |
+| Provider retry/timeout | Retrying unsafe requests or logging secrets | Retry only provider calls already allowed by policy; retry warnings never include secrets |
+| Agentic typed steps | Model output bypasses approval | Typed step classification is advisory metadata over existing `AgentLoop`; mutating kinds still require approval |
+| Validation/repair loop | Infinite repair or hidden apply | Bounded validation, redacted failure tail hashes, repair remains pending patch for review |
+| Agentic resume | Replaying stale mutation | Resume is passive by default and reuses existing session/journal state; approval gates remain unchanged |
+| Demo transcript | Transcript drifts from real source or mutates source example | Tests compare stable transcript, script uses temp working copy, source example digest remains unchanged |
+
+Provider/live-smoke risks: live provider smoke must not run unless credentials
+are explicitly present and `SAFECODE_LIVE_SMOKE=1` is set. Doctor diagnostics
+for providers remain static and do not make provider requests.
+
+Agentic validation/resume risks: validation and resume reuse existing
+`AgentLoop`, `AgentJournalStore`, `ValidationLoop`, task, audit, pending-patch,
+checkpoint, rollback, and policy primitives. No new approval bypass is added.
+
+Demo transcript risks: the transcript is documentation and deterministic test
+evidence, not a stable API. It uses placeholders such as `<temp-worktree>` to
+avoid volatile timestamps/ids and never records secrets.
+
+Approval boundaries are unchanged: SafeCode still requires human review before
+apply, local commit, rollback, or policy-gated command execution.
 
 ---
 
