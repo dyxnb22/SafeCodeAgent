@@ -12,6 +12,7 @@ from safecode.cli_shared import console, log_cli_error, runtime_logger, show_hum
 from safecode import __version__
 
 from safecode.audit.logger import AuditLogger
+from safecode.core.diagnostic import DiagnosticStatus
 from safecode.doctor import Doctor
 from safecode.eval.cases import default_cases
 from safecode.eval.runner import EvalRunner
@@ -355,21 +356,45 @@ def doctor(
     """Check local install and project environment."""
     from safecode.cli_shared_json import CLIJSONResponse, render_json
 
-    checks = Doctor(Path.cwd()).run(release=release)
+    diagnostics = Doctor(Path.cwd()).run_diagnostics(release=release)
     if json_output:
-        all_passed = all(c.passed for c in checks)
+        all_passed = all(d.status == DiagnosticStatus.PASS for d in diagnostics)
         print(render_json(CLIJSONResponse(
             command="doctor",
             status="pass" if all_passed else "fail",
-            data={"checks": [{"name": c.name, "passed": c.passed, "detail": c.detail} for c in checks]},
+            data={"checks": [d.as_dict() for d in diagnostics]},
         )))
         return
+
+    # Top-line verdict
+    failed_count = sum(1 for d in diagnostics if d.status == DiagnosticStatus.FAIL)
+    warn_count = sum(1 for d in diagnostics if d.status == DiagnosticStatus.WARN)
+    if failed_count == 0 and warn_count == 0:
+        console.print("[bold green]Overall: READY[/bold green]")
+    else:
+        parts = []
+        if failed_count:
+            parts.append(f"{failed_count} issue(s)")
+        if warn_count:
+            parts.append(f"{warn_count} warning(s)")
+        console.print(f"[bold red]Overall: NEEDS SETUP — {', '.join(parts)}[/bold red]")
+    console.print("")
+
     table = Table(title="SafeCode Doctor")
     table.add_column("Check")
-    table.add_column("Passed")
+    table.add_column("Status")
     table.add_column("Detail")
-    for check in checks:
-        table.add_row(check.name, "yes" if check.passed else "no", check.detail)
+    table.add_column("Next")
+    _status_labels = {
+        DiagnosticStatus.PASS: "[green]PASS[/green]",
+        DiagnosticStatus.FAIL: "[red]FAIL[/red]",
+        DiagnosticStatus.WARN: "[yellow]WARN[/yellow]",
+        DiagnosticStatus.SKIP: "[dim]SKIP[/dim]",
+    }
+    for d in diagnostics:
+        status_str = _status_labels.get(d.status, d.status.value)
+        next_hint = d.hints[0] if d.hints else ""
+        table.add_row(d.name, status_str, d.message, next_hint)
     console.print(table)
 
 

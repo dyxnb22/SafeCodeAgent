@@ -111,13 +111,13 @@ class TestDoctorJSON:
         assert len(checks) > 0
         for check in checks:
             assert "name" in check
-            assert "passed" in check
-            assert "detail" in check
+            assert "status" in check
+            assert "message" in check
 
     def test_status_reflects_overall_pass_fail(self, tmp_path):
         result = runner.invoke(app, ["doctor", "--json"])
         parsed = json.loads(result.output)
-        all_passed = all(c["passed"] for c in parsed["data"]["checks"])
+        all_passed = all(c["status"] == "PASS" for c in parsed["data"]["checks"])
         assert parsed["status"] == ("pass" if all_passed else "fail")
 
 

@@ -87,6 +87,39 @@ def _demo_id_for_stack(stack: str) -> str:
     return _RECOMMENDED_DEMO
 
 
+def _provider_is_ready(project_root: Path) -> bool:
+    """Return True if a live provider is configured with key and network enabled."""
+    import os
+    config = SafeCodeConfig.load(project_root)
+    provider = config.llm.provider
+    if provider == "mock":
+        return False
+    if not config.sandbox.network_enabled:
+        return False
+    # Check API key: env var or user config
+    if provider == "deepseek":
+        from safecode.llm.deepseek import DEEPSEEK_PRESET
+        env_name = DEEPSEEK_PRESET.api_key_env
+    elif provider in ("openai", "openai-compatible"):
+        env_name = "OPENAI_API_KEY"
+    elif provider == "anthropic":
+        env_name = "ANTHROPIC_API_KEY"
+    else:
+        env_name = "OPENAI_API_KEY"
+    if os.getenv(env_name) or os.getenv("SAFECODE_LLM_API_KEY") or getattr(config.llm, "api_key", None):
+        return True
+    # Check provider profiles
+    from safecode.llm.provider_profiles import get_active_profile
+    try:
+        from safecode.config import _user_config_path
+        profile = get_active_profile(_user_config_path().expanduser())
+        if profile and profile.api_key_source() != "missing":
+            return True
+    except Exception:
+        pass
+    return False
+
+
 def _show_config_summary(project_root: Path) -> None:
     config = SafeCodeConfig.load(project_root)
     table = Table(title="Current SafeCode Config", show_header=False)
@@ -151,31 +184,50 @@ def run_quickstart(
     if stack != "unknown":
         console.print(f"[blue]Detected stack:[/blue] {stack}")
 
-    effective_demo_id = demo_id if demo_id != _RECOMMENDED_DEMO else _demo_id_for_stack(stack)
+    # Check if provider is ready before recommending a live-provider demo.
+    provider_ready = _provider_is_ready(project_root)
 
-    # Recommend a demo workflow.
-    suite = DemoWorkflowSuite()
-    try:
-        workflow = suite.get(effective_demo_id)
-    except KeyError:
-        workflow = suite.list()[0]
-
-    console.print(
-        Panel.fit(
-            "\n".join(
-                [
-                    f"Recommended demo: [bold]{workflow.id}[/bold]",
-                    f"  Title   : {workflow.title}",
-                    f"  Task    : {workflow.task}",
-                    f"  Commands: {' -> '.join(workflow.commands)}",
-                    *(([f"  Stack   : {stack}"]) if stack != "unknown" else []),
-                ]
-            ),
-            title="SafeCode Quickstart",
+    if not provider_ready:
+        console.print(
+            Panel.fit(
+                "[yellow]Provider not ready — live demo requires a configured provider with API key and network.[/yellow]\n"
+                "Run: [bold]sac doctor[/bold] for setup steps.",
+                title="SafeCode Quickstart",
+            )
         )
-    )
+    else:
+        effective_demo_id = demo_id if demo_id != _RECOMMENDED_DEMO else _demo_id_for_stack(stack)
+
+        # Recommend a demo workflow.
+        suite = DemoWorkflowSuite()
+        try:
+            workflow = suite.get(effective_demo_id)
+        except KeyError:
+            workflow = suite.list()[0]
+
+        console.print(
+            Panel.fit(
+                "\n".join(
+                    [
+                        f"Recommended demo: [bold]{workflow.id}[/bold]",
+                        f"  Title   : {workflow.title}",
+                        f"  Task    : {workflow.task}",
+                        f"  Commands: {' -> '.join(workflow.commands)}",
+                        *(([f"  Stack   : {stack}"]) if stack != "unknown" else []),
+                    ]
+                ),
+                title="SafeCode Quickstart",
+            )
+        )
 
     if demo:
+        # Explicit --demo flag: materialize the project regardless of provider state.
+        effective_demo_id = demo_id if demo_id != _RECOMMENDED_DEMO else _demo_id_for_stack(stack)
+        suite = DemoWorkflowSuite()
+        try:
+            workflow = suite.get(effective_demo_id)
+        except KeyError:
+            workflow = suite.list()[0]
         dest = demo_dest or project_root / "examples" / "demo-workflows"
         dest.mkdir(parents=True, exist_ok=True)
         try:

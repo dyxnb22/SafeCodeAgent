@@ -1,13 +1,13 @@
 {
   "project": "SafeCode Agent",
-  "current_implemented_tag": "v4.12.4",
-  "current_local_version": "v4.12.3",
+  "current_implemented_tag": "v4.14.1",
+  "current_local_version": "v4.14.1",
   "current_baseline": ".claude/skills/current/SKILL.md",
   "runtime_summary": ".claude/skills/shared/core-runtime.md",
   "version_index": "docs/version_implementation_matrix.md",
   "release_roadmap": "docs/release_roadmap_v0_1_to_v1_0.md",
-  "active_planning_roadmap": "docs/project-final-status-and-roadmap.md",
-  "previous_planning_roadmap": "docs/version-plans/v4.10-to-v4.12-resume-mvp-roadmap.md",
+  "active_planning_roadmap": "docs/version-plans/post-v4.14-usability-roadmap.md",
+  "previous_planning_roadmap": "docs/version-plans/post-v4.12-consolidation-roadmap.md",
   "readiness_audit": "docs/commercial-v1-readiness-audit-v3.11.x.md",
   "architecture_reference": "docs/product-commercialization-roadmap.md",
   "version_notes": "docs/version-notes/",
@@ -312,6 +312,12 @@
       "name": "Resume-Ready MVP Cut",
       "depends_on": "v4.11.x",
       "notes": "Completed (v4.12.0-v4.12.3): examples/fastapi-todo runnable demo target, sac demo agent-loop deterministic mock-provider scenario, recorded transcript, docs/tutorials/from-task-to-tested-commit.md, README demo front-door section, release metadata, version notes, matrix, threat-model addendum, and v4.12.3 resume-MVP package metadata. v4.12.4 is a narrow tracked-profile hotfix for the FastAPI todo demo. No new stable contracts promoted in the v4.10-v4.12 train."
+    },
+    {
+      "range": "v4.14.x-v4.16.x",
+      "name": "Provider Profile and First-run Usability",
+      "depends_on": "v4.12.x",
+      "notes": "v4.14.0 completed provider-profile UX: trusted user-level provider profiles, DeepSeek flash/pro aliases, sac provider add/list/status/use/rm, sac model alias switching, one-shot --model overrides, and provider-aware diagnostics. Active post-v4.14 plan: first-run verdicts, --model parity, sac init, session-scoped model switching, keychain/env-only credentials, bare sac shell entry, config migration, and error-message polish. All surfaces remain EXPERIMENTAL unless separately promoted."
     }
   ],
   "latest_tags": [
@@ -559,7 +565,8 @@
     "v4.12.1",
     "v4.12.2",
     "v4.12.3",
-    "v4.12.4"
+    "v4.12.4",
+    "v4.14.0"
   ],
   "local_versions": [
     "v2.8.0",

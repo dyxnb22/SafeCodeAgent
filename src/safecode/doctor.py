@@ -262,6 +262,7 @@ class Doctor:
                 name="provider_api_key",
                 status=DiagnosticStatus.FAIL,
                 message=f"API key env not set: {key_env} (also checked OPENAI_API_KEY, SAFECODE_LLM_API_KEY)",
+                hints=(f"Next: set {key_env} or run sac provider add {provider} --api-key <key>",),
             ))
 
         # 3. Base URL format check (parse only; no DNS or connect)
@@ -296,6 +297,19 @@ class Doctor:
                 f"network disabled by policy; provider host '{host}' cannot be reached. "
                 "Set network_enabled=true in config to allow real LLM calls."
             )
+            diagnostics.append(Diagnostic(
+                name="provider_network_policy",
+                status=net_status,
+                message=net_msg,
+                hints=("Next: sac setup --yes --network",),
+            ))
+            # Skip the generic append below for this branch.
+            diagnostics.append(Diagnostic(
+                name="provider_last_session_cost",
+                status=DiagnosticStatus.SKIP,
+                message="see last_session_cost diagnostic above for token/cost summary",
+            ))
+            return diagnostics
         elif config.sandbox.network_allowlist and host not in config.sandbox.network_allowlist:
             net_status = DiagnosticStatus.FAIL
             net_msg = (

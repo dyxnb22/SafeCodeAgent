@@ -169,9 +169,32 @@ def provider_status() -> None:
     user_allowlist = list(user_sandbox.get("network_allowlist", []))
     project_allowlist = list(project_sandbox.get("network_allowlist", []))
 
+    # Determine top-line verdict
+    ready = (
+        active_name is not None
+        and active_profile is not None
+        and active_profile.api_key_source() != "missing"
+        and (config.sandbox.network_enabled or config.llm.provider == "mock")
+    )
+    if ready:
+        verdict = "[bold green]READY[/bold green]"
+        verdict_line = f"  {active_name} / {config.llm.model} / {config.llm.base_url}"
+    else:
+        verdict = "[bold red]BROKEN[/bold red]"
+        issues: list[str] = []
+        if active_name is None:
+            issues.append("no provider configured")
+        elif active_profile and active_profile.api_key_source() == "missing":
+            issues.append("API key missing")
+        if not config.sandbox.network_enabled and config.llm.provider != "mock":
+            issues.append("network disabled")
+        verdict_line = " — ".join(issues) if issues else "check details below"
+
     lines = [
-        "[bold]Provider Status[/bold] [dim](EXPERIMENTAL)[/dim]",
+        f"[bold]Provider Status[/bold] [dim](EXPERIMENTAL)[/dim]",
+        f"  Verdict: {verdict}  {verdict_line}",
         "",
+        "[bold]Details:[/bold]",
         f"  Active provider profile : {active_name or '(none)'}",
         f"  Effective provider      : {config.llm.provider}",
         f"  Effective model         : {config.llm.model}",
@@ -187,7 +210,6 @@ def provider_status() -> None:
     else:
         import os
         env_provider = os.getenv("SAFECODE_LLM_PROVIDER")
-        env_model = os.getenv("SAFECODE_LLM_MODEL")
         if env_provider:
             lines.append(f"  Credential source       : env:SAFECODE_LLM_PROVIDER")
         elif config.llm.api_key:
