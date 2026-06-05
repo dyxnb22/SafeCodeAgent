@@ -38,13 +38,63 @@ _DEEPSEEK_ALIASES: dict[str, str] = {
     "pro": "deepseek-v4-pro",
 }
 
-# Typo-tolerant suggestions for known model IDs.
-_MODEL_TYPO_SUGGESTIONS: dict[str, str] = {
-    "deepseek-v4-falsh": "deepseek-v4-flash",
-    "deepseek-v4-flas": "deepseek-v4-flash",
-    "deepseek-v4-proo": "deepseek-v4-pro",
-    "deepseek-v4-flassh": "deepseek-v4-flash",
-}
+def _levenshtein_distance(a: str, b: str) -> int:
+    """Compute the Levenshtein edit distance between two strings."""
+    if len(a) < len(b):
+        a, b = b, a
+    if len(b) == 0:
+        return len(a)
+    prev = list(range(len(b) + 1))
+    for i, ca in enumerate(a):
+        curr = [i + 1]
+        for j, cb in enumerate(b):
+            curr.append(min(
+                prev[j + 1] + 1,
+                curr[j] + 1,
+                prev[j] + (0 if ca == cb else 1),
+            ))
+        prev = curr
+    return prev[-1]
+
+
+def _fuzzy_match(query: str, candidates: list[str], *, max_distance: int = 2) -> str | None:
+    """Return the closest candidate within max_distance, or None.
+
+    When multiple candidates have the same distance, the first one wins.
+    """
+    if not query or not candidates:
+        return None
+    best: tuple[str, int] | None = None
+    for c in candidates:
+        d = _levenshtein_distance(query.lower(), c.lower())
+        if d <= max_distance and (best is None or d < best[1]):
+            best = (c, d)
+    return best[0] if best is not None else None
+
+
+def _collect_known_model_ids(profile: ProviderProfile | None = None) -> list[str]:
+    """Collect all known model IDs from preset aliases and active profile."""
+    ids: list[str] = []
+    # Built-in deepseek aliases
+    ids.extend(_DEEPSEEK_ALIASES.values())
+    # Active profile aliases
+    if profile is not None:
+        ids.extend(profile.model_aliases.values())
+        if profile.default_model:
+            ids.append(profile.default_model)
+    return sorted(set(ids))
+
+
+def _fuzzy_match_model(query: str, profile: ProviderProfile | None = None) -> str | None:
+    """Fuzzy-match a model ID against known model IDs."""
+    candidates = _collect_known_model_ids(profile)
+    return _fuzzy_match(query, candidates)
+
+
+def _fuzzy_match_provider(query: str) -> str | None:
+    """Fuzzy-match a provider name against supported providers."""
+    candidates = sorted(SUPPORTED_PROVIDERS)
+    return _fuzzy_match(query, candidates)
 
 # Preset values for known providers: used by `sac provider add <name>`.
 _PROVIDER_PRESETS: dict[str, dict[str, Any]] = {
@@ -86,7 +136,7 @@ class ProviderProfile(BaseModel):
           - "deepseek-v4-flash"    -> returned as-is
           - ""                     -> returns self.default_model
 
-        Returns (resolved_model_id, typo_suggestion_or_None).
+        Returns (resolved_model_id, fuzzy_suggestion_or_None).
         """
         if not alias:
             return self.default_model, None
@@ -94,9 +144,17 @@ class ProviderProfile(BaseModel):
         if ":" in alias:
             _prefix, _, alias = alias.partition(":")
         resolved = self.model_aliases.get(alias, alias)
-        suggestion = _MODEL_TYPO_SUGGESTIONS.get(resolved)
-        if suggestion:
-            return suggestion, f"Did you mean '{suggestion}'? (resolved typo)"
+        # Check if resolved looks like a known model ID already
+        known_ids = set(self.model_aliases.values())
+        if self.default_model:
+            known_ids.add(self.default_model)
+        known_ids.update(_DEEPSEEK_ALIASES.values())
+        if resolved in known_ids:
+            return resolved, None
+        # Fuzzy match against known model IDs
+        fuzzy = _fuzzy_match_model(resolved, self)
+        if fuzzy and fuzzy != resolved:
+            return fuzzy, f"Did you mean '{fuzzy}'? (from '{alias}')"
         return resolved, None
 
     def api_key_source(self) -> str:

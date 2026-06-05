@@ -66,8 +66,11 @@ def provider_add(
     """
     name = name.strip().lower()
     if name not in _PROVIDER_PRESETS:
+        from safecode.llm.provider_profiles import _fuzzy_match_provider
         supported = ", ".join(sorted(_PROVIDER_PRESETS))
-        console.print(f"[red]Provider '{name}' has no built-in preset. Supported: {supported}[/red]")
+        fuzzy = _fuzzy_match_provider(name)
+        hint = f"\nDid you mean '{fuzzy}'?" if fuzzy else ""
+        console.print(f"[red]Provider '{name}' has no built-in preset. Supported: {supported}[/red]{hint}")
         raise typer.Exit(code=1)
 
     # Validate --store
