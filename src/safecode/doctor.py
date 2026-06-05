@@ -131,6 +131,7 @@ class Doctor:
         ]
         diagnostics.append(self._last_session_cost_diagnostic())
         diagnostics.append(self._legacy_model_persist_diagnostic())
+        diagnostics.append(self._legacy_llm_section_diagnostic())
         diagnostics.extend(self._sandbox_promotion_diagnostics())
         diagnostics.extend(self._project_tooling_diagnostics())
         diagnostics.extend(self._provider_diagnostics())
@@ -227,6 +228,32 @@ class Doctor:
             status=DiagnosticStatus.FAIL,
             message="missing — set an env var or run 'sac provider add <name> --store keychain'",
             hints=("Next: sac provider add deepseek --store keychain",),
+        )
+
+    @staticmethod
+    def _legacy_llm_section_diagnostic() -> "Diagnostic":
+        """Warn when the legacy [llm] section has provider config that should be migrated."""
+        from safecode.config import _user_config_path
+        user_data = {}
+        user_path = _user_config_path().expanduser()
+        if user_path.exists():
+            import tomllib
+            try:
+                user_data = tomllib.loads(user_path.read_text(encoding="utf-8"))
+            except Exception:
+                pass
+        llm = user_data.get("llm", {})
+        if isinstance(llm, dict) and llm.get("provider") and llm.get("provider") != "mock":
+            return Diagnostic(
+                name="legacy_llm_section",
+                status=DiagnosticStatus.WARN,
+                message="legacy [llm] section still configured — migrate to provider profiles",
+                hints=("Next: sac config migrate",),
+            )
+        return Diagnostic(
+            name="legacy_llm_section",
+            status=DiagnosticStatus.PASS,
+            message="no legacy [llm] section requiring migration",
         )
 
     @staticmethod

@@ -48,6 +48,86 @@ def config_policy_audit() -> None:
         raise typer.Exit(1)
 
 
+@config_app.command("migrate")
+def config_migrate(
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation prompt."),
+) -> None:
+    """Migrate legacy [llm] config to [providers.<name>] format (v4.16.1).
+
+    Reads the trusted user config, converts any [llm] provider/model/api_key/
+    base_url settings into a new provider profile under [providers], writes a
+    .bak backup, and saves the migrated config. Safe to re-run.
+    """
+    import shutil
+    import tomllib
+    from safecode.config import _user_config_path
+    from safecode.llm.provider_profiles import _render_user_toml, _PROVIDER_PRESETS
+    path = _user_config_path().expanduser()
+
+    if not path.exists():
+        console.print("[yellow]No user config found. Nothing to migrate.[/yellow]")
+        return
+
+    data = tomllib.loads(path.read_text(encoding="utf-8"))
+    llm = data.get("llm", {})
+    if not isinstance(llm, dict) or not llm:
+        console.print("[dim]No legacy [llm] section found. Nothing to migrate.[/dim]")
+        return
+
+    provider_name = str(llm.get("provider", "")).strip()
+    if not provider_name or provider_name == "mock":
+        console.print("[dim]Provider is mock or unset. Nothing to migrate.[/dim]")
+        return
+
+    if not yes:
+        confirmed = typer.confirm(
+            f"Migrate legacy [llm] config to [providers.{provider_name}]? "
+            f"A backup will be saved to {path}.bak",
+            default=True,
+        )
+        if not confirmed:
+            console.print("[yellow]Migration cancelled.[/yellow]")
+            return
+
+    # Write backup
+    backup_path = Path(str(path) + ".bak")
+    shutil.copy2(path, backup_path)
+    console.print(f"Backup saved: {backup_path}")
+
+    # Build provider profile from legacy config
+    providers = dict(data.get("providers", {}))
+    existing = dict(providers.get(provider_name, {})) if isinstance(providers.get(provider_name), dict) else {}
+    existing.setdefault("base_url", str(llm.get("base_url", "")))
+    existing.setdefault("default_model", str(llm.get("model", "")))
+    if llm.get("api_key") and not existing.get("api_key"):
+        existing["api_key"] = str(llm["api_key"])
+    # Preserve network allowlist from preset if not already set
+    preset = _PROVIDER_PRESETS.get(provider_name, {})
+    if not existing.get("network_allowlist"):
+        existing["network_allowlist"] = list(preset.get("network_allowlist", []))
+    if not existing.get("model_aliases"):
+        existing["model_aliases"] = dict(preset.get("model_aliases", {}))
+
+    providers[provider_name] = existing
+    data["providers"] = providers
+    if "active" not in providers:
+        providers["active"] = provider_name
+
+    # Remove legacy [llm] api_key from the saved data (keep rest for reference)
+    if "api_key" in data.get("llm", {}):
+        del data["llm"]["api_key"]
+
+    path.write_text(_render_user_toml(data), encoding="utf-8")
+    try:
+        import os
+        os.chmod(path, 0o600)
+    except OSError:
+        pass
+
+    console.print(f"[green]Migrated legacy [llm] to [providers.{provider_name}] in {path}[/green]")
+    console.print("[dim]Remove the [llm] section manually if no longer needed.[/dim]")
+
+
 @config_app.command("diff")
 def config_diff(
     against: str = typer.Option(..., "--against", help="Compare against preset: strict, balanced, experimental."),
