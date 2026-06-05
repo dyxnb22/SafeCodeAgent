@@ -35,12 +35,24 @@ core_app = typer.Typer()
 trust_app = typer.Typer(help="Manage session-local trust grants.")
 
 
+def _apply_model_override(model: str) -> None:
+    """Apply a one-shot model override via env var. Emits console feedback."""
+    from safecode.cli_model import apply_model_override_env
+    _, resolved, suggestion = apply_model_override_env(model)
+    if suggestion:
+        console.print(f"[yellow]{suggestion}[/yellow]")
+    console.print(f"[dim]Session model override: {resolved}[/dim]")
+
+
 @core_app.command()
 def ask(
     question: str,
     json_output: bool = typer.Option(False, "--json", help="Output result as JSON."),
+    model: str = typer.Option("", "--model", help="One-shot model override (e.g. flash or deepseek:pro)."),
 ) -> None:
     """Ask a read-only question about the current project."""
+    if model:
+        _apply_model_override(model)
     project_root = Path.cwd()
     try:
         answer = AgentOrchestrator(project_root).ask(question)
@@ -62,8 +74,11 @@ def edit(
     task: str,
     json_output: bool = typer.Option(False, "--json", help="Output result as JSON."),
     retry_from_last_failure: bool = typer.Option(False, "--retry-from-last-failure", help="Prepend last failure context from the journal."),
+    model: str = typer.Option("", "--model", help="One-shot model override (e.g. flash or deepseek:pro)."),
 ) -> None:
     """Create a pending patch proposal without modifying files."""
+    if model:
+        _apply_model_override(model)
     project_root = Path.cwd()
     # Gate: patch.propose is write-class; the user invoking sac edit is the approval gesture.
     gate_result = ToolCallGate().check_intent("patch.propose", approved=True)
@@ -491,12 +506,15 @@ def run_command(
     command: Optional[str] = typer.Argument(None, help="Shell command to run."),
     yes: bool = typer.Option(False, "--yes", "-y", help="Approve medium/high risk commands."),
     json_output: bool = typer.Option(False, "--json", help="Output result as JSON."),
+    model: str = typer.Option("", "--model", help="One-shot model override (e.g. flash or deepseek:pro)."),
     suite: Optional[str] = typer.Option(
         None, "--suite",
         help="[EXPERIMENTAL] Run a project profile suite: test|lint|typecheck|build. (v4.2+)",
     ),
 ) -> None:
     """Run a shell command through SafeCode risk checks."""
+    if model:
+        _apply_model_override(model)
     from safecode.project.profile import load_profile, _VALID_KINDS
 
     project_root = Path.cwd()

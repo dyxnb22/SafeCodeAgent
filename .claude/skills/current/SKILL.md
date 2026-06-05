@@ -5,17 +5,18 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v4.14.1
+# Current Baseline - v4.14.2
 
 ## Status
-Implemented. Git baseline: tag `v4.14.1`. Local working version: `v4.14.1`.
+Implemented. Git baseline: tag `v4.14.2`. Local working version: `v4.14.2`.
 
 ## Stage
-`v4.14.1` adds first-run diagnostic clarity: `sac doctor` and `sac provider status`
-show top-line READY/BROKEN verdicts, every failed diagnostic row carries a `Next:`
-hint with a concrete command, and `sac quickstart` refuses to recommend a live-provider
-demo when the provider is not ready.
+`v4.14.2` adds `--model` flag parity to common subcommands: `sac ask`, `sac edit`,
+`sac fix`, `sac run`, and `sac agent run` all accept `--model <alias>` for one-shot
+model overrides. Subcommand-level `--model` wins over root-level `--model`. Already
+supported on `sac shell`.
 
+Previous: `v4.14.1` added first-run diagnostic clarity.
 Previous: `v4.14.0` added provider-profile UX: users configure a trusted provider profile
 once (`sac provider add deepseek`) and switch models with short aliases
 (`sac model flash`, `sac model pro`, scoped aliases, and one-shot `--model`

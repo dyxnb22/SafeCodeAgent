@@ -771,6 +771,7 @@ def register(app: typer.Typer) -> None:
             help="Override the test command to run (default: auto-detect).",
         ),
         json_output: bool = typer.Option(False, "--json", help="Output result as JSON."),
+        model: str = typer.Option("", "--model", help="One-shot model override (e.g. flash or deepseek:pro)."),
         watch: bool = typer.Option(False, "--watch", help="[EXPERIMENTAL] Run one approval-gated fix-watch iteration."),
         max_iterations: int = typer.Option(
             _DEFAULT_MAX_ITERATIONS,
@@ -789,6 +790,13 @@ def register(app: typer.Typer) -> None:
         ),
     ) -> None:
         """Run the last failing test, propose a repair patch, and leave it pending for sac apply."""
+        if model:
+            from safecode.cli_model import apply_model_override_env
+            try:
+                apply_model_override_env(model)
+            except ValueError as exc:
+                console.print(f"[red]{exc}[/red]")
+                raise typer.Exit(code=1) from exc
         if watch:
             code = run_fix_watch(
                 Path.cwd(),

@@ -158,6 +158,7 @@ def agent_run(
     goal: str = typer.Argument("", help="Goal to start or replace the session with."),
     max_steps: int = typer.Option(8, "--max-steps", min=1, help="Maximum steps to advance (default 8)."),
     json_output: bool = typer.Option(False, "--json", help="Output result as JSON."),
+    model: str = typer.Option("", "--model", help="One-shot model override (e.g. flash or deepseek:pro)."),
     auto_approve_read_only: bool = typer.Option(
         False,
         "--auto-approve-read-only",
@@ -174,6 +175,17 @@ def agent_run(
     import warnings
     from safecode.cli_shared_json import CLIJSONResponse, render_json
     from safecode.agent.step_model import APPROVAL_REQUIRED_KINDS
+
+    if model:
+        from safecode.cli_model import apply_model_override_env
+        try:
+            apply_model_override_env(model)
+        except ValueError as exc:
+            if json_output:
+                print(render_json(CLIJSONResponse(command="agent run", status="error", error=str(exc))))
+            else:
+                console.print(f"[red]{exc}[/red]")
+            raise typer.Exit(code=1) from exc
 
     if no_validate:
         warnings.warn(
