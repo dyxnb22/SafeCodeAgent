@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from typing import Iterator, Protocol
+from typing import Iterator, Protocol, runtime_checkable
 
 
 @dataclass(frozen=True)
@@ -76,6 +76,7 @@ def parse_sse_stream(lines: Iterator[str]) -> Iterator[StreamChunk]:
             yield chunk
 
 
+@runtime_checkable
 class SupportsStreaming(Protocol):
     """Optional streaming capability that LLM providers may implement.
 

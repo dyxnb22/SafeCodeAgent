@@ -1,4 +1,5 @@
 import os
+import sys
 from pathlib import Path
 from typing import Optional
 
@@ -49,13 +50,27 @@ def ask(
     question: str,
     json_output: bool = typer.Option(False, "--json", help="Output result as JSON."),
     model: str = typer.Option("", "--model", help="One-shot model override (e.g. flash or deepseek:pro)."),
+    stream: bool = typer.Option(False, "--stream", help="Stream token-by-token output (TTY only; non-TTY falls back to batch)."),
 ) -> None:
     """Ask a read-only question about the current project."""
     if model:
         _apply_model_override(model)
     project_root = Path.cwd()
+    is_tty = sys.stdin.isatty() and sys.stdout.isatty()
+    orchestrator = AgentOrchestrator(project_root)
+
+    if stream and is_tty and not json_output:
+        try:
+            from safecode.cli_stream import render_stream
+            render_stream(orchestrator, question, is_tty=True)
+        except Exception as exc:
+            log_cli_error("cli.ask", "stream ask failed", exc)
+            console.print(f"[red]Ask failed:[/red] {exc}")
+            raise typer.Exit(code=1) from exc
+        return
+
     try:
-        answer = AgentOrchestrator(project_root).ask(question)
+        answer = orchestrator.ask(question)
     except Exception as exc:
         log_cli_error("cli.ask", "ask command failed", exc)
         if json_output:

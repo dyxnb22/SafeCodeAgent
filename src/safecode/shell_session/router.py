@@ -100,6 +100,19 @@ def _handle_ask_intent(user_input: str, project_root: Path) -> str:
         return f"Ask failed: {exc}\nRun: sac ask \"{user_input}\""
 
 
+def _handle_ask_intent_stream(user_input: str, project_root: Path) -> str:
+    """Route to SafeCode ask with streaming output (TTY only). Returns full text."""
+    try:
+        from safecode.agent.orchestrator import AgentOrchestrator
+        from safecode.cli_stream import stream_chunks_to_console
+        import sys
+        is_tty = sys.stdout.isatty()
+        orchestrator = AgentOrchestrator(project_root)
+        return stream_chunks_to_console(orchestrator.ask_stream(user_input), is_tty=is_tty)
+    except Exception as exc:
+        return f"Ask failed: {exc}\nRun: sac ask \"{user_input}\""
+
+
 def _handle_edit_intent(
     user_input: str,
     project_root: Path,
@@ -281,5 +294,7 @@ def route_input(
             False,
         )
 
-    # Default: ask (read-only)
+    # Default: ask (read-only) — stream in TTY mode for progressive output
+    if is_tty:
+        return _handle_ask_intent_stream(user_input, project_root), "ask", False
     return _handle_ask_intent(user_input, project_root), "ask", False

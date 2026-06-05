@@ -1,6 +1,7 @@
 """Coordinate context collection, LLM responses, patch handling, and audit logs."""
 
 import json
+from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -10,10 +11,12 @@ from safecode.audit.models import AuditEvent
 from safecode.checkpoint.manager import CheckpointManager
 from safecode.checkpoint.models import CheckpointMetadata
 from safecode.config import SafeCodeConfig
+from safecode.context.redactor import redact_secrets
 from safecode.core.failure_category import FailureCategory, category_for_exception
 from safecode.context.collector import ContextCollector
 from safecode.hooks.runner import HookRunner, HookRunSummary
 from safecode.llm.factory import create_llm_client
+from safecode.llm.stream import StreamChunk, SupportsStreaming
 from safecode.patch.applier import PatchApplier
 from safecode.patch.diff import build_unified_diff
 from safecode.patch.models import PatchProposal
@@ -90,6 +93,46 @@ class AgentOrchestrator:
             )
         )
         return answer.content
+
+    def ask_stream(self, question: str) -> Iterator[StreamChunk]:
+        """Stream a read-only answer token-by-token. Non-streaming fallback if unsupported."""
+        trace_id = self.trace_logger.new_trace_id()
+        self.trace_logger.write(trace_id, "ask_stream.start", question)
+        context = self.context_collector.collect()
+        messages = [
+            {"role": "system", "content": "You are SafeCode Agent. Answer the question about the current project."},
+            {"role": "user", "content": f"Context:\n{context}\n\nQuestion: {question}"},
+        ]
+        if isinstance(self.llm_client, SupportsStreaming):
+            raw_chunks = self.llm_client.stream_chat(messages)
+            full_text = ""
+            for chunk in raw_chunks:
+                redacted_delta = redact_secrets(chunk.delta)
+                full_text += redacted_delta
+                yield StreamChunk(delta=redacted_delta, finish_reason=chunk.finish_reason)
+            self.trace_logger.write(trace_id, "ask_stream.completed", "streamed read-only answer")
+            self.audit_logger.write(
+                AuditEvent(
+                    type="ask_completed",
+                    timestamp=utc_now_iso(),
+                    message=question,
+                    trace_id=trace_id,
+                )
+            )
+        else:
+            answer = self.llm_client.ask(question, context)
+            content = getattr(answer, "content", None) or str(answer)
+            redacted = redact_secrets(str(content))
+            self.trace_logger.write(trace_id, "ask_stream.completed", "batch fallback")
+            self.audit_logger.write(
+                AuditEvent(
+                    type="ask_completed",
+                    timestamp=utc_now_iso(),
+                    message=question,
+                    trace_id=trace_id,
+                )
+            )
+            yield StreamChunk(delta=redacted, finish_reason="stop")
 
     def edit(self, task: str) -> EditResult:
         """Generate and store a pending patch proposal."""
