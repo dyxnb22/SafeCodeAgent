@@ -79,7 +79,12 @@ class Doctor:
         self._fetch_latest_version = fetch_latest_version or _fetch_latest_pypi_version
 
     def run_diagnostics(self, *, release: bool = False) -> list[Diagnostic]:
-        """Return typed diagnostics (v2.8.x substrate)."""
+        """Return typed diagnostics (v2.8.x substrate).
+
+        The Provider section is computed statically (config, env var presence,
+        network policy text). It never makes any provider network request.
+        Use ``sac smoke live-provider`` (v4.10.4) for an opt-in provider round-trip.
+        """
         approval_dir = os.getenv("SAFECODE_APPROVAL_DIR")
         sandbox_dir = os.getenv("SAFECODE_SANDBOX_APPROVAL_DIR")
         diagnostics: list[Diagnostic] = [
@@ -127,6 +132,7 @@ class Doctor:
         diagnostics.append(self._last_session_cost_diagnostic())
         diagnostics.extend(self._sandbox_promotion_diagnostics())
         diagnostics.extend(self._project_tooling_diagnostics())
+        diagnostics.extend(self._provider_diagnostics())
         diagnostics.append(self._update_check_diagnostic())
         if release:
             diagnostics.extend(self.run_release_diagnostics())
@@ -201,8 +207,148 @@ class Doctor:
                 message="no session cost data",
             )
 
+    def _provider_diagnostics(self) -> list[Diagnostic]:
+        """Return static provider readiness diagnostics (v4.10.2, EXPERIMENTAL).
+
+        No provider network request is made here. Key presence is checked via
+        env var name only; the actual secret value is never logged or echoed.
+        Network policy verdict is computed by inspecting the config, not by
+        connecting to the provider host.
+        """
+        from urllib.parse import urlparse
+        from safecode.config import SafeCodeConfig
+
+        try:
+            config = SafeCodeConfig.load(self.project_root)
+        except Exception:
+            return [Diagnostic(
+                name="provider_config",
+                status=DiagnosticStatus.SKIP,
+                message="could not load config",
+            )]
+
+        provider = config.llm.provider
+        diagnostics: list[Diagnostic] = []
+
+        # 1. Provider name
+        diagnostics.append(Diagnostic(
+            name="provider_name",
+            status=DiagnosticStatus.PASS,
+            message=f"provider: {provider}",
+        ))
+
+        # 2. API key env presence (name only, never the value)
+        key_env, key_present = self._resolve_provider_key_env(provider, config)
+        if provider == "mock":
+            diagnostics.append(Diagnostic(
+                name="provider_api_key",
+                status=DiagnosticStatus.PASS,
+                message="mock provider: no API key required (deterministic mode)",
+            ))
+        elif key_present:
+            diagnostics.append(Diagnostic(
+                name="provider_api_key",
+                status=DiagnosticStatus.PASS,
+                message=f"API key env set: {key_env}",
+            ))
+        else:
+            diagnostics.append(Diagnostic(
+                name="provider_api_key",
+                status=DiagnosticStatus.FAIL,
+                message=f"API key env not set: {key_env} (also checked OPENAI_API_KEY, SAFECODE_LLM_API_KEY)",
+            ))
+
+        # 3. Base URL format check (parse only; no DNS or connect)
+        base_url = config.llm.base_url
+        try:
+            parsed = urlparse(base_url)
+            url_ok = bool(parsed.scheme in ("http", "https") and parsed.netloc)
+        except Exception:
+            url_ok = False
+        diagnostics.append(Diagnostic(
+            name="provider_base_url",
+            status=DiagnosticStatus.PASS if url_ok else DiagnosticStatus.FAIL,
+            message=f"base_url: {base_url}" if url_ok else f"base_url malformed: {base_url!r}",
+        ))
+
+        # 4. Model configured
+        model = config.llm.model
+        diagnostics.append(Diagnostic(
+            name="provider_model",
+            status=DiagnosticStatus.PASS,
+            message=f"model: {model}",
+        ))
+
+        # 5. Static network policy verdict for the provider host (no network call)
+        host = urlparse(base_url).hostname or ""
+        if provider == "mock":
+            net_status = DiagnosticStatus.PASS
+            net_msg = "mock provider: no network call will be made"
+        elif not config.sandbox.network_enabled:
+            net_status = DiagnosticStatus.FAIL
+            net_msg = (
+                f"network disabled by policy; provider host '{host}' cannot be reached. "
+                "Set network_enabled=true in config to allow real LLM calls."
+            )
+        elif config.sandbox.network_allowlist and host not in config.sandbox.network_allowlist:
+            net_status = DiagnosticStatus.FAIL
+            net_msg = (
+                f"host '{host}' is not in the network allowlist "
+                f"({config.sandbox.network_allowlist})"
+            )
+        else:
+            net_status = DiagnosticStatus.PASS
+            net_msg = f"network policy permits provider host: {host}"
+        diagnostics.append(Diagnostic(
+            name="provider_network_policy",
+            status=net_status,
+            message=net_msg,
+        ))
+
+        # 6. Last-session token/cost summary (SKIP if unavailable)
+        # This is already reported by _last_session_cost_diagnostic(); refer there.
+        diagnostics.append(Diagnostic(
+            name="provider_last_session_cost",
+            status=DiagnosticStatus.SKIP,
+            message="see last_session_cost diagnostic above for token/cost summary",
+        ))
+
+        return diagnostics
+
+    @staticmethod
+    def _resolve_provider_key_env(provider: str, config) -> tuple[str, bool]:
+        """Return (env_var_name, is_present) for the provider's API key.
+
+        Never returns the key value — only the env var name and a boolean presence flag.
+        """
+        if provider == "deepseek":
+            from safecode.llm.deepseek import DEEPSEEK_PRESET
+            env_name = DEEPSEEK_PRESET.api_key_env
+        elif provider in ("openai", "openai-compatible"):
+            env_name = "OPENAI_API_KEY"
+        elif provider == "anthropic":
+            env_name = "ANTHROPIC_API_KEY"
+        else:
+            env_name = "OPENAI_API_KEY"
+
+        present = bool(
+            os.getenv(env_name)
+            or os.getenv("OPENAI_API_KEY")
+            or os.getenv("SAFECODE_LLM_API_KEY")
+        )
+        return env_name, present
+
     def _update_check_diagnostic(self) -> Diagnostic:
-        """Check PyPI for a newer version. Skips silently on network failure."""
+        """Check PyPI for a newer version. Skips silently on network failure.
+
+        Controlled by SAFECODE_DOCTOR_UPDATE_CHECK (default 1; set to 0 to skip).
+        """
+        if os.getenv("SAFECODE_DOCTOR_UPDATE_CHECK", "1") == "0":
+            return Diagnostic(
+                name="update_check",
+                status=DiagnosticStatus.SKIP,
+                message="update check skipped (SAFECODE_DOCTOR_UPDATE_CHECK=0)",
+            )
         latest = self._fetch_latest_version()
         if latest is None:
             return Diagnostic(
