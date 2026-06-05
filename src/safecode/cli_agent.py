@@ -156,14 +156,37 @@ def agent_step(goal: str = typer.Argument("", help="Goal to start or replace the
 @agent_app.command("run")
 def agent_run(
     goal: str = typer.Argument("", help="Goal to start or replace the session with."),
-    max_steps: int = typer.Option(5, "--max-steps", min=1, help="Maximum steps to advance."),
+    max_steps: int = typer.Option(8, "--max-steps", min=1, help="Maximum steps to advance (default 8)."),
     json_output: bool = typer.Option(False, "--json", help="Output result as JSON."),
+    auto_approve_read_only: bool = typer.Option(
+        False,
+        "--auto-approve-read-only",
+        help="[EXPERIMENTAL] Auto-approve read-only ask steps. Never approves edit/apply/run/fix/commit/rollback.",
+    ),
+    no_validate: bool = typer.Option(
+        False,
+        "--no-validate",
+        help="[EXPERIMENTAL] Skip validation loop. Logs a RuntimeWarning.",
+    ),
 ) -> None:
-    """Advance a bounded interactive agent loop."""
+    """[EXPERIMENTAL] Advance a bounded interactive agent loop."""
+    import sys
+    import warnings
     from safecode.cli_shared_json import CLIJSONResponse, render_json
+    from safecode.agent.step_model import APPROVAL_REQUIRED_KINDS
 
+    if no_validate:
+        warnings.warn(
+            "sac agent run --no-validate: validation loop disabled for this invocation.",
+            RuntimeWarning,
+            stacklevel=1,
+        )
+
+    is_tty = sys.stdin.isatty() and sys.stdout.isatty()
+
+    loop = AgentLoop(Path.cwd())
     try:
-        result = AgentLoop(Path.cwd()).run(goal or None, max_steps=max_steps)
+        result = loop.run(goal or None, max_steps=max_steps)
     except (FileNotFoundError, ValueError) as exc:
         if json_output:
             print(render_json(CLIJSONResponse(command="agent run", status="error", error=str(exc))))
@@ -171,17 +194,69 @@ def agent_run(
             console.print(f"[red]{exc}[/red]")
         raise typer.Exit(code=1) from exc
 
+    # Non-TTY fail-closed: refuse approval-required steps that need mutation.
+    if not is_tty and result.stopped_reason == "approval_required":
+        last_typed = loop.last_typed_result
+        if last_typed is not None and last_typed.kind in APPROVAL_REQUIRED_KINDS:
+            msg = (
+                f"Non-TTY mode: approval required for '{last_typed.kind}' step but no TTY available. "
+                "Run interactively or approve the step manually."
+            )
+            if json_output:
+                print(render_json(CLIJSONResponse(
+                    command="agent run",
+                    status="error",
+                    error=msg,
+                    data={
+                        "session_id": result.state.session_id,
+                        "stopped_reason": result.stopped_reason,
+                        "steps_count": len(result.steps),
+                        "status": result.state.status,
+                    },
+                )))
+            else:
+                console.print(f"[red]{msg}[/red]")
+            raise typer.Exit(code=1)
+
+    # --auto-approve-read-only: only allow ask/read-only kinds; block mutating kinds.
+    if auto_approve_read_only and result.stopped_reason == "approval_required":
+        last_typed = loop.last_typed_result
+        if last_typed is not None and last_typed.kind in APPROVAL_REQUIRED_KINDS:
+            msg = (
+                f"--auto-approve-read-only cannot approve '{last_typed.kind}' step "
+                "(only read-only 'ask' steps may be auto-approved)."
+            )
+            if json_output:
+                print(render_json(CLIJSONResponse(
+                    command="agent run",
+                    status="error",
+                    error=msg,
+                    data={
+                        "session_id": result.state.session_id,
+                        "stopped_reason": result.stopped_reason,
+                        "steps_count": len(result.steps),
+                        "status": result.state.status,
+                    },
+                )))
+            else:
+                console.print(f"[red]{msg}[/red]")
+            raise typer.Exit(code=1)
+
     if json_output:
         status = result.stopped_reason if result.stopped_reason in ("completed", "approval_required") else "stopped"
+        last_typed = loop.last_typed_result
+        data: dict = {
+            "session_id": result.state.session_id,
+            "stopped_reason": result.stopped_reason,
+            "steps_count": len(result.steps),
+            "status": result.state.status,
+        }
+        if last_typed is not None:
+            data["last_typed_result"] = last_typed.model_dump()
         print(render_json(CLIJSONResponse(
             command="agent run",
             status=status,
-            data={
-                "session_id": result.state.session_id,
-                "stopped_reason": result.stopped_reason,
-                "steps_count": len(result.steps),
-                "status": result.state.status,
-            },
+            data=data,
         )))
         return
 

@@ -421,3 +421,130 @@ class TestShellSessionState:
     def test_supported_payload_version(self):
         from safecode.shell_session.state import ShellSessionState
         assert ShellSessionState.supported_payload_version() == 1
+
+
+# ---------------------------------------------------------------------------
+# v4.11.2: sac shell --agentic routing
+# ---------------------------------------------------------------------------
+
+
+class TestShellAgenticMode:
+    """Verify --agentic routes to AgentLoop.run() and default behavior is unchanged."""
+
+    def test_agentic_flag_in_help(self, tmp_path, monkeypatch):
+        """sac shell --help must document the --agentic flag."""
+        from typer.testing import CliRunner
+        from safecode.cli import app
+
+        monkeypatch.chdir(tmp_path)
+        result = CliRunner().invoke(app, ["shell", "--help"])
+        assert result.exit_code == 0
+        assert "--agentic" in result.output
+
+    def test_agentic_flag_experimental_in_help(self, tmp_path, monkeypatch):
+        """--agentic help text must mention EXPERIMENTAL."""
+        from typer.testing import CliRunner
+        from safecode.cli import app
+
+        monkeypatch.chdir(tmp_path)
+        result = CliRunner().invoke(app, ["shell", "--help"])
+        assert result.exit_code == 0
+        assert "EXPERIMENTAL" in result.output.upper() or "experimental" in result.output
+
+    def test_agentic_runs_agent_loop(self, tmp_path, monkeypatch):
+        """--agentic must invoke AgentLoop.run() with the user's goal."""
+        from typer.testing import CliRunner
+        from safecode.cli import app
+        from unittest.mock import patch, MagicMock
+        from safecode.agent.loop import AgentRunResult
+        from safecode.agent.session import AgentSessionState
+        from safecode.utils.time import utc_now_iso
+
+        monkeypatch.chdir(tmp_path)
+        captured = {}
+
+        class FakeLoop:
+            def __init__(self, project_root, llm_client=None):
+                pass
+
+            def run(self, goal, max_steps=8):
+                captured["goal"] = goal
+                state = AgentSessionState(
+                    session_id="agentic-sess-001",
+                    goal=goal or "",
+                    plan=[],
+                    current_step=0,
+                    status="completed",
+                    pending_action=None,
+                    last_observation="done",
+                    last_error=None,
+                    created_at=utc_now_iso(),
+                    updated_at=utc_now_iso(),
+                )
+                return AgentRunResult(state=state, steps=[], stopped_reason="completed")
+
+            @property
+            def last_typed_result(self):
+                return None
+
+        with patch("safecode.cli_shell.AgentLoop", FakeLoop):
+            result = CliRunner().invoke(
+                app, ["shell", "--agentic", "--non-tty"], input="add a feature\n"
+            )
+
+        assert result.exit_code == 0
+        assert captured.get("goal") == "add a feature"
+
+    def test_agentic_empty_input_exits_cleanly(self, tmp_path, monkeypatch):
+        """--agentic exits 0 on empty input."""
+        from typer.testing import CliRunner
+        from safecode.cli import app
+        from unittest.mock import patch
+
+        monkeypatch.chdir(tmp_path)
+
+        result = CliRunner().invoke(
+            app, ["shell", "--agentic", "--non-tty"], input="\n"
+        )
+        assert result.exit_code == 0
+
+    def test_without_agentic_uses_existing_router(self, tmp_path, monkeypatch):
+        """Without --agentic, shell uses the existing v4.9 intent router (not AgentLoop)."""
+        from typer.testing import CliRunner
+        from safecode.cli import app
+        from unittest.mock import patch
+
+        monkeypatch.chdir(tmp_path)
+
+        agent_loop_called = []
+
+        class FakeLoop:
+            def __init__(self, project_root, llm_client=None):
+                agent_loop_called.append(True)
+
+            def run(self, goal, max_steps=8):
+                pass
+
+            @property
+            def last_typed_result(self):
+                return None
+
+        with patch("safecode.cli_shell.AgentLoop", FakeLoop):
+            result = CliRunner().invoke(
+                app, ["shell", "--non-tty"], input="/help\n/exit\n"
+            )
+
+        assert result.exit_code == 0
+        assert not agent_loop_called, "AgentLoop must not be called without --agentic"
+
+    def test_agentic_eof_input_exits_cleanly(self, tmp_path, monkeypatch):
+        """--agentic on EOF returns exit code 0."""
+        from typer.testing import CliRunner
+        from safecode.cli import app
+
+        monkeypatch.chdir(tmp_path)
+
+        result = CliRunner().invoke(
+            app, ["shell", "--agentic", "--non-tty"], input=""
+        )
+        assert result.exit_code == 0

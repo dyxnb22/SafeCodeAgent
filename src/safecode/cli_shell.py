@@ -21,6 +21,7 @@ from typing import Optional
 
 import typer
 
+from safecode.agent.loop import AgentLoop
 from safecode.cli_shared import console
 from safecode.cli_shared_json import CLIJSONResponse, render_json
 
@@ -390,6 +391,77 @@ def run_shell(
     return 0
 
 
+def _run_agentic_shell(
+    project_root: Path,
+    *,
+    is_tty: bool = True,
+    json_output: bool = False,
+) -> int:
+    """[EXPERIMENTAL] Drive AgentLoop.run() from a single user input line.
+
+    Reads one line of user input as the goal, runs the AgentLoop, and renders
+    the result. The same loop as sac agent run is used. Approval-required steps
+    stop and print guidance. All mutation paths require explicit approval.
+    """
+    from safecode.cli_shared_json import CLIJSONResponse, render_json
+    from safecode.agent.step_model import APPROVAL_REQUIRED_KINDS
+
+    if is_tty:
+        console.print("[bold]SafeCode Shell[/bold] [dim](EXPERIMENTAL --agentic mode)[/dim]")
+        console.print("Enter your goal (one line), or Ctrl-C to exit.")
+
+    line = _read_line(is_tty=is_tty)
+    if line is None or not line.strip():
+        if is_tty:
+            console.print("[yellow]No input received. Exiting.[/yellow]")
+        return 0
+
+    goal = line.strip()
+    loop = AgentLoop(project_root)
+    try:
+        result = loop.run(goal, max_steps=8)
+    except (FileNotFoundError, ValueError) as exc:
+        if json_output:
+            print(render_json(CLIJSONResponse(command="shell --agentic", status="error", error=str(exc))))
+        else:
+            console.print(f"[red]{exc}[/red]")
+        return 1
+
+    last_typed = loop.last_typed_result
+
+    if json_output:
+        status = result.stopped_reason if result.stopped_reason in ("completed", "approval_required") else "stopped"
+        data: dict = {
+            "session_id": result.state.session_id,
+            "stopped_reason": result.stopped_reason,
+            "steps_count": len(result.steps),
+            "status": result.state.status,
+        }
+        if last_typed is not None:
+            data["last_typed_result"] = last_typed.model_dump()
+        print(render_json(CLIJSONResponse(command="shell --agentic", status=status, data=data)))
+        return 0
+
+    for index, step_result in enumerate(result.steps, start=1):
+        line_out = f"Step {index}: {step_result.observation}"
+        if is_tty:
+            console.print(line_out)
+        else:
+            print(line_out)
+
+    summary = (
+        f"Session: {result.state.session_id} | "
+        f"Status: {result.state.status} | "
+        f"Stopped: {result.stopped_reason}"
+    )
+    if is_tty:
+        console.print(f"[dim]{summary}[/dim]")
+    else:
+        print(summary)
+
+    return 0
+
+
 def register(app: typer.Typer) -> None:
     """Register sac shell on the given Typer app."""
 
@@ -398,20 +470,33 @@ def register(app: typer.Typer) -> None:
         session: Optional[str] = typer.Option(None, "--session", help="Resume an existing session by ID."),
         json_output: bool = typer.Option(False, "--json", help="Output each turn as JSON (non-TTY friendly)."),
         non_tty: bool = typer.Option(False, "--non-tty", help="Force non-TTY (script/deterministic) mode."),
+        agentic: bool = typer.Option(
+            False,
+            "--agentic",
+            help="[EXPERIMENTAL] Route user input directly to AgentLoop.run() instead of the intent router.",
+        ),
     ) -> None:
         """[EXPERIMENTAL] Start an interactive AI shell session.
 
         Ask natural-language questions, run /status, /apply, /debug, and more.
         All mutation paths require explicit approval. No auto-apply ever.
+
+        With --agentic, user input becomes the goal for an AgentLoop.run() invocation
+        (the same loop sac agent run drives). Existing shell behavior is unchanged
+        without --agentic.
         """
         project_root = Path.cwd()
         is_tty = sys.stdin.isatty() and sys.stdout.isatty() and not non_tty
-        code = run_shell(
-            project_root,
-            session_id=session,
-            is_tty=is_tty,
-            json_output=json_output,
-        )
+
+        if agentic:
+            code = _run_agentic_shell(project_root, is_tty=is_tty, json_output=json_output)
+        else:
+            code = run_shell(
+                project_root,
+                session_id=session,
+                is_tty=is_tty,
+                json_output=json_output,
+            )
         raise typer.Exit(code=code)
 
     return shell_command
