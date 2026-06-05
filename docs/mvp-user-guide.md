@@ -111,6 +111,21 @@ To resume a specific task:
 sac resume <task-id>
 ```
 
+For agentic sessions, `sac resume` also reads the existing
+`.sac/agent_journals/<session_id>.jsonl` journal when one is associated with
+the current task or current agent session. The summary includes the last plan,
+last typed step result, and a suggested next safe step such as continuing the
+agent run or applying a pending patch.
+
+```bash
+sac resume --json
+sac resume --continue-agent
+```
+
+`--continue-agent` reconstructs the existing `AgentLoop` state and then re-enters
+`AgentLoop.run()`. It is still approval-gated and never automatically re-runs
+`apply`, `commit`, `rollback`, validation, or repair.
+
 Closed tasks are refused. Start a new task when the old one is closed:
 
 ```bash

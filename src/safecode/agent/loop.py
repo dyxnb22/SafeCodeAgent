@@ -28,6 +28,7 @@ from safecode.task.budget import TaskBudgetStore, record_budget_exceeded
 from safecode.task.state import TaskIteration
 from safecode.task.store import TaskStore
 from safecode.logs.runtime import RuntimeLogger
+from safecode.utils.time import utc_now_iso
 from safecode.agent.step_model import (
     TypedAgentStep,
     TypedAgentStepResult,
@@ -909,6 +910,67 @@ class AgentLoop:
                 stacklevel=2,
             )
         return context
+
+    def resume_from(self, session_id: str) -> AgentSessionState:
+        """Reconstruct in-memory state from the existing agent journal.
+
+        Passive only: this restores session state and never re-runs apply,
+        commit, rollback, validation, or repair.
+        """
+        events = self.journal.read(session_id)
+        current = self.store.load()
+        if current is not None and current.session_id == session_id:
+            state = current
+        else:
+            plan = self.journal.latest_plan(session_id) or []
+            goal = ""
+            for event in events:
+                if event.type == "plan":
+                    raw_goal = event.payload.get("goal")
+                    goal = str(raw_goal) if raw_goal is not None else ""
+                    break
+            if not goal:
+                goal = current.goal if current is not None else "resumed agent session"
+            now = utc_now_iso()
+            state = AgentSessionState(
+                session_id=session_id,
+                goal=goal,
+                plan=plan,
+                current_step=0,
+                pending_action=None,
+                last_observation="Agent session resumed from journal.",
+                status="active",
+                last_error=None,
+                created_at=now,
+                updated_at=now,
+            )
+
+        pending_index: int | None = None
+        last_summary = state.last_observation
+        for event in events:
+            if event.type != "typed_result":
+                continue
+            raw = event.payload.get("typed_result")
+            if not isinstance(raw, dict):
+                continue
+            if raw.get("summary"):
+                last_summary = str(raw.get("summary"))
+            status = str(raw.get("status", ""))
+            if status in {"waiting_for_user", "interrupted"} and pending_index is None:
+                try:
+                    pending_index = int(raw.get("step_index", event.step or 0))
+                except (TypeError, ValueError):
+                    pending_index = event.step or 0
+
+        update: dict[str, object] = {
+            "plan": self.journal.latest_plan(session_id) or state.plan,
+            "current_step": pending_index if pending_index is not None else state.current_step,
+            "last_observation": last_summary or "Agent session resumed from journal.",
+            "last_error": None,
+        }
+        if state.status not in {"closed", "completed"}:
+            update["status"] = "waiting_for_user" if pending_index is not None else "active"
+        return self.store.save(state.model_copy(update=update))
 
     def _start_planned_session(self, goal: str) -> AgentSessionState:
         """Create a session using the current LLM planning contract."""
