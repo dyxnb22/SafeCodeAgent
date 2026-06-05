@@ -326,13 +326,52 @@ def apply(
 def rollback(
     last: bool = typer.Option(False, "--last", help="Rollback the latest checkpoint."),
     force_uncommit: bool = typer.Option(False, "--force-uncommit", help="Dangerous: allow rollback after the apply appears committed."),
+    checkpoint: str = typer.Option("", "--checkpoint", help="[EXPERIMENTAL v4.18] Rollback a specific checkpoint by ID."),
+    list_checkpoints: bool = typer.Option(False, "--list", help="[EXPERIMENTAL v4.18] List available checkpoints."),
 ) -> None:
     """Rollback a previous applied patch."""
-    if not last:
-        console.print("[red]Only --last is planned for v0.1.[/red]")
-        raise typer.Exit(code=1)
-
     project_root = Path.cwd()
+
+    if list_checkpoints:
+        mgr = AgentOrchestrator(project_root).list_checkpoints()
+        if not mgr:
+            console.print("[yellow]No checkpoints found.[/yellow]")
+        else:
+            table = Table(title="Checkpoints")
+            table.add_column("ID")
+            table.add_column("Patch")
+            table.add_column("Task")
+            table.add_column("Files")
+            for c in mgr:
+                table.add_row(
+                    c.checkpoint_id[:40] + ("..." if len(c.checkpoint_id) > 40 else ""),
+                    c.patch_id,
+                    c.task[:60] if c.task else "",
+                    ", ".join(op.path for op in c.file_operations),
+                )
+            console.print(table)
+        raise typer.Exit(code=0)
+
+    if checkpoint:
+        orchestrator = AgentOrchestrator(project_root)
+        try:
+            result = orchestrator.rollback_checkpoint(checkpoint)
+        except FileNotFoundError as exc:
+            log_cli_error("cli.rollback", "rollback failed", exc, failure_category=FailureCategory.PATCH_APPLY_CONFLICT.value)
+            console.print(f"[red]Rollback failed:[/red] {exc}")
+            raise typer.Exit(code=1) from exc
+        console.print(
+            Panel.fit(
+                f"Rolled back checkpoint: {result.checkpoint.checkpoint_id}\n"
+                f"Files: {', '.join(result.files)}",
+                title="SafeCode",
+            )
+        )
+        raise typer.Exit(code=0)
+
+    if not last:
+        console.print("[red]Use --last, --checkpoint <id>, or --list.[/red]")
+        raise typer.Exit(code=1)
     # Gate: --last is the explicit approval gesture for this write-class operation.
     gate_result = ToolCallGate().check_intent("checkpoint.rollback", approved=True)
     if not gate_result.allowed:

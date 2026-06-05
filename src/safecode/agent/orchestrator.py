@@ -307,6 +307,40 @@ class AgentOrchestrator:
         )
         return RollbackResult(checkpoint=checkpoint, files=files)
 
+    def rollback_checkpoint(self, checkpoint_id: str) -> RollbackResult:
+        """Restore a specific checkpoint by ID."""
+        trace_id = self.trace_logger.new_trace_id()
+        self.trace_logger.write(trace_id, "rollback.start", checkpoint_id)
+        try:
+            checkpoint = CheckpointManager(self.project_root).rollback_by_checkpoint_id(checkpoint_id)
+        except Exception as exc:
+            RuntimeLogger(self.project_root, self.config).error(
+                "agent.orchestrator",
+                "rollback failed",
+                exc=exc,
+                trace_id=trace_id,
+                failure_category=FailureCategory.PATCH_APPLY_CONFLICT.value,
+            )
+            raise
+        files = [operation.path for operation in checkpoint.file_operations]
+        self.trace_logger.write(trace_id, "rollback.completed", checkpoint.checkpoint_id)
+        self.audit_logger.write(
+            AuditEvent(
+                type="rollback_completed",
+                timestamp=utc_now_iso(),
+                patch_id=checkpoint.patch_id,
+                checkpoint_id=checkpoint.checkpoint_id,
+                files=files,
+                message=checkpoint.task,
+                trace_id=trace_id,
+            )
+        )
+        return RollbackResult(checkpoint=checkpoint, files=files)
+
+    def list_checkpoints(self) -> list[CheckpointMetadata]:
+        """List all available checkpoints, newest first."""
+        return CheckpointManager(self.project_root).list_checkpoints()
+
     def history(self, limit: int = 20) -> list[AuditEvent]:
         """Read recent audit events."""
         return self.audit_logger.read_recent(limit=limit)

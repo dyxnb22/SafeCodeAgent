@@ -65,11 +65,39 @@ class CheckpointManager:
     def rollback_last(self) -> CheckpointMetadata:
         """Restore the latest checkpoint."""
         metadata = self._load_latest_metadata()
-        checkpoint_dir = self.checkpoints_dir / metadata.checkpoint_id
+        self._restore_checkpoint(metadata)
+        return metadata
 
+    def rollback_by_checkpoint_id(self, checkpoint_id: str) -> CheckpointMetadata:
+        """Restore a specific checkpoint by its ID."""
+        metadata = self._load_metadata(checkpoint_id)
+        self._restore_checkpoint(metadata)
+        return metadata
+
+    def list_checkpoints(self) -> list[CheckpointMetadata]:
+        """List all available checkpoints, newest first."""
+        if not self.checkpoints_dir.exists():
+            return []
+        dirs = sorted(
+            (p for p in self.checkpoints_dir.iterdir() if p.is_dir()),
+            reverse=True,
+        )
+        result: list[CheckpointMetadata] = []
+        for d in dirs:
+            metadata_path = d / "metadata.json"
+            if metadata_path.exists():
+                try:
+                    data = json.loads(metadata_path.read_text(encoding="utf-8"))
+                    result.append(CheckpointMetadata(**data))
+                except Exception:
+                    pass
+        return result
+
+    def _restore_checkpoint(self, metadata: CheckpointMetadata) -> None:
+        """Restore files from a checkpoint."""
+        checkpoint_dir = self.checkpoints_dir / metadata.checkpoint_id
         for operation in metadata.file_operations:
             target_path = self.filesystem.validate(self.project_root / operation.path)
-
             if operation.existed_before:
                 if operation.backup_path is None:
                     raise ValueError(f"Missing backup path for {operation.path}")
@@ -81,17 +109,19 @@ class CheckpointManager:
             elif target_path.exists():
                 target_path.unlink()
 
-        return metadata
-
     def _load_latest_metadata(self) -> CheckpointMetadata:
         """Load metadata for the newest checkpoint directory."""
         if not self.checkpoints_dir.exists():
             raise FileNotFoundError("No checkpoints found.")
-
         checkpoint_dirs = sorted(path for path in self.checkpoints_dir.iterdir() if path.is_dir())
         if not checkpoint_dirs:
             raise FileNotFoundError("No checkpoints found.")
+        return self._load_metadata(checkpoint_dirs[-1].name)
 
-        metadata_path = checkpoint_dirs[-1] / "metadata.json"
+    def _load_metadata(self, checkpoint_id: str) -> CheckpointMetadata:
+        """Load metadata for a specific checkpoint by ID."""
+        metadata_path = self.checkpoints_dir / checkpoint_id / "metadata.json"
+        if not metadata_path.exists():
+            raise FileNotFoundError(f"Checkpoint not found: {checkpoint_id}")
         data = json.loads(metadata_path.read_text(encoding="utf-8"))
         return CheckpointMetadata(**data)

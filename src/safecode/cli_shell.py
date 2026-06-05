@@ -352,13 +352,22 @@ def _slash_provider_status(project_root: Path) -> str:
 
 
 def _slash_apply(project_root: Path, task_id: Optional[str], *, is_tty: bool) -> str:
-    """Delegate to apply — requires explicit confirmation. Never auto-applies."""
+    """Delegate to apply — shows diff inline, requires confirmation. Never auto-applies."""
     patch_path = project_root / ".sac" / "pending_patch.json"
     if not patch_path.exists():
         return "No pending patch found. Run: sac edit \"<change>\" first."
 
     if not is_tty:
         return "Cannot apply in non-TTY mode. Run: sac apply"
+
+    # Show diff preview inline before asking for confirmation
+    try:
+        from safecode.agent.orchestrator import AgentOrchestrator
+        from rich.syntax import Syntax
+        preview = AgentOrchestrator(project_root).preview_apply()
+        console.print(Syntax(preview.diff_text, "diff", theme="ansi_dark"))
+    except Exception as exc:
+        return f"Cannot preview patch: {exc}"
 
     try:
         confirm = input("Apply pending patch? This will modify files. [y/N]: ").strip().lower()
