@@ -55,12 +55,30 @@ Review the diff:
 sac apply --preview
 ```
 
-## Step 4: Apply and verify
+## Step 4: Apply and validate
 
 ```bash
-sac apply          # applies the patch
-sac run --suite test  # runs your test suite through policy checks
+sac apply
+sac agent run "add input validation to the user registration endpoint"
 ```
+
+After a successful apply-kind step, the agent validation loop runs the project
+profile's `test` suite first. If `lint`, `typecheck`, or `build` commands are
+configured, they run after tests in that order.
+
+If validation fails, SafeCode records a redacted failure tail and stable hash in
+the existing agent journal, then proposes a `fix` patch for review. The repair
+patch is never auto-applied; you still review and apply it explicitly.
+
+You can also run the same profile suite manually:
+
+```bash
+sac run --suite test
+```
+
+Use `--no-validate` only when you intentionally want to skip this automatic
+post-apply validation for one invocation. The command logs a warning when the
+flag is used.
 
 ## Options
 

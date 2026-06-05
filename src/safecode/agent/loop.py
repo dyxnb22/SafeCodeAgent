@@ -33,6 +33,7 @@ from safecode.agent.step_model import (
     TypedAgentStepResult,
     classify_step_from_pending_action,
 )
+from safecode.agent.validation import ValidationLoop
 
 
 DEFAULT_PLAN = [
@@ -74,6 +75,7 @@ class AgentLoop:
         self._last_tool_intent_count = 0
         self._last_typed_step: TypedAgentStep | None = None
         self._last_typed_result: TypedAgentStepResult | None = None
+        self.no_validate = False
 
     @property
     def last_typed_result(self) -> TypedAgentStepResult | None:
@@ -315,6 +317,22 @@ class AgentLoop:
             steps.append(result)
             state = result.state
             next_goal = None
+            if self._should_validate_after_step():
+                validation_result = self._run_validation_after_apply(state)
+                state = self.store.load() or state
+                if validation_result.status in {
+                    "repair_proposed",
+                    "repair_failed",
+                    "loop_no_progress",
+                    "max_repair_iterations",
+                    "skipped",
+                }:
+                    steps.append(AgentStepResult(state=state, observation=f"Validation: {validation_result.status}"))
+                    if validation_result.status == "repair_proposed":
+                        stopped_reason = "approval_required"
+                    else:
+                        stopped_reason = validation_result.stop_reason or validation_result.status
+                    break
             if result.stopped_for_approval:
                 stopped_reason = "approval_required"
                 break
@@ -334,6 +352,57 @@ class AgentLoop:
             raise FileNotFoundError("No agent session found.")
 
         return AgentRunResult(state=state, steps=steps, stopped_reason=stopped_reason)
+
+    def _should_validate_after_step(self) -> bool:
+        if self.no_validate:
+            return False
+        last = self._last_typed_result
+        return last is not None and last.kind == "apply" and last.status in {"approved", "success"}
+
+    def _run_validation_after_apply(self, state: AgentSessionState):
+        validation = ValidationLoop(self.project_root, journal=self.journal)
+        result = validation.run_after_apply(
+            session_id=state.session_id,
+            step_index=state.current_step,
+            goal=state.goal,
+        )
+        if result.status == "repair_proposed":
+            pending_action = {
+                "type": "patch",
+                "route": "patch.propose",
+                "requires_approval": True,
+                "reason": "validation_repair_awaiting_approval",
+                "repair_iteration": str(result.repair_iterations),
+                "failure_tail_hash": result.failure_tail_hash or "",
+            }
+            updated = state.model_copy(
+                update={
+                    "pending_action": pending_action,
+                    "last_observation": "Validation failed; repair patch proposed for review.",
+                    "status": "waiting_for_user",
+                    "last_error": None,
+                }
+            )
+            self.store.save(updated)
+        elif result.status in {"repair_failed", "loop_no_progress", "max_repair_iterations"}:
+            updated = state.model_copy(
+                update={
+                    "pending_action": None,
+                    "last_observation": f"Validation stopped: {result.status}.",
+                    "status": "aborted",
+                    "last_error": result.stop_reason or result.status,
+                }
+            )
+            self.store.save(updated)
+        elif result.status == "skipped":
+            updated = state.model_copy(
+                update={
+                    "last_observation": result.notes[0] if result.notes else "Validation skipped.",
+                    "last_error": None,
+                }
+            )
+            self.store.save(updated)
+        return result
 
     def _tool_intent_identity(self, routed: RoutedToolIntent) -> tuple[str, str, str, str]:
         intent = routed.intent

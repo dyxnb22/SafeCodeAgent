@@ -186,6 +186,10 @@ def agent_run(
 
     loop = AgentLoop(Path.cwd())
     try:
+        loop.no_validate = no_validate
+    except Exception:
+        pass
+    try:
         result = loop.run(goal or None, max_steps=max_steps)
     except (FileNotFoundError, ValueError) as exc:
         if json_output:
@@ -295,5 +299,4 @@ def agent_run(
                     border_style="yellow",
                 )
             )
-
 
