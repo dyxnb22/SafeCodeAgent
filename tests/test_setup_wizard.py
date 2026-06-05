@@ -263,3 +263,144 @@ class TestWizardSafety:
 
         assert code == 0
         mock_write.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# v4.10.1 DeepSeek wizard tests
+# ---------------------------------------------------------------------------
+
+
+class TestWizardDeepSeek:
+    def _run_deepseek_wizard(self, tmp_path: Path, *, confirm_provider: bool = True,
+                             model: str = "deepseek-v4-pro", policy: str = "balanced",
+                             network_first: bool = False, write: bool = True) -> tuple[str | None, str | None]:
+        """Helper: run wizard selecting deepseek, capture written provider and model."""
+        from safecode.config import SafeCodeConfig
+
+        mock_config = SafeCodeConfig()
+        mock_config.policy = "balanced"
+
+        captured: dict = {}
+
+        def capture_write(*args, **kw):
+            captured["provider"] = kw.get("provider")
+            captured["model"] = kw.get("model")
+            raise FileExistsError("stop")
+
+        with (
+            patch("safecode.cli.SafeCodeConfig.load", return_value=mock_config),
+            patch("safecode.cli.typer.prompt") as mock_prompt,
+            patch("safecode.cli.typer.confirm") as mock_confirm,
+            patch("safecode.cli.write_setup", side_effect=capture_write),
+        ):
+            mock_prompt.side_effect = ["deepseek", model, policy]
+            # confirms: provider-switch, network-first, write
+            mock_confirm.side_effect = [confirm_provider, network_first, write]
+            run_setup_wizard(tmp_path, is_tty=True)
+
+        return captured.get("provider"), captured.get("model")
+
+    def test_deepseek_provider_written(self, tmp_path: Path) -> None:
+        provider, _ = self._run_deepseek_wizard(tmp_path)
+        assert provider == "deepseek"
+
+    def test_deepseek_default_model_is_preset_model(self, tmp_path: Path) -> None:
+        _, model = self._run_deepseek_wizard(tmp_path)
+        assert model == "deepseek-v4-pro"
+
+    def test_deepseek_allows_model_override(self, tmp_path: Path) -> None:
+        _, model = self._run_deepseek_wizard(tmp_path, model="deepseek-v4-flash")
+        assert model == "deepseek-v4-flash"
+
+    def test_deepseek_declined_falls_back_to_mock(self, tmp_path: Path) -> None:
+        from safecode.config import SafeCodeConfig
+
+        mock_config = SafeCodeConfig()
+        mock_config.policy = "balanced"
+        captured: dict = {}
+
+        def capture_write(*args, **kw):
+            captured["provider"] = kw.get("provider")
+            raise FileExistsError("stop")
+
+        with (
+            patch("safecode.cli.SafeCodeConfig.load", return_value=mock_config),
+            patch("safecode.cli.typer.prompt") as mock_prompt,
+            patch("safecode.cli.typer.confirm") as mock_confirm,
+            patch("safecode.cli.write_setup", side_effect=capture_write),
+        ):
+            mock_prompt.side_effect = ["deepseek", "gpt-4.1-mini", "balanced"]
+            # confirm provider=no (decline deepseek), network=no, write=yes
+            mock_confirm.side_effect = [False, False, True]
+            run_setup_wizard(tmp_path, is_tty=True)
+
+        assert captured.get("provider") == "mock"
+
+    def test_wizard_does_not_prompt_for_api_key(self, tmp_path: Path) -> None:
+        """Wizard must never prompt for the API key value."""
+        from safecode.config import SafeCodeConfig
+
+        mock_config = SafeCodeConfig()
+        mock_config.policy = "balanced"
+
+        prompts_asked: list[str] = []
+
+        def record_prompt(msg, *args, **kw):
+            prompts_asked.append(str(msg))
+            # Return valid answer for each prompt
+            if "provider" in msg.lower():
+                return "deepseek"
+            if "model" in msg.lower():
+                return "deepseek-v4-pro"
+            if "policy" in msg.lower():
+                return "balanced"
+            return "mock"
+
+        with (
+            patch("safecode.cli.SafeCodeConfig.load", return_value=mock_config),
+            patch("safecode.cli.typer.prompt", side_effect=record_prompt),
+            patch("safecode.cli.typer.confirm", return_value=False),
+            patch("safecode.cli.write_setup"),
+        ):
+            run_setup_wizard(tmp_path, is_tty=True)
+
+        for prompt_text in prompts_asked:
+            assert "api_key" not in prompt_text.lower()
+            assert "secret" not in prompt_text.lower()
+            assert "password" not in prompt_text.lower()
+
+    def test_non_tty_static_template_unchanged(self, tmp_path: Path) -> None:
+        """Non-TTY path still prints the static template without DeepSeek questions."""
+        code = run_setup_wizard(tmp_path, is_tty=False)
+        assert code == 0
+        assert not (tmp_path / ".sac" / "config.toml").exists()
+
+    def test_static_template_mentions_deepseek(self) -> None:
+        from safecode.cli import _WIZARD_STATIC_TEMPLATE
+        assert "deepseek" in _WIZARD_STATIC_TEMPLATE.lower()
+
+    def test_wizard_cannot_lower_policy_via_deepseek(self, tmp_path: Path) -> None:
+        """Wizard safety: deepseek selection cannot lower user-level strict policy."""
+        from safecode.config import SafeCodeConfig
+
+        strict_cfg = SafeCodeConfig()
+        strict_cfg.policy = "strict"
+        captured: dict = {}
+
+        def capture_write(*args, **kw):
+            captured["policy"] = kw.get("policy")
+            raise FileExistsError("stop")
+
+        with (
+            patch("safecode.cli.SafeCodeConfig.load", return_value=strict_cfg),
+            patch("safecode.cli.typer.prompt") as mock_prompt,
+            patch("safecode.cli.typer.confirm") as mock_confirm,
+            patch("safecode.cli.write_setup", side_effect=capture_write),
+        ):
+            mock_prompt.side_effect = ["deepseek", "deepseek-v4-pro", "experimental"]
+            mock_confirm.side_effect = [True, False, True]
+            run_setup_wizard(tmp_path, is_tty=True)
+
+        if captured.get("policy") is not None:
+            from safecode.config import POLICY_ORDER
+            assert POLICY_ORDER.get(captured["policy"], 0) >= POLICY_ORDER.get("strict", 2)

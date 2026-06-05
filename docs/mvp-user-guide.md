@@ -277,6 +277,35 @@ Safety invariants: the wizard cannot write a config that lowers your current use
 safety policy. Switching from `mock` to a live provider requires explicit confirmation.
 Enabling network access requires two confirmations.
 
+#### DeepSeek wizard walkthrough (v4.10.1, EXPERIMENTAL)
+
+To configure the DeepSeek provider interactively:
+
+```bash
+export DEEPSEEK_API_KEY=sk-...   # set before running sac; never written to disk
+sac setup --wizard
+```
+
+At the provider prompt, choose `deepseek`. The wizard will:
+
+1. Confirm that you want to switch away from mock (requires your approval).
+2. Remind you to set `DEEPSEEK_API_KEY` in the environment — it will **not** prompt for
+   the key value and will **never** write it to disk.
+3. Prompt for a model name (default: `deepseek-v4-pro`).
+4. Proceed through policy and network prompts as normal.
+
+The resulting `.sac/config.toml` will contain:
+
+```toml
+[llm]
+provider = "deepseek"
+model = "deepseek-v4-pro"
+# base_url is resolved automatically from the DeepSeek preset
+```
+
+After setup, run `sac doctor` to verify the API key is visible and the static
+network-policy verdict is acceptable before making live calls.
+
 ## Fixing failing tests with sac fix
 
 `sac fix` automates the test-detect → run → redact → propose cycle:

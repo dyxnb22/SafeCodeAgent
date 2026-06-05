@@ -35,14 +35,22 @@ _WIZARD_STATIC_TEMPLATE = """\
 # SafeCode Setup Template
 # (Non-interactive mode — fill in values and run: sac setup --provider <p> --policy <policy>)
 
-provider = "mock"          # or: openai, anthropic
+provider = "mock"          # or: deepseek, openai, openai-compatible
 model = "gpt-4.1-mini"    # model name for the selected provider
 policy = "balanced"        # strict | balanced | experimental
 network = false            # set true only if you need live LLM calls
 """
 
-_KNOWN_PROVIDERS = {"mock", "openai", "anthropic"}
+_KNOWN_PROVIDERS = {"mock", "openai", "openai-compatible", "deepseek"}
 _KNOWN_POLICIES = {"strict", "balanced", "experimental", "normal", "learning"}
+
+# Default model per provider for the wizard prompt.
+_WIZARD_DEFAULT_MODELS: dict[str, str] = {
+    "mock": "gpt-4.1-mini",
+    "openai": "gpt-4.1-mini",
+    "openai-compatible": "gpt-4.1-mini",
+    "deepseek": "deepseek-v4-pro",
+}
 
 
 def run_setup_wizard(project_root: Path, *, is_tty: bool | None = None) -> int:
@@ -57,8 +65,11 @@ def run_setup_wizard(project_root: Path, *, is_tty: bool | None = None) -> int:
     console.print("[bold]SafeCode Setup Wizard[/bold]")
     console.print("Press Enter to accept the default shown in [dim]brackets[/dim].\n")
 
-    # Provider
-    provider = typer.prompt("LLM provider (mock/openai/anthropic)", default="mock").strip().lower()
+    # Provider — offer mock, deepseek, openai, openai-compatible.
+    # Anthropic is intentionally not advertised in the v4.10 wizard (deferred).
+    provider = typer.prompt(
+        "LLM provider (mock/deepseek/openai/openai-compatible)", default="mock"
+    ).strip().lower()
     if provider not in _KNOWN_PROVIDERS:
         console.print(f"[red]Unknown provider '{provider}'. Defaulting to mock.[/red]")
         provider = "mock"
@@ -71,8 +82,15 @@ def run_setup_wizard(project_root: Path, *, is_tty: bool | None = None) -> int:
             console.print("[yellow]Keeping provider=mock.[/yellow]")
             provider = "mock"
 
+    # DeepSeek-specific reminder (informational only; never prompt for the key).
+    if provider == "deepseek":
+        console.print(
+            "[yellow]DeepSeek (EXPERIMENTAL): set the DEEPSEEK_API_KEY environment variable "
+            "before running sac. Never write the key to disk.[/yellow]"
+        )
+
     # Model
-    default_model = "gpt-4.1-mini" if provider in {"mock", "openai"} else "claude-sonnet-4-6"
+    default_model = _WIZARD_DEFAULT_MODELS.get(provider, "gpt-4.1-mini")
     model = typer.prompt("Model name", default=default_model).strip()
 
     # Policy
