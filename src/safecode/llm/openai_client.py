@@ -35,6 +35,26 @@ def _log_retry(attempt: int, reason: str) -> None:
     warnings.warn(f"LLM retry attempt {attempt}: {reason}", RuntimeWarning, stacklevel=4)
 
 
+_CHAT_COMPLETIONS_PATH = "/v1/chat/completions"
+
+
+def _normalize_endpoint(base_url: str) -> str:
+    """Join /v1/chat/completions onto a raw base URL defensively.
+
+    Rules:
+    - If base_url already ends with /v1/chat/completions (or /v1/chat/completions/),
+      return as-is (no double-append).
+    - If base_url ends with /v1 or /v1/, append /chat/completions.
+    - Otherwise, strip trailing slash and append /v1/chat/completions.
+    """
+    url = base_url.rstrip("/")
+    if url.endswith("/v1/chat/completions"):
+        return base_url.rstrip("/")
+    if url.endswith("/v1"):
+        return url + "/chat/completions"
+    return url + _CHAT_COMPLETIONS_PATH
+
+
 class OpenAICompatibleLLMClient:
     """Call an OpenAI-compatible chat completions endpoint."""
 
@@ -44,13 +64,24 @@ class OpenAICompatibleLLMClient:
         *,
         session_id: str | None = None,
         sac_dir: Path | None = None,
+        api_key_env: str = "OPENAI_API_KEY",
     ) -> None:
+        # Network policy is asserted against the raw base_url (before normalization).
         NetworkPolicy(config).assert_allowed(config.llm.base_url)
         self.model = config.llm.model
-        self.base_url = config.llm.base_url
-        self.api_key = os.getenv("OPENAI_API_KEY") or os.getenv("SAFECODE_LLM_API_KEY")
+        # Normalize: join /v1/chat/completions onto the base URL.
+        self.base_url = _normalize_endpoint(config.llm.base_url)
+        # Resolve API key: provider env var -> OPENAI_API_KEY -> SAFECODE_LLM_API_KEY.
+        self.api_key = (
+            os.getenv(api_key_env)
+            or (os.getenv("OPENAI_API_KEY") if api_key_env != "OPENAI_API_KEY" else None)
+            or os.getenv("SAFECODE_LLM_API_KEY")
+        )
         if not self.api_key:
-            raise RuntimeError("OPENAI_API_KEY or SAFECODE_LLM_API_KEY is required for real LLM mode.")
+            env_hint = api_key_env if api_key_env != "OPENAI_API_KEY" else "OPENAI_API_KEY"
+            raise RuntimeError(
+                f"{env_hint} or SAFECODE_LLM_API_KEY is required for real LLM mode."
+            )
         self._session_id = session_id
         self._sac_dir = sac_dir
 

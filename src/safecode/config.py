@@ -38,7 +38,11 @@ class HookConfig(BaseModel):
 
 
 class LLMConfig(BaseModel):
-    """LLM provider configuration."""
+    """LLM provider configuration.
+
+    Supported provider keys: ``mock`` (default), ``openai``, ``openai-compatible``,
+    ``anthropic``, ``deepseek`` (EXPERIMENTAL).
+    """
 
     provider: str = "mock"
     model: str = "gpt-4.1-mini"

@@ -17,6 +17,7 @@ For the full list of stable local safety contracts, see
 | `openai` | Supported | OpenAI-compatible chat completions endpoint |
 | `openai-compatible` | Supported | Any OpenAI-compatible endpoint (local models, proxies) |
 | `anthropic` | Supported | Anthropic Messages API |
+| `deepseek` | EXPERIMENTAL | DeepSeek API via OpenAI-compatible path; see DeepSeek section below |
 
 Set via `config.toml` or the `SAFECODE_LLM_PROVIDER` environment variable.
 Both override the default `mock` provider.
@@ -139,14 +140,51 @@ GitHub Actions secrets only when `ENABLE_LIVE_LLM_TESTS=true` is set.
 
 ---
 
+## DeepSeek (EXPERIMENTAL, v4.10.0+)
+
+DeepSeek is supported via the standard OpenAI-compatible ChatCompletions path.
+It is an **EXPERIMENTAL** preset; the preset and its defaults may change without
+a stable-contract bump.
+
+**Configuration:**
+
+```toml
+[llm]
+provider = "deepseek"
+model = "deepseek-v4-pro"          # default; override as needed
+# base_url is auto-filled from the preset (https://api.deepseek.com)
+```
+
+| Setting | Value |
+|---|---|
+| API key env var | `DEEPSEEK_API_KEY` |
+| Base URL (preset) | `https://api.deepseek.com` |
+| Default model | `deepseek-v4-pro` |
+| Fallback model (future) | `deepseek-v4-flash` |
+
+**Key resolution order**: `DEEPSEEK_API_KEY` → `OPENAI_API_KEY` → `SAFECODE_LLM_API_KEY`.
+
+**Advisory notes:**
+- Never write `DEEPSEEK_API_KEY` to disk or commit it to the repository.
+- DeepSeek V4 may return reasoning/thinking-related fields; unknown response fields
+  are ignored safely by the existing parser.
+- Network policy still governs whether the call is permitted.
+  Set `network_enabled = true` in your config or use `sac setup --wizard` to enable it.
+- Use `sac doctor` to check API key presence and static network policy verdict without
+  making any network request.
+- Use `SAFECODE_LIVE_SMOKE=1 sac smoke live-provider` (v4.10.4+) for an opt-in
+  end-to-end connectivity check.
+
+---
+
 ## Experimental Features
 
 The following are not part of the supported contract and may change:
 
 - **Prompt caching headers** (`cache_control`): Anthropic caching metadata recorded
   when present, but `cache_control` request headers are not yet sent.
-- **Additional cloud providers**: only `mock`, `openai`, `openai-compatible`, and
-  `anthropic` are tested.
+- **Additional cloud providers**: only `mock`, `openai`, `openai-compatible`,
+  `anthropic`, and `deepseek` are tested.
 - **Provider-specific advanced options**: tool use, vision, system prompts beyond
   the SafeCode contract prompt.
 - **Live CI lane blocking gate**: currently advisory; may become blocking in future.

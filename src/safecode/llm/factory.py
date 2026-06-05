@@ -12,6 +12,7 @@ from safecode.llm.openai_client import OpenAICompatibleLLMClient
 
 _ANTHROPIC_PROVIDERS = frozenset({"anthropic"})
 _OPENAI_PROVIDERS = frozenset({"openai", "openai-compatible"})
+_DEEPSEEK_PROVIDERS = frozenset({"deepseek"})
 
 
 def create_llm_client(config: SafeCodeConfig, *, session_id: str | None = None) -> LLMClient:
@@ -50,6 +51,21 @@ def _create_single_client(config: SafeCodeConfig, *, session_id: str | None = No
         return MockLLMClient()
     if provider in _OPENAI_PROVIDERS:
         return OpenAICompatibleLLMClient(config=config, session_id=session_id)
+    if provider in _DEEPSEEK_PROVIDERS:
+        from safecode.llm.deepseek import DEEPSEEK_PRESET
+        config = config.model_copy(deep=True)
+        # Apply preset defaults only when user config is blank/default.
+        _DEFAULT_BASE_URL = "https://api.openai.com/v1/chat/completions"
+        _DEFAULT_MODEL = "gpt-4.1-mini"
+        if not config.llm.base_url or config.llm.base_url == _DEFAULT_BASE_URL:
+            config.llm.base_url = DEEPSEEK_PRESET.base_url
+        if not config.llm.model or config.llm.model == _DEFAULT_MODEL:
+            config.llm.model = DEEPSEEK_PRESET.default_model
+        return OpenAICompatibleLLMClient(
+            config=config,
+            session_id=session_id,
+            api_key_env=DEEPSEEK_PRESET.api_key_env,
+        )
     if provider in _ANTHROPIC_PROVIDERS:
         from safecode.llm.anthropic_client import AnthropicLLMClient
         return AnthropicLLMClient(config=config, session_id=session_id)
