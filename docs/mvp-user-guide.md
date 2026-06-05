@@ -641,3 +641,49 @@ project_tooling_build       SKIP  build: not detected
 Missing tools are reported as SKIP (not FAIL) to avoid alarming users who do
 not use that tool. Install the tool or run `sac profile set <kind> <cmd>` to
 configure a replacement.
+
+## Agent journal — typed steps (EXPERIMENTAL, v4.11.1+)
+
+Agent sessions record structured events in append-only journal files at:
+
+```
+.sac/agent_journals/<session_id>.jsonl
+```
+
+Since v4.11.1 the journal also records `typed_step` and `typed_result` events
+alongside the existing legacy events. These carry a step classification
+(`kind`, `status`, `requires_approval`) derived from the agent routing path.
+
+### Reading the journal
+
+```bash
+sac agent journal           # render current session journal as Markdown
+sac status --json           # includes agent_plan field with latest typed result
+```
+
+The `agent_plan` field in `sac status --json` returns:
+
+```json
+{
+  "agent_plan": {
+    "session_id": "...",
+    "goal": "add a DELETE endpoint",
+    "steps": ["Inspect ...", "Propose patch ...", "Stop for approval"],
+    "last_typed_result": {
+      "step_index": 2,
+      "kind": "edit",
+      "status": "waiting_for_user",
+      "summary": "Patch proposal created ...",
+      "failure_category": null
+    }
+  }
+}
+```
+
+### Corrupt-line tolerance
+
+Each journal line is parsed independently; a corrupt or future-version line
+is skipped without affecting the rest of the journal. Read helpers return
+`None` rather than raising when the journal is missing or empty.
+
+All surfaces in this section are EXPERIMENTAL and carry no stable contract.

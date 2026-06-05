@@ -34,8 +34,10 @@ def test_agent_loop_records_action_and_final_summary(tmp_path):
 
     assert event_types[0] == "plan"
     assert event_types.count("action") == 3
-    assert event_types[-1] == "final_summary"
-    assert events[-1].payload["summary"]["status"] == "completed"
+    # v4.11.1: typed_step/typed_result are appended after legacy events; final_summary still present
+    assert "final_summary" in event_types
+    final_event = next(e for e in reversed(events) if e.type == "final_summary")
+    assert final_event.payload["summary"]["status"] == "completed"
 
 
 def test_abort_records_failure_journal_event(tmp_path):
@@ -101,5 +103,8 @@ def test_journal_file_is_jsonl(tmp_path):
 
     lines = path.read_text(encoding="utf-8").splitlines()
 
-    assert len(lines) == 2
-    assert [json.loads(line)["type"] for line in lines] == ["plan", "action"]
+    # v4.11.1: typed_step and typed_result are appended after legacy events
+    assert len(lines) >= 2
+    types = [json.loads(line)["type"] for line in lines]
+    assert types[0] == "plan"
+    assert types[1] == "action"

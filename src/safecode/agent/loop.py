@@ -87,8 +87,13 @@ class AgentLoop:
         observation: str,
         stopped_for_approval: bool,
         failure_category: str | None = None,
+        session_id: str | None = None,
     ) -> tuple[TypedAgentStep, TypedAgentStepResult]:
-        """Classify one completed step into typed step + result and cache them."""
+        """Classify one completed step into typed step + result and cache them.
+
+        When session_id is provided, also persists typed events to the journal
+        (v4.11.1). Journal writes are best-effort and never raise.
+        """
         typed_step, typed_result = classify_step_from_pending_action(
             step_index=step_index,
             pending_action=pending_action,
@@ -98,6 +103,12 @@ class AgentLoop:
         )
         self._last_typed_step = typed_step
         self._last_typed_result = typed_result
+        if session_id:
+            try:
+                self.journal.record_typed_step(session_id, typed_step)
+                self.journal.record_typed_result(session_id, typed_result)
+            except Exception:
+                pass
         return typed_step, typed_result
 
     def step(self, goal: str | None = None) -> AgentStepResult:
@@ -138,6 +149,7 @@ class AgentLoop:
                 pending_action=None,
                 observation=saved.last_observation,
                 stopped_for_approval=False,
+                session_id=saved.session_id,
             )
             return AgentStepResult(state=saved, observation=saved.last_observation)
 
@@ -192,6 +204,7 @@ class AgentLoop:
                     observation=observation,
                     stopped_for_approval=False,
                     failure_category="model_output_invalid",
+                    session_id=saved.session_id,
                 )
                 return AgentStepResult(state=saved, observation=observation, stopped_for_approval=False)
 
@@ -216,6 +229,7 @@ class AgentLoop:
                 pending_action=saved.pending_action,
                 observation=tool_choice.message,
                 stopped_for_approval=True,
+                session_id=saved.session_id,
             )
             return AgentStepResult(state=saved, observation=tool_choice.message, stopped_for_approval=True)
 
@@ -274,6 +288,7 @@ class AgentLoop:
             pending_action=pending_action,
             observation=observation,
             stopped_for_approval=False,
+            session_id=saved.session_id,
         )
         return AgentStepResult(state=saved, observation=observation)
 
@@ -483,6 +498,7 @@ class AgentLoop:
             pending_action=pending_action,
             observation=observation,
             stopped_for_approval=False,
+            session_id=saved.session_id,
         )
         return AgentStepResult(state=saved, observation=observation)
 
@@ -546,6 +562,7 @@ class AgentLoop:
             pending_action=pending_action,
             observation=observation,
             stopped_for_approval=False,
+            session_id=saved.session_id,
         )
         return AgentStepResult(state=saved, observation=observation)
 
@@ -594,6 +611,7 @@ class AgentLoop:
                 pending_action=pending_action,
                 observation=observation,
                 stopped_for_approval=True,
+                session_id=saved.session_id,
             )
             return AgentStepResult(state=saved, observation=observation, stopped_for_approval=True)
 
@@ -630,6 +648,7 @@ class AgentLoop:
                 observation=observation,
                 stopped_for_approval=False,
                 failure_category="patch_parse_failed",
+                session_id=saved.session_id,
             )
             return AgentStepResult(state=saved, observation=observation, stopped_for_approval=False)
 
@@ -678,6 +697,7 @@ class AgentLoop:
             pending_action=pending_action,
             observation=observation,
             stopped_for_approval=True,
+            session_id=saved.session_id,
         )
         return AgentStepResult(state=saved, observation=observation, stopped_for_approval=True)
 
@@ -755,6 +775,7 @@ class AgentLoop:
             pending_action=pending_action,
             observation=observation,
             stopped_for_approval=False,
+            session_id=saved.session_id,
         )
         return AgentStepResult(state=saved, observation=observation)
 

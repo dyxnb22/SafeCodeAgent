@@ -83,6 +83,29 @@ def _build_status_data(
         if state.last_command:
             data["last_command"] = state.last_command.command
 
+    # EXPERIMENTAL (v4.11.1): agent_plan from journal typed events.
+    # Sourced from the latest journal for the current session; tolerates missing/corrupt.
+    try:
+        from safecode.agent.session import AgentSessionStore
+        from safecode.state.journal import AgentJournalStore
+
+        agent_store = AgentSessionStore(project_root)
+        agent_state = agent_store.load()
+        if agent_state is not None:
+            journal = AgentJournalStore(project_root)
+            plan_steps = journal.latest_plan(agent_state.session_id)
+            last_typed = journal.last_typed_result(agent_state.session_id)
+            data["agent_plan"] = {
+                "session_id": agent_state.session_id,
+                "goal": agent_state.goal,
+                "steps": plan_steps,
+                "last_typed_result": last_typed.model_dump() if last_typed is not None else None,
+            }
+        else:
+            data["agent_plan"] = None
+    except Exception:
+        data["agent_plan"] = None
+
     return data
 
 

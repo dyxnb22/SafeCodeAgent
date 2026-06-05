@@ -15,7 +15,7 @@ from safecode.state.migrations import SchemaVersionError, migrate_record
 from safecode.utils.time import utc_now_iso
 
 
-JournalEventType = Literal["plan", "action", "diff", "command", "failure", "final_summary", "mcp_call", "subagent_dispatch", "patch_proposed", "loop_retry"]
+JournalEventType = Literal["plan", "action", "diff", "command", "failure", "final_summary", "mcp_call", "subagent_dispatch", "patch_proposed", "loop_retry", "typed_step", "typed_result"]
 
 
 class AgentJournalEvent(BaseModel):
@@ -186,6 +186,92 @@ class AgentJournalStore:
                 payload={"loop_retry": dict(retry_details or {})},
             )
         )
+
+    def record_typed_step(self, session_id: str, step: "TypedAgentStep") -> AgentJournalEvent:
+        """Record a typed step classification event (v4.11.1+).
+
+        Follows the same atomic-append pattern as other record_* methods.
+        Returns without crashing if the step payload cannot be serialized.
+        """
+        from safecode.context.redactor import redact_secrets
+
+        try:
+            payload_dict = step.model_dump()
+            summary = redact_secrets(step.description)
+            payload_dict["description"] = summary
+        except Exception:
+            payload_dict = {"description": "", "kind": "ask", "index": 0, "requires_approval": False}
+
+        return self.append(
+            AgentJournalEvent(
+                session_id=session_id,
+                type="typed_step",
+                step=step.index,
+                message=f"typed_step kind={step.kind}",
+                payload={"typed_step": payload_dict},
+            )
+        )
+
+    def record_typed_result(self, session_id: str, result: "TypedAgentStepResult") -> AgentJournalEvent:
+        """Record a typed step result event (v4.11.1+).
+
+        Follows the same atomic-append pattern as other record_* methods.
+        Returns without crashing if the result payload cannot be serialized.
+        """
+        from safecode.context.redactor import redact_secrets
+
+        try:
+            payload_dict = result.model_dump()
+            summary = redact_secrets(result.summary)
+            payload_dict["summary"] = summary
+        except Exception:
+            payload_dict = {"kind": "ask", "status": "failed", "step_index": 0}
+
+        return self.append(
+            AgentJournalEvent(
+                session_id=session_id,
+                type="typed_result",
+                step=result.step_index,
+                message=f"typed_result kind={result.kind} status={result.status}",
+                payload={"typed_result": payload_dict},
+            )
+        )
+
+    def latest_plan(self, session_id: str) -> list[str] | None:
+        """Return the plan step list from the most recent 'plan' event, or None.
+
+        Tolerates missing/corrupt files: returns None rather than raising.
+        """
+        try:
+            events = self.read(session_id)
+        except Exception:
+            return None
+        for event in reversed(events):
+            if event.type == "plan":
+                steps = event.payload.get("steps")
+                if isinstance(steps, list):
+                    return [str(s) for s in steps]
+        return None
+
+    def last_typed_result(self, session_id: str) -> "TypedAgentStepResult | None":
+        """Return the most recent TypedAgentStepResult from the journal, or None.
+
+        Tolerates missing/corrupt files: returns None rather than raising.
+        """
+        from safecode.agent.step_model import TypedAgentStepResult
+
+        try:
+            events = self.read(session_id)
+        except Exception:
+            return None
+        for event in reversed(events):
+            if event.type == "typed_result":
+                raw = event.payload.get("typed_result", {})
+                try:
+                    return TypedAgentStepResult(**raw)
+                except Exception:
+                    continue
+        return None
 
     def record_failure(self, session_id: str, message: str, details: dict[str, object] | None = None) -> AgentJournalEvent:
         return self.append(
