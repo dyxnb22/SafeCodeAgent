@@ -5,37 +5,39 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v4.16.2
+# Current Baseline - v4.18.1
 
 ## Status
-Implemented. Git baseline: tag `v4.16.2`. Local working version: `v4.16.2`.
+Implemented. Git baseline: tag `v4.18.1`. Local working version: `v4.18.1`.
 
 ## Stage
-The v4.14–v4.16 usability train is complete (8 versions shipped):
+The v4.14–v4.18 usability trains are complete (14 versions shipped):
 
-- `v4.14.0`: provider-profile UX (`sac provider add`, model aliases, `--model` overrides)
-- `v4.14.1`: first-run diagnostic clarity (doctor/provider status verdicts, next-command hints, quickstart honesty)
-- `v4.14.2`: `--model` flag parity on ask/edit/fix/run/agent-run/shell subcommands
-- `v4.15.0`: `sac init` front door (interactive TTY wizard, setup hidden)
-- `v4.15.1`: session-scoped model switching (`sac model` session-only by default, `--save` persists)
-- `v4.15.2`: keychain and env-only credentials (`--store` required for API keys, keyring backend)
-- `v4.16.0`: bare `sac` enters shell, 7-command daily help surface, `sac help --all`
-- `v4.16.2`: error-message rewrite (`FailureCategory.next_command`, `sac why` alias)
+v4.14–v4.16 train (8 versions):
+- `v4.14.0`: provider-profile UX
+- `v4.14.1`: first-run diagnostic clarity
+- `v4.14.2`: `--model` flag parity
+- `v4.15.0`: `sac init` front door
+- `v4.15.1`: session-scoped model switching
+- `v4.15.2`: keychain and env-only credentials
+- `v4.16.0`: bare `sac` enters shell
+- `v4.16.2`: error-message rewrite + `sac why`
+
+v4.17–v4.18 shell & interaction UX train (6 versions):
+- `v4.17.0`: streaming token-by-token output (ask --stream, shell)
+- `v4.17.1`: shell interaction polish (readline history, tab completion, /clear, Rich Markdown)
+- `v4.17.2`: live connectivity diagnostics (doctor --live, provider status --live)
+- `v4.17.3`: Levenshtein fuzzy matching for model/provider names
+- `v4.18.0`: diff rendering in shell + per-patch undo (--checkpoint, --list)
+- `v4.18.1`: agent-loop transparency (Rich Status spinner, on_step callback)
 
 All v4 surfaces remain EXPERIMENTAL and carry no stable contract.
 
 ## Current Forward Plan
-The v4.14–v4.16 usability train is complete. Status lives in
-`docs/project-final-status-and-roadmap.md`. The next active planning roadmap is
-`docs/version-plans/post-v4.16-shell-ux-roadmap.md` (streaming output, shell
-polish, live connectivity, fuzzy matching, diff rendering, undo granularity,
-agent-loop transparency).
-
-The completed `docs/version-plans/post-v4.14-usability-roadmap.md` is preserved
-as a reference. Focus next on interaction-quality gaps: streaming, shell polish,
-fuzzy matching, and finer-grained undo. Keep SafeCode's safety posture:
-no auto-apply, approval-gated mutation/run/commit paths, checkpoints, rollback,
-audit, task wiring, and dirty-tree guard.
+Both usability trains are complete. Status lives in
+`docs/project-final-status-and-roadmap.md`. The post-v4.16 shell UX roadmap
+(`docs/version-plans/post-v4.16-shell-ux-roadmap.md`) is COMPLETED.
+No active forward plan at this time.
 
 Previous: `v4.8.2` final-v4-shell-first-docs-cut — T-4.8.2-A v4.8-final-docs-cut: README adds Python tutorial link and task-first daily loop summary (17-command surface, v4.x train complete, no v5.0 promise); `docs/mvp-user-guide.md` updated to v4.8.x with new Task-First Daily Loop section; `docs/public-contracts.md` adds v4.x series contract summary (zero new stable contracts v4.0–v4.8, all new surfaces EXPERIMENTAL); `docs/versioning-policy.md` adds v4.x train closure section and policy changelog entry; `docs/security/threat-model-v3.6.md` adds v4.x shell-first addendum table (task/profile/resume/commit/memory/debug/smoke surfaces). All existing tests pass; no stable public contract promoted; v4.x train is complete.
 

@@ -1,6 +1,6 @@
 # Post-v4.16 Shell & Interaction UX Roadmap
 
-Status: active UX plan after `v4.16.2`.
+Status: COMPLETED as of v4.18.1 (2026-06-06).
 Baseline: `v4.16.2` error-message rewrite + 7-command help surface.
 Created: 2026-06-05.
 

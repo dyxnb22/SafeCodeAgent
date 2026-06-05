@@ -1,7 +1,7 @@
 {
   "project": "SafeCode Agent",
-  "current_implemented_tag": "v4.16.2",
-  "current_local_version": "v4.16.2",
+  "current_implemented_tag": "v4.18.1",
+  "current_local_version": "v4.18.1",
   "current_baseline": ".claude/skills/current/SKILL.md",
   "runtime_summary": ".claude/skills/shared/core-runtime.md",
   "version_index": "docs/version_implementation_matrix.md",
@@ -323,7 +323,7 @@
       "range": "v4.17.x-v4.18.x",
       "name": "Shell & Interaction UX",
       "depends_on": "v4.16.x",
-      "notes": "Active plan in docs/version-plans/post-v4.16-shell-ux-roadmap.md: streaming output, shell polish (history/completer/Markdown/diff), live connectivity diagnostics, Levenshtein fuzzy matching, per-patch undo, and agent-loop transparency. All surfaces remain EXPERIMENTAL."
+      "notes": "COMPLETED. v4.17.0 streaming output; v4.17.1 shell polish (readline history/completer/Markdown/clear); v4.17.2 live connectivity (doctor --live); v4.17.3 Levenshtein fuzzy matching; v4.18.0 diff rendering in shell + per-patch undo; v4.18.1 agent-loop transparency (Rich Status spinner, on_step callback)."
     }
   ],
   "latest_tags": [
@@ -580,7 +580,13 @@
     "v4.15.2",
     "v4.16.0",
     "v4.16.1",
-    "v4.16.2"
+    "v4.16.2",
+    "v4.17.0",
+    "v4.17.1",
+    "v4.17.2",
+    "v4.17.3",
+    "v4.18.0",
+    "v4.18.1"
   ],
   "local_versions": [
     "v2.8.0",

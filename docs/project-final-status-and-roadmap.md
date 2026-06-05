@@ -1,14 +1,13 @@
 # SafeCode Agent Final Status and Roadmap
 
-Status: current project baseline after `v4.16.2`.
-Last updated: 2026-06-05.
+Status: current project baseline after `v4.18.1`.
+Last updated: 2026-06-06.
 
 This document is the consolidated product description for SafeCode Agent through
-the v4.14–v4.16 usability train. The post-v4.14 usability roadmap is COMPLETED
-(8 versions shipped): `docs/version-plans/post-v4.14-usability-roadmap.md`.
-The v4.10-v4.12 roadmap and post-v4.12 consolidation plan are historical.
-Active forward work is the post-v4.16 shell UX roadmap:
-`docs/version-plans/post-v4.16-shell-ux-roadmap.md`.
+the v4.14–v4.18 usability trains. Both the post-v4.14 usability roadmap (8 versions)
+and the post-v4.16 shell UX roadmap (6 versions) are COMPLETED. 14 versions shipped
+across both trains. The v4.10-v4.12 roadmap and post-v4.12 consolidation plan are
+historical. No active forward plan at this time.
 
 ## Current Product Shape
 
