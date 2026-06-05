@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "name": "fastapi-todo",
+  "stack": "python",
+  "commands": {
+    "test": "PYTHONPATH=src pytest -q",
+    "lint": null,
+    "typecheck": null,
+    "build": null
+  },
+  "notes": [
+    "Small in-memory FastAPI example intended for local demo edits.",
+    "Future demo task: add DELETE /todos/{id} endpoint with a passing test."
+  ]
+}
