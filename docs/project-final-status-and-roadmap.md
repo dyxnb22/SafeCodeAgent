@@ -3,10 +3,12 @@
 Status: current project baseline after `v4.9.3`.
 Last updated: 2026-06-04.
 
-This document is the consolidated product description and forward plan for
-SafeCode Agent. Historical version plans remain useful as implementation
-records, but this file is the current entry point for what the project does,
-what it does not yet do, and what should happen next.
+This document is the consolidated product description for SafeCode Agent
+through `v4.9.3`. The active forward plan now lives in
+`docs/version-plans/v4.10-to-v4.12-resume-mvp-roadmap.md`, which covers the
+DeepSeek provider, agentic-lite task loop, and resume-ready MVP cut. This
+file remains the current entry point for what the project does and what it
+does not yet do; the v4.10-v4.12 roadmap describes what should happen next.
 
 ## Current Product Shape
 
