@@ -449,6 +449,34 @@ git not installed, no read permission).
 
 ---
 
+## Agent Loop Smoke Failures (v4.11, EXPERIMENTAL)
+
+### `sac smoke agentic` reports a failed scenario
+
+**Cause:** One of the deterministic mock-only agentic scenarios no longer
+matches the expected plan/edit/apply/validation/resume flow.
+
+**Fix:**
+```bash
+sac smoke agentic --json
+sac smoke agentic --only <scenario-name>
+```
+
+Inspect the reported `step_kinds`, `final_status`, and `failure_reason`. The
+smoke suite is local-only: it should not require provider credentials, network
+access, commits, pushes, or patches to the SafeCode repository.
+
+### `loop_no_progress` in agentic smoke
+
+**Cause:** The validation-failure scenario intentionally verifies the stop
+condition for an unchanged failure-tail hash.
+
+**Fix:** Treat this as expected when the scenario passes. If the scenario fails,
+inspect the typed journal events under the temporary smoke project and confirm
+that validation failure and repair events are still appended in order.
+
+---
+
 ## Getting More Help
 
 - Run `sac --help` for command reference.

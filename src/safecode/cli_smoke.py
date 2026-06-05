@@ -38,6 +38,9 @@ class ScenarioResult:
     message: str
     duration_ms: int
     notes: str = ""
+    step_kinds: tuple[str, ...] = ()
+    final_status: str = ""
+    failure_reason: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -46,6 +49,9 @@ class ScenarioResult:
             "message": self.message,
             "duration_ms": self.duration_ms,
             "notes": self.notes,
+            "step_kinds": list(self.step_kinds),
+            "final_status": self.final_status,
+            "failure_reason": self.failure_reason,
         }
 
 
@@ -96,6 +102,42 @@ def _run_scenario(name: str, fn: Callable[[Path], None]) -> ScenarioResult:
             elapsed = int((time.monotonic() - start) * 1000)
             return ScenarioResult(
                 name=name, passed=False, message=f"{type(exc).__name__}: {exc}", duration_ms=elapsed
+            )
+
+
+def _run_agentic_scenario(name: str, fn: Callable[[Path], dict[str, Any]]) -> ScenarioResult:
+    start = time.monotonic()
+    with tempfile.TemporaryDirectory(prefix="sac_agentic_smoke_") as tmp:
+        tmp_path = Path(tmp)
+        try:
+            data = fn(tmp_path)
+            elapsed = int((time.monotonic() - start) * 1000)
+            return ScenarioResult(
+                name=name,
+                passed=True,
+                message="ok",
+                duration_ms=elapsed,
+                step_kinds=tuple(str(k) for k in data.get("step_kinds", ())),
+                final_status=str(data.get("final_status", "")),
+                failure_reason=str(data.get("failure_reason", "")),
+            )
+        except AssertionError as exc:
+            elapsed = int((time.monotonic() - start) * 1000)
+            return ScenarioResult(
+                name=name,
+                passed=False,
+                message=str(exc),
+                duration_ms=elapsed,
+                failure_reason=str(exc),
+            )
+        except Exception as exc:
+            elapsed = int((time.monotonic() - start) * 1000)
+            return ScenarioResult(
+                name=name,
+                passed=False,
+                message=f"{type(exc).__name__}: {exc}",
+                duration_ms=elapsed,
+                failure_reason=f"{type(exc).__name__}: {exc}",
             )
 
 
@@ -651,6 +693,176 @@ def smoke_ai_shell(
     console.print(
         f"\n[bold]{'All' if result.all_passed else str(result.passed)}/{total} scenarios passed[/bold]"
     )
+    raise typer.Exit(code=0 if result.all_passed else 1)
+
+
+# ---------------------------------------------------------------------------
+# Agentic smoke scenarios (v4.11.5)
+# ---------------------------------------------------------------------------
+
+
+def _agentic_setup(tmp_path: Path, goal: str = "agentic smoke"):
+    from safecode.audit.logger import AuditLogger
+    from safecode.audit.models import AuditEvent
+    from safecode.agent.step_model import TypedAgentStep, TypedAgentStepResult
+    from safecode.state.journal import AgentJournalStore
+    from safecode.task.store import TaskStore
+    from safecode.utils.time import utc_now_iso
+
+    task = TaskStore(tmp_path).create(goal)
+    session_id = f"agentic-smoke-{task.task_id[-8:]}"
+    task_store = TaskStore(tmp_path)
+    task_store.save(task.model_copy(update={"session_id": session_id}))
+    journal = AgentJournalStore(tmp_path)
+    audit = AuditLogger(tmp_path)
+
+    def typed(index: int, kind: str, status: str, summary: str = "") -> None:
+        journal.record_typed_step(
+            session_id,
+            TypedAgentStep.from_route(index=index, kind=kind, description=summary),  # type: ignore[arg-type]
+        )
+        journal.record_typed_result(
+            session_id,
+            TypedAgentStepResult(step_index=index, kind=kind, status=status, summary=summary),  # type: ignore[arg-type]
+        )
+
+    def audit_event(event_type: str, status: str = "success") -> None:
+        audit.write(
+            AuditEvent(type=event_type, timestamp=utc_now_iso(), status=status, message="agentic smoke"),
+            task_id=task.task_id,
+        )
+
+    journal.record_plan(session_id, goal, ["plan", "edit", "apply", "validate"])
+    return task, session_id, journal, audit, typed, audit_event
+
+
+def _agentic_result(tmp_path: Path, session_id: str, step_kinds: list[str], final_status: str, failure_reason: str = "") -> dict[str, Any]:
+    from safecode.state.journal import AgentJournalStore
+    from safecode.audit.logger import AuditLogger
+
+    events = AgentJournalStore(tmp_path).read(session_id)
+    typed_events = [event for event in events if event.type in {"typed_step", "typed_result"}]
+    audit_events = AuditLogger(tmp_path).iter_events()
+    assert typed_events, "typed journal events must be appended"
+    if any(kind in {"edit", "apply", "run", "fix", "commit", "rollback"} for kind in step_kinds):
+        assert audit_events, "effectful boundaries must write audit events"
+    return {
+        "step_kinds": step_kinds,
+        "final_status": final_status,
+        "failure_reason": failure_reason,
+    }
+
+
+def _agentic_scenario_plan_only(tmp_path: Path) -> dict[str, Any]:
+    _task, session_id, _journal, _audit, typed, _audit_event = _agentic_setup(tmp_path, "plan only")
+    typed(0, "plan", "success", "planned only")
+    return _agentic_result(tmp_path, session_id, ["plan"], "completed")
+
+
+def _agentic_scenario_edit_reject(tmp_path: Path) -> dict[str, Any]:
+    _task, session_id, _journal, _audit, typed, audit_event = _agentic_setup(tmp_path, "reject edit")
+    typed(0, "plan", "success", "planned")
+    typed(1, "edit", "rejected", "user rejected patch")
+    audit_event("patch_rejected", "failed")
+    return _agentic_result(tmp_path, session_id, ["plan", "edit"], "rejected", "approval_rejected")
+
+
+def _agentic_scenario_apply_validate_pass_commit_prompt(tmp_path: Path) -> dict[str, Any]:
+    _task, session_id, _journal, _audit, typed, audit_event = _agentic_setup(tmp_path, "apply pass")
+    typed(0, "plan", "success", "planned")
+    typed(1, "edit", "waiting_for_user", "patch proposed")
+    typed(2, "apply", "approved", "patch applied")
+    audit_event("patch_applied")
+    typed(3, "run", "success", "validation passed")
+    typed(4, "commit", "waiting_for_user", "commit prompt")
+    audit_event("validation_completed")
+    return _agentic_result(tmp_path, session_id, ["plan", "edit", "apply", "run", "commit"], "commit_prompt")
+
+
+def _agentic_scenario_validation_fail_repair_pass(tmp_path: Path) -> dict[str, Any]:
+    _task, session_id, _journal, _audit, typed, audit_event = _agentic_setup(tmp_path, "repair pass")
+    typed(0, "plan", "success", "planned")
+    typed(1, "edit", "waiting_for_user", "patch proposed")
+    typed(2, "apply", "approved", "patch applied")
+    audit_event("patch_applied")
+    typed(3, "run", "failed", "validation failed")
+    typed(4, "fix", "waiting_for_user", "repair proposed")
+    audit_event("validation_failed", "failed")
+    typed(5, "apply", "approved", "repair applied")
+    audit_event("patch_applied")
+    typed(6, "run", "success", "validation passed")
+    return _agentic_result(tmp_path, session_id, ["plan", "edit", "apply", "run", "fix", "apply", "run"], "validated")
+
+
+def _agentic_scenario_validation_loop_no_progress(tmp_path: Path) -> dict[str, Any]:
+    _task, session_id, _journal, _audit, typed, audit_event = _agentic_setup(tmp_path, "loop no progress")
+    typed(0, "plan", "success", "planned")
+    typed(1, "edit", "waiting_for_user", "patch proposed")
+    typed(2, "apply", "approved", "patch applied")
+    audit_event("patch_applied")
+    typed(3, "run", "failed", "tail hash unchanged")
+    typed(4, "fix", "failed", "loop_no_progress")
+    audit_event("validation_failed", "failed")
+    return _agentic_result(tmp_path, session_id, ["plan", "edit", "apply", "run", "fix"], "loop_no_progress", "loop_no_progress")
+
+
+def _agentic_scenario_interrupted_resume_recover(tmp_path: Path) -> dict[str, Any]:
+    from safecode.agent.loop import AgentLoop
+
+    _task, session_id, _journal, _audit, typed, audit_event = _agentic_setup(tmp_path, "resume recover")
+    typed(0, "plan", "success", "planned")
+    typed(1, "edit", "waiting_for_user", "patch proposed")
+    typed(2, "apply", "interrupted", "interrupted mid-apply")
+    audit_event("patch_apply_interrupted", "failed")
+    resumed = AgentLoop(tmp_path).resume_from(session_id)
+    assert resumed.status == "waiting_for_user", "resume must recover to waiting state"
+    typed(3, "apply", "approved", "apply recovered")
+    audit_event("patch_applied")
+    return _agentic_result(tmp_path, session_id, ["plan", "edit", "apply", "apply"], "recovered")
+
+
+_AGENTIC_SCENARIOS: list[tuple[str, Callable[[Path], dict[str, Any]]]] = [
+    ("plan-only", _agentic_scenario_plan_only),
+    ("edit-reject-approval", _agentic_scenario_edit_reject),
+    ("apply-validation-pass-commit-prompt", _agentic_scenario_apply_validate_pass_commit_prompt),
+    ("validation-fail-repair-pass", _agentic_scenario_validation_fail_repair_pass),
+    ("validation-fail-loop-no-progress", _agentic_scenario_validation_loop_no_progress),
+    ("interrupted-resume-recover", _agentic_scenario_interrupted_resume_recover),
+]
+
+
+def run_agentic_smoke(*, only: Optional[list[str]] = None) -> SmokeRunResult:
+    """Run deterministic agentic workflow smoke scenarios (mock-only)."""
+    result = SmokeRunResult()
+    for name, fn in _AGENTIC_SCENARIOS:
+        if only and name not in only:
+            continue
+        result.scenarios.append(_run_agentic_scenario(name, fn))
+    return result
+
+
+@smoke_app.command("agentic")
+def smoke_agentic(
+    json_output: bool = typer.Option(False, "--json", help="Output result as JSON."),
+    only: Optional[str] = typer.Option(None, "--only", help="Comma-separated list of scenario names to run."),
+) -> None:
+    """[EXPERIMENTAL] Run deterministic agentic workflow smoke scenarios (mock-only)."""
+    only_list: Optional[list[str]] = [s.strip() for s in only.split(",")] if only else None
+    result = run_agentic_smoke(only=only_list)
+
+    if json_output:
+        status = "pass" if result.all_passed else "fail"
+        print(render_json(CLIJSONResponse(command="smoke agentic", status=status, data=result.to_dict())))
+        raise typer.Exit(code=0 if result.all_passed else 1)
+
+    for scenario in result.scenarios:
+        icon = "[green]PASS[/green]" if scenario.passed else "[red]FAIL[/red]"
+        console.print(f"  {icon}  {scenario.name}  ({scenario.duration_ms} ms)")
+        if not scenario.passed:
+            console.print(f"       {scenario.message}")
+
+    total = len(result.scenarios)
+    console.print(f"\n[bold]{'All' if result.all_passed else str(result.passed)}/{total} scenarios passed[/bold]")
     raise typer.Exit(code=0 if result.all_passed else 1)
 
 

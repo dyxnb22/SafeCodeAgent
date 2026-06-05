@@ -1,7 +1,7 @@
 {
   "project": "SafeCode Agent",
-  "current_implemented_tag": "v4.11.4",
-  "current_local_version": "v4.11.4",
+  "current_implemented_tag": "v4.11.5",
+  "current_local_version": "v4.11.5",
   "current_baseline": ".claude/skills/current/SKILL.md",
   "runtime_summary": ".claude/skills/shared/core-runtime.md",
   "version_index": "docs/version_implementation_matrix.md",
@@ -305,7 +305,7 @@
       "range": "v4.11.x",
       "name": "Agentic-Lite Task Loop",
       "depends_on": "v4.10.x",
-      "notes": "Partially completed through v4.11.4; remaining v4.11.5 planned. Completed: typed step model on existing AgentLoop (AgentStepKind/AgentStepStatus/TypedAgentStep/TypedAgentStepResult), typed step events in existing journal (record_typed_step/record_typed_result), sac shell --agentic, extended sac agent run (--auto-approve-read-only, --no-validate, max-steps 8), validation loop after apply-kind typed steps, and agentic resume. Every mutating step stays approval-gated. Remaining: deterministic agentic smoke. See docs/version-plans/v4.10-to-v4.12-resume-mvp-roadmap.md."
+      "notes": "Completed (v4.11.0-v4.11.5): typed step model on existing AgentLoop (AgentStepKind/AgentStepStatus/TypedAgentStep/TypedAgentStepResult), typed step events in existing journal (record_typed_step/record_typed_result), sac shell --agentic, extended sac agent run (--auto-approve-read-only, --no-validate, max-steps 8), validation loop after apply-kind typed steps, agentic resume, and deterministic mock-only sac smoke agentic scenarios. Every mutating step stays approval-gated. All v4.11 surfaces remain EXPERIMENTAL. See docs/version-notes/v4.11.* and docs/version-plans/v4.10-to-v4.12-resume-mvp-roadmap.md."
     },
     {
       "range": "v4.12.x",
@@ -553,7 +553,8 @@
     "v4.11.1",
     "v4.11.2",
     "v4.11.3",
-    "v4.11.4"
+    "v4.11.4",
+    "v4.11.5"
   ],
   "local_versions": [
     "v2.8.0",
