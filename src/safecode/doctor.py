@@ -130,6 +130,7 @@ class Doctor:
             ),
         ]
         diagnostics.append(self._last_session_cost_diagnostic())
+        diagnostics.append(self._legacy_model_persist_diagnostic())
         diagnostics.extend(self._sandbox_promotion_diagnostics())
         diagnostics.extend(self._project_tooling_diagnostics())
         diagnostics.extend(self._provider_diagnostics())
@@ -179,6 +180,22 @@ class Doctor:
                     message=f"{kind}: {argv_str}",
                 ))
         return diagnostics
+
+    @staticmethod
+    def _legacy_model_persist_diagnostic() -> "Diagnostic":
+        if os.getenv("SAFECODE_LEGACY_MODEL_PERSIST") == "1":
+            return Diagnostic(
+                name="legacy_model_persist",
+                status=DiagnosticStatus.WARN,
+                message="SAFECODE_LEGACY_MODEL_PERSIST=1 is set; model switching will persist globally. "
+                        "Remove this env var to use session-scoped model switching (v4.15.1+).",
+                hints=("Next: unset SAFECODE_LEGACY_MODEL_PERSIST",),
+            )
+        return Diagnostic(
+            name="legacy_model_persist",
+            status=DiagnosticStatus.PASS,
+            message="session-scoped model switching active (v4.15.1+ default)",
+        )
 
     def _last_session_cost_diagnostic(self) -> "Diagnostic":
         """Return a PASS or SKIP diagnostic for the most recent session cost.json."""

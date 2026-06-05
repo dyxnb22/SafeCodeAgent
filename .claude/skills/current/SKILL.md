@@ -5,7 +5,7 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v4.15.0
+# Current Baseline - v4.15.1
 
 ## Status
 Implemented. Git baseline: tag `v4.15.0`. Local working version: `v4.15.0`.

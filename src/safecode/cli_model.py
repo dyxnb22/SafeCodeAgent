@@ -23,7 +23,7 @@ _DEFAULT_BASE_URLS: dict[str, str] = {
 }
 
 # Special model keywords handled before the old explicit-config path.
-_MODEL_SPECIAL_KEYWORDS = frozenset({"list"})
+_MODEL_SPECIAL_KEYWORDS = frozenset({"list", "status"})
 
 
 def _load_user_data(path: Path) -> dict[str, Any]:
@@ -201,6 +201,31 @@ def apply_model_override_env(model: str, path: Path | None = None) -> tuple[str 
     return None, model, None
 
 
+def _render_model_session_status(config: SafeCodeConfig, path: Path) -> str:
+    """Show session overrides vs persisted model config."""
+    import os
+    session_provider = os.getenv("SAFECODE_LLM_PROVIDER")
+    session_model = os.getenv("SAFECODE_LLM_MODEL")
+    key_state = "configured" if config.llm.api_key else "not configured"
+    lines = [
+        "[bold]Model Status[/bold]",
+        "",
+        f"  Persisted provider : {config.llm.provider}",
+        f"  Persisted model    : {config.llm.model}",
+        f"  Persisted base URL : {config.llm.base_url}",
+        f"  API key: {key_state}",
+    ]
+    if session_provider and session_model:
+        lines.append("")
+        lines.append(f"  [bold]Session override:[/bold]")
+        lines.append(f"  Session provider   : {session_provider}")
+        lines.append(f"  Session model      : {session_model}")
+    else:
+        lines.append("")
+        lines.append("  [dim]No session override active.[/dim]")
+    return redact_secrets("\n".join(lines))
+
+
 def register(app: typer.Typer) -> None:
     """Register the user-facing `sac model` command."""
 
@@ -210,32 +235,46 @@ def register(app: typer.Typer) -> None:
             "",
             help=(
                 "Model alias or name. "
+                "'status' shows session vs persisted. "
                 "'list' shows available aliases for the active provider. "
-                "Omit to show current model status."
+                "Omit to show current model config."
             ),
         ),
+        save: bool = typer.Option(False, "--save", help="Persist the model selection to user config (default: session-only)."),
         provider: str = typer.Option("", "--provider", "-p", help="Provider: mock, openai, openai-compatible, anthropic, deepseek."),
         api_key: str = typer.Option("", "--api-key", help="Persist an API key in the trusted user config."),
         base_url: str = typer.Option("", "--base-url", help="Override the provider endpoint/base URL."),
         network: bool = typer.Option(False, "--network", help="Enable user-level network permission."),
         no_network: bool = typer.Option(False, "--no-network", help="Disable user-level network permission."),
     ) -> None:
-        """Show or persist the user-level model configuration.
+        """Show or switch the model configuration.
 
-        Quick model switching via provider profile aliases (v4.14.0):
-          sac model flash       -- switch to deepseek-v4-flash
-          sac model pro         -- switch to deepseek-v4-pro
-          sac model deepseek:flash
+        Model switching is session-only by default (v4.15.1+):
+          sac model flash       -- session-only switch to deepseek-v4-flash
+          sac model --save pro  -- persist deepseek-v4-pro to user config
+          sac model status      -- show session vs persisted model
           sac model list        -- show available aliases
 
-        Original explicit form (still works):
-          sac model gpt-4.1-mini --provider openai --api-key sk-...
+        Original explicit form (still requires --save for persistence):
+          sac model gpt-4.1-mini --provider openai --api-key sk-... --save
         """
+        import os
         path = _user_config_path()
+
+        # Legacy persist mode check
+        if os.getenv("SAFECODE_LEGACY_MODEL_PERSIST") == "1":
+            save = True
+            console.print("[yellow]SAFECODE_LEGACY_MODEL_PERSIST=1 is deprecated. "
+                          "Use --save to persist model selections.[/yellow]")
 
         # No argument: show current status
         if not model:
-            console.print(_render_model_status(SafeCodeConfig.load(Path.cwd()), path))
+            console.print(_render_model_session_status(SafeCodeConfig.load(Path.cwd()), path))
+            return
+
+        # "status" keyword: show session vs persisted
+        if model == "status":
+            console.print(_render_model_session_status(SafeCodeConfig.load(Path.cwd()), path))
             return
 
         # "list" keyword: show available aliases for active provider
@@ -243,9 +282,21 @@ def register(app: typer.Typer) -> None:
             console.print(_render_model_list(Path.cwd(), path))
             return
 
-        # Try to resolve as an active profile model selection (flash, pro,
-        # deepseek:flash, or a raw model ID).
-        # Only when no explicit --provider/--api-key/--base-url is given.
+        # Session-only path (no --save, no explicit config write)
+        if not save and not provider and not api_key and not base_url:
+            try:
+                provider_name, resolved, suggestion = apply_model_override_env(model, path)
+            except ValueError as exc:
+                console.print(f"[red]{exc}[/red]")
+                raise typer.Exit(code=1) from exc
+            if suggestion:
+                console.print(f"[yellow]{suggestion}[/yellow]")
+            console.print(f"[green]Session model override: {resolved}[/green]")
+            console.print(f"  Provider: {provider_name or '(env override)'}")
+            console.print("  [dim]Session-only — not persisted. Use --save to write config.[/dim]")
+            return
+
+        # Persist path: --save or explicit --provider/--api-key/--base-url
         if not provider and not api_key and not base_url:
             try:
                 switched = _switch_active_profile_model(model, path)
@@ -270,7 +321,7 @@ def register(app: typer.Typer) -> None:
                     raise typer.Exit(code=1) from exc
                 console.print(
                     "\n".join([
-                        f"Model config saved: {written}",
+                        f"[green]Model config saved globally: {written}[/green]",
                         f"Provider: {selected_provider}",
                         f"Model: {resolved}",
                         f"(resolved from alias '{model}')",
@@ -278,7 +329,7 @@ def register(app: typer.Typer) -> None:
                 )
                 return
 
-        # Original explicit form: sac model <name> --provider <p> ...
+        # Original explicit form: sac model <name> --provider <p> ... --save
         current = SafeCodeConfig.load(Path.cwd())
         selected_provider = provider or current.llm.provider
         network_setting = True if network else False if no_network else None
