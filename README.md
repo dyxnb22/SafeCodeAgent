@@ -90,8 +90,9 @@ confirmation. No auto-apply. No auto-commit. No RAG or embeddings.
 See [docs/tutorials/ai-shell-first-hour.md](docs/tutorials/ai-shell-first-hour.md).
 
 ```bash
-sac setup                           # first-time: write .sac/config.toml
-sac setup --wizard                  # interactive wizard: walks provider/model/policy (non-TTY prints template)
+sac init                            # [v4.15+] guided first-run: provider, key, model, policy (recommended)
+sac setup                           # first-time: write .sac/config.toml (hidden, still callable)
+sac setup --wizard                  # interactive wizard: walks provider/model/policy (hidden)
 sac quickstart                      # guided first-run: detects stack, shows demo, prints next steps
 sac ask "这个项目是什么？"
 sac edit "给 FastAPI 项目添加 /health 接口"

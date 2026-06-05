@@ -20,7 +20,7 @@ runner = CliRunner()
 
 # Target visible set (19 commands after adding sac model)
 _TARGET_VISIBLE = frozenset({
-    "setup",
+    "init",
     "quickstart",
     "status",
     "task",
@@ -102,8 +102,10 @@ class TestV48VisibleSurface:
     def test_memory_now_visible(self):
         assert "memory" in _command_names_in_root_help()
 
-    def test_setup_visible(self):
-        assert "setup" in _command_names_in_root_help()
+    def test_init_visible_setup_hidden(self):
+        names = _command_names_in_root_help()
+        assert "init" in names
+        assert "setup" not in names
 
     def test_quickstart_visible(self):
         assert "quickstart" in _command_names_in_root_help()

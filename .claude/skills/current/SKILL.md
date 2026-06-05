@@ -5,17 +5,18 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v4.14.2
+# Current Baseline - v4.15.0
 
 ## Status
-Implemented. Git baseline: tag `v4.14.2`. Local working version: `v4.14.2`.
+Implemented. Git baseline: tag `v4.15.0`. Local working version: `v4.15.0`.
 
 ## Stage
-`v4.14.2` adds `--model` flag parity to common subcommands: `sac ask`, `sac edit`,
-`sac fix`, `sac run`, and `sac agent run` all accept `--model <alias>` for one-shot
-model overrides. Subcommand-level `--model` wins over root-level `--model`. Already
-supported on `sac shell`.
+`v4.15.0` adds `sac init` as the single recommended first-run entry point: an
+interactive TTY wizard covering provider choice, API key, default model, and
+policy preset. `sac setup` and `--wizard` are hidden (still callable). init
+refuses unknown providers and policies in both TTY and non-TTY mode.
 
+Previous: `v4.14.2` added `--model` flag parity.
 Previous: `v4.14.1` added first-run diagnostic clarity.
 Previous: `v4.14.0` added provider-profile UX: users configure a trusted provider profile
 once (`sac provider add deepseek`) and switch models with short aliases

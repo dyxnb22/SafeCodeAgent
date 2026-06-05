@@ -31,6 +31,7 @@ from safecode.cli_smoke import smoke_app
 from safecode.cli_shell import register as _register_shell
 from safecode.cli_shell import run_shell
 from safecode.cli_model import register as _register_model
+from safecode.cli_init import register as _register_init
 from safecode.cli_provider import provider_app
 from safecode.config import SafeCodeConfig, _stricter_policy
 from safecode.setup import write_setup
@@ -181,7 +182,7 @@ def callback(
         raise typer.Exit(code=code)
 
 
-@app.command("setup")
+@app.command("setup", hidden=True)
 def setup(
     provider: str = typer.Option("mock", "--provider", help="LLM provider: mock or openai."),
     model: str = typer.Option("gpt-4.1-mini", "--model", help="Model name for the selected provider."),
@@ -246,6 +247,7 @@ _register_resume(app)
 _register_commit(app)
 _register_shell(app)
 _register_model(app)
+_register_init(app)
 
 # Core commands stay at the root for backward compatibility.
 for command in core_app.registered_commands:
