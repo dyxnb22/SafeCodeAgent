@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import warnings
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -295,8 +296,18 @@ class AgentLoop:
         )
         return AgentStepResult(state=saved, observation=observation)
 
-    def run(self, goal: str | None = None, max_steps: int = 5) -> AgentRunResult:
-        """Advance up to ``max_steps`` safe steps."""
+    def run(
+        self,
+        goal: str | None = None,
+        max_steps: int = 5,
+        *,
+        on_step: "Callable[[AgentStepResult], None] | None" = None,
+    ) -> AgentRunResult:
+        """Advance up to ``max_steps`` safe steps.
+
+        If *on_step* is provided, it is called after each step with the
+        AgentStepResult, enabling real-time progress display (v4.18+).
+        """
         if max_steps < 1:
             raise ValueError("max_steps must be >= 1")
 
@@ -318,6 +329,11 @@ class AgentLoop:
             steps.append(result)
             state = result.state
             next_goal = None
+            if on_step is not None:
+                try:
+                    on_step(result)
+                except Exception:
+                    pass
             if self._should_validate_after_step():
                 validation_result = self._run_validation_after_apply(state)
                 state = self.store.load() or state

@@ -73,7 +73,7 @@ class TestMaxStepsDefault:
             def __init__(self, project_root, llm_client=None):
                 self.project_root = project_root
 
-            def run(self, goal, max_steps=8):
+            def run(self, goal, max_steps=8, *, on_step=None):
                 captured["max_steps"] = max_steps
                 from safecode.agent.loop import AgentRunResult
                 from safecode.agent.session import AgentSessionState
@@ -111,7 +111,7 @@ class TestMaxStepsDefault:
             def __init__(self, project_root, llm_client=None):
                 self.project_root = project_root
 
-            def run(self, goal, max_steps=8):
+            def run(self, goal, max_steps=8, *, on_step=None):
                 captured["max_steps"] = max_steps
                 from safecode.agent.loop import AgentRunResult
                 from safecode.agent.session import AgentSessionState
@@ -173,7 +173,7 @@ def _make_loop_with_typed_result(kind: str, stopped_reason: str = "approval_requ
         def __init__(self, project_root, llm_client=None):
             pass
 
-        def run(self, goal, max_steps=8):
+        def run(self, goal, max_steps=8, *, on_step=None):
             return run_result
 
         @property

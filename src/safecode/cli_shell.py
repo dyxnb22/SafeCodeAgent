@@ -658,14 +658,14 @@ def _run_agentic_shell(
     """[EXPERIMENTAL] Drive AgentLoop.run() from a single user input line.
 
     Reads one line of user input as the goal, runs the AgentLoop, and renders
-    the result. The same loop as sac agent run is used. Approval-required steps
-    stop and print guidance. All mutation paths require explicit approval.
+    the result. Uses Rich Status panel for real-time step progress in TTY mode.
+    All mutation paths require explicit approval.
     """
     from safecode.cli_shared_json import CLIJSONResponse, render_json
     from safecode.agent.step_model import APPROVAL_REQUIRED_KINDS
 
     if is_tty:
-        console.print("[bold]SafeCode Shell[/bold] [dim](EXPERIMENTAL --agentic mode)[/dim]")
+        console.print("[bold]SafeCode Shell[/bold] [dim](EXPERIMENTAL --agentic mode v4.18)[/dim]")
         console.print("Enter your goal (one line), or Ctrl-C to exit.")
 
     line = _read_line(is_tty=is_tty)
@@ -676,8 +676,20 @@ def _run_agentic_shell(
 
     goal = line.strip()
     loop = AgentLoop(project_root)
+
+    step_updates: list[str] = []
+
+    def on_step(result):
+        obs = result.observation[:120]
+        step_updates.append(obs)
+
     try:
-        result = loop.run(goal, max_steps=8)
+        if is_tty and not json_output:
+            from rich.status import Status
+            with Status("[bold blue]Agent loop running...", spinner="dots") as status:
+                result = loop.run(goal, max_steps=8, on_step=on_step)
+        else:
+            result = loop.run(goal, max_steps=8, on_step=on_step)
     except (FileNotFoundError, ValueError) as exc:
         if json_output:
             print(render_json(CLIJSONResponse(command="shell --agentic", status="error", error=str(exc))))
@@ -694,6 +706,7 @@ def _run_agentic_shell(
             "stopped_reason": result.stopped_reason,
             "steps_count": len(result.steps),
             "status": result.state.status,
+            "step_updates": step_updates,
         }
         if last_typed is not None:
             data["last_typed_result"] = last_typed.model_dump()

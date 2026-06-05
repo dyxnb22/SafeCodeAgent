@@ -467,7 +467,7 @@ class TestShellAgenticMode:
             def __init__(self, project_root, llm_client=None):
                 pass
 
-            def run(self, goal, max_steps=8):
+            def run(self, goal, max_steps=8, *, on_step=None):
                 captured["goal"] = goal
                 state = AgentSessionState(
                     session_id="agentic-sess-001",
@@ -522,7 +522,7 @@ class TestShellAgenticMode:
             def __init__(self, project_root, llm_client=None):
                 agent_loop_called.append(True)
 
-            def run(self, goal, max_steps=8):
+            def run(self, goal, max_steps=8, *, on_step=None):
                 pass
 
             @property

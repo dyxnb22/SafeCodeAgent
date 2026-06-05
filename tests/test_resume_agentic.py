@@ -93,7 +93,7 @@ class TestAgenticResume:
             def resume_from(self, sid):
                 calls["session_id"] = sid
 
-            def run(self, goal):
+            def run(self, goal, *, on_step=None):
                 calls["goal"] = goal
                 from safecode.agent.loop import AgentRunResult
                 from safecode.agent.session import AgentSessionState

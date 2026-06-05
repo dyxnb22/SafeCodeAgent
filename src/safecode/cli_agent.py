@@ -196,13 +196,24 @@ def agent_run(
 
     is_tty = sys.stdin.isatty() and sys.stdout.isatty()
 
+    step_updates: list[str] = []
+
+    def on_step(result):
+        obs = result.observation[:120]
+        step_updates.append(obs)
+
     loop = AgentLoop(Path.cwd())
     try:
         loop.no_validate = no_validate
     except Exception:
         pass
     try:
-        result = loop.run(goal or None, max_steps=max_steps)
+        if is_tty and not json_output and max_steps > 1:
+            from rich.status import Status
+            with Status("[bold blue]Agent loop running...", spinner="dots") as status:
+                result = loop.run(goal or None, max_steps=max_steps, on_step=on_step)
+        else:
+            result = loop.run(goal or None, max_steps=max_steps, on_step=on_step)
     except (FileNotFoundError, ValueError) as exc:
         if json_output:
             print(render_json(CLIJSONResponse(command="agent run", status="error", error=str(exc))))

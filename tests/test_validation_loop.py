@@ -241,7 +241,7 @@ class TestAgentLoopValidationIntegration:
             def __init__(self, project_root, llm_client=None):
                 self.no_validate = False
 
-            def run(self, goal, max_steps=8):
+            def run(self, goal, max_steps=8, *, on_step=None):
                 captured["no_validate"] = self.no_validate
                 from safecode.agent.loop import AgentRunResult
                 from safecode.agent.session import AgentSessionState
