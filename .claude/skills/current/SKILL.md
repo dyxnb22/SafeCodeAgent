@@ -5,13 +5,13 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v4.12.3
+# Current Baseline - v4.12.4
 
 ## Status
-Implemented. Git baseline: tag `v4.12.3`. Local working version: `v4.12.3`.
+Implemented. Git baseline: tag `v4.12.4`. Local working version: `v4.12.3`.
 
 ## Stage
-`v4.12.3` resume-mvp cut completes the v4.10-v4.12 train: DeepSeek provider reliability, agentic-lite task loop on the existing `AgentLoop`, runnable `examples/fastapi-todo`, deterministic mock-only `sac demo agent-loop`, README demo front door, tutorial, release notes, matrix, and threat-model addendum. All v4.10-v4.12 surfaces remain EXPERIMENTAL and promote zero new stable contracts. Previous: `v4.11.5` agentic workflow smoke; `v4.10.4` opt-in live-provider smoke; `v4.9.3` AI shell docs and smoke.
+`v4.12.3` resume-mvp cut completes the v4.10-v4.12 train: DeepSeek provider reliability, agentic-lite task loop on the existing `AgentLoop`, runnable `examples/fastapi-todo`, deterministic mock-only `sac demo agent-loop`, README demo front door, tutorial, release notes, matrix, and threat-model addendum. `v4.12.4` is a narrow tracked-profile hotfix for `examples/fastapi-todo/.sac/project_profile.json`. All v4.10-v4.12 surfaces remain EXPERIMENTAL and promote zero new stable contracts. Previous: `v4.11.5` agentic workflow smoke; `v4.10.4` opt-in live-provider smoke; `v4.9.3` AI shell docs and smoke.
 
 ## Current Forward Plan
 The v4.10-v4.12 resume-MVP train is complete. Current status and post-v4.12
@@ -536,7 +536,7 @@ The current project status and post-v4.12 forward plan is
 `docs/project-final-status-and-roadmap.md`.
 
 Planning stance:
-- v4.10-v4.12 resume MVP is complete as of v4.12.3.
+- v4.10-v4.12 resume MVP is complete as of v4.12.3; v4.12.4 only tracks the FastAPI todo project profile.
 - DeepSeek, agentic-lite, FastAPI demo, transcript demo, and README front door are implemented.
 - Focus next on post-v4.12 hardening and optional extensions through a new plan.
 - Keep SafeCode's safety posture: no auto-apply, approval-gated mutation/run/commit paths, checkpoints, rollback, audit, task wiring, and dirty-tree guard.

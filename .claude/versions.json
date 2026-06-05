@@ -1,6 +1,6 @@
 {
   "project": "SafeCode Agent",
-  "current_implemented_tag": "v4.12.3",
+  "current_implemented_tag": "v4.12.4",
   "current_local_version": "v4.12.3",
   "current_baseline": ".claude/skills/current/SKILL.md",
   "runtime_summary": ".claude/skills/shared/core-runtime.md",
@@ -311,7 +311,7 @@
       "range": "v4.12.x",
       "name": "Resume-Ready MVP Cut",
       "depends_on": "v4.11.x",
-      "notes": "Completed (v4.12.0-v4.12.3): examples/fastapi-todo runnable demo target, sac demo agent-loop deterministic mock-provider scenario, recorded transcript, docs/tutorials/from-task-to-tested-commit.md, README demo front-door section, release metadata, version notes, matrix, threat-model addendum, and v4.12.3 resume-MVP tag. No new stable contracts promoted in the v4.10-v4.12 train."
+      "notes": "Completed (v4.12.0-v4.12.3): examples/fastapi-todo runnable demo target, sac demo agent-loop deterministic mock-provider scenario, recorded transcript, docs/tutorials/from-task-to-tested-commit.md, README demo front-door section, release metadata, version notes, matrix, threat-model addendum, and v4.12.3 resume-MVP package metadata. v4.12.4 is a narrow tracked-profile hotfix for the FastAPI todo demo. No new stable contracts promoted in the v4.10-v4.12 train."
     }
   ],
   "latest_tags": [
@@ -558,7 +558,8 @@
     "v4.12.0",
     "v4.12.1",
     "v4.12.2",
-    "v4.12.3"
+    "v4.12.3",
+    "v4.12.4"
   ],
   "local_versions": [
     "v2.8.0",

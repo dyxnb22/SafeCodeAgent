@@ -1,6 +1,6 @@
 # SafeCode Agent Final Status and Roadmap
 
-Status: current project baseline after `v4.12.3`.
+Status: current project baseline after `v4.12.4`.
 Last updated: 2026-06-05.
 
 This document is the consolidated product description for SafeCode Agent through
@@ -73,6 +73,9 @@ proposals for review; they are not auto-applied.
 v4.12 added the runnable FastAPI todo example, a deterministic mock transcript
 demo, README front-door commands, a top-to-bottom tutorial, release notes,
 matrix rows, threat-model coverage, and the `v4.12.3` release metadata cut.
+The follow-up `v4.12.4` repository hotfix tracks the FastAPI todo
+`.sac/project_profile.json` required for clean-clone demo validation; it does
+not promote new behavior or stable contracts.
 
 The demo proves the MVP shape: task goal, plan, patch proposal, review
 boundary, apply boundary, validation, and local commit prompt. The demo uses a
