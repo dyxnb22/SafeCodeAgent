@@ -341,30 +341,50 @@ The default provider is `mock`, which keeps local tests deterministic.
 To use an OpenAI-compatible provider:
 
 ```bash
-export SAFECODE_LLM_PROVIDER=openai
-export SAFECODE_LLM_MODEL=gpt-4.1-mini
-export OPENAI_API_KEY=...
-uv run sac ask "这个项目是什么？"
+sac model gpt-4.1-mini --provider openai --api-key sk-... --network
+sac setup --yes --provider openai --model gpt-4.1-mini --network
+sac ask "这个项目是什么？"
 ```
 
 Model output is still parsed and validated by SafeCode before any write can happen.
 
-Real LLM mode also requires trusted user-level and project-level network policy. A project-local config cannot enable network access by itself, and a project-local config cannot switch the model provider.
+Real LLM mode also requires trusted user-level and project-level network policy. A project-local config cannot enable network access by itself, and a project-local config cannot switch the model provider. Environment variables still take priority for temporary overrides.
 
 See [docs/mvp-user-guide.md](docs/mvp-user-guide.md#model-configuration) for the exact config files.
+
+### Real provider quickstart — provider profile UX (v4.14.0, EXPERIMENTAL)
+
+Configure your provider once, then switch models by short alias:
+
+```bash
+sac provider add deepseek       # prompts for API key; writes trusted user config
+sac model flash                 # use deepseek-v4-flash (daily default)
+sac model pro                   # escalate to deepseek-v4-pro
+sac --model deepseek:pro        # one-shot override for this invocation
+sac model list                  # show available aliases for active provider
+sac provider status             # show effective provider, model, credential source
+sac doctor                      # static provider check, no network call
+```
+
+Inside `sac shell`:
+```
+sac> /model              # show current model and aliases
+sac> /model flash        # switch (persisted globally)
+sac> /provider status    # show provider profile status
+```
 
 ### Real provider quickstart (DeepSeek, v4.10, EXPERIMENTAL)
 
 ```bash
-export DEEPSEEK_API_KEY=sk-...
+sac model deepseek-v4-pro --provider deepseek --api-key sk-... --network
 sac setup --wizard          # choose 'deepseek' at the provider prompt
 sac doctor                  # verify provider key is detected (static check, no network call)
 SAFECODE_LIVE_SMOKE=1 sac smoke live-provider   # opt-in round-trip smoke test
 sac ask "What is 2+2?"
 ```
 
-DeepSeek uses `https://api.deepseek.com` with the `deepseek-v4-pro` default model.
-API key is read from `DEEPSEEK_API_KEY`; it is never written to config files on disk.
+DeepSeek uses `https://api.deepseek.com` with the `deepseek-v4-flash` default model.
+API key is read from `DEEPSEEK_API_KEY`, `OPENAI_API_KEY`, `SAFECODE_LLM_API_KEY`, or the trusted user config written by `sac model` or `sac provider add`.
 The `sac smoke live-provider` command requires `SAFECODE_LIVE_SMOKE=1` and refuses to run
 without a valid key, a non-mock provider, and an enabled network policy.
 

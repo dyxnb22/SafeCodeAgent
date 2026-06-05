@@ -122,6 +122,27 @@ class TestDeepSeekProviderDiagnostics:
             diagnostics = {d.name: d for d in doctor._provider_diagnostics()}
         assert diagnostics["provider_api_key"].status == DiagnosticStatus.PASS
 
+    def test_deepseek_key_from_user_config_is_pass_without_leaking_secret(self, tmp_path: Path) -> None:
+        config = _make_config(
+            provider="deepseek",
+            base_url="https://api.deepseek.com",
+            network_enabled=True,
+        )
+        config.llm.api_key = "sk-from-user-config"
+        env = {k: v for k, v in os.environ.items()
+               if k not in ("DEEPSEEK_API_KEY", "OPENAI_API_KEY", "SAFECODE_LLM_API_KEY")}
+        with (
+            patch("safecode.config.SafeCodeConfig.load", return_value=config),
+            patch.dict(os.environ, env, clear=True),
+        ):
+            doctor = Doctor(tmp_path)
+            diagnostics = doctor._provider_diagnostics()
+        api_key_diagnostic = {d.name: d for d in diagnostics}["provider_api_key"]
+        all_messages = " ".join(d.message for d in diagnostics)
+        assert api_key_diagnostic.status == DiagnosticStatus.PASS
+        assert "trusted user config" in api_key_diagnostic.message
+        assert "sk-from-user-config" not in all_messages
+
     def test_deepseek_key_missing_is_fail(self, tmp_path: Path) -> None:
         config = _make_config(
             provider="deepseek",

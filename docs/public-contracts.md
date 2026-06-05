@@ -243,7 +243,7 @@ fan-out routing.
 
 **Supported provider keys:** `mock`, `openai`, `openai-compatible`, `anthropic`.
 
-**`LLMConfig` fields:** `provider`, `model`, `base_url`, `fallback_provider`,
+**`LLMConfig` fields:** `provider`, `model`, `base_url`, `api_key`, `fallback_provider`,
 `fallback_model`, `fallback_base_url`.
 
 **Retry invariants:**

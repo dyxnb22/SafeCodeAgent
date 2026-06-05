@@ -53,6 +53,40 @@ sac doctor
 Expected result: `sac doctor` prints a table with Python, project root, config,
 and command checks.
 
+## Provider Profile UX (v4.14.0, EXPERIMENTAL)
+
+**Mental model: Provider account first, model switch second, project safety third.**
+
+Configure a provider once, then switch models with short aliases:
+
+```bash
+sac provider add deepseek       # prompts for API key; writes to trusted user config
+sac model flash                 # switch to deepseek-v4-flash (daily default)
+sac model pro                   # escalate to deepseek-v4-pro
+sac --model deepseek:pro        # one-shot override for this invocation
+sac model list                  # show available aliases for active provider
+sac provider status             # show effective provider, model, credential source
+sac provider list               # list configured provider profiles
+sac provider use deepseek       # set active provider
+sac provider rm deepseek --yes  # remove a provider profile
+```
+
+DeepSeek aliases: `flash` → `deepseek-v4-flash`, `pro` → `deepseek-v4-pro`.
+Provider-scoped aliases also work: `deepseek:flash`, `deepseek:pro`.
+
+Inside `sac shell`:
+```
+/model              show current model and available aliases
+/model flash        switch to flash (persisted globally)
+/model pro          switch to pro (persisted globally)
+/provider status    show provider profile status
+```
+
+Profile credentials are stored in the trusted user config (`~/.safecode/config.toml`).
+Project-local config cannot store credentials or widen user-level network policy.
+Environment variables (`DEEPSEEK_API_KEY`, `SAFECODE_LLM_PROVIDER`, `SAFECODE_LLM_MODEL`)
+always take precedence over the persisted profile.
+
 ## Model Configuration
 
 SafeCode defaults to the deterministic `mock` provider. That is the best mode
@@ -68,6 +102,14 @@ To use an OpenAI-compatible provider, configure the trusted user-level file and
 opt the current project into network access. Both sides are required; a project
 cannot enable network access or choose a provider by itself.
 
+The command-line path writes the provider, model, and optional API key to the
+trusted user config:
+
+```bash
+sac model gpt-4.1-mini --provider openai --api-key sk-... --network
+sac setup --yes --provider openai --model gpt-4.1-mini --network
+```
+
 Trusted user config, usually `~/.safecode/config.toml`:
 
 ```toml
@@ -79,6 +121,7 @@ network_allowlist = ["api.openai.com"]
 provider = "openai"
 model = "gpt-4.1-mini"
 base_url = "https://api.openai.com/v1/chat/completions"
+api_key = "sk-..."
 ```
 
 Project config, `.sac/config.toml`:
@@ -92,11 +135,12 @@ network_allowlist = ["api.openai.com"]
 Then run:
 
 ```bash
-export SAFECODE_LLM_PROVIDER=openai
-export SAFECODE_LLM_MODEL=gpt-4.1-mini
-export OPENAI_API_KEY=...
 sac ask "What is this project?"
 ```
+
+Environment variables (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`,
+`DEEPSEEK_API_KEY`, `SAFECODE_LLM_API_KEY`, `SAFECODE_LLM_PROVIDER`, and
+`SAFECODE_LLM_MODEL`) still take priority when you want a temporary override.
 
 The model can propose text, plans, tool intents, and patches, but writes still
 go through SafeCode patch parsing, validation, diff review, checkpointing, and

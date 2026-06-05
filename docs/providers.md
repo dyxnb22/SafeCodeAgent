@@ -19,8 +19,8 @@ For the full list of stable local safety contracts, see
 | `anthropic` | Supported | Anthropic Messages API |
 | `deepseek` | EXPERIMENTAL | DeepSeek API via OpenAI-compatible path; see DeepSeek section below |
 
-Set via `config.toml` or the `SAFECODE_LLM_PROVIDER` environment variable.
-Both override the default `mock` provider.
+Set via `sac model`, `config.toml`, or the `SAFECODE_LLM_PROVIDER`
+environment variable. Environment variables override config values.
 
 ---
 
@@ -33,11 +33,13 @@ Both override the default `mock` provider.
 | `provider` | string | `"mock"` | Primary provider key |
 | `model` | string | `"gpt-4.1-mini"` | Model name for the primary provider |
 | `base_url` | string | `"https://api.openai.com/v1/chat/completions"` | Endpoint URL |
+| `api_key` | string or null | `null` | Optional trusted user-level API key; environment variables take priority |
 | `fallback_provider` | string or null | `null` | Optional fallback provider key |
 | `fallback_model` | string or null | `null` | Model for the fallback provider |
 | `fallback_base_url` | string or null | `null` | Endpoint URL for the fallback provider |
 
-Environment variable overrides: `SAFECODE_LLM_PROVIDER`, `SAFECODE_LLM_MODEL`.
+Environment variable overrides: `SAFECODE_LLM_PROVIDER`, `SAFECODE_LLM_MODEL`,
+provider-specific key variables, and `SAFECODE_LLM_API_KEY`.
 
 ---
 
@@ -167,12 +169,24 @@ DeepSeek is supported via the standard OpenAI-compatible ChatCompletions path.
 It is an **EXPERIMENTAL** preset; the preset and its defaults may change without
 a stable-contract bump.
 
-**Configuration:**
+### Provider Profile UX (v4.14.0, recommended)
+
+```bash
+sac provider add deepseek    # prompts for API key; writes to trusted user config
+sac model flash              # use deepseek-v4-flash (daily default)
+sac model pro                # use deepseek-v4-pro
+sac model deepseek:flash     # provider-scoped alias
+sac provider status          # show effective provider and credential source
+```
+
+DeepSeek model aliases: `flash` → `deepseek-v4-flash`, `pro` → `deepseek-v4-pro`.
+
+### Manual Configuration
 
 ```toml
 [llm]
 provider = "deepseek"
-model = "deepseek-v4-pro"          # default; override as needed
+model = "deepseek-v4-flash"        # default; override as needed
 # base_url is auto-filled from the preset (https://api.deepseek.com)
 ```
 
@@ -180,17 +194,18 @@ model = "deepseek-v4-pro"          # default; override as needed
 |---|---|
 | API key env var | `DEEPSEEK_API_KEY` |
 | Base URL (preset) | `https://api.deepseek.com` |
-| Default model | `deepseek-v4-pro` |
-| Fallback model (future) | `deepseek-v4-flash` |
+| Default model (profile) | `deepseek-v4-flash` |
+| Model aliases | `flash`, `pro` |
+| Network allowlist | `api.deepseek.com` |
 
-**Key resolution order**: `DEEPSEEK_API_KEY` → `OPENAI_API_KEY` → `SAFECODE_LLM_API_KEY`.
+**Key resolution order**: `DEEPSEEK_API_KEY` env → profile api_key → `OPENAI_API_KEY` → `SAFECODE_LLM_API_KEY`.
 
 **Advisory notes:**
 - Never write `DEEPSEEK_API_KEY` to disk or commit it to the repository.
 - DeepSeek V4 may return reasoning/thinking-related fields; unknown response fields
   are ignored safely by the existing parser.
 - Network policy still governs whether the call is permitted.
-  Set `network_enabled = true` in your config or use `sac setup --wizard` to enable it.
+  `sac provider add deepseek` sets the user-level network allowlist automatically.
 - Use `sac doctor` to check API key presence and static network policy verdict without
   making any network request.
 - Use `SAFECODE_LIVE_SMOKE=1 sac smoke live-provider` (v4.10.4+) for an opt-in

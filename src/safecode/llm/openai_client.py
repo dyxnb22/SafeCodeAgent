@@ -72,11 +72,12 @@ class OpenAICompatibleLLMClient:
         self.model = config.llm.model
         # Normalize: join /v1/chat/completions onto the base URL.
         self.base_url = _normalize_endpoint(config.llm.base_url)
-        # Resolve API key: provider env var -> OPENAI_API_KEY -> SAFECODE_LLM_API_KEY.
+        # Resolve API key: provider env var -> OPENAI_API_KEY -> SAFECODE_LLM_API_KEY -> user config.
         self.api_key = (
             os.getenv(api_key_env)
             or (os.getenv("OPENAI_API_KEY") if api_key_env != "OPENAI_API_KEY" else None)
             or os.getenv("SAFECODE_LLM_API_KEY")
+            or config.llm.api_key
         )
         if not self.api_key:
             env_hint = api_key_env if api_key_env != "OPENAI_API_KEY" else "OPENAI_API_KEY"

@@ -110,6 +110,21 @@ class TestLiveSmokeRefusals:
         assert allowed
         assert "preconditions met" in reason
 
+    def test_allows_api_key_from_user_config(self, tmp_path: Path) -> None:
+        cfg = self._make_config(network_enabled=True)
+        cfg.llm.api_key = "sk-from-user-config"
+        clean_env = {k: v for k, v in os.environ.items()
+                     if k not in ("DEEPSEEK_API_KEY", "OPENAI_API_KEY",
+                                  "SAFECODE_LLM_API_KEY", "SAFECODE_LIVE_SMOKE")}
+        clean_env["SAFECODE_LIVE_SMOKE"] = "1"
+        with (
+            patch.dict(os.environ, clean_env, clear=True),
+            patch("safecode.config.SafeCodeConfig.load", return_value=cfg),
+        ):
+            allowed, reason = _check_live_smoke_preconditions(tmp_path)
+        assert allowed
+        assert "preconditions met" in reason
+
 
 # ---------------------------------------------------------------------------
 # CLI surface tests (refusal path, no real network)

@@ -904,8 +904,8 @@ def _check_live_smoke_preconditions(project_root: Path) -> tuple[bool, str]:
 
     # Check for the provider API key (presence only — never echo the value).
     from safecode.doctor import Doctor
-    key_env, key_present = Doctor._resolve_provider_key_env(provider, config)
-    if not key_present:
+    key_env, key_source = Doctor._resolve_provider_key_env(provider, config)
+    if key_source == "missing":
         return False, f"Required API key env var not set: {key_env}"
 
     return True, "all preconditions met"

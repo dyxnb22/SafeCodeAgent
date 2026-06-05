@@ -47,6 +47,7 @@ class LLMConfig(BaseModel):
     provider: str = "mock"
     model: str = "gpt-4.1-mini"
     base_url: str = "https://api.openai.com/v1/chat/completions"
+    api_key: str | None = None
 
     # Optional fallback provider activated on hard transport failures from the primary.
     # Both primary and fallback are subject to the same network policy checks.
@@ -122,6 +123,15 @@ class SafeCodeConfig(BaseModel):
                 config.sandbox.network_enabled = True
             if network_allowlist:
                 config.sandbox.network_allowlist = network_allowlist
+        # Resolution order (highest priority first):
+        # 1. Explicit env vars
+        # 2. Active provider profile defaults
+        # 3. Legacy [llm] table (already merged above)
+        # 4. Built-in defaults
+
+        # Apply active provider profile BEFORE env var overrides so env vars win.
+        _apply_active_provider_profile(config, user_data)
+
         env_provider = os.getenv("SAFECODE_LLM_PROVIDER")
         if env_provider:
             config.llm.provider = env_provider
@@ -161,6 +171,7 @@ class SafeCodeConfig(BaseModel):
             f'provider = "{self.llm.provider}"\n'
             f'model = "{self.llm.model}"\n'
             f'base_url = "{self.llm.base_url}"\n'
+            f'api_key = "{self.llm.api_key or ""}"\n'
         )
 
 
@@ -429,3 +440,33 @@ def _read_toml(path: Path) -> dict:
     if path.exists():
         return tomllib.loads(path.read_text(encoding="utf-8"))
     return {}
+
+
+def _apply_active_provider_profile(config: "SafeCodeConfig", user_data: dict) -> None:
+    """Apply active provider profile defaults to config.llm (in-place).
+
+    Provider profiles represent the preferred user-level provider account and
+    model selection. They intentionally override legacy [llm] values; explicit
+    environment variables are applied after this call and always win.
+    """
+    raw_providers = user_data.get("providers", {})
+    active_name = raw_providers.get("active") if isinstance(raw_providers, dict) else None
+    if not active_name or not isinstance(active_name, str):
+        return
+
+    profile_data = raw_providers.get(active_name)
+    if not isinstance(profile_data, dict):
+        return
+
+    config.llm.provider = active_name
+    profile_base_url = str(profile_data.get("base_url", ""))
+    if profile_base_url:
+        config.llm.base_url = profile_base_url
+
+    profile_model = str(profile_data.get("default_model", ""))
+    if profile_model:
+        config.llm.model = profile_model
+
+    profile_api_key = profile_data.get("api_key")
+    if profile_api_key and isinstance(profile_api_key, str):
+        config.llm.api_key = profile_api_key

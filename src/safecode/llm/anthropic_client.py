@@ -63,7 +63,7 @@ class AnthropicLLMClient:
         NetworkPolicy(config).assert_allowed(config.llm.base_url)
         self.model = config.llm.model or "claude-sonnet-4-6"
         self.base_url = config.llm.base_url
-        self.api_key = os.getenv("ANTHROPIC_API_KEY") or os.getenv("SAFECODE_LLM_API_KEY")
+        self.api_key = os.getenv("ANTHROPIC_API_KEY") or os.getenv("SAFECODE_LLM_API_KEY") or config.llm.api_key
         if not self.api_key:
             raise RuntimeError("ANTHROPIC_API_KEY or SAFECODE_LLM_API_KEY is required for Anthropic provider.")
         self._session_id = session_id

@@ -36,8 +36,8 @@ def write_setup(
     """Write SafeCode project config plus approval-dir environment hints."""
     if policy not in KNOWN_POLICY_NAMES:
         raise ValueError(f"policy must be one of: {', '.join(sorted(KNOWN_POLICY_NAMES))}")
-    if provider not in {"mock", "openai"}:
-        raise ValueError("provider must be one of: mock, openai")
+    if provider not in {"mock", "openai", "openai-compatible", "anthropic", "deepseek"}:
+        raise ValueError("provider must be one of: mock, openai, openai-compatible, anthropic, deepseek")
 
     sac_dir = project_root / ".sac"
     config_path = sac_dir / "config.toml"

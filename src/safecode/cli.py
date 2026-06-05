@@ -4,6 +4,7 @@ import sys
 import typer
 from pathlib import Path
 from rich.panel import Panel
+from typer import Context
 
 from safecode.cli_agent import agent_app
 from safecode.cli_context import context_app
@@ -28,6 +29,9 @@ from safecode.cli_memory import memory_app
 from safecode.cli_debug import debug_app
 from safecode.cli_smoke import smoke_app
 from safecode.cli_shell import register as _register_shell
+from safecode.cli_shell import run_shell
+from safecode.cli_model import register as _register_model
+from safecode.cli_provider import provider_app
 from safecode.config import SafeCodeConfig, _stricter_policy
 from safecode.setup import write_setup
 
@@ -154,13 +158,27 @@ def run_setup_wizard(project_root: Path, *, is_tty: bool | None = None) -> int:
 app = typer.Typer(
     name="sac",
     help="SafeCode Agent: safety-first terminal coding assistant.",
-    no_args_is_help=True,
+    no_args_is_help=False,
+    invoke_without_command=True,
 )
 
 
 @app.callback()
-def callback() -> None:
-    """Keep Typer in multi-command mode."""
+def callback(
+    ctx: Context,
+    model: str = typer.Option("", "--model", help="One-shot model override for this invocation (e.g. pro or deepseek:pro)."),
+) -> None:
+    """Enter the interactive shell when `sac` is invoked without a subcommand."""
+    if model:
+        from safecode.cli_model import apply_model_override_env
+        try:
+            apply_model_override_env(model)
+        except ValueError as exc:
+            console.print(f"[red]{exc}[/red]")
+            raise typer.Exit(code=1) from exc
+    if ctx.invoked_subcommand is None:
+        code = run_shell(Path.cwd(), is_tty=sys.stdin.isatty() and sys.stdout.isatty())
+        raise typer.Exit(code=code)
 
 
 @app.command("setup")
@@ -227,6 +245,7 @@ _register_status(app)
 _register_resume(app)
 _register_commit(app)
 _register_shell(app)
+_register_model(app)
 
 # Core commands stay at the root for backward compatibility.
 for command in core_app.registered_commands:
@@ -235,6 +254,7 @@ for command in ops_app.registered_commands:
     app.registered_commands.append(command)
 
 app.add_typer(task_app, name="task")
+app.add_typer(provider_app, name="provider")
 app.add_typer(profile_app, name="profile")
 app.add_typer(memory_app, name="memory")
 app.add_typer(debug_app, name="debug")

@@ -10,6 +10,7 @@
   ],
   "config_fields": {
     "llm_config_fields": [
+      "api_key",
       "base_url",
       "fallback_base_url",
       "fallback_model",
@@ -22,6 +23,7 @@
     ],
     "defaults": {
       "base_url": "https://api.openai.com/v1/chat/completions",
+      "api_key": null,
       "fallback_base_url": null,
       "fallback_model": null,
       "fallback_provider": null,

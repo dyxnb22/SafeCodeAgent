@@ -5,13 +5,21 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v4.12.4
+# Current Baseline - v4.14.0
 
 ## Status
-Implemented. Git baseline: tag `v4.12.4`. Local working version: `v4.12.3`.
+Implemented. Git baseline: tag `v4.14.0`. Local working version: `v4.14.0`.
 
 ## Stage
-`v4.12.3` resume-mvp cut completes the v4.10-v4.12 train: DeepSeek provider reliability, agentic-lite task loop on the existing `AgentLoop`, runnable `examples/fastapi-todo`, deterministic mock-only `sac demo agent-loop`, README demo front door, tutorial, release notes, matrix, and threat-model addendum. `v4.12.4` is a narrow tracked-profile hotfix for `examples/fastapi-todo/.sac/project_profile.json`. All v4.10-v4.12 surfaces remain EXPERIMENTAL and promote zero new stable contracts. Previous: `v4.11.5` agentic workflow smoke; `v4.10.4` opt-in live-provider smoke; `v4.9.3` AI shell docs and smoke.
+`v4.14.0` adds provider-profile UX: users configure a trusted provider profile
+once (`sac provider add deepseek`) and switch models with short aliases
+(`sac model flash`, `sac model pro`, scoped aliases, and one-shot `--model`
+overrides). Diagnostics, provider status, and live smoke prechecks now understand
+trusted user config API keys as well as environment variables. All provider
+profile and model-switching surfaces remain EXPERIMENTAL and promote zero new
+stable contracts. Previous: `v4.12.4` tracked-profile hotfix; `v4.12.3`
+resume-mvp cut; `v4.11.5` agentic workflow smoke; `v4.10.4` opt-in live-provider
+smoke; `v4.9.3` AI shell docs and smoke.
 
 ## Current Forward Plan
 The v4.10-v4.12 resume-MVP train is complete. Current status and post-v4.12

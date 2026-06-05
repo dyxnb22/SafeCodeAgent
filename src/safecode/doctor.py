@@ -238,18 +238,24 @@ class Doctor:
         ))
 
         # 2. API key env presence (name only, never the value)
-        key_env, key_present = self._resolve_provider_key_env(provider, config)
+        key_env, key_source = self._resolve_provider_key_env(provider, config)
         if provider == "mock":
             diagnostics.append(Diagnostic(
                 name="provider_api_key",
                 status=DiagnosticStatus.PASS,
                 message="mock provider: no API key required (deterministic mode)",
             ))
-        elif key_present:
+        elif key_source.startswith("env:"):
             diagnostics.append(Diagnostic(
                 name="provider_api_key",
                 status=DiagnosticStatus.PASS,
                 message=f"API key env set: {key_env}",
+            ))
+        elif key_source == "user-config":
+            diagnostics.append(Diagnostic(
+                name="provider_api_key",
+                status=DiagnosticStatus.PASS,
+                message="API key configured in trusted user config",
             ))
         else:
             diagnostics.append(Diagnostic(
@@ -316,10 +322,11 @@ class Doctor:
         return diagnostics
 
     @staticmethod
-    def _resolve_provider_key_env(provider: str, config) -> tuple[str, bool]:
-        """Return (env_var_name, is_present) for the provider's API key.
+    def _resolve_provider_key_env(provider: str, config) -> tuple[str, str]:
+        """Return (env_var_name, source) for the provider's API key.
 
-        Never returns the key value — only the env var name and a boolean presence flag.
+        Never returns the key value. Source is one of env:<name>,
+        user-config, or missing.
         """
         if provider == "deepseek":
             from safecode.llm.deepseek import DEEPSEEK_PRESET
@@ -331,12 +338,15 @@ class Doctor:
         else:
             env_name = "OPENAI_API_KEY"
 
-        present = bool(
-            os.getenv(env_name)
-            or os.getenv("OPENAI_API_KEY")
-            or os.getenv("SAFECODE_LLM_API_KEY")
-        )
-        return env_name, present
+        if os.getenv(env_name):
+            return env_name, f"env:{env_name}"
+        if env_name != "OPENAI_API_KEY" and os.getenv("OPENAI_API_KEY"):
+            return env_name, "env:OPENAI_API_KEY"
+        if os.getenv("SAFECODE_LLM_API_KEY"):
+            return env_name, "env:SAFECODE_LLM_API_KEY"
+        if getattr(config.llm, "api_key", None):
+            return env_name, "user-config"
+        return env_name, "missing"
 
     def _update_check_diagnostic(self) -> Diagnostic:
         """Check PyPI for a newer version. Skips silently on network failure.
