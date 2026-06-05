@@ -1,8 +1,14 @@
 # SafeCode MVP User Guide
 
-This guide covers the v4.9.x path for a new user: install SafeCode, set up
-your provider, run a coding task, fix a failing test, and review/apply the
-proposed patches safely.
+This guide covers the v4.12.x path for a new user: install SafeCode, run the
+mock demo, set up a provider when needed, run a coding task, fix a failing
+test, and review/apply proposed patches safely.
+
+Start with the resume-MVP walkthrough:
+
+- [From Task to Tested Commit](tutorials/from-task-to-tested-commit.md)
+- [FastAPI todo example](../examples/fastapi-todo/)
+- [Recorded demo transcript](../examples/fastapi-todo/demo/expected-transcript.md)
 
 ## AI Shell (v4.9, EXPERIMENTAL)
 

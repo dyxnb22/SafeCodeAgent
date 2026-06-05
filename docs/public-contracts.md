@@ -49,6 +49,21 @@ No v4.9 surface is a stable contract. v4.9 introduces no breaking changes to
 v4.0 stable contracts. v4.9 does not schedule v5. All twelve stable contracts
 from v4.0.0 remain unchanged through v4.9.3.
 
+## v4.10-v4.12 Resume-MVP Contract Summary
+
+The v4.10-v4.12 resume-MVP train adds zero new stable contracts. All new
+surfaces remain explicitly EXPERIMENTAL:
+
+- DeepSeek provider preset and live-provider smoke.
+- Agentic typed step, validation, resume, and smoke surfaces.
+- `sac agent run` and `sac shell --agentic` behavior.
+- `sac demo agent-loop`, `examples/fastapi-todo/`, and recorded demo transcript.
+
+No v4.10-v4.12 surface is a stable contract. The train preserves approval,
+checkpoint, audit, rollback, policy, dirty-tree, and network gates. It does
+not add auto-apply, auto-commit, push, pull request automation, RAG,
+embeddings, LangGraph, IDE requirements, cloud tasks, or background execution.
+
 ## Stable Contracts
 
 ### 1. Config Precedence and Lowering Rules

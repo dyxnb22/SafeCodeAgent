@@ -2,6 +2,19 @@
 
 SafeCode Agent is a safety-first Python terminal coding agent and local agent runtime.
 
+## Demo: from task to tested commit
+
+Run the v4.12 EXPERIMENTAL mock demo without live provider credentials:
+
+```bash
+uv sync --extra examples
+cd examples/fastapi-todo
+pytest -q
+../../examples/fastapi-todo/demo/run-demo.sh
+```
+
+Read the recorded transcript at [examples/fastapi-todo/demo/expected-transcript.md](examples/fastapi-todo/demo/expected-transcript.md) and the tutorial at [docs/tutorials/from-task-to-tested-commit.md](docs/tutorials/from-task-to-tested-commit.md). The demo uses [examples/fastapi-todo/](examples/fastapi-todo/) and does not auto-apply, auto-commit, push, or require an IDE.
+
 It is designed around a controlled loop:
 
 ```text
@@ -76,6 +89,7 @@ For context budget configuration, see [docs/context-budgets.md](docs/context-bud
 - [TypeScript: First Hour](docs/tutorials/typescript-first-hour.md)
 - [Go: First Hour](docs/tutorials/go-first-hour.md)
 - [AI Shell: First Hour](docs/tutorials/ai-shell-first-hour.md) — `sac shell` [EXPERIMENTAL v4.9]
+- [Agent Run: First Hour](docs/tutorials/agent-run-first-hour.md) — `sac agent run` [EXPERIMENTAL v4.11-v4.12]
 
 ## Core Commands
 

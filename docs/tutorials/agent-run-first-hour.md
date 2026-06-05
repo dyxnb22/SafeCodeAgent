@@ -1,115 +1,76 @@
-# Agent Run — First Hour (EXPERIMENTAL)
+# Agent Run: First Hour
 
-> **EXPERIMENTAL**: All surfaces documented here are experimental and carry
-> no stable contract. Behavior may change in future releases.
+`sac agent run` is EXPERIMENTAL. It uses the existing `AgentLoop`, journal, validation loop, pending-patch review, apply checkpoint, and local commit primitives. It does not introduce auto-apply, auto-commit, push, PR creation, IDE requirements, RAG, embeddings, or background cloud work.
 
-This tutorial walks through your first `sac agent run` session: from
-setting a goal to reviewing a proposed patch — without leaving the terminal.
+## 1. Start With The Mock Demo
 
-## Prerequisites
-
-- SafeCode Agent installed (`uv sync && uv run sac --help`)
-- A project directory with a working test suite
-- A provider configured (`sac setup --wizard`, pick `deepseek` or `openai`)
-- Doctor confirms your setup (`sac doctor`)
-
-## Step 1: Pick a task
-
-Create a task for the agent to work on:
+The fastest first hour uses the bundled FastAPI todo example and needs no live provider credentials:
 
 ```bash
-cd myproject
-sac task new "add input validation to the user registration endpoint"
+uv sync --extra examples
+cd examples/fastapi-todo
+pytest -q
+../../examples/fastapi-todo/demo/run-demo.sh
+sac demo agent-loop
+PYTHONPATH=src pytest -q
 ```
 
-## Step 2: Run the agent
+Compare the output with `examples/fastapi-todo/demo/expected-transcript.md`. The transcript shows the agent-shaped flow: task goal, plan, patch proposal, review boundary, apply boundary, validation, and commit prompt. The script uses a temporary working copy and removes it when done.
+
+## 2. Run The Real Command On A Local Project
+
+Inside your own project, set up SafeCode and detect the profile:
 
 ```bash
-sac agent run "add input validation to the user registration endpoint"
+sac quickstart
+sac task new "add input validation to the registration endpoint"
+sac profile detect
+sac status
 ```
 
-The agent will:
-1. Plan steps toward the goal.
-2. Collect context (files, test results, pinned memory).
-3. Propose a patch and stop for your approval.
+Ask a read-only question before asking for a change:
 
-No files are modified until you explicitly approve.
-
-## Step 3: Review the proposed patch
-
-When the agent stops with `approval_required`, it prints a pending patch path:
-
-```
-Patch proposal saved — no files modified yet.
-File  : .sac/pending_patch.json
-ID    : patch-abc123
-
-Next steps:
-  sac apply          — preview diff and apply
-  sac apply --preview — preview diff only
+```bash
+sac ask "where is registration handled?"
 ```
 
-Review the diff:
+Then run the EXPERIMENTAL agent:
+
+```bash
+sac agent run "add input validation to the registration endpoint"
+```
+
+The agent plans, collects context, proposes a patch, and stops at approval-required steps. In non-TTY mode, mutating approvals fail closed.
+
+## 3. Review, Apply, Validate
+
+Preview the pending diff first:
 
 ```bash
 sac apply --preview
-```
-
-## Step 4: Apply and validate
-
-```bash
 sac apply
-sac agent run "add input validation to the user registration endpoint"
-```
-
-After a successful apply-kind step, the agent validation loop runs the project
-profile's `test` suite first. If `lint`, `typecheck`, or `build` commands are
-configured, they run after tests in that order.
-
-If validation fails, SafeCode records a redacted failure tail and stable hash in
-the existing agent journal, then proposes a `fix` patch for review. The repair
-patch is never auto-applied; you still review and apply it explicitly.
-
-You can also run the same profile suite manually:
-
-```bash
 sac run --suite test
 ```
 
-Use `--no-validate` only when you intentionally want to skip this automatic
-post-apply validation for one invocation. The command logs a warning when the
-flag is used.
+After apply-kind steps, the validation loop runs the configured profile test suite first, then lint, typecheck, and build where those commands exist. A failing validation records a redacted failure tail and proposes a repair patch for review; it is still never auto-applied.
 
-## Options
+## 4. Recover Or Finish Locally
 
-| Flag | Default | Purpose |
-|---|---|---|
-| `--max-steps N` | 8 | Maximum agent steps before stopping |
-| `--auto-approve-read-only` | off | Auto-approve read-only context steps only (never edit/apply/run) |
-| `--no-validate` | off | Skip validation loop (logs a warning) |
-| `--json` | off | Machine-readable output |
-
-## Shell agentic mode
-
-`sac shell --agentic` drives the same `AgentLoop.run()` path as `sac agent run`
-but reads the goal interactively from the shell prompt:
+Use the existing recovery and local delivery commands:
 
 ```bash
-sac shell --agentic
-# > add a DELETE /todos/{id} endpoint with a passing test
+sac resume
+sac debug last-failure
+sac diff --task
+sac commit --message-from-task
 ```
 
-Without `--agentic`, the shell uses the existing v4.9 intent router.
+`sac commit` is local only and stages files SafeCode can associate with the current task. There is no remote push command in this workflow, no PR automation, and no hidden remote publish step.
 
-## Safety notes
+## Safety Summary
 
-- `--auto-approve-read-only` **never** approves `edit`, `apply`, `run`, `fix`,
-  `commit`, or `rollback` steps — those always require interactive approval.
-- In non-TTY mode, approval-required steps fail closed if they require mutation.
-- No files are modified without your explicit `sac apply` approval.
-- No commits are created without your explicit `sac commit` approval.
-
-## What's next?
-
-- `docs/tutorials/from-task-to-tested-commit.md` (coming in v4.12)
-- `examples/fastapi-todo/` — a runnable end-to-end demo (coming in v4.12)
+- No live provider is required for the demo; it is mock-only.
+- Live providers such as DeepSeek are optional and still EXPERIMENTAL in the v4.10-v4.12 train.
+- No auto-apply and no auto-commit: you approve apply and commit separately.
+- No IDE is required.
+- All v4.10-v4.12 agent/demo/provider surfaces remain EXPERIMENTAL and promote no new stable contracts.
