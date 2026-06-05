@@ -28,6 +28,11 @@ from safecode.task.budget import TaskBudgetStore, record_budget_exceeded
 from safecode.task.state import TaskIteration
 from safecode.task.store import TaskStore
 from safecode.logs.runtime import RuntimeLogger
+from safecode.agent.step_model import (
+    TypedAgentStep,
+    TypedAgentStepResult,
+    classify_step_from_pending_action,
+)
 
 
 DEFAULT_PLAN = [
@@ -67,6 +72,33 @@ class AgentLoop:
         self.journal = AgentJournalStore(project_root)
         self._last_tool_intent_identity: tuple[str, str, str, str] | None = None
         self._last_tool_intent_count = 0
+        self._last_typed_step: TypedAgentStep | None = None
+        self._last_typed_result: TypedAgentStepResult | None = None
+
+    @property
+    def last_typed_result(self) -> TypedAgentStepResult | None:
+        """The typed result from the most recently completed step, or None."""
+        return self._last_typed_result
+
+    def _classify_and_record(
+        self,
+        step_index: int,
+        pending_action: dict[str, object] | None,
+        observation: str,
+        stopped_for_approval: bool,
+        failure_category: str | None = None,
+    ) -> tuple[TypedAgentStep, TypedAgentStepResult]:
+        """Classify one completed step into typed step + result and cache them."""
+        typed_step, typed_result = classify_step_from_pending_action(
+            step_index=step_index,
+            pending_action=pending_action,
+            observation=observation,
+            stopped_for_approval=stopped_for_approval,
+            failure_category=failure_category,
+        )
+        self._last_typed_step = typed_step
+        self._last_typed_result = typed_result
+        return typed_step, typed_result
 
     def step(self, goal: str | None = None) -> AgentStepResult:
         """Advance exactly one safe session step."""
@@ -100,6 +132,12 @@ class AgentLoop:
                     "current_step": saved.current_step,
                     "plan_items": len(saved.plan),
                 },
+            )
+            self._classify_and_record(
+                step_index=saved.current_step,
+                pending_action=None,
+                observation=saved.last_observation,
+                stopped_for_approval=False,
             )
             return AgentStepResult(state=saved, observation=saved.last_observation)
 
@@ -148,6 +186,13 @@ class AgentLoop:
                     failure_category=FailureCategory.MODEL_OUTPUT_INVALID.value,
                     details={"session_id": saved.session_id},
                 )
+                self._classify_and_record(
+                    step_index=saved.current_step,
+                    pending_action=saved.pending_action,
+                    observation=observation,
+                    stopped_for_approval=False,
+                    failure_category="model_output_invalid",
+                )
                 return AgentStepResult(state=saved, observation=observation, stopped_for_approval=False)
 
         if isinstance(tool_choice, AgentStopForUserResponse):
@@ -166,6 +211,12 @@ class AgentLoop:
             )
             saved = self.store.save(updated)
             self.journal.record_action(saved.session_id, saved.current_step, tool_choice.message, saved.pending_action)
+            self._classify_and_record(
+                step_index=saved.current_step,
+                pending_action=saved.pending_action,
+                observation=tool_choice.message,
+                stopped_for_approval=True,
+            )
             return AgentStepResult(state=saved, observation=tool_choice.message, stopped_for_approval=True)
 
         if not isinstance(tool_choice, AgentToolIntentResponse):
@@ -217,6 +268,12 @@ class AgentLoop:
             saved.current_step,
             observation,
             pending_action,
+        )
+        self._classify_and_record(
+            step_index=saved.current_step,
+            pending_action=pending_action,
+            observation=observation,
+            stopped_for_approval=False,
         )
         return AgentStepResult(state=saved, observation=observation)
 
@@ -421,6 +478,12 @@ class AgentLoop:
             observation,
             call_summary,
         )
+        self._classify_and_record(
+            step_index=saved.current_step,
+            pending_action=pending_action,
+            observation=observation,
+            stopped_for_approval=False,
+        )
         return AgentStepResult(state=saved, observation=observation)
 
     def _execute_subagent_dispatch_step(
@@ -478,6 +541,12 @@ class AgentLoop:
             observation,
             dispatch_summary,
         )
+        self._classify_and_record(
+            step_index=saved.current_step,
+            pending_action=pending_action,
+            observation=observation,
+            stopped_for_approval=False,
+        )
         return AgentStepResult(state=saved, observation=observation)
 
     def _execute_patch_proposal_step(
@@ -520,6 +589,12 @@ class AgentLoop:
                 observation,
                 pending_action,
             )
+            self._classify_and_record(
+                step_index=saved.current_step,
+                pending_action=pending_action,
+                observation=observation,
+                stopped_for_approval=True,
+            )
             return AgentStepResult(state=saved, observation=observation, stopped_for_approval=True)
 
         try:
@@ -548,6 +623,13 @@ class AgentLoop:
                 observation,
                 exc=exc,
                 failure_category=FailureCategory.PATCH_PARSE_FAILED.value,
+            )
+            self._classify_and_record(
+                step_index=saved.current_step,
+                pending_action=err_action,
+                observation=observation,
+                stopped_for_approval=False,
+                failure_category="patch_parse_failed",
             )
             return AgentStepResult(state=saved, observation=observation, stopped_for_approval=False)
 
@@ -590,6 +672,12 @@ class AgentLoop:
                     else "no_prediction"
                 ),
             },
+        )
+        self._classify_and_record(
+            step_index=saved.current_step,
+            pending_action=pending_action,
+            observation=observation,
+            stopped_for_approval=True,
         )
         return AgentStepResult(state=saved, observation=observation, stopped_for_approval=True)
 
@@ -661,6 +749,12 @@ class AgentLoop:
             saved.current_step,
             observation,
             call_summary,
+        )
+        self._classify_and_record(
+            step_index=saved.current_step,
+            pending_action=pending_action,
+            observation=observation,
+            stopped_for_approval=False,
         )
         return AgentStepResult(state=saved, observation=observation)
 
