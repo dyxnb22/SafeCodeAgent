@@ -510,7 +510,7 @@ Completed shell-first plan: `docs/version-plans/v4.1-to-v4.8-shell-first-roadmap
 
 Previous contract/product plan: `docs/version-plans/v3.7-to-v4.0-product-roadmap.md`.
 
-Readiness baseline: `docs/commercial-v1-readiness-audit-v3.11.x.md`.
+Readiness baseline: `docs/archive/audits/commercial-v1-readiness-audit-v3.11.x.md`.
 
 Architecture reference: `docs/product-commercialization-roadmap.md`.
 

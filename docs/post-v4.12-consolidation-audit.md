@@ -123,7 +123,7 @@ Recommended ownership:
 - Forward roadmap: `docs/version-plans/post-v4.12-consolidation-roadmap.md`.
 - Architecture reference: `docs/product-commercialization-roadmap.md`.
 - Historical productization context:
-  `docs/productization-roadmap-to-claude-code.md`.
+  `docs/archive/roadmaps/productization-roadmap-to-claude-code.md`.
 
 Findings:
 
@@ -149,9 +149,9 @@ Findings:
 6. `docs/product-commercialization-roadmap.md` is still valuable as an
    architecture reference, but it should not be treated as the active roadmap.
 
-7. `docs/productization-roadmap-to-claude-code.md` is useful historical context
-   but now reads stale in places because it frames the current status at
-   `v4.9.3`. Consolidate or mark it more aggressively historical later.
+7. `docs/archive/roadmaps/productization-roadmap-to-claude-code.md` is useful
+   historical context but now reads stale in places because it frames the
+   current status at `v4.9.3`.
 
 ## Test/Release Hygiene Findings
 
@@ -214,8 +214,8 @@ Findings:
   non-TTY failure behavior.
 - Consolidate first-user docs so README and MVP guide have one primary path and
   the longer historical material moves behind references.
-- Mark `docs/productization-roadmap-to-claude-code.md` explicitly historical at
-  the top.
+- Keep `docs/archive/roadmaps/productization-roadmap-to-claude-code.md` in the
+  archive rather than the current reading path.
 
 ### P2: Good Cleanup
 

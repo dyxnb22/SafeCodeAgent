@@ -1,0 +1,42 @@
+# Version Notes
+
+This directory is the release-completion ledger for SafeCode Agent.
+
+Each file records what changed, what was tested, and which acceptance criteria
+were satisfied for one release or patch train. These notes are historical
+records; they are not the recommended first-read path for users.
+
+## Start Elsewhere First
+
+- Current product behavior: [../project-final-status-and-roadmap.md](../project-final-status-and-roadmap.md)
+- Major train summary: [../reference/version-summary.md](../reference/version-summary.md)
+- Stable public surfaces: [../public-contracts.md](../public-contracts.md)
+- Implementation ledger: [../version_implementation_matrix.md](../version_implementation_matrix.md)
+- Release workflow rules: [../version_skill_workflow.md](../version_skill_workflow.md)
+
+## By Major Version
+
+| Major | Count | Theme | Good Entry Points |
+| --- | ---: | --- | --- |
+| v4 | 43 | shell-first, resume-ready MVP, DeepSeek/provider reliability, agentic loop, debug/memory/local git | [v4.12.4](v4.12.4-fastapi-todo-profile.md), [v4.12.3](v4.12.3-resume-mvp.md), [v4.9.3](v4.9.3-ai-shell-docs-and-smoke.md), [v4.0.0](v4.0.0-contract-cut.md) |
+| v3 | 51 | public contracts, providers, MCP, productization, setup, docs and release readiness | [v3.99.1](v3.99.1-promotion-decisions.md), [v3.99.0](v3.99.0-v4-readiness-audit.md), [v3.10.2](v3.10.2-context-budgets-stack-tutorials.md), [v3.0.0](v3.0.0-public-contract-stabilization.md) |
+| v2 | 87 | hardening, release tooling, diagnostics, policy presets, sandbox previews, eval fixtures | [v2.9.9](v2.9.9-public-contract-snapshot-tests.md), [v2.8.10](v2.8.10-final-v28-baseline-sync.md), [v2.6.21](v2.6.21-final-signoff.md), [v2.0.0](v2.0.0-real-llm-agent-contract.md) |
+| v1 | 17 | local policy-gated execution, approvals, session state, agent loop recovery | [v1.9.5](v1.9.5-agent-recovery.md), [v1.9.2](v1.9.2-agent-run-loop.md), [v1.8.0](v1.8.0-sandbox-execution-mvp.md) |
+| v0 | 6 | first ask/edit/apply/rollback demo capabilities | [v0.1.5](v0.1.5-fastapi-demo.md), [v0.1.0](v0.1.0-ask-audit.md) |
+
+## Naming
+
+Version notes use:
+
+```text
+v<major>.<minor>.<patch>-<short-feature-name>.md
+```
+
+Release tooling expects new completion notes to live in this directory.
+
+## Maintenance
+
+- Add one note per release or patch train.
+- Keep current behavior in user-facing docs; keep release archaeology here.
+- Prefer linking from [../version_implementation_matrix.md](../version_implementation_matrix.md)
+  instead of adding long release-note lists to README.

@@ -9,7 +9,7 @@ Planning update, 2026-06-03: this document remains the architecture reference
 and record of commercial-product intent. The active execution plan after the
 v3.6.6 documentation cut is
 `docs/version-plans/v3.7-to-v4.0-product-roadmap.md`, with the current
-readiness baseline in `docs/commercial-v1-readiness-audit-v3.6.6.md`.
+readiness baseline in `docs/archive/audits/commercial-v1-readiness-audit-v3.6.6.md`.
 
 Planning update, 2026-06-04: the v3.7-to-v4.0 execution plan closed at the
 v4.0.0 contract cut. This document remains the commercial architecture
@@ -17,7 +17,7 @@ reference, but the active forward execution plan is now
 `docs/version-plans/v4.1-to-v4.8-shell-first-roadmap.md`, scoped to
 shell-first functional completeness rather than commercialization. The
 current readiness baseline is
-`docs/commercial-v1-readiness-audit-v3.11.x.md`.
+`docs/archive/audits/commercial-v1-readiness-audit-v3.11.x.md`.
 
 Planning update, 2026-06-04: the v4.1-to-v4.8 shell-first train closed at
 v4.8.2. The active forward execution plan is now

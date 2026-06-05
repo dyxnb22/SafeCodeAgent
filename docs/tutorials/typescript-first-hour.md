@@ -1,200 +1,65 @@
 # TypeScript: First Hour with SafeCode Agent
 
-This tutorial walks you through using SafeCode Agent on a TypeScript project
-following the v4.x task-first daily loop. Every command shown here exists
-in the codebase and is deterministically testable.
+This is the TypeScript-specific companion to [Stack First Hour](stack-first-hour.md).
+Use it in a repository with `package.json`. SafeCode defaults to the
+deterministic `mock` provider, so no live provider is required. No IDE is required.
+All v4.x task/profile/fix-watch/local-delivery surfaces are
+EXPERIMENTAL.
 
-**Prerequisites**: SafeCode Agent installed, Python 3.11+, a TypeScript project
-with `package.json`.
+## TypeScript Setup Signals
 
-No live LLM provider is required to follow these steps — the default provider
-is `mock`. No IDE is required. No auto-apply, no auto-commit, no push.
+SafeCode detects TypeScript and Node.js projects from `package.json`. `sac
+profile detect` reads scripts such as `test`, `lint`, `typecheck`, and `build`
+and stores safe command profiles without executing package scripts during
+detection.
 
----
-
-## 1. Start: quickstart and stack detection
+## First-Hour Flow
 
 ```sh
-cd my-typescript-project
 sac quickstart
-```
-
-`sac quickstart` checks your `.sac/config.toml`, shows the current
-provider/policy, detects the TypeScript stack (when `package.json` is
-present), and prints next-step commands tailored to TypeScript conventions.
-No files are modified.
-
----
-
-## 2. Create a task
-
-```sh
 sac task new "add input validation to the API handler"
-```
-
-`sac task new <goal>` creates a task sidecar under `.sac/tasks/` and sets it
-as `CURRENT`. All subsequent `sac edit`, `sac apply`, `sac fix`, and `sac run`
-invocations attach to this task automatically. The task starts with status
-`open`.
-
----
-
-## 3. Detect project profile
-
-```sh
 sac profile detect
-```
-
-`sac profile detect` scans the project for TypeScript test/lint/typecheck/build
-commands (npm test, npx tsc, eslint, etc.) from `package.json` scripts without
-executing them. The detected profile is stored at `.sac/project_profile.json`
-and used by `sac fix --watch` to know which test suite to run.
-
-```sh
-sac profile show
-```
-
-Shows the detected commands. Use `sac profile set test "npm test"` to override
-a specific kind if the detection missed something.
-
----
-
-## 4. Check status
-
-```sh
 sac status
-```
-
-`sac status` shows the current task id/goal/status, whether a pending patch is
-waiting for review, the last test outcome, the last command, and the next safe
-step. Run it any time you want to know what to do next.
-
----
-
-## 5. Ask a read-only question
-
-```sh
 sac ask "Where is the API request validation logic?"
-```
-
-`sac ask` collects project context and returns a read-only answer. No files are
-modified. The LLM provider defaults to `mock` for local testing — configure
-`provider = "openai"` or `provider = "anthropic"` in `.sac/config.toml` for
-real answers.
-
----
-
-## 6. Propose an edit
-
-```sh
 sac edit "Add Zod validation to the POST /users handler in src/routes/users.ts"
-```
-
-`sac edit` generates a pending patch proposal and shows a unified diff.
-**No files are changed yet.** The pending patch is stored at
-`.sac/pending_patch.json`. Review the diff before proceeding.
-
----
-
-## 7. Apply the patch
-
-```sh
 sac apply
-```
-
-`sac apply` validates the patch, creates a checkpoint (backup of the files to
-be changed), writes the patch to disk, and emits an audit event. The original
-files are preserved in the checkpoint directory so you can roll back.
-
----
-
-## 8. Fix a failing test with the watch loop
-
-If a test is failing, use the fix loop instead of a manual edit:
-
-```sh
 sac fix --watch
-```
-
-`sac fix --watch` runs the detected test suite (from `sac profile detect`),
-and if tests fail, proposes a patch to repair them. **It never auto-applies.**
-After review, run `sac apply` and then re-run `sac fix --watch` to verify.
-
-Limit iterations explicitly:
-
-```sh
-sac fix --watch --max-iterations 3
-```
-
----
-
-## 9. Roll back if needed
-
-```sh
+sac commit --message-from-task
+sac debug last-failure
 sac rollback --last
 ```
 
-`sac rollback --last` restores the files modified by the latest checkpoint.
-This is always available as a recovery path.
-
----
-
-## 10. Commit the task locally
+Useful fix-watch controls:
 
 ```sh
-sac commit
+sac fix --watch --max-iterations 3
+sac fix --watch --rerun-suite test
 ```
 
-`sac commit` stages only the files derived from the current task's applied
-checkpoint, writes a commit message from the task goal, and commits locally.
-**No push, no remote operations.**
+`sac fix --watch` uses the detected test suite from `sac profile detect` when
+available. It proposes a pending repair patch on failure and never auto-applies;
+review the diff and run `sac apply` explicitly.
 
----
+## TypeScript Checks
 
-## 11. Resume after interruption
+- Make sure `package.json` exposes useful scripts, for example `test`, `lint`,
+  or `typecheck`.
+- `sac profile detect` may detect npm, pnpm, or yarn commands depending on the
+  project.
+- Use `sac ask` before `sac edit` when you want a read-only map of routes,
+  handlers, or test files.
 
-If you press Ctrl-C during `sac edit` or `sac fix`, the current task is marked
-`interrupted`. Resume later with:
+## Safety Notes
 
-```sh
-sac resume
-```
+- `sac ask` is read-only.
+- `sac edit` creates a pending patch; it does not write project files.
+- `sac apply` creates a checkpoint before modifying files.
+- `sac rollback --last` restores the latest apply checkpoint.
+- No auto-apply, no auto-commit, and no push workflow is implied.
 
----
+## See Also
 
-## 12. Inspect failures
-
-```sh
-sac debug last-failure
-```
-
-Shows a redacted summary of the last failure. Read-only.
-
-```sh
-sac debug bundle
-```
-
-Creates a redacted tar.gz diagnostic bundle (bounded to 5 MiB). Project source
-code is excluded.
-
----
-
-## Safety notes
-
-- `sac edit` never writes to project files — it creates a pending patch only.
-- `sac apply` always creates a checkpoint first; `sac rollback --last` restores it.
-- `sac fix --watch` never auto-applies; each iteration requires explicit `sac apply`.
-- `sac commit` never pushes; no remote operations occur.
-- Network access defaults to disabled.
-- All v4.x commands (`sac task`, `sac profile`, `sac fix --watch`, `sac commit`,
-  `sac resume`, `sac debug`) are EXPERIMENTAL. They may change in future releases.
-
----
-
-## See also
-
+- [Stack First Hour](stack-first-hour.md)
+- [Python: First Hour](python-first-hour.md)
+- [Go: First Hour](go-first-hour.md)
 - [MVP User Guide](../mvp-user-guide.md)
-- [Troubleshooting](../troubleshooting.md)
-- [Public Contracts](../public-contracts.md)
-- [Python Tutorial](python-first-hour.md)
-- [Go Tutorial](go-first-hour.md)
