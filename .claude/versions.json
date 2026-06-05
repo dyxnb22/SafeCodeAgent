@@ -1,13 +1,13 @@
 {
   "project": "SafeCode Agent",
-  "current_implemented_tag": "v4.15.1",
-  "current_local_version": "v4.15.1",
+  "current_implemented_tag": "v4.16.2",
+  "current_local_version": "v4.16.2",
   "current_baseline": ".claude/skills/current/SKILL.md",
   "runtime_summary": ".claude/skills/shared/core-runtime.md",
   "version_index": "docs/version_implementation_matrix.md",
   "release_roadmap": "docs/release_roadmap_v0_1_to_v1_0.md",
-  "active_planning_roadmap": "docs/version-plans/post-v4.14-usability-roadmap.md",
-  "previous_planning_roadmap": "docs/version-plans/post-v4.12-consolidation-roadmap.md",
+  "active_planning_roadmap": "docs/version-plans/post-v4.16-shell-ux-roadmap.md",
+  "previous_planning_roadmap": "docs/version-plans/post-v4.14-usability-roadmap.md",
   "readiness_audit": "docs/commercial-v1-readiness-audit-v3.11.x.md",
   "architecture_reference": "docs/product-commercialization-roadmap.md",
   "version_notes": "docs/version-notes/",
@@ -317,7 +317,13 @@
       "range": "v4.14.x-v4.16.x",
       "name": "Provider Profile and First-run Usability",
       "depends_on": "v4.12.x",
-      "notes": "v4.14.0 completed provider-profile UX: trusted user-level provider profiles, DeepSeek flash/pro aliases, sac provider add/list/status/use/rm, sac model alias switching, one-shot --model overrides, and provider-aware diagnostics. Active post-v4.14 plan: first-run verdicts, --model parity, sac init, session-scoped model switching, keychain/env-only credentials, bare sac shell entry, config migration, and error-message polish. All surfaces remain EXPERIMENTAL unless separately promoted."
+      "notes": "COMPLETED. v4.14.0 provider-profile UX; v4.14.1 first-run diagnostic clarity; v4.14.2 --model parity; v4.15.0 sac init front door; v4.15.1 session-scoped model switching; v4.15.2 keychain/env-only credentials; v4.16.0 bare sac enters shell + 7-command help; v4.16.1 config migration; v4.16.2 error-message rewrite + sac why. All surfaces remain EXPERIMENTAL unless separately promoted."
+    },
+    {
+      "range": "v4.17.x-v4.18.x",
+      "name": "Shell & Interaction UX",
+      "depends_on": "v4.16.x",
+      "notes": "Active plan in docs/version-plans/post-v4.16-shell-ux-roadmap.md: streaming output, shell polish (history/completer/Markdown/diff), live connectivity diagnostics, Levenshtein fuzzy matching, per-patch undo, and agent-loop transparency. All surfaces remain EXPERIMENTAL."
     }
   ],
   "latest_tags": [
@@ -566,7 +572,15 @@
     "v4.12.2",
     "v4.12.3",
     "v4.12.4",
-    "v4.14.0"
+    "v4.14.0",
+    "v4.14.1",
+    "v4.14.2",
+    "v4.15.0",
+    "v4.15.1",
+    "v4.15.2",
+    "v4.16.0",
+    "v4.16.1",
+    "v4.16.2"
   ],
   "local_versions": [
     "v2.8.0",

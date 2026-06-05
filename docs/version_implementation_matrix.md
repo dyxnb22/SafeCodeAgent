@@ -498,25 +498,28 @@ Historical plan: `docs/version-plans/v2.8-to-v3.0-product-architecture-roadmap.m
 | `v4.1.1` ✅ | `main` | `src/safecode/cli_status.py`, `src/safecode/task/wiring.py`, `src/safecode/cli_core.py`, `src/safecode/cli_fix.py`, `src/safecode/audit/logger.py`, `tests/test_cli_status.py`, `tests/test_audit_task_metadata.py` | T-4.1.1-A sac-status-cmd: `sac status [--json]`; pure `next_step(state, pending_patch_exists)` with truth-table coverage (6 states); TTY/non-TTY deterministic; never writes audit events. T-4.1.1-B wire-edit-apply-rollback-into-task: `sac edit|apply|rollback|fix|run` attach to CURRENT task (auto-create if none/closed); task sidecar mutated on each command; `AuditLogger.write()` extended with optional `task_id` keyword (metadata only; field set unchanged); 26 targeted tests; full suite 3868 passed, 2 skipped; contract snapshots green; preflight passed. |
 | `v4.1.2` ✅ | `main` | `src/safecode/audit/logger.py`, `src/safecode/cli_core.py`, `tests/test_history.py`, `tests/test_history_task_filter.py`, `docs/version-notes/v4.1.2-task-history-filter-and-docs.md` | T-4.1.2-A history-task-filter: `sac history --task <id>` filters output to events with exact `metadata.task_id` match (EXPERIMENTAL); `AuditLogger.read_by_task_id(task_id, limit=200)` added (exact match, empty task_id returns [], corrupted lines skipped); field set unchanged. T-4.1.2-B v4.1-docs-cut: README core commands updated with `sac task`, `sac status`, `sac history --task`; `docs/mvp-user-guide.md` updated with task-first v4.1 flow; all v4.1 surfaces marked EXPERIMENTAL; stable contract snapshots unchanged. 17 targeted history tests; full suite 3885 passed, 2 skipped; contract snapshots green. |
 
-## Current Project Status After v4.12.4
+## Current Project Status After v4.16.2
 
-Completed resume-MVP plan: `docs/version-plans/v4.10-to-v4.12-resume-mvp-roadmap.md` (v4.12.3 complete; v4.12.4 tracked-profile hotfix).
+Completed post-v4.14 usability roadmaps:
+- `docs/version-plans/post-v4.14-usability-roadmap.md` (v4.14.1–v4.16.2, 8 versions COMPLETED).
+- v4.14.1 diagnostic clarity, v4.14.2 --model parity, v4.15.0 sac init, v4.15.1 session-scoped model, v4.15.2 keychain/env credentials, v4.16.0 bare-sac-shell + 7-cmd help, v4.16.1 config migration, v4.16.2 error-message rewrite + sac why.
 
-Current status and post-v4.12 forward plan: `docs/project-final-status-and-roadmap.md`.
+Completed provider-profile UX cut: `docs/version-notes/v4.14.0-provider-profile-ux.md`.
 
-Completed AI shell plan: `docs/version-plans/v4.9-ai-shell-mvp-roadmap.md` (v4.9.3 complete).
-
+Completed resume-MVP plan: `docs/version-plans/v4.10-to-v4.12-resume-mvp-roadmap.md`.
+Completed AI shell plan: `docs/version-plans/v4.9-ai-shell-mvp-roadmap.md`.
 Completed shell-first plan: `docs/version-plans/v4.1-to-v4.8-shell-first-roadmap.md`.
 
-Previous contract/product plan: `docs/version-plans/v3.7-to-v4.0-product-roadmap.md`.
+Next active plan: `docs/version-plans/post-v4.16-shell-ux-roadmap.md` (streaming, shell polish, live connectivity, fuzzy matching, per-patch undo, agent-loop transparency).
 
 Readiness baseline: `docs/archive/audits/commercial-v1-readiness-audit-v3.11.x.md`.
-
 Architecture reference: `docs/product-commercialization-roadmap.md`.
 
-v4.9 result: EXPERIMENTAL Claude Code-like local AI shell (`sac shell`) built around
-existing SafeCode primitives. Zero new stable contracts. No RAG, embeddings, vector
-storage, LangGraph, IDE integration, remote execution, push/PR operations, or v5 scheduling.
+v4.16 result: First-run usability train complete — bare sac enters shell, 7 daily
+commands, session-scoped model switching, keychain credentials, config migration,
+and error messages all ship as EXPERIMENTAL. Zero new stable contracts.
+Project-local config still cannot store
+credentials or silently widen user-level network policy.
 
 ## v4.9.x: AI Shell MVP
 
@@ -557,6 +560,36 @@ storage, LangGraph, IDE integration, remote execution, push/PR operations, or v5
 | `v4.12.2` ✅ | `main` | `README.md`, `docs/mvp-user-guide.md`, `docs/tutorials/agent-run-first-hour.md`, `docs/public-contracts.md`, `tests/test_docs_demo_section.py`, `docs/version-notes/v4.12.2-readme-demo-front-door.md` | T-4.12.2-A readme-demo-front-door: README opens with "Demo: from task to tested commit", links the FastAPI example, transcript, and tutorial; MVP guide and agent first-hour tutorial point to the mock demo. Docs guards assert no auto-apply, auto-commit, live-provider requirement, IDE requirement, or push/PR claim. Focused tests and full suite pass per local evidence. |
 | `v4.12.3` ✅ | `main` | `pyproject.toml`, `src/safecode/__init__.py`, `.claude/versions.json`, `.claude/skills/current/SKILL.md`, `docs/version-notes/v4.12.3-resume-mvp.md`, `docs/version_implementation_matrix.md`, `docs/project-final-status-and-roadmap.md`, `docs/security/threat-model-v3.6.md`, `docs/public-contracts.md` | T-4.12.3-A resume-mvp-cut: bumps package/runtime metadata to 4.12.3, marks v4.12.x complete, records release notes and matrix rows, updates current status and threat model, and keeps all v4.10-v4.12 surfaces EXPERIMENTAL with no new stable contracts. Release metadata, focused demo/docs/example, full suite, and deterministic smoke commands run locally. |
 | `v4.12.4` ✅ | `main` | `.gitignore`, `examples/fastapi-todo/.sac/project_profile.json`, `docs/version-notes/v4.12.4-fastapi-todo-profile.md` | T-4.12.4-A fastapi-todo-profile-tracking: keeps repository `.sac/` runtime state ignored while explicitly tracking the FastAPI todo demo profile required by `tests/test_example_fastapi_todo.py`; no runtime behavior change and no stable contract change. Package/runtime metadata remains 4.12.3 pending a release-tag decision. |
+
+## v4.14.x-v4.16.x: Provider Profile and First-run Usability
+
+Active plan: `docs/version-plans/post-v4.14-usability-roadmap.md` (COMPLETED).
+Next: `docs/version-plans/post-v4.16-shell-ux-roadmap.md`.
+
+| 版本 | 分支 | 主要入口 | 验收命令 / 结果 |
+|---|---|---|---|
+| `v4.14.0` ✅ | `main` | `src/safecode/llm/provider_profiles.py`, `src/safecode/cli_provider.py`, `src/safecode/cli_model.py`, `src/safecode/config.py`, `src/safecode/doctor.py`, `src/safecode/cli_smoke.py`, `README.md`, `docs/providers.md`, `docs/mvp-user-guide.md`, `tests/test_provider_profiles.py`, `tests/test_cli_model_config.py`, `tests/test_provider_doctor.py`, `tests/test_smoke_live_provider.py` | T-4.14.0-A provider-profile-ux: trusted user-level provider profiles with DeepSeek defaults; `sac provider add/list/status/use/rm`; `sac model flash/pro/deepseek:pro`; root and shell one-shot `--model`; provider-aware shell status; doctor/live-smoke checks that understand user-config API keys. No stable contract promotion. |
+| `v4.14.1` ✅ | `main` | `src/safecode/doctor.py`, `src/safecode/cli_provider.py`, `src/safecode/cli_quickstart.py`, `tests/test_doctor_top_line_verdict.py`, `tests/test_provider_status_verdict.py` | First-run diagnostic clarity: top-line READY/NEEDS SETUP verdicts on `sac doctor` and `sac provider status`; every failed row carries `Next:`; `sac quickstart` refuses live-provider demo when not ready. |
+| `v4.14.2` ✅ | `main` | `src/safecode/cli_core.py`, `src/safecode/cli_fix.py`, `src/safecode/cli_agent.py`, `tests/test_cli_model_subcommand_parity.py` | One-shot `--model` parity: `sac ask/edit/fix/run/agent run` accept `--model`; subcommand-level wins over root; shell already supported. |
+| `v4.15.0` ✅ | `main` | `src/safecode/cli_init.py`, `src/safecode/cli.py`, `README.md`, `tests/test_cli_init.py` | `sac init` front door: interactive TTY wizard (provider, key source, model, policy); setup hidden but callable; non-TTY prints static template. |
+| `v4.15.1` ✅ | `main` | `src/safecode/cli_model.py`, `tests/test_cli_model_session_scope.py` | Session-scoped model switching: `sac model <alias>` session-only by default; `--save` persists; `sac model status` shows session vs persisted; legacy env `SAFECODE_LEGACY_MODEL_PERSIST=1` deprecated. |
+| `v4.15.2` ✅ | `main` | `src/safecode/security/keychain.py`, `src/safecode/cli_provider.py`, `src/safecode/doctor.py`, `tests/test_provider_keychain_backend.py` | Keychain/env-only credentials: `--api-key` requires `--store user-config|keychain`; keyring backend (macOS Keychain/Linux Secret Service); doctor reports `credential_storage`; provider rm cleans keychain. |
+| `v4.16.0` ✅ | `main` | `src/safecode/cli.py`, `tests/test_cli_help_surface_v4_8.py`, `tests/test_cli_default_is_shell.py` | Bare `sac` enters shell; 7-command daily help surface (init, ask, edit, apply, fix, commit, doctor); `sac help --all` shows full surface; 13 commands hidden but callable. |
+| `v4.16.1` ✅ | `main` | `src/safecode/cli_project.py`, `src/safecode/doctor.py`, `tests/test_config_migrate.py` | Config migration: `sac config migrate` converts legacy `[llm]` to `[providers.<name>]` with `.bak` backup; doctor warns on legacy section. |
+| `v4.16.2` ✅ | `main` | `src/safecode/core/failure_category.py`, `src/safecode/cli.py`, `tests/test_failure_taxonomy_next_command.py` | Error-message rewrite: `FailureCategory.next_command` property; `sac why` prints last failure category + next command (<=3 lines). |
+
+## v4.17.x-v4.18.x: Shell & Interaction UX
+
+Active plan: `docs/version-plans/post-v4.16-shell-ux-roadmap.md`.
+
+| Version | Status | Key Files | Summary |
+|---|---|---|---|
+| `v4.17.0` 📝 | planned | `src/safecode/cli_shell.py`, `src/safecode/llm/openai_client.py` | Streaming output: `sac ask --stream` and `sac shell` default to token-by-token via Rich Live; non-TTY batch unchanged; token-level redaction. |
+| `v4.17.1` 📝 | planned | `src/safecode/cli_shell.py` | Shell polish: Rich Markdown rendering, syntax-highlighted diffs, readline completer for slash commands, history search (Ctrl-R). |
+| `v4.17.2` 📝 | planned | `src/safecode/doctor.py`, `src/safecode/cli_provider.py` | Live connectivity: `sac doctor --live` and `sac provider status --live` ping the provider endpoint; opt-in only. |
+| `v4.17.3` 📝 | planned | `src/safecode/cli_model.py`, `src/safecode/llm/provider_profiles.py` | Levenshtein fuzzy matching for model/provider names; suggest closest match when distance ≤ 2. |
+| `v4.18.0` 📝 | planned | `src/safecode/cli_core.py`, `src/safecode/cli_shell.py` | Per-patch undo and shell diff rendering: finer-grained checkpoints per patch file; Rich diff in shell `/apply`. |
+| `v4.18.1` 📝 | planned | `src/safecode/agent/loop.py`, `src/safecode/cli_shell.py` | Agent-loop transparency: Rich Status panel in agentic mode showing current step/intent; togglable `/verbose`. |
 
 ## v4.2.x: Project Command Profile
 

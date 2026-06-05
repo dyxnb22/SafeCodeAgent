@@ -1,13 +1,14 @@
 # SafeCode Agent Final Status and Roadmap
 
-Status: current project baseline after `v4.12.4`.
+Status: current project baseline after `v4.16.2`.
 Last updated: 2026-06-05.
 
 This document is the consolidated product description for SafeCode Agent through
-the v4.12 resume-ready MVP cut. The v4.10-v4.12 roadmap is now historical:
-`docs/version-plans/v4.10-to-v4.12-resume-mvp-roadmap.md`. Forward work starts
-after v4.12 and should not describe the DeepSeek, agentic-lite, or demo trains
-as active planning items.
+the v4.14–v4.16 usability train. The post-v4.14 usability roadmap is COMPLETED
+(8 versions shipped): `docs/version-plans/post-v4.14-usability-roadmap.md`.
+The v4.10-v4.12 roadmap and post-v4.12 consolidation plan are historical.
+Active forward work is the post-v4.16 shell UX roadmap:
+`docs/version-plans/post-v4.16-shell-ux-roadmap.md`.
 
 ## Current Product Shape
 
@@ -81,6 +82,25 @@ The demo proves the MVP shape: task goal, plan, patch proposal, review
 boundary, apply boundary, validation, and local commit prompt. The demo uses a
 temporary working copy and never mutates the source example.
 
+## Completed v4.14–v4.16 Usability Train
+
+The post-v4.14 usability roadmap is complete (8 versions, all shipped and
+tagged). Key deliverables:
+
+- **v4.14.0**: provider-profile UX (`sac provider add`, model aliases, one-shot `--model`)
+- **v4.14.1**: diagnostic clarity (doctor/provider status verdicts, next-command hints)
+- **v4.14.2**: `--model` parity on ask/edit/fix/run/agent-run subcommands
+- **v4.15.0**: `sac init` as the single guided first-run front door
+- **v4.15.1**: session-scoped model switching (`--save` for persistence)
+- **v4.15.2**: keychain/env-only credentials (`--store` flag, keyring backend)
+- **v4.16.0**: bare `sac` enters shell, 7-command daily help surface, `sac help --all`
+- **v4.16.1**: config migration (`sac config migrate`, legacy `[llm]` → `[providers]`)
+- **v4.16.2**: error-message rewrite (`FailureCategory.next_command`, `sac why`)
+
+All v4 surfaces remain EXPERIMENTAL and promote no new stable contracts.
+Project-local config still cannot store credentials or silently widen
+user-level network policy.
+
 ## Stable Runtime Still Preserved
 
 - Config precedence and project-config lowering protection.
@@ -102,16 +122,21 @@ temporary working copy and never mutates the source example.
 - No remote push/PR workflow exists in this release.
 - RAG, embeddings, vector storage, LangGraph, hooks expansion, skills MVP, and
   broader language indexing are post-v4.12 future work.
+- Interaction-quality gaps remain against Claude Code / Reasonix / DeepSeek TUI:
+  no streaming output, basic shell UX, no live connectivity checks, no fuzzy
+  matching, no per-patch undo. These are addressed in the next train.
 
-## Post-v4.12 Forward Plan
+## Post-v4.16 Forward Plan
 
-Future work should be planned as a new post-v4.12 roadmap. Candidate areas:
+Active forward work lives in
+`docs/version-plans/post-v4.16-shell-ux-roadmap.md`. The next train targets
+interaction-quality parity with Claude Code and Reasonix:
 
-- More realistic live-provider demo hardening while preserving opt-in gates.
-- Better context ranking and explanation using local structured signals first.
-- Optional hooks/skills extensions after the resume MVP remains stable.
-- Broader language examples and deterministic smoke coverage.
-- Developer experience polish for docs, install/update, and local-only support.
+- **v4.17.0**: streaming token-by-token output in `sac ask` and `sac shell`
+- **v4.17.1**: shell polish (Rich Markdown, diff highlighting, readline completer)
+- **v4.17.2**: live connectivity diagnostics (`sac doctor --live`)
+- **v4.17.3**: Levenshtein fuzzy matching for model/provider names
+- **v4.18.0**: per-edit undo / finer checkpoint granularity + shell diff rendering
+- **v4.18.1**: agent-loop transparency (step/intent status panel, `/verbose`)
 
-Any future train must keep the same safety invariants unless a separate public
-contract process explicitly changes them.
+All remain EXPERIMENTAL. No safety invariants change.

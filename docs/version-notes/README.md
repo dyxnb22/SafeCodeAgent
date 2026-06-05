@@ -18,7 +18,7 @@ records; they are not the recommended first-read path for users.
 
 | Major | Count | Theme | Good Entry Points |
 | --- | ---: | --- | --- |
-| v4 | 43 | shell-first, resume-ready MVP, DeepSeek/provider reliability, agentic loop, debug/memory/local git | [v4.12.4](v4.12.4-fastapi-todo-profile.md), [v4.12.3](v4.12.3-resume-mvp.md), [v4.9.3](v4.9.3-ai-shell-docs-and-smoke.md), [v4.0.0](v4.0.0-contract-cut.md) |
+| v4 | 52 | shell-first, provider profiles, first-run usability (v4.14–v4.16), resume MVP, agentic loop, debug/memory/local git | [v4.16.2](v4.16.2-error-message-rewrite.md), [v4.16.0](v4.16.0-bare-sac-shell.md), [v4.15.2](v4.15.2-keychain-credentials.md), [v4.15.0](v4.15.0-sac-init-front-door.md), [v4.14.2](v4.14.2-model-parity.md), [v4.14.1](v4.14.1-first-run-diagnostic-clarity.md), [v4.14.0](v4.14.0-provider-profile-ux.md) |
 | v3 | 51 | public contracts, providers, MCP, productization, setup, docs and release readiness | [v3.99.1](v3.99.1-promotion-decisions.md), [v3.99.0](v3.99.0-v4-readiness-audit.md), [v3.10.2](v3.10.2-context-budgets-stack-tutorials.md), [v3.0.0](v3.0.0-public-contract-stabilization.md) |
 | v2 | 87 | hardening, release tooling, diagnostics, policy presets, sandbox previews, eval fixtures | [v2.9.9](v2.9.9-public-contract-snapshot-tests.md), [v2.8.10](v2.8.10-final-v28-baseline-sync.md), [v2.6.21](v2.6.21-final-signoff.md), [v2.0.0](v2.0.0-real-llm-agent-contract.md) |
 | v1 | 17 | local policy-gated execution, approvals, session state, agent loop recovery | [v1.9.5](v1.9.5-agent-recovery.md), [v1.9.2](v1.9.2-agent-run-loop.md), [v1.8.0](v1.8.0-sandbox-execution-mvp.md) |

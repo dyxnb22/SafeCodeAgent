@@ -5,35 +5,37 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v4.15.1
+# Current Baseline - v4.16.2
 
 ## Status
-Implemented. Git baseline: tag `v4.15.0`. Local working version: `v4.15.0`.
+Implemented. Git baseline: tag `v4.16.2`. Local working version: `v4.16.2`.
 
 ## Stage
-`v4.15.0` adds `sac init` as the single recommended first-run entry point: an
-interactive TTY wizard covering provider choice, API key, default model, and
-policy preset. `sac setup` and `--wizard` are hidden (still callable). init
-refuses unknown providers and policies in both TTY and non-TTY mode.
+The v4.14–v4.16 usability train is complete (8 versions shipped):
 
-Previous: `v4.14.2` added `--model` flag parity.
-Previous: `v4.14.1` added first-run diagnostic clarity.
-Previous: `v4.14.0` added provider-profile UX: users configure a trusted provider profile
-once (`sac provider add deepseek`) and switch models with short aliases
-(`sac model flash`, `sac model pro`, scoped aliases, and one-shot `--model`
-overrides). Diagnostics, provider status, and live smoke prechecks now understand
-trusted user config API keys as well as environment variables. All provider
-profile and model-switching surfaces remain EXPERIMENTAL and promote zero new
-stable contracts. Previous: `v4.12.4` tracked-profile hotfix; `v4.12.3`
-resume-mvp cut; `v4.11.5` agentic workflow smoke; `v4.10.4` opt-in live-provider
-smoke; `v4.9.3` AI shell docs and smoke.
+- `v4.14.0`: provider-profile UX (`sac provider add`, model aliases, `--model` overrides)
+- `v4.14.1`: first-run diagnostic clarity (doctor/provider status verdicts, next-command hints, quickstart honesty)
+- `v4.14.2`: `--model` flag parity on ask/edit/fix/run/agent-run/shell subcommands
+- `v4.15.0`: `sac init` front door (interactive TTY wizard, setup hidden)
+- `v4.15.1`: session-scoped model switching (`sac model` session-only by default, `--save` persists)
+- `v4.15.2`: keychain and env-only credentials (`--store` required for API keys, keyring backend)
+- `v4.16.0`: bare `sac` enters shell, 7-command daily help surface, `sac help --all`
+- `v4.16.2`: error-message rewrite (`FailureCategory.next_command`, `sac why` alias)
+
+All v4 surfaces remain EXPERIMENTAL and carry no stable contract.
 
 ## Current Forward Plan
-The v4.10-v4.12 resume-MVP train and v4.14.0 provider-profile UX cut are
-complete. Current status lives in `docs/project-final-status-and-roadmap.md`;
-active first-run and usability planning lives in
-`docs/version-plans/post-v4.14-usability-roadmap.md`. These v4 surfaces add no
-stable contracts and do not schedule v5.
+The v4.14–v4.16 usability train is complete. Status lives in
+`docs/project-final-status-and-roadmap.md`. The next active planning roadmap is
+`docs/version-plans/post-v4.16-shell-ux-roadmap.md` (streaming output, shell
+polish, live connectivity, fuzzy matching, diff rendering, undo granularity,
+agent-loop transparency).
+
+The completed `docs/version-plans/post-v4.14-usability-roadmap.md` is preserved
+as a reference. Focus next on interaction-quality gaps: streaming, shell polish,
+fuzzy matching, and finer-grained undo. Keep SafeCode's safety posture:
+no auto-apply, approval-gated mutation/run/commit paths, checkpoints, rollback,
+audit, task wiring, and dirty-tree guard.
 
 Previous: `v4.8.2` final-v4-shell-first-docs-cut — T-4.8.2-A v4.8-final-docs-cut: README adds Python tutorial link and task-first daily loop summary (17-command surface, v4.x train complete, no v5.0 promise); `docs/mvp-user-guide.md` updated to v4.8.x with new Task-First Daily Loop section; `docs/public-contracts.md` adds v4.x series contract summary (zero new stable contracts v4.0–v4.8, all new surfaces EXPERIMENTAL); `docs/versioning-policy.md` adds v4.x train closure section and policy changelog entry; `docs/security/threat-model-v3.6.md` adds v4.x shell-first addendum table (task/profile/resume/commit/memory/debug/smoke surfaces). All existing tests pass; no stable public contract promoted; v4.x train is complete.
 
