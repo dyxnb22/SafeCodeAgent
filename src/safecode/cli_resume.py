@@ -123,7 +123,7 @@ def _agentic_resume_data(project_root: Path, session_id: str | None) -> dict[str
 def register(app: typer.Typer) -> None:
     """Register top-level sac resume."""
 
-    @app.command("resume")
+    @app.command("resume", hidden=True)
     def resume_command(
         task_id: Optional[str] = typer.Argument(None, help="[EXPERIMENTAL] Task id to resume. Defaults to CURRENT/newest resumable task."),
         json_output: bool = typer.Option(False, "--json", help="Output result as JSON."),

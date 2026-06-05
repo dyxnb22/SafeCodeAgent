@@ -398,7 +398,7 @@ def doctor(
     console.print(table)
 
 
-@ops_app.command("version")
+@ops_app.command("version", hidden=True)
 def version(
     json_output: bool = typer.Option(False, "--json", help="Output result as JSON."),
 ) -> None:

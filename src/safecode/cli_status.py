@@ -112,7 +112,7 @@ def _build_status_data(
 def register(app: typer.Typer) -> None:
     """Register the status command on the given Typer app."""
 
-    @app.command("status")
+    @app.command("status", hidden=True)
     def status_command(
         json_output: bool = typer.Option(False, "--json", help="Output result as JSON."),
     ) -> None:

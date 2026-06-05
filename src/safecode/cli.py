@@ -182,6 +182,48 @@ def callback(
         raise typer.Exit(code=code)
 
 
+@app.command("help", hidden=True)
+def help_all_cmd(
+    all_cmds: bool = typer.Option(False, "--all", "-a", help="Show all commands including hidden/advanced."),
+) -> None:
+    """Show help. With --all, prints the full command surface."""
+    if all_cmds:
+        console.print("[bold]SafeCode Agent — Full Command Surface[/bold]")
+        console.print("")
+        console.print("[bold]Daily Commands (v4.16+):[/bold]")
+        console.print("  init        Guided first-run: provider, key, model, policy")
+        console.print("  ask         Ask a read-only question about the project")
+        console.print("  edit        Create a pending patch proposal")
+        console.print("  apply       Apply the latest pending patch after review")
+        console.print("  fix         Run failing test, propose repair patch")
+        console.print("  commit      Commit files touched by the current task")
+        console.print("  doctor      Check local install and project environment")
+        console.print("")
+        console.print("[bold]Advanced & Experimental (callable, hidden from sac --help):[/bold]")
+        console.print("  quickstart  Guided first-run with demo recommendation")
+        console.print("  status      Show current task and pending patch state")
+        console.print("  task        Manage task sidecars")
+        console.print("  rollback    Rollback a previous applied patch")
+        console.print("  run         Run a shell command through risk checks")
+        console.print("  profile     Manage project command profiles")
+        console.print("  resume      Resume an interrupted task")
+        console.print("  memory      Inspect and update project memory")
+        console.print("  debug       Inspect debug artifacts")
+        console.print("  shell       Interactive AI shell session")
+        console.print("  model       Show or switch the model configuration")
+        console.print("  provider    Manage provider profiles")
+        console.print("  version     Show package version")
+        console.print("  setup       Write .sac/config.toml")
+        console.print("")
+        console.print("[bold]Shell Slash Commands (sac shell):[/bold]")
+        console.print("  /status  /task  /model  /provider status  /apply")
+        console.print("  /commit  /debug  /help  /exit")
+        console.print("")
+        console.print("[dim]All commands remain callable. Run --help on any command for details.[/dim]")
+    else:
+        console.print("Use [bold]sac help --all[/bold] for the full command list.")
+
+
 @app.command("setup", hidden=True)
 def setup(
     provider: str = typer.Option("mock", "--provider", help="LLM provider: mock or openai."),
@@ -255,11 +297,11 @@ for command in core_app.registered_commands:
 for command in ops_app.registered_commands:
     app.registered_commands.append(command)
 
-app.add_typer(task_app, name="task")
-app.add_typer(provider_app, name="provider")
-app.add_typer(profile_app, name="profile")
-app.add_typer(memory_app, name="memory")
-app.add_typer(debug_app, name="debug")
+app.add_typer(task_app, name="task", hidden=True)
+app.add_typer(provider_app, name="provider", hidden=True)
+app.add_typer(profile_app, name="profile", hidden=True)
+app.add_typer(memory_app, name="memory", hidden=True)
+app.add_typer(debug_app, name="debug", hidden=True)
 app.add_typer(context_app, name="context", hidden=True)
 app.add_typer(trust_app, name="trust", hidden=True)
 app.add_typer(config_app, name="config", hidden=True)

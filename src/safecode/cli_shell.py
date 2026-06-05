@@ -642,7 +642,7 @@ def _run_agentic_shell(
 def register(app: typer.Typer) -> None:
     """Register sac shell on the given Typer app."""
 
-    @app.command("shell")
+    @app.command("shell", hidden=True)
     def shell_command(
         session: Optional[str] = typer.Option(None, "--session", help="Resume an existing session by ID."),
         model: str = typer.Option("", "--model", help="One-shot model override for this shell session (e.g. pro or deepseek:pro)."),

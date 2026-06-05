@@ -307,7 +307,7 @@ def apply(
     )
 
 
-@core_app.command()
+@core_app.command(hidden=True)
 def rollback(
     last: bool = typer.Option(False, "--last", help="Rollback the latest checkpoint."),
     force_uncommit: bool = typer.Option(False, "--force-uncommit", help="Dangerous: allow rollback after the apply appears committed."),
@@ -501,7 +501,7 @@ def trust_revoke(grant_id: str) -> None:
     console.print(f"Ephemeral trust revoked: {grant_id}")
 
 
-@core_app.command("run")
+@core_app.command("run", hidden=True)
 def run_command(
     command: Optional[str] = typer.Argument(None, help="Shell command to run."),
     yes: bool = typer.Option(False, "--yes", "-y", help="Approve medium/high risk commands."),

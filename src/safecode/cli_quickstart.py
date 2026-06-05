@@ -244,7 +244,7 @@ def run_quickstart(
 def register(app: typer.Typer) -> None:
     """Register the quickstart command on the given Typer app."""
 
-    @app.command("quickstart")
+    @app.command("quickstart", hidden=True)
     def quickstart(
         yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation prompts."),
         force: bool = typer.Option(False, "--force", help="Overwrite existing config."),

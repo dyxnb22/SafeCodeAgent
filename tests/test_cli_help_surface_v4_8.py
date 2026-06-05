@@ -18,27 +18,15 @@ from safecode.cli import app
 
 runner = CliRunner()
 
-# Target visible set (19 commands after adding sac model)
+# Target visible set (7 daily commands for v4.16.0)
 _TARGET_VISIBLE = frozenset({
     "init",
-    "quickstart",
-    "status",
-    "task",
     "ask",
     "edit",
     "fix",
     "apply",
-    "rollback",
-    "run",
     "commit",
-    "profile",
-    "resume",
-    "memory",
-    "debug",
     "doctor",
-    "version",
-    "shell",
-    "model",
 })
 
 # Commands hidden in v4.8.0 (callable but not in root help)
@@ -89,32 +77,32 @@ def _command_names_in_root_help() -> set[str]:
 
 
 class TestV48VisibleSurface:
-    def test_visible_count_at_most_18(self):
+    def test_visible_count_at_most_7(self):
         """sac provider adds one daily-use command group to the root surface (v4.14.0)."""
         names = _command_names_in_root_help()
-        assert len(names) <= 20, f"Expected <=20 visible commands, got {len(names)}: {sorted(names)}"
+        assert len(names) <= 7, f"Expected <=20 visible commands, got {len(names)}: {sorted(names)}"
 
     def test_all_target_commands_visible(self):
         names = _command_names_in_root_help()
         for cmd in _TARGET_VISIBLE:
             assert cmd in names, f"Expected {cmd!r} to be visible in root help"
 
-    def test_memory_now_visible(self):
-        assert "memory" in _command_names_in_root_help()
+    def test_memory_now_hidden(self):
+        assert "memory" not in _command_names_in_root_help()
 
     def test_init_visible_setup_hidden(self):
         names = _command_names_in_root_help()
         assert "init" in names
         assert "setup" not in names
 
-    def test_quickstart_visible(self):
-        assert "quickstart" in _command_names_in_root_help()
+    def test_quickstart_hidden_in_v416(self):
+        assert "quickstart" not in _command_names_in_root_help()
 
-    def test_status_visible(self):
-        assert "status" in _command_names_in_root_help()
+    def test_status_hidden_in_v416(self):
+        assert "status" not in _command_names_in_root_help()
 
-    def test_task_visible(self):
-        assert "task" in _command_names_in_root_help()
+    def test_task_hidden_in_v416(self):
+        assert "task" not in _command_names_in_root_help()
 
     def test_ask_visible(self):
         assert "ask" in _command_names_in_root_help()
@@ -128,29 +116,29 @@ class TestV48VisibleSurface:
     def test_apply_visible(self):
         assert "apply" in _command_names_in_root_help()
 
-    def test_rollback_visible(self):
-        assert "rollback" in _command_names_in_root_help()
+    def test_rollback_hidden_in_v416(self):
+        assert "rollback" not in _command_names_in_root_help()
 
-    def test_run_visible(self):
-        assert "run" in _command_names_in_root_help()
+    def test_run_hidden_in_v416(self):
+        assert "run" not in _command_names_in_root_help()
 
     def test_commit_visible(self):
         assert "commit" in _command_names_in_root_help()
 
-    def test_profile_visible(self):
-        assert "profile" in _command_names_in_root_help()
+    def test_profile_hidden_in_v416(self):
+        assert "profile" not in _command_names_in_root_help()
 
-    def test_resume_visible(self):
-        assert "resume" in _command_names_in_root_help()
+    def test_resume_hidden_in_v416(self):
+        assert "resume" not in _command_names_in_root_help()
 
-    def test_debug_visible(self):
-        assert "debug" in _command_names_in_root_help()
+    def test_debug_hidden_in_v416(self):
+        assert "debug" not in _command_names_in_root_help()
 
     def test_doctor_visible(self):
         assert "doctor" in _command_names_in_root_help()
 
-    def test_version_visible(self):
-        assert "version" in _command_names_in_root_help()
+    def test_version_hidden_in_v416(self):
+        assert "version" not in _command_names_in_root_help()
 
 
 class TestV48HiddenNotInRootHelp:

@@ -229,7 +229,7 @@ def _render_model_session_status(config: SafeCodeConfig, path: Path) -> str:
 def register(app: typer.Typer) -> None:
     """Register the user-facing `sac model` command."""
 
-    @app.command("model")
+    @app.command("model", hidden=True)
     def model_command(
         model: str = typer.Argument(
             "",
