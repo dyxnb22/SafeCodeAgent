@@ -46,7 +46,8 @@ provider_app = typer.Typer(
 @provider_app.command("add")
 def provider_add(
     name: str = typer.Argument(..., help="Provider name to configure: deepseek"),
-    api_key: str = typer.Option("", "--api-key", help="API key (prefer env var; stored in user config if supplied)."),
+    api_key: str = typer.Option("", "--api-key", help="API key (prefer env var; requires --store for persistence)."),
+    store: str = typer.Option("", "--store", help="Storage backend for the API key: user-config | keychain."),
     default_model: str = typer.Option("", "--default-model", help="Default model alias or ID (e.g. flash, pro)."),
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation prompt."),
 ) -> None:
@@ -57,13 +58,30 @@ def provider_add(
 
     For DeepSeek: sets base_url, model aliases (flash/pro), and network allowlist.
     In TTY mode, prompts for API key if --api-key is not supplied.
-    The API key is written to the trusted user config (~/.safecode/config.toml).
+    API keys default to env var usage. Pass --store user-config or --store keychain
+    to persist a key to disk or system keychain.
+
     Never writes credentials to project-local config.
     """
     name = name.strip().lower()
     if name not in _PROVIDER_PRESETS:
         supported = ", ".join(sorted(_PROVIDER_PRESETS))
         console.print(f"[red]Provider '{name}' has no built-in preset. Supported: {supported}[/red]")
+        raise typer.Exit(code=1)
+
+    # Validate --store
+    store_mode = store.strip().lower()
+    if store_mode and store_mode not in ("user-config", "keychain"):
+        console.print("[red]--store must be 'user-config' or 'keychain'[/red]")
+        raise typer.Exit(code=1)
+
+    # Require --store when --api-key is passed with a literal value
+    if api_key.strip() and not store_mode:
+        console.print(
+            "[red]--api-key requires --store to specify where the key should be persisted.[/red]\n"
+            "[dim]Use --store user-config to save in ~/.safecode/config.toml (0o600), or\n"
+            "--store keychain to save in the system keyring (macOS Keychain / Linux Secret Service).[/dim]"
+        )
         raise typer.Exit(code=1)
 
     preset = _PROVIDER_PRESETS[name]
@@ -89,8 +107,22 @@ def provider_add(
         except (EOFError, KeyboardInterrupt):
             raw = ""
         resolved_key = raw.strip() or None
+        if resolved_key and not store_mode:
+            console.print("[dim]Tip: use --store user-config or --store keychain to persist the key.[/dim]")
     else:
         console.print(f"[dim]No API key supplied. Set {env_var} before running sac.[/dim]")
+
+    # If keychain storage requested, store the key there
+    keychain_stored = False
+    if resolved_key and store_mode == "keychain":
+        from safecode.security.keychain import store_api_key
+        keychain_stored = store_api_key(name, resolved_key)
+        if keychain_stored:
+            console.print(f"[green]API key stored in system keychain for '{name}'.[/green]")
+            resolved_key = None  # Don't also write to user config
+        else:
+            console.print("[yellow]Keychain unavailable; falling back to user config.[/yellow]")
+            store_mode = "user-config"
 
     # Build profile from preset
     if name == "deepseek":
@@ -128,7 +160,12 @@ def provider_add(
         alias_str = ", ".join(f"{k} -> {v}" for k, v in sorted(profile.model_aliases.items()))
         console.print(f"  Aliases: {alias_str}")
     console.print(f"  Network allowlist: {profile.network_allowlist}")
-    console.print(f"  API key: {'configured' if resolved_key else ('env:' + env_var if env_var else 'not set')}")
+    if keychain_stored:
+        console.print("  API key: stored in system keychain")
+    elif resolved_key:
+        console.print("  API key: stored in user config")
+    else:
+        console.print(f"  API key: {'env:' + env_var if env_var else 'not set'}")
     console.print("")
     console.print("[dim]Next: sac model flash   or   sac model pro[/dim]")
 
@@ -278,11 +315,16 @@ def provider_rm(
         if not confirmed:
             console.print("Cancelled.")
             return
+    # Also clean up keychain entry if present.
+    from safecode.security.keychain import delete_api_key
+    delete_api_key(name)
+
     removed = remove_profile(name, path)
     if removed:
         console.print(f"Provider profile '{name}' removed.")
     else:
         console.print(f"[yellow]Provider '{name}' not found.[/yellow]")
+    console.print("[dim]Tip: if this was the active profile, run 'sac provider use <name>' to switch.[/dim]")
 
 
 # ---------------------------------------------------------------------------

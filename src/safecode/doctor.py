@@ -182,6 +182,54 @@ class Doctor:
         return diagnostics
 
     @staticmethod
+    def _credential_storage_diagnostic(provider: str) -> "Diagnostic":
+        """Report how credentials are stored for the current provider."""
+        from safecode.security.keychain import get_api_key, has_keychain_backend
+        if provider == "mock":
+            return Diagnostic(
+                name="credential_storage",
+                status=DiagnosticStatus.PASS,
+                message="mock provider: no credentials needed",
+            )
+        # Check env
+        env_vars = ["DEEPSEEK_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY",
+                     "SAFECODE_LLM_API_KEY"]
+        for env in env_vars:
+            if os.getenv(env):
+                return Diagnostic(
+                    name="credential_storage",
+                    status=DiagnosticStatus.PASS,
+                    message=f"env: {env}",
+                )
+        # Check keychain
+        if has_keychain_backend():
+            for name in ("deepseek", "openai", "anthropic"):
+                if get_api_key(name):
+                    return Diagnostic(
+                        name="credential_storage",
+                        status=DiagnosticStatus.PASS,
+                        message=f"keychain: {name}",
+                    )
+        # Check user config
+        from safecode.config import _user_config_path, _read_toml
+        user_data = _read_toml(_user_config_path())
+        providers = user_data.get("providers", {})
+        for pname, pdata in providers.items():
+            if isinstance(pdata, dict) and pdata.get("api_key"):
+                return Diagnostic(
+                    name="credential_storage",
+                    status=DiagnosticStatus.WARN,
+                    message=f"user-config: {pname} — consider migrating to keychain with "
+                             f"'sac provider add {pname} --store keychain'",
+                )
+        return Diagnostic(
+            name="credential_storage",
+            status=DiagnosticStatus.FAIL,
+            message="missing — set an env var or run 'sac provider add <name> --store keychain'",
+            hints=("Next: sac provider add deepseek --store keychain",),
+        )
+
+    @staticmethod
     def _legacy_model_persist_diagnostic() -> "Diagnostic":
         if os.getenv("SAFECODE_LEGACY_MODEL_PERSIST") == "1":
             return Diagnostic(
@@ -342,7 +390,10 @@ class Doctor:
             message=net_msg,
         ))
 
-        # 6. Last-session token/cost summary (SKIP if unavailable)
+        # 6. Credential storage backend
+        diagnostics.append(self._credential_storage_diagnostic(provider))
+
+        # 7. Last-session token/cost summary (SKIP if unavailable)
         # This is already reported by _last_session_cost_diagnostic(); refer there.
         diagnostics.append(Diagnostic(
             name="provider_last_session_cost",

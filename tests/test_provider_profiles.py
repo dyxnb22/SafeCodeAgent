@@ -326,7 +326,7 @@ class TestProviderAddCLI:
         monkeypatch.setenv("SAFECODE_USER_CONFIG", str(user_config))
         monkeypatch.chdir(tmp_path)
 
-        result = runner.invoke(app, ["provider", "add", "deepseek", "--api-key", "sk-test", "--yes"])
+        result = runner.invoke(app, ["provider", "add", "deepseek", "--api-key", "sk-test", "--store", "user-config", "--yes"])
         assert result.exit_code == 0, result.output
         assert "deepseek" in result.output.lower()
 
@@ -344,7 +344,7 @@ class TestProviderAddCLI:
         monkeypatch.setenv("SAFECODE_USER_CONFIG", str(user_config))
         monkeypatch.chdir(tmp_path)
 
-        runner.invoke(app, ["provider", "add", "deepseek", "--api-key", "sk-test", "--yes"])
+        runner.invoke(app, ["provider", "add", "deepseek", "--api-key", "sk-test", "--store", "user-config", "--yes"])
         active = get_active_profile_name(user_config)
         assert active == "deepseek"
 
@@ -353,7 +353,7 @@ class TestProviderAddCLI:
         monkeypatch.setenv("SAFECODE_USER_CONFIG", str(user_config))
         monkeypatch.chdir(tmp_path)
 
-        runner.invoke(app, ["provider", "add", "deepseek", "--api-key", "sk-test", "--yes"])
+        runner.invoke(app, ["provider", "add", "deepseek", "--api-key", "sk-test", "--store", "user-config", "--yes"])
         import tomllib
         data = tomllib.loads(user_config.read_text())
         allowlist = data.get("sandbox", {}).get("network_allowlist", [])
@@ -379,7 +379,7 @@ class TestProviderAddCLI:
         monkeypatch.setenv("SAFECODE_USER_CONFIG", str(user_config))
         monkeypatch.chdir(project_dir)
 
-        runner.invoke(app, ["provider", "add", "deepseek", "--api-key", "sk-secret", "--yes"])
+        runner.invoke(app, ["provider", "add", "deepseek", "--api-key", "sk-secret", "--store", "user-config", "--yes"])
 
         project_content = (sac_dir / "config.toml").read_text()
         assert "sk-secret" not in project_content
@@ -389,7 +389,7 @@ class TestProviderAddCLI:
         monkeypatch.setenv("SAFECODE_USER_CONFIG", str(user_config))
         monkeypatch.chdir(tmp_path)
 
-        runner.invoke(app, ["provider", "add", "deepseek", "--api-key", "sk-x", "--default-model", "pro", "--yes"])
+        runner.invoke(app, ["provider", "add", "deepseek", "--api-key", "sk-x", "--store", "user-config", "--default-model", "pro", "--yes"])
         profiles = load_profiles(user_config)
         assert profiles["deepseek"].default_model == "deepseek-v4-pro"
 
@@ -398,7 +398,7 @@ class TestProviderAddCLI:
         monkeypatch.setenv("SAFECODE_USER_CONFIG", str(user_config))
         monkeypatch.chdir(tmp_path)
 
-        result = runner.invoke(app, ["provider", "add", "deepseek", "--api-key", "sk-x", "--yes"])
+        result = runner.invoke(app, ["provider", "add", "deepseek", "--api-key", "sk-x", "--store", "user-config", "--yes"])
         assert "model" in result.output.lower()
 
     def test_provider_add_env_var_not_persisted(self, tmp_path: Path, monkeypatch) -> None:
@@ -429,7 +429,7 @@ class TestProviderListCLI:
         monkeypatch.setenv("SAFECODE_USER_CONFIG", str(user_config))
         monkeypatch.chdir(tmp_path)
 
-        runner.invoke(app, ["provider", "add", "deepseek", "--api-key", "sk-x", "--yes"])
+        runner.invoke(app, ["provider", "add", "deepseek", "--api-key", "sk-x", "--store", "user-config", "--yes"])
         result = runner.invoke(app, ["provider", "list"])
         assert result.exit_code == 0
         assert "deepseek" in result.output
@@ -451,7 +451,7 @@ class TestProviderStatusCLI:
         monkeypatch.setenv("SAFECODE_USER_CONFIG", str(user_config))
         monkeypatch.chdir(tmp_path)
 
-        runner.invoke(app, ["provider", "add", "deepseek", "--api-key", "sk-x", "--yes"])
+        runner.invoke(app, ["provider", "add", "deepseek", "--api-key", "sk-x", "--store", "user-config", "--yes"])
         result = runner.invoke(app, ["provider", "status"])
         assert result.exit_code == 0
         assert "deepseek" in result.output
@@ -461,7 +461,7 @@ class TestProviderStatusCLI:
         monkeypatch.setenv("SAFECODE_USER_CONFIG", str(user_config))
         monkeypatch.chdir(tmp_path)
 
-        runner.invoke(app, ["provider", "add", "deepseek", "--api-key", "sk-super-secret", "--yes"])
+        runner.invoke(app, ["provider", "add", "deepseek", "--api-key", "sk-super-secret", "--store", "user-config", "--yes"])
         result = runner.invoke(app, ["provider", "status"])
         assert "sk-super-secret" not in result.output
 
@@ -472,7 +472,7 @@ class TestProviderUseCLI:
         monkeypatch.setenv("SAFECODE_USER_CONFIG", str(user_config))
         monkeypatch.chdir(tmp_path)
 
-        runner.invoke(app, ["provider", "add", "deepseek", "--api-key", "sk-x", "--yes"])
+        runner.invoke(app, ["provider", "add", "deepseek", "--api-key", "sk-x", "--store", "user-config", "--yes"])
         result = runner.invoke(app, ["provider", "use", "deepseek"])
         assert result.exit_code == 0
         assert get_active_profile_name(user_config) == "deepseek"
@@ -492,7 +492,7 @@ class TestProviderRmCLI:
         monkeypatch.setenv("SAFECODE_USER_CONFIG", str(user_config))
         monkeypatch.chdir(tmp_path)
 
-        runner.invoke(app, ["provider", "add", "deepseek", "--api-key", "sk-x", "--yes"])
+        runner.invoke(app, ["provider", "add", "deepseek", "--api-key", "sk-x", "--store", "user-config", "--yes"])
         result = runner.invoke(app, ["provider", "rm", "deepseek", "--yes"])
         assert result.exit_code == 0
         assert "deepseek" not in load_profiles(user_config)
@@ -517,8 +517,8 @@ class TestModelAliasResolution:
         monkeypatch.setenv("SAFECODE_USER_CONFIG", str(user_config))
         monkeypatch.chdir(tmp_path)
 
-        runner.invoke(app, ["provider", "add", "deepseek", "--api-key", "sk-x", "--yes"])
-        result = runner.invoke(app, ["model", "flash"])
+        runner.invoke(app, ["provider", "add", "deepseek", "--api-key", "sk-x", "--store", "user-config", "--yes"])
+        result = runner.invoke(app, ["model", "--save", "flash"])
         assert result.exit_code == 0, result.output
         assert "deepseek-v4-flash" in result.output
 
@@ -527,8 +527,8 @@ class TestModelAliasResolution:
         monkeypatch.setenv("SAFECODE_USER_CONFIG", str(user_config))
         monkeypatch.chdir(tmp_path)
 
-        runner.invoke(app, ["provider", "add", "deepseek", "--api-key", "sk-x", "--yes"])
-        result = runner.invoke(app, ["model", "pro"])
+        runner.invoke(app, ["provider", "add", "deepseek", "--api-key", "sk-x", "--store", "user-config", "--yes"])
+        result = runner.invoke(app, ["model", "--save", "pro"])
         assert result.exit_code == 0, result.output
         assert "deepseek-v4-pro" in result.output
 
@@ -537,8 +537,8 @@ class TestModelAliasResolution:
         monkeypatch.setenv("SAFECODE_USER_CONFIG", str(user_config))
         monkeypatch.chdir(tmp_path)
 
-        runner.invoke(app, ["provider", "add", "deepseek", "--api-key", "sk-x", "--yes"])
-        result = runner.invoke(app, ["model", "deepseek:pro"])
+        runner.invoke(app, ["provider", "add", "deepseek", "--api-key", "sk-x", "--store", "user-config", "--yes"])
+        result = runner.invoke(app, ["model", "--save", "deepseek:pro"])
         assert result.exit_code == 0, result.output
         assert "deepseek-v4-pro" in result.output
 
@@ -547,17 +547,18 @@ class TestModelAliasResolution:
         monkeypatch.setenv("SAFECODE_USER_CONFIG", str(user_config))
         monkeypatch.chdir(tmp_path)
 
-        runner.invoke(app, ["provider", "add", "deepseek", "--api-key", "sk-x", "--yes"])
+        runner.invoke(app, ["provider", "add", "deepseek", "--api-key", "sk-x", "--store", "user-config", "--yes"])
         result = runner.invoke(app, ["model", "openai:gpt-4o"])
-        assert result.exit_code != 0
-        assert "active provider" in result.output
+        # Session-scoped model switching allows any provider scope (v4.15.1+)
+        assert result.exit_code == 0
+        assert "Session model override" in result.output
 
     def test_model_list_shows_aliases(self, tmp_path: Path, monkeypatch) -> None:
         user_config = tmp_path / "user.toml"
         monkeypatch.setenv("SAFECODE_USER_CONFIG", str(user_config))
         monkeypatch.chdir(tmp_path)
 
-        runner.invoke(app, ["provider", "add", "deepseek", "--api-key", "sk-x", "--yes"])
+        runner.invoke(app, ["provider", "add", "deepseek", "--api-key", "sk-x", "--store", "user-config", "--yes"])
         result = runner.invoke(app, ["model", "list"])
         assert result.exit_code == 0
         assert "flash" in result.output
@@ -577,8 +578,8 @@ class TestModelAliasResolution:
         monkeypatch.setenv("SAFECODE_USER_CONFIG", str(user_config))
         monkeypatch.chdir(tmp_path)
 
-        runner.invoke(app, ["provider", "add", "deepseek", "--api-key", "sk-x", "--yes"])
-        runner.invoke(app, ["model", "flash"])
+        runner.invoke(app, ["provider", "add", "deepseek", "--api-key", "sk-x", "--store", "user-config", "--store", "user-config", "--yes"])
+        runner.invoke(app, ["model", "--save", "flash"])
         import tomllib
         data = tomllib.loads(user_config.read_text())
         assert data["llm"]["model"] == "deepseek-v4-flash"
@@ -589,8 +590,8 @@ class TestModelAliasResolution:
         monkeypatch.setenv("SAFECODE_USER_CONFIG", str(user_config))
         monkeypatch.chdir(tmp_path)
 
-        runner.invoke(app, ["provider", "add", "deepseek", "--api-key", "sk-x", "--yes"])
-        result = runner.invoke(app, ["model", "deepseek-v4-pro"])
+        runner.invoke(app, ["provider", "add", "deepseek", "--api-key", "sk-x", "--store", "user-config", "--yes"])
+        result = runner.invoke(app, ["model", "--save", "deepseek-v4-pro"])
         assert result.exit_code == 0, result.output
         import tomllib
         data = tomllib.loads(user_config.read_text())
@@ -733,7 +734,7 @@ class TestShellModelAlias:
         monkeypatch.setenv("SAFECODE_USER_CONFIG", str(user_config))
         monkeypatch.chdir(tmp_path)
 
-        runner.invoke(app, ["provider", "add", "deepseek", "--api-key", "sk-x", "--yes"])
+        runner.invoke(app, ["provider", "add", "deepseek", "--api-key", "sk-x", "--store", "user-config", "--yes"])
         result = runner.invoke(app, ["shell", "--non-tty"], input="/model pro\n/exit\n")
         assert result.exit_code == 0
         assert "deepseek-v4-pro" in result.output
@@ -743,7 +744,7 @@ class TestShellModelAlias:
         monkeypatch.setenv("SAFECODE_USER_CONFIG", str(user_config))
         monkeypatch.chdir(tmp_path)
 
-        runner.invoke(app, ["provider", "add", "deepseek", "--api-key", "sk-x", "--yes"])
+        runner.invoke(app, ["provider", "add", "deepseek", "--api-key", "sk-x", "--store", "user-config", "--yes"])
         result = runner.invoke(app, ["shell", "--non-tty"], input="/model flash\n/exit\n")
         # Output should say something about persisted/saved
         assert "saved" in result.output.lower() or "globally" in result.output.lower()
@@ -755,7 +756,7 @@ class TestShellProviderStatus:
         monkeypatch.setenv("SAFECODE_USER_CONFIG", str(user_config))
         monkeypatch.chdir(tmp_path)
 
-        runner.invoke(app, ["provider", "add", "deepseek", "--api-key", "sk-x", "--yes"])
+        runner.invoke(app, ["provider", "add", "deepseek", "--api-key", "sk-x", "--store", "user-config", "--yes"])
         result = runner.invoke(app, ["shell", "--non-tty"], input="/provider status\n/exit\n")
         assert result.exit_code == 0
         assert "deepseek" in result.output.lower()
@@ -765,7 +766,7 @@ class TestShellProviderStatus:
         monkeypatch.setenv("SAFECODE_USER_CONFIG", str(user_config))
         monkeypatch.chdir(tmp_path)
 
-        runner.invoke(app, ["provider", "add", "deepseek", "--api-key", "sk-very-secret", "--yes"])
+        runner.invoke(app, ["provider", "add", "deepseek", "--api-key", "sk-very-secret", "--store", "user-config", "--yes"])
         result = runner.invoke(app, ["shell", "--non-tty"], input="/provider status\n/exit\n")
         assert "sk-very-secret" not in result.output
 
@@ -784,7 +785,7 @@ class TestOneShotModelOverride:
         monkeypatch.setenv("SAFECODE_USER_CONFIG", str(user_config))
         monkeypatch.chdir(tmp_path)
 
-        runner.invoke(app, ["provider", "add", "deepseek", "--api-key", "sk-x", "--yes"])
+        runner.invoke(app, ["provider", "add", "deepseek", "--api-key", "sk-x", "--store", "user-config", "--yes"])
         result = runner.invoke(app, ["--model", "deepseek:pro", "provider", "status"])
         assert result.exit_code == 0, result.output
         assert "Effective model         : deepseek-v4-pro" in result.output
@@ -797,7 +798,7 @@ class TestOneShotModelOverride:
         monkeypatch.setenv("SAFECODE_USER_CONFIG", str(user_config))
         monkeypatch.chdir(tmp_path)
 
-        runner.invoke(app, ["provider", "add", "deepseek", "--api-key", "sk-x", "--yes"])
+        runner.invoke(app, ["provider", "add", "deepseek", "--api-key", "sk-x", "--store", "user-config", "--yes"])
         result = runner.invoke(
             app,
             ["shell", "--model", "pro", "--non-tty"],
