@@ -1,6 +1,6 @@
 # SafeCode Agent Final Status and Roadmap
 
-Status: current project baseline after `v4.18.1`.
+Status: current project baseline after `v4.18.2` (pre-freeze).
 Last updated: 2026-06-06.
 
 This document is the consolidated product description for SafeCode Agent through
@@ -121,21 +121,30 @@ user-level network policy.
 - No remote push/PR workflow exists in this release.
 - RAG, embeddings, vector storage, LangGraph, hooks expansion, skills MVP, and
   broader language indexing are post-v4.12 future work.
-- Interaction-quality gaps remain against Claude Code / Reasonix / DeepSeek TUI:
-  no streaming output, basic shell UX, no live connectivity checks, no fuzzy
-  matching, no per-patch undo. These are addressed in the next train.
+- Interaction-quality gaps from before v4.17 (no streaming, basic shell UX, no live
+  connectivity checks, no fuzzy matching, no per-patch undo) are all addressed in the
+  v4.17–v4.18 train. See below.
 
-## Post-v4.16 Forward Plan
+## Completed v4.17–v4.18 Shell & Interaction UX Train
 
-Active forward work lives in
-`docs/version-plans/post-v4.16-shell-ux-roadmap.md`. The next train targets
-interaction-quality parity with Claude Code and Reasonix:
+The post-v4.16 shell UX roadmap is COMPLETED as of v4.18.2. All 6 versions shipped:
 
 - **v4.17.0**: streaming token-by-token output in `sac ask` and `sac shell`
-- **v4.17.1**: shell polish (Rich Markdown, diff highlighting, readline completer)
-- **v4.17.2**: live connectivity diagnostics (`sac doctor --live`)
+- **v4.17.1**: shell polish (Rich Markdown, diff highlighting, readline completer, `/clear`)
+- **v4.17.2**: live connectivity diagnostics (`sac doctor --live`, `sac provider status --live`)
 - **v4.17.3**: Levenshtein fuzzy matching for model/provider names
-- **v4.18.0**: per-edit undo / finer checkpoint granularity + shell diff rendering
-- **v4.18.1**: agent-loop transparency (step/intent status panel, `/verbose`)
+- **v4.18.0**: per-patch undo (`sac rollback --checkpoint <id>`, `--list`) + shell diff rendering
+- **v4.18.1**: agent-loop transparency (Rich Status spinner, on_step callback)
+- **v4.18.2**: safety regression fix — `--checkpoint <id>` rollback path was missing
+  `ToolCallGate` check; corrected and covered by 5 new tests.
 
-All remain EXPERIMENTAL. No safety invariants change.
+All surfaces remain EXPERIMENTAL. No safety invariants changed.
+
+## Current Freeze Goal
+
+`main` is frozen at `v4.18.2` as a learning baseline and portfolio reference.
+Future feature development will continue on a separate development branch.
+
+No active forward plan at this time. Remaining work (RAG, embeddings, LangGraph,
+IDE surface, remote push/PR, agent hooks expansion) is deferred to that future
+branch and is NOT part of the current baseline.

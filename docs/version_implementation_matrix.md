@@ -580,16 +580,17 @@ Next: `docs/version-plans/post-v4.16-shell-ux-roadmap.md`.
 
 ## v4.17.x-v4.18.x: Shell & Interaction UX
 
-Active plan: `docs/version-plans/post-v4.16-shell-ux-roadmap.md`.
+Completed. Plan: `docs/version-plans/post-v4.16-shell-ux-roadmap.md` (COMPLETED as of v4.18.1).
 
 | Version | Status | Key Files | Summary |
 |---|---|---|---|
-| `v4.17.0` 📝 | planned | `src/safecode/cli_shell.py`, `src/safecode/llm/openai_client.py` | Streaming output: `sac ask --stream` and `sac shell` default to token-by-token via Rich Live; non-TTY batch unchanged; token-level redaction. |
-| `v4.17.1` 📝 | planned | `src/safecode/cli_shell.py` | Shell polish: Rich Markdown rendering, syntax-highlighted diffs, readline completer for slash commands, history search (Ctrl-R). |
-| `v4.17.2` 📝 | planned | `src/safecode/doctor.py`, `src/safecode/cli_provider.py` | Live connectivity: `sac doctor --live` and `sac provider status --live` ping the provider endpoint; opt-in only. |
-| `v4.17.3` 📝 | planned | `src/safecode/cli_model.py`, `src/safecode/llm/provider_profiles.py` | Levenshtein fuzzy matching for model/provider names; suggest closest match when distance ≤ 2. |
-| `v4.18.0` 📝 | planned | `src/safecode/cli_core.py`, `src/safecode/cli_shell.py` | Per-patch undo and shell diff rendering: finer-grained checkpoints per patch file; Rich diff in shell `/apply`. |
-| `v4.18.1` 📝 | planned | `src/safecode/agent/loop.py`, `src/safecode/cli_shell.py` | Agent-loop transparency: Rich Status panel in agentic mode showing current step/intent; togglable `/verbose`. |
+| `v4.17.0` ✅ | `main` | `src/safecode/cli_shell.py`, `src/safecode/llm/openai_client.py`, `src/safecode/cli_stream.py` | Streaming output: `sac ask --stream` and `sac shell` default to token-by-token via Rich Live; non-TTY batch unchanged; token-level redaction. |
+| `v4.17.1` ✅ | `main` | `src/safecode/cli_shell.py`, `src/safecode/shell_session/` | Shell polish: Rich Markdown rendering, syntax-highlighted diffs, readline completer for slash commands, `/clear` command, readline history persistence. |
+| `v4.17.2` ✅ | `main` | `src/safecode/doctor.py`, `src/safecode/cli_provider.py` | Live connectivity: `sac doctor --live` and `sac provider status --live` ping the provider endpoint; opt-in only. |
+| `v4.17.3` ✅ | `main` | `src/safecode/cli_model.py`, `src/safecode/llm/provider_profiles.py` | Levenshtein fuzzy matching for model/provider names; suggest closest match when distance ≤ 2. |
+| `v4.18.0` ✅ | `main` | `src/safecode/cli_core.py`, `src/safecode/cli_shell.py`, `src/safecode/checkpoint/`, `tests/test_per_patch_undo.py` | Per-patch undo and shell diff rendering: finer-grained checkpoints per patch file; Rich diff in shell `/apply`; `--checkpoint <id>` and `--list` flags on rollback. |
+| `v4.18.1` ✅ | `main` | `src/safecode/agent/loop.py`, `src/safecode/cli_shell.py`, `tests/test_agent_loop_transparency.py` | Agent-loop transparency: Rich Status spinner with on_step callback in agentic mode showing current step/intent. |
+| `v4.18.2` ✅ | `main` | `src/safecode/cli_core.py`, `src/safecode/checkpoint/`, `tests/test_per_patch_undo.py` | Safety regression fix: `--checkpoint <id>` rollback path was missing `ToolCallGate` check present in `--last`; corrected and covered by 5 new tests (gate enforcement, committed-checkpoint refusal, force-uncommit bypass, audit event emission, task sidecar creation). Full suite 4862 passed, 4 skipped. |
 
 ## v4.2.x: Project Command Profile
 

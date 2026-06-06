@@ -5,16 +5,17 @@ the full [version implementation matrix](../version_implementation_matrix.md).
 
 ## Current Baseline
 
-- Current documented baseline: `v4.14.0` provider-profile UX.
-- Package/runtime metadata is `4.14.0`.
+- Current documented baseline: `v4.18.2` — pre-freeze, all trains complete.
+- Package/runtime metadata is `4.18.2`.
 - Current product truth: [../project-final-status-and-roadmap.md](../project-final-status-and-roadmap.md).
-- Active forward usability plan: [../version-plans/post-v4.14-usability-roadmap.md](../version-plans/post-v4.14-usability-roadmap.md).
+- No active forward plan. Future development will continue on a separate branch.
 
 ## Major Trains
 
 | Train | Status | What It Established | Primary References |
 | --- | --- | --- | --- |
-| v4.14.x | active | provider profiles, short model aliases, one-shot model overrides, provider-aware diagnostics | [v4.14.0 note](../version-notes/v4.14.0-provider-profile-ux.md), [usability roadmap](../version-plans/post-v4.14-usability-roadmap.md) |
+| v4.17.x-v4.18.x | complete | streaming output, shell polish (readline/Markdown/diff), live connectivity, fuzzy matching, per-patch undo, agent-loop transparency, safety regression fix | [v4.18.0 note](../version-notes/v4.18.0-diff-rendering-per-patch-undo.md), [shell UX roadmap](../version-plans/post-v4.16-shell-ux-roadmap.md) |
+| v4.14.x-v4.16.x | complete | provider profiles, model aliases, sac init, session model switching, keychain credentials, bare sac enters shell, 7-command help, config migration, error rewrites | [v4.14.0 note](../version-notes/v4.14.0-provider-profile-ux.md), [usability roadmap](../version-plans/post-v4.14-usability-roadmap.md) |
 | v4.12.x | complete | FastAPI todo demo, deterministic transcript, resume-MVP cut, tracked demo profile | [v4.12.4 note](../version-notes/v4.12.4-fastapi-todo-profile.md), [status](../project-final-status-and-roadmap.md) |
 | v4.11.x | complete | agentic-lite loop, typed step projection, validation loop, agentic resume and smoke | [agent tutorial](../tutorials/agent-run-first-hour.md), [v4.11.5 note](../version-notes/v4.11.5-agentic-workflow-smoke.md) |
 | v4.10.x | complete | DeepSeek preset, provider doctor diagnostics, retry reliability, opt-in live-provider smoke | [providers](../providers.md), [v4.10.4 note](../version-notes/v4.10.4-live-provider-smoke.md) |

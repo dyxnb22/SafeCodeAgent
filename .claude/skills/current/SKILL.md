@@ -5,10 +5,12 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v4.18.1
+# Current Baseline - v4.18.2
 
 ## Status
-Implemented. Git baseline: tag `v4.18.1`. Local working version: `v4.18.1`.
+Implemented. Git baseline: tag `v4.18.2`. Local working version: `v4.18.2`.
+v4.18.2 is a safety-regression fix on top of v4.18.1: `--checkpoint <id>` rollback
+path was missing the ToolCallGate check; corrected and covered by 5 new tests.
 
 ## Stage
 The v4.14–v4.18 usability trains are complete (14 versions shipped):

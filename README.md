@@ -249,12 +249,12 @@ sac debug last-failure              # summarize last redacted failure, never exe
 sac debug bundle --out debug.tgz    # redacted SafeCode metadata bundle, no source
 ```
 
-The root CLI surface is trimmed to 18 visible daily-loop commands: `setup`,
-`quickstart`, `status`, `task`, `ask`, `edit`, `fix`, `apply`, `rollback`,
-`run`, `commit`, `profile`, `resume`, `memory`, `debug`, `doctor`, `version`,
-`shell`. All v4.x/v4.9 additions remain EXPERIMENTAL. The v4.x shell-first
-train is complete as of v4.8.2, and the v4.9 AI shell train is complete as of
-v4.9.3. No v5.0 release is currently scheduled.
+Since v4.16.0, `sac --help` shows the 7 most-common daily commands (init, ask,
+edit, apply, fix, commit, doctor). Run `sac help --all` to see the full callable
+surface of 20+ commands including status, task, rollback, run, profile, resume,
+memory, debug, shell, model, provider, version, and setup. All v4.x additions
+remain EXPERIMENTAL. All trains through v4.18.2 are complete. No v5.0 release
+is currently scheduled.
 
 Use `--json` on most commands for machine-readable output:
 ```bash
