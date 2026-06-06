@@ -13,8 +13,8 @@ Start here when you are unsure which document owns a topic.
 
 ## Current Product Truth
 
-- [Final Status and Roadmap](project-final-status-and-roadmap.md): current baseline after `v4.12.4`.
-- [Post-v4.12 Consolidation Roadmap](version-plans/post-v4.12-consolidation-roadmap.md): active forward cleanup plan.
+- [Final Status and Roadmap](project-final-status-and-roadmap.md): current baseline after `v4.14.0`.
+- [Post-v4.14 Usability Roadmap](version-plans/post-v4.14-usability-roadmap.md): active forward first-run and CLI usability plan.
 - [Version Summary](reference/version-summary.md): short map of major version trains.
 - [Public Contracts](public-contracts.md): stable and experimental public surfaces.
 - [Versioning Policy](versioning-policy.md): patch, minor, major, and contract-churn rules.
@@ -43,7 +43,7 @@ they should not be treated as the current user path.
 - [Documentation Archive](archive/README.md): historical audits, roadmaps, and review follow-ups.
 - [Version Notes](version-notes/README.md): release-by-release completion notes.
 - [Version Plans](version-plans/README.md): completed and active planning documents.
-- [Post-v4.12 Consolidation Audit](post-v4.12-consolidation-audit.md): current documentation consolidation findings.
+- [Post-v4.12 Consolidation Audit](post-v4.12-consolidation-audit.md): historical documentation consolidation findings.
 
 ## Maintenance
 

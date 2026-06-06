@@ -438,7 +438,10 @@ def _user_config_path() -> Path:
 def _read_toml(path: Path) -> dict:
     """Read TOML when present."""
     if path.exists():
-        return tomllib.loads(path.read_text(encoding="utf-8"))
+        try:
+            return tomllib.loads(path.read_text(encoding="utf-8"))
+        except tomllib.TOMLDecodeError as exc:
+            raise ValueError(f"Malformed config file {path}: {exc}") from exc
     return {}
 
 

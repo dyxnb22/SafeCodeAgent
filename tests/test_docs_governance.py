@@ -87,6 +87,7 @@ def test_version_notes_index_covers_major_trains_and_links_exist() -> None:
 
 def test_version_summary_points_to_current_baseline_and_matrix() -> None:
     text = _read(DOCS / "reference" / "version-summary.md")
-    assert "v4.12.4" in text
+    assert "v4.14.0" in text
+    assert "../version-plans/post-v4.14-usability-roadmap.md" in text
     assert "../version_implementation_matrix.md" in text
     assert "../project-final-status-and-roadmap.md" in text

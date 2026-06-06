@@ -176,10 +176,10 @@ def clear(
             confirmed = typer.confirm(f"Clear {scope} memory?", default=False)
             if not confirmed:
                 if json_output:
-                    _print_json("memory clear", "error", data={"scope": scope}, error="Clear cancelled.")
+                    _print_json("memory clear", "cancelled", data={"scope": scope})
                 else:
                     console.print("[yellow]Clear cancelled.[/yellow]")
-                raise typer.Exit(code=1)
+                raise typer.Exit(code=0)
         MemoryFacade(Path.cwd()).clear(scope, task_id=task_id)
     except ValueError as exc:
         if json_output:

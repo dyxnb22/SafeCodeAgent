@@ -40,7 +40,12 @@ class PatchValidator:
         if not target_path.is_file():
             raise PatchValidationError(f"Target path is not a file: {block.file_path}")
 
-        content = target_path.read_text(encoding="utf-8")
+        try:
+            content = target_path.read_text(encoding="utf-8")
+        except UnicodeDecodeError as exc:
+            raise PatchValidationError(
+                f"Cannot validate binary file: {block.file_path}"
+            ) from exc
         count = content.count(block.search)
         if count == 0:
             raise PatchValidationError(f"SEARCH content was not found in {block.file_path}.")

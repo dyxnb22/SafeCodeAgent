@@ -1,7 +1,8 @@
 # Post-v4.12 Consolidation Roadmap
 
-Status: proposed consolidation plan after the v4.10-v4.12 resume-ready MVP
-train.
+Status: historical planning record. Consolidation/provider-profile planning was
+carried through `v4.14.0`; active forward usability work now lives in
+`docs/version-plans/post-v4.14-usability-roadmap.md`.
 Baseline: `v4.12.4` tracked-profile hotfix on top of the `v4.12.3` resume-MVP
 package metadata.
 
@@ -73,6 +74,8 @@ PYTHONPATH=src python3 -m pytest -q tests/test_docs_claims_guard.py tests/test_v
 ```
 
 ### v4.14.0 - Provider Profile UX
+
+Status: implemented in `v4.14.0`.
 
 Context: the current `sac model <model> --provider <provider> --api-key ...`
 surface technically works, but it makes the user think in raw config fields.
@@ -170,6 +173,9 @@ Exit criteria:
 - No project-local file can store a credential or silently widen network policy.
 
 ### v4.14.1 - Interactive Config and Status Surfaces
+
+Status: superseded by the more specific post-v4.14 usability plan. See
+`docs/version-plans/post-v4.14-usability-roadmap.md`.
 
 - Add `/config` as the in-shell settings hub. It should expose model/provider,
   safety mode, network status, shell approval mode, and display preferences.

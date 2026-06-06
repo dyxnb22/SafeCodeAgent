@@ -31,6 +31,12 @@ current consolidated product status and forward plan is
 `docs/project-final-status-and-roadmap.md`. The v4.9 plan remains as a
 completed implementation record.
 
+Planning update, 2026-06-05: the v4.14.0 provider-profile UX cut is the current
+baseline. Active forward work is now
+`docs/version-plans/post-v4.14-usability-roadmap.md`, scoped to first-run
+clarity, provider/model ergonomics, credential storage, and shell-first
+usability while preserving SafeCode's explicit approval boundaries.
+
 This roadmap analyzes SafeCode Agent as a commercial-grade local coding agent
 product, not merely as a local safety runtime. It identifies what is solid,
 what is incomplete, what is experimental, what architecture needs refinement,

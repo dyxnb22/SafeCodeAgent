@@ -5,15 +5,16 @@ the full [version implementation matrix](../version_implementation_matrix.md).
 
 ## Current Baseline
 
-- Current documented baseline: `v4.12.4` tracked-profile hotfix.
-- Package/runtime metadata remains `4.12.3` until the next release-tag decision.
+- Current documented baseline: `v4.14.0` provider-profile UX.
+- Package/runtime metadata is `4.14.0`.
 - Current product truth: [../project-final-status-and-roadmap.md](../project-final-status-and-roadmap.md).
-- Active forward cleanup: [../version-plans/post-v4.12-consolidation-roadmap.md](../version-plans/post-v4.12-consolidation-roadmap.md).
+- Active forward usability plan: [../version-plans/post-v4.14-usability-roadmap.md](../version-plans/post-v4.14-usability-roadmap.md).
 
 ## Major Trains
 
 | Train | Status | What It Established | Primary References |
 | --- | --- | --- | --- |
+| v4.14.x | active | provider profiles, short model aliases, one-shot model overrides, provider-aware diagnostics | [v4.14.0 note](../version-notes/v4.14.0-provider-profile-ux.md), [usability roadmap](../version-plans/post-v4.14-usability-roadmap.md) |
 | v4.12.x | complete | FastAPI todo demo, deterministic transcript, resume-MVP cut, tracked demo profile | [v4.12.4 note](../version-notes/v4.12.4-fastapi-todo-profile.md), [status](../project-final-status-and-roadmap.md) |
 | v4.11.x | complete | agentic-lite loop, typed step projection, validation loop, agentic resume and smoke | [agent tutorial](../tutorials/agent-run-first-hour.md), [v4.11.5 note](../version-notes/v4.11.5-agentic-workflow-smoke.md) |
 | v4.10.x | complete | DeepSeek preset, provider doctor diagnostics, retry reliability, opt-in live-provider smoke | [providers](../providers.md), [v4.10.4 note](../version-notes/v4.10.4-live-provider-smoke.md) |

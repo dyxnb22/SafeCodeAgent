@@ -4,7 +4,7 @@ This directory keeps historical audits, roadmaps, and planning documents that
 are useful for archaeology but no longer define the current user path.
 
 For the current baseline, start with [../project-final-status-and-roadmap.md](../project-final-status-and-roadmap.md).
-For active forward work, use [../version-plans/post-v4.12-consolidation-roadmap.md](../version-plans/post-v4.12-consolidation-roadmap.md).
+For active forward work, use [../version-plans/post-v4.14-usability-roadmap.md](../version-plans/post-v4.14-usability-roadmap.md).
 
 ## Audits
 

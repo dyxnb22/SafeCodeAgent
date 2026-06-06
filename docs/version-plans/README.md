@@ -8,10 +8,11 @@ matching file exists in [../version-notes/](../version-notes/).
 
 ## Current Planning
 
-- [post-v4.12-consolidation-roadmap.md](post-v4.12-consolidation-roadmap.md): active post-v4.12 cleanup plan.
+- [post-v4.14-usability-roadmap.md](post-v4.14-usability-roadmap.md): active post-v4.14 usability and first-run UX plan.
 
 ## Historical Roadmaps
 
+- [post-v4.12-consolidation-roadmap.md](post-v4.12-consolidation-roadmap.md): completed consolidation/provider-profile planning record through v4.14.0.
 - [v4.10-to-v4.12-resume-mvp-roadmap.md](v4.10-to-v4.12-resume-mvp-roadmap.md): completed resume-ready MVP train.
 - [v4.9-ai-shell-mvp-roadmap.md](v4.9-ai-shell-mvp-roadmap.md): completed AI shell MVP train.
 - [v4.1-to-v4.8-shell-first-roadmap.md](v4.1-to-v4.8-shell-first-roadmap.md): completed shell-first train.

@@ -99,7 +99,7 @@ def test_clear_requires_yes_guard(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
 
     result = runner.invoke(app, ["memory", "clear", "--project"], input="n\n")
 
-    assert result.exit_code == 1
+    assert result.exit_code == 0
     assert MemoryFacade(tmp_path).read_project_notes().strip() == "note"
 
 

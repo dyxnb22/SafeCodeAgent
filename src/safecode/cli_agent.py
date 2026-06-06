@@ -214,6 +214,12 @@ def agent_run(
                 result = loop.run(goal or None, max_steps=max_steps, on_step=on_step)
         else:
             result = loop.run(goal or None, max_steps=max_steps, on_step=on_step)
+    except KeyboardInterrupt:
+        if json_output:
+            print(render_json(CLIJSONResponse(command="agent run", status="error", error="Interrupted.")))
+        else:
+            console.print("[yellow]Agent loop interrupted.[/yellow]")
+        raise typer.Exit(code=130)
     except (FileNotFoundError, ValueError) as exc:
         if json_output:
             print(render_json(CLIJSONResponse(command="agent run", status="error", error=str(exc))))
