@@ -316,10 +316,101 @@ def apply(
             f"Applied patch {result.proposal.id}\n"
             f"Checkpoint: {result.checkpoint.checkpoint_id}\n"
             f"Hooks: {len(result.hooks.results) if result.hooks else 0}\n"
-            f"Files: {', '.join(result.files)}",
+            f"Files: {', '.join(result.files)}\n"
+            f"Undo: `sac rollback --last`",
             title="SafeCode",
         )
     )
+
+
+def _perform_rollback_with_guards(
+    project_root: Path,
+    orchestrator: "AgentOrchestrator",
+    metadata: "CheckpointMetadata",  # type: ignore[name-defined]  # noqa: F821
+    *,
+    force_uncommit: bool,
+    use_rollback_last: bool,
+) -> "RollbackResult":  # type: ignore[name-defined]  # noqa: F821
+    """Shared guard logic for both --last and --checkpoint rollback paths.
+
+    Runs ToolCallGate, committed-checkpoint detection, and task sidecar wiring
+    for any rollback, regardless of which checkpoint is targeted.
+    """
+    # Gate: rollback is a write-class operation.
+    gate_result = ToolCallGate().check_intent("checkpoint.rollback", approved=True)
+    if not gate_result.allowed:
+        console.print(f"[red]Blocked by tool gate:[/red] {gate_result.reason}")
+        raise typer.Exit(code=1)
+
+    # Wire task sidecar (best-effort)
+    try:
+        current_task_for_rollback = get_or_create_current_task(project_root, "rollback")
+    except Exception:
+        current_task_for_rollback = None
+    rollback_task_id = current_task_for_rollback.task_id if current_task_for_rollback else None
+
+    # Committed-checkpoint guard: check the *specific* checkpoint being rolled back.
+    committed_sha: str | None = None
+    if not force_uncommit:
+        try:
+            from safecode.git.local import commit_contains_files_or_checkpoint, is_git_repo, worktree_has_changes_for_files
+
+            if is_git_repo(project_root):
+                checkpoint_files = [operation.path for operation in metadata.file_operations]
+                if not worktree_has_changes_for_files(project_root, checkpoint_files):
+                    committed_sha = commit_contains_files_or_checkpoint(project_root, metadata)
+                if committed_sha:
+                    console.print(
+                        "[red]Rollback refused:[/red] this apply appears committed. "
+                        f"Use git revert {committed_sha} instead, or rerun with --force-uncommit."
+                    )
+                    raise typer.Exit(code=1)
+        except typer.Exit:
+            raise
+        except Exception:
+            pass
+
+    # Perform the restore.
+    if use_rollback_last:
+        result = orchestrator.rollback_last()
+    else:
+        result = orchestrator.rollback_checkpoint(metadata.checkpoint_id)
+
+    # Record rollback in task sidecar
+    if rollback_task_id:
+        try:
+            record_rollback_on_task(project_root, rollback_task_id, result.checkpoint.checkpoint_id)
+            if force_uncommit:
+                try:
+                    from safecode.git.local import commit_contains_files_or_checkpoint, is_git_repo
+
+                    if is_git_repo(project_root):
+                        committed_sha = commit_contains_files_or_checkpoint(project_root, result.checkpoint)
+                except Exception:
+                    committed_sha = None
+                orchestrator.audit_logger.write(
+                    AuditEvent(
+                        type="rollback_force_uncommit",
+                        timestamp=utc_now_iso(),
+                        checkpoint_id=result.checkpoint.checkpoint_id,
+                        message="rollback after committed apply forced",
+                        metadata={"commit_sha": committed_sha or "unknown"},
+                    ),
+                    task_id=rollback_task_id,
+                )
+            orchestrator.audit_logger.write(
+                AuditEvent(
+                    type="task_rollback_wired",
+                    timestamp=utc_now_iso(),
+                    checkpoint_id=result.checkpoint.checkpoint_id,
+                    message=f"rollback wired to task {rollback_task_id}",
+                ),
+                task_id=rollback_task_id,
+            )
+        except Exception:
+            pass
+
+    return result
 
 
 @core_app.command(hidden=True)
@@ -330,6 +421,9 @@ def rollback(
     list_checkpoints: bool = typer.Option(False, "--list", help="[EXPERIMENTAL v4.18] List available checkpoints."),
 ) -> None:
     """Rollback a previous applied patch."""
+    from safecode.checkpoint.manager import CheckpointManager
+    from safecode.checkpoint.models import CheckpointMetadata
+
     project_root = Path.cwd()
 
     if list_checkpoints:
@@ -344,7 +438,7 @@ def rollback(
             table.add_column("Files")
             for c in mgr:
                 table.add_row(
-                    c.checkpoint_id[:40] + ("..." if len(c.checkpoint_id) > 40 else ""),
+                    c.checkpoint_id,
                     c.patch_id,
                     c.task[:60] if c.task else "",
                     ", ".join(op.path for op in c.file_operations),
@@ -353,10 +447,22 @@ def rollback(
         raise typer.Exit(code=0)
 
     if checkpoint:
-        orchestrator = AgentOrchestrator(project_root)
+        orch = AgentOrchestrator(project_root)
         try:
-            result = orchestrator.rollback_checkpoint(checkpoint)
+            metadata = CheckpointManager(project_root)._load_metadata(checkpoint)
         except FileNotFoundError as exc:
+            log_cli_error("cli.rollback", "rollback failed", exc, failure_category=FailureCategory.PATCH_APPLY_CONFLICT.value)
+            console.print(f"[red]Rollback failed:[/red] {exc}")
+            raise typer.Exit(code=1) from exc
+        try:
+            result = _perform_rollback_with_guards(
+                project_root, orch, metadata,
+                force_uncommit=force_uncommit,
+                use_rollback_last=False,
+            )
+        except typer.Exit:
+            raise
+        except Exception as exc:
             log_cli_error("cli.rollback", "rollback failed", exc, failure_category=FailureCategory.PATCH_APPLY_CONFLICT.value)
             console.print(f"[red]Rollback failed:[/red] {exc}")
             raise typer.Exit(code=1) from exc
@@ -372,86 +478,26 @@ def rollback(
     if not last:
         console.print("[red]Use --last, --checkpoint <id>, or --list.[/red]")
         raise typer.Exit(code=1)
-    # Gate: --last is the explicit approval gesture for this write-class operation.
-    gate_result = ToolCallGate().check_intent("checkpoint.rollback", approved=True)
-    if not gate_result.allowed:
-        console.print(f"[red]Blocked by tool gate:[/red] {gate_result.reason}")
-        raise typer.Exit(code=1)
 
-    # Wire task sidecar (experimental)
+    orch = AgentOrchestrator(project_root)
     try:
-        current_task_for_rollback = get_or_create_current_task(project_root, "rollback")
-    except Exception:
-        current_task_for_rollback = None
-    rollback_task_id = current_task_for_rollback.task_id if current_task_for_rollback else None
-
-    rollback_orchestrator = AgentOrchestrator(project_root)
-    committed_sha: str | None = None
-    if not force_uncommit:
-        try:
-            from safecode.checkpoint.manager import CheckpointManager
-            from safecode.git.local import commit_contains_files_or_checkpoint, is_git_repo, worktree_has_changes_for_files
-
-            if is_git_repo(project_root):
-                latest_checkpoint = CheckpointManager(project_root)._load_latest_metadata()
-                checkpoint_files = [operation.path for operation in latest_checkpoint.file_operations]
-                committed_sha = None
-                if not worktree_has_changes_for_files(project_root, checkpoint_files):
-                    committed_sha = commit_contains_files_or_checkpoint(project_root, latest_checkpoint)
-                if committed_sha:
-                    console.print(
-                        "[red]Rollback refused:[/red] latest apply appears committed. "
-                        f"Use git revert {committed_sha} instead, or rerun with --force-uncommit."
-                    )
-                    raise typer.Exit(code=1)
-        except typer.Exit:
-            raise
-        except Exception:
-            pass
-    try:
-        result = rollback_orchestrator.rollback_last()
+        metadata = CheckpointManager(project_root)._load_latest_metadata()
     except FileNotFoundError as exc:
         log_cli_error("cli.rollback", "rollback failed", exc, failure_category=FailureCategory.PATCH_APPLY_CONFLICT.value)
         console.print(f"[red]Rollback failed:[/red] {exc}")
         raise typer.Exit(code=1) from exc
+    try:
+        result = _perform_rollback_with_guards(
+            project_root, orch, metadata,
+            force_uncommit=force_uncommit,
+            use_rollback_last=True,
+        )
+    except typer.Exit:
+        raise
     except Exception as exc:
         log_cli_error("cli.rollback", "rollback failed", exc, failure_category=FailureCategory.PATCH_APPLY_CONFLICT.value)
         console.print(f"[red]Rollback failed:[/red] {exc}")
         raise typer.Exit(code=1) from exc
-
-    # Record rollback in task sidecar
-    if rollback_task_id:
-        try:
-            record_rollback_on_task(project_root, rollback_task_id, result.checkpoint.checkpoint_id)
-            if force_uncommit:
-                try:
-                    from safecode.git.local import commit_contains_files_or_checkpoint, is_git_repo
-
-                    if is_git_repo(project_root):
-                        committed_sha = commit_contains_files_or_checkpoint(project_root, result.checkpoint)
-                except Exception:
-                    committed_sha = None
-                rollback_orchestrator.audit_logger.write(
-                    AuditEvent(
-                        type="rollback_force_uncommit",
-                        timestamp=utc_now_iso(),
-                        checkpoint_id=result.checkpoint.checkpoint_id,
-                        message="rollback after committed apply forced",
-                        metadata={"commit_sha": committed_sha or "unknown"},
-                    ),
-                    task_id=rollback_task_id,
-                )
-            rollback_orchestrator.audit_logger.write(
-                AuditEvent(
-                    type="task_rollback_wired",
-                    timestamp=utc_now_iso(),
-                    checkpoint_id=result.checkpoint.checkpoint_id,
-                    message=f"rollback wired to task {rollback_task_id}",
-                ),
-                task_id=rollback_task_id,
-            )
-        except Exception:
-            pass
 
     console.print(
         Panel.fit(

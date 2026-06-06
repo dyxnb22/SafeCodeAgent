@@ -234,10 +234,11 @@ def setup(
     sandbox_approval_dir: str = typer.Option("", "--sandbox-approval-dir", help="External sandbox approval directory."),
     force: bool = typer.Option(False, "--force", help="Overwrite existing setup files."),
     yes: bool = typer.Option(False, "--yes", "-y", help="Accept the selected options without prompting."),
-    wizard: bool = typer.Option(False, "--wizard", help="Interactive wizard: walks provider/model/policy; non-TTY prints static template."),
+    wizard: bool = typer.Option(False, "--wizard", help="Interactive wizard: walks provider/model/policy; non-TTY prints static template. (deprecated, prefer `sac init`)"),
 ) -> None:
     """Configure model, network, approval dirs, and safety preset."""
     if wizard:
+        console.print("[dim]setup --wizard is deprecated in v4.15.0; prefer `sac init`.[/dim]")
         code = run_setup_wizard(Path.cwd())
         raise typer.Exit(code=code)
     if not yes:

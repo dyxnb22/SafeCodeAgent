@@ -171,23 +171,35 @@ _TOP_LEVEL_COMMANDS_CACHE: set[str] | None = None
 
 
 def _get_top_level_commands() -> set[str]:
-    """Return all top-level commands (visible and hidden) in the CLI."""
+    """Return all top-level commands (visible and hidden) in the CLI.
+
+    Checks callability, not visibility — all registered Typer commands
+    (including hidden=True ones) are included so the docs guard can verify
+    that any `sac <cmd>` reference in documentation is actually callable.
+    """
     global _TOP_LEVEL_COMMANDS_CACHE
     if _TOP_LEVEL_COMMANDS_CACHE is None:
         result = runner.invoke(app, ["--help"])
         all_cmds: set[str] = set()
-        # Also check hidden commands by invoking known ones
-        # Collect visible from help
+        # Collect visible commands from help output
         for line in result.output.splitlines():
             m = re.match(r"^│ ([\w][\w-]*)\s{2,}", line)
             if m:
                 all_cmds.add(m.group(1))
-        # Add known hidden commands
+        # Add known hidden commands (hidden=True in Typer but still callable).
+        # This list covers commands moved to hidden in v4.16.0 and commands
+        # that have always been hidden/advanced.
         known_hidden = [
+            # v4.16.0 hidden daily-loop commands (previously visible)
+            "quickstart", "setup", "rollback", "run", "version",
+            # v4.16.x+ hidden shell/interaction commands
+            "shell", "model", "provider", "why",
+            # Longstanding hidden/advanced commands
             "audit", "hooks", "context", "mcp", "sandbox", "trust", "index",
             "skills", "tools", "subagent", "eval", "history", "agent", "release",
             "logs", "report", "demo", "test", "config", "smoke", "branch", "diff",
             "queue", "progress", "rules", "tui", "ide", "export",
+            "status", "task", "profile", "resume", "memory", "debug",
         ]
         all_cmds.update(known_hidden)
         _TOP_LEVEL_COMMANDS_CACHE = all_cmds

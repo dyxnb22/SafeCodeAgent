@@ -2,7 +2,7 @@
 
 import sys
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -125,3 +125,80 @@ def test_cli_stream_module_importable():
     from safecode import cli_stream
     assert hasattr(cli_stream, "render_stream")
     assert hasattr(cli_stream, "stream_chunks_to_console")
+
+
+def test_keyboard_interrupt_midstream_not_swallowed() -> None:
+    """KeyboardInterrupt raised inside render_stream is not silently swallowed.
+
+    render_stream only catches ImportError (when Rich is unavailable); it does
+    NOT catch KeyboardInterrupt. This test confirms the interrupt propagates so
+    that the caller can handle it (e.g., with a non-zero exit code).
+    """
+    from safecode.cli_stream import render_stream
+
+    def _interrupting_stream():
+        yield StreamChunk(delta="Hello")
+        raise KeyboardInterrupt
+
+    class InterruptingClient:
+        def stream_chat(self, messages):
+            yield from _interrupting_stream()
+
+        def ask(self, question, context):
+            return type("Answer", (), {"content": "batch"})()
+
+        def propose_patch(self, task, context):
+            return type("Patch", (), {"patch_text": "mock patch"})()
+
+    orch = AgentOrchestrator(Path("/tmp"), llm_client=InterruptingClient())
+
+    with patch("builtins.print"):
+        with pytest.raises(KeyboardInterrupt):
+            render_stream(orch, "test", is_tty=False)
+
+
+def test_keyboard_interrupt_midstream_exits_non_zero(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """KeyboardInterrupt from render_stream propagates as non-zero CLI exit.
+
+    The `ask` command wraps render_stream in `except Exception`, which does NOT
+    catch KeyboardInterrupt. We force the streaming branch by patching the
+    `sys` module inside `cli_core` (CliRunner overrides sys.stdin/stdout during
+    invoke, making a direct isatty patch ineffective).
+    """
+    import safecode.cli_core as cli_core_module
+    from typer.testing import CliRunner as TRunner
+    from safecode.cli import app
+
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / ".sac").mkdir(parents=True, exist_ok=True)
+    (tmp_path / ".sac" / "config.toml").write_text(
+        '[llm]\nprovider = "mock"\nmodel = "gpt-4.1-mini"\n'
+        'base_url = "http://localhost:8080/v1"\n'
+        "[sandbox]\nnetwork_enabled = false\n",
+        encoding="utf-8",
+    )
+
+    cli_runner = TRunner()
+
+    # Patch sys inside cli_core so is_tty evaluates True during the test.
+    import sys as _sys
+    mock_sys = MagicMock()
+    mock_sys.stdin.isatty.return_value = True
+    mock_sys.stdout.isatty.return_value = True
+    # Preserve other sys attributes the CLI relies on (e.g. argv, path)
+    mock_sys.argv = _sys.argv
+    mock_sys.path = _sys.path
+
+    with patch.object(cli_core_module, "sys", mock_sys), \
+         patch("safecode.cli_stream.render_stream", side_effect=KeyboardInterrupt):
+        result = cli_runner.invoke(app, ["ask", "--stream", "hello"])
+
+    # The CLI must not exit with code 0 after a KeyboardInterrupt mid-stream.
+    assert result.exit_code != 0 or isinstance(result.exception, KeyboardInterrupt), (
+        f"Expected non-zero exit or captured KeyboardInterrupt, got exit_code={result.exit_code}"
+    )
+    # No success panel should appear.
+    assert "Applied patch" not in result.output
+    assert "Ask succeeded" not in result.output

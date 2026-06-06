@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from typer.testing import CliRunner
@@ -133,6 +133,28 @@ class TestKeychainBackend:
             assert has_keychain_backend() is False
             assert store_api_key("deepseek", "sk-test") is False
             assert get_api_key("deepseek") is None
+
+
+class TestKeychainEdgeCases:
+    def test_get_after_set_raises_is_handled(self) -> None:
+        """get_api_key returns None without crashing when get_password raises after a successful store.
+
+        Covers the scenario where keyring is available but get_password raises
+        an unexpected exception (e.g., backend corruption, platform error).
+        """
+        from safecode.security.keychain import get_api_key, store_api_key
+
+        mock_backend = MagicMock()
+        mock_backend.set_password.return_value = None  # store succeeds
+        mock_backend.get_password.side_effect = RuntimeError("backend unavailable")
+
+        with patch("safecode.security.keychain._get_keyring", return_value=mock_backend):
+            stored = store_api_key("deepseek", "sk-test")
+            assert stored is True  # store succeeded
+
+            retrieved = get_api_key("deepseek")
+            # Must not raise; returns None on error
+            assert retrieved is None
 
 
 class TestCredentialStorageDoctor:
