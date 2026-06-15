@@ -22,5 +22,5 @@ class FileIndexer:
 
     def index(self) -> list[IndexedFile]:
         """Index safe project files."""
-        files = ContextCollector(self.project_root)._list_files()
+        files, _truncated = ContextCollector(self.project_root)._list_files()
         return [IndexedFile(path=file, suffix=Path(file).suffix) for file in files]

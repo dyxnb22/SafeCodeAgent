@@ -59,6 +59,19 @@ class AgentError(BaseModel):
     message: str
 
 
+class AgentNativeToolCallResponse(BaseModel):
+    """A native tool call emitted by the model (v4.20+, EXPERIMENTAL).
+
+    Wire format:
+      {"type": "native_tool_call", "tool_name": "read_file", "input": {...}}
+    """
+
+    type: Literal["native_tool_call"] = "native_tool_call"
+    tool_name: str
+    input: dict = Field(default_factory=dict)
+    call_id: str = ""
+
+
 @dataclass(frozen=True)
 class RecoverableContractFailure:
     """A transient, contract-shaped LLM failure that the agent loop may retry once.
@@ -83,7 +96,8 @@ AgentContractResponse = Annotated[
     | AgentToolIntentResponse
     | AgentPatchResponse
     | AgentStopForUserResponse
-    | AgentError,
+    | AgentError
+    | AgentNativeToolCallResponse,
     Field(discriminator="type"),
 ]
 
@@ -96,6 +110,7 @@ _REQUIRED_FIELDS_BY_TYPE: dict[str, frozenset[str]] = {
     "patch": frozenset({"patch_text"}),
     "stop_for_user": frozenset({"reason", "message"}),
     "error": frozenset({"message"}),
+    "native_tool_call": frozenset({"tool_name"}),
 }
 
 

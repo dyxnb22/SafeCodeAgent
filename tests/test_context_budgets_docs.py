@@ -84,13 +84,15 @@ class TestContextBudgetCodeMatches:
         config = SafeCodeConfig()
         assert config.max_context_chars == 40_000
 
-    def test_token_char_ratio_is_4(self):
-        assert TOKEN_CHAR_RATIO == 4
+    def test_token_char_ratio_is_3_5(self):
+        # B4 fix: ratio corrected from 4 to 3.5 (code is denser than prose).
+        assert TOKEN_CHAR_RATIO == 3.5
 
     def test_context_budget_from_max_chars(self):
+        import math
         budget = ContextBudget.from_max_chars(40_000)
         assert budget.max_bytes == 40_000
-        assert budget.max_tokens == 10_000  # 40_000 // 4
+        assert budget.max_tokens == math.ceil(40_000 / 3.5)  # B4 fix: ratio 3.5
 
     def test_context_budget_packer_respects_limit(self):
         budget = ContextBudget(max_bytes=100)

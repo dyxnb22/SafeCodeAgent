@@ -37,21 +37,28 @@ class ContextCollector:
 
     def collect(self, query: str | None = None) -> dict:
         """Return bounded project context with optional task-focused sources."""
-        files = self._list_files()
-        context = {
+        files, file_tree_truncated = self._list_files()
+        context: dict = {
             "project_root": "[PROJECT_ROOT]",
             "files": files,
             "readme": self._read_limited("README.md", self.config.max_file_lines),
             "pyproject": self._read_limited("pyproject.toml", self.config.max_file_lines),
             "repo_map": self._repo_map_summary(),
         }
+        # B5: expose truncation flag so the model and display layers can see it.
+        if file_tree_truncated:
+            context["file_tree_meta"] = {"truncated": True, "cap": self.config.max_tree_files}
         if query:
             context["selected_context"] = self._selected_context(query)
         return self._cap_context(context)
 
-    def _list_files(self) -> list[str]:
-        """Return a bounded, sorted file list relative to project_root."""
+    def _list_files(self) -> tuple[list[str], bool]:
+        """Return (file_list, truncated) relative to project_root.
+
+        Returns truncated=True when the max_tree_files cap was hit (B5).
+        """
         files: list[str] = []
+        truncated = False
 
         for root, dir_names, file_names in os.walk(self.project_root, followlinks=False):
             root_path = Path(root)
@@ -67,6 +74,7 @@ class ContextCollector:
                 relative = path.relative_to(self.project_root)
 
                 if len(files) >= self.config.max_tree_files:
+                    truncated = True
                     break
 
                 if self._should_skip(relative):
@@ -78,10 +86,14 @@ class ContextCollector:
                 if path.is_file():
                     files.append(relative.as_posix())
 
-            if len(files) >= self.config.max_tree_files:
+            if len(files) >= self.config.max_tree_files and not truncated:
+                # Check whether there are more files to walk (could be more dirs).
+                truncated = True
+                break
+            if truncated:
                 break
 
-        return files
+        return files, truncated
 
     def _read_limited(self, relative_path: str, max_lines: int) -> str | None:
         """Read at most max_lines from a UTF-8 text file."""

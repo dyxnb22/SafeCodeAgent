@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 from typing import Any
 
-
-TOKEN_CHAR_RATIO = 4
+# B4 fix: prose ratio was 4 (optimistic); corrected to 3.5 for mixed content.
+# Code content is denser, so a separate constant provides a tighter estimate.
+TOKEN_CHAR_RATIO = 3.5
+_CODE_TOKEN_CHAR_RATIO = 3.2
 
 
 @dataclass(frozen=True)
@@ -18,7 +21,7 @@ class ContextBudget:
 
     @classmethod
     def from_max_chars(cls, max_chars: int) -> "ContextBudget":
-        return cls(max_bytes=max_chars, max_tokens=max_chars // TOKEN_CHAR_RATIO)
+        return cls(max_bytes=max_chars, max_tokens=math.ceil(max_chars / TOKEN_CHAR_RATIO))
 
 
 @dataclass(frozen=True)
@@ -82,6 +85,14 @@ class ContextBudgetPacker:
         report = ContextBudgetReport(max_bytes=self.budget.max_bytes, max_tokens=self.budget.max_tokens)
 
         for key, value in context.items():
+            # B17: stop adding new string/list sources once budget is exhausted.
+            if remaining <= 0 and isinstance(value, (str, list)):
+                report.truncation_notes.append(
+                    f"{key} skipped: aggregate context budget exceeded"
+                )
+                packed[key] = "" if isinstance(value, str) else []
+                continue
+
             if isinstance(value, str):
                 packed_value, source, remaining = self._pack_string(key, value, remaining)
                 packed[key] = packed_value
@@ -152,11 +163,18 @@ class ContextBudgetPacker:
             report.truncation_notes.append(source.note)
 
 
-def estimate_tokens_from_bytes(byte_count: int) -> int:
-    """Return a conservative local token estimate without tokenizer dependency."""
+def estimate_tokens_from_bytes(byte_count: int, content_type: str = "text") -> int:
+    """Return a conservative local token estimate without tokenizer dependency.
+
+    Args:
+        byte_count: number of UTF-8 bytes to estimate.
+        content_type: "code" uses the denser _CODE_TOKEN_CHAR_RATIO (3.2);
+                      anything else uses TOKEN_CHAR_RATIO (3.5).
+    """
     if byte_count <= 0:
         return 0
-    return (byte_count + TOKEN_CHAR_RATIO - 1) // TOKEN_CHAR_RATIO
+    ratio = _CODE_TOKEN_CHAR_RATIO if content_type == "code" else TOKEN_CHAR_RATIO
+    return math.ceil(byte_count / ratio)
 
 
 def _byte_len(value: str) -> int:
