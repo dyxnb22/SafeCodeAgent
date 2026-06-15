@@ -2,6 +2,8 @@
 
 The client only returns text. Patch text is still parsed and validated by the
 SafeCode runtime before any file write can happen.
+
+v4.23.1: native tool use via OpenAI function calling; B1/B12 fixes.
 """
 
 import json
@@ -10,11 +12,12 @@ import urllib.error
 import urllib.request
 import warnings
 from pathlib import Path
-from typing import Callable, Iterator
+from typing import TYPE_CHECKING, Any, Callable, Iterator
 
 from safecode.agent.schemas import (
     AgentAnswer,
     AgentError,
+    AgentNativeToolCallResponse,
     AgentPatchResponse,
     AgentPlanResponse,
     AgentStopForUserResponse,
@@ -24,6 +27,9 @@ from safecode.agent.schemas import (
     validate_provider_json,
 )
 from safecode.agent.prompts import SYSTEM_PROMPT
+
+if TYPE_CHECKING:
+    from safecode.agent.native_tools import NativeToolSpec
 from safecode.config import SafeCodeConfig
 from safecode.llm.cost import SessionCostAccumulator, TokenUsage
 from safecode.llm.retry import retry_call
@@ -33,6 +39,21 @@ from safecode.sandbox.network import NetworkPolicy
 
 def _log_retry(attempt: int, reason: str) -> None:
     warnings.warn(f"LLM retry attempt {attempt}: {reason}", RuntimeWarning, stacklevel=4)
+
+
+def _native_spec_to_openai(spec: "NativeToolSpec") -> dict[str, Any]:
+    """Convert a NativeToolSpec to the OpenAI function calling tools format (v4.23.1)."""
+    schema = dict(spec.input_schema)
+    if "type" not in schema:
+        schema["type"] = "object"
+    return {
+        "type": "function",
+        "function": {
+            "name": spec.name,
+            "description": spec.description,
+            "parameters": schema,
+        },
+    }
 
 
 _CHAT_COMPLETIONS_PATH = "/v1/chat/completions"
@@ -155,6 +176,109 @@ class OpenAICompatibleLLMClient:
         )
         return AgentPatchResponse(patch_text=content, explanation="OpenAI-compatible patch response.")
 
+    def choose_tool_native(
+        self,
+        goal: str,
+        context: dict,
+        tool_specs: list["NativeToolSpec"],
+        *,
+        step: int = 0,
+    ) -> list[AgentNativeToolCallResponse] | AgentStopForUserResponse | RecoverableContractFailure:
+        """Call with OpenAI function calling; return tool calls or stop (v4.23.1, EXPERIMENTAL).
+
+        Sends ``tool_specs`` as the OpenAI ``tools`` parameter. When the model
+        responds with ``tool_calls``, maps them to ``AgentNativeToolCallResponse``.
+        """
+        tools = [_native_spec_to_openai(spec) for spec in tool_specs]
+        payload = json.dumps({
+            "model": self.model,
+            "messages": [
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": f"Goal: {goal}\nContext: {json.dumps(context)[:12000]}"},
+            ],
+            "tools": tools,
+            "temperature": 0,
+        }).encode("utf-8")
+        request = urllib.request.Request(
+            self.base_url,
+            data=payload,
+            headers={
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json",
+            },
+            method="POST",
+        )
+        _last_http_error: list[urllib.error.HTTPError] = []
+
+        def _do_request() -> dict:
+            _last_http_error.clear()
+            try:
+                with urllib.request.urlopen(request, timeout=self._request_timeout) as response:
+                    return json.loads(response.read().decode("utf-8"))
+            except urllib.error.HTTPError as exc:
+                _last_http_error.append(exc)
+                raise
+
+        def _get_retry_after() -> float | None:
+            if _last_http_error:
+                from safecode.llm.retry import _parse_retry_after
+                header = _last_http_error[-1].headers.get("Retry-After", "")
+                return _parse_retry_after(header) if header else None
+            return None
+
+        try:
+            data = retry_call(
+                _do_request,
+                max_attempts=self._max_retries,
+                base_delay=self._retry_base_delay,
+                log_fn=_log_retry,
+                get_retry_after=_get_retry_after,
+            )
+        except urllib.error.URLError as exc:
+            raise RuntimeError(f"LLM request failed: {exc}") from exc
+
+        self._record_usage(data)
+
+        # B1 fix: bounds check before accessing choices
+        choices = data.get("choices")
+        if not choices or not isinstance(choices, list):
+            return RecoverableContractFailure(
+                step=step,
+                method="choose_tool_native",
+                message="Provider returned empty choices array",
+            )
+        message = choices[0].get("message") or {} if isinstance(choices[0], dict) else {}
+        tool_calls_raw = message.get("tool_calls") or []
+        if tool_calls_raw:
+            calls = []
+            for tc in tool_calls_raw:
+                if not isinstance(tc, dict) or "function" not in tc:
+                    continue
+                fn = tc["function"]
+                try:
+                    args = json.loads(fn.get("arguments", "{}"))
+                except (json.JSONDecodeError, TypeError):
+                    args = {}
+                calls.append(AgentNativeToolCallResponse(
+                    tool_name=fn.get("name", ""),
+                    input=args if isinstance(args, dict) else {},
+                    call_id=tc.get("id", ""),
+                ))
+            if calls:
+                return calls
+        # No tool calls: parse content as stop or wrap
+        content = message.get("content") or ""
+        if content:
+            parsed = validate_provider_json(content, step=step, method="choose_tool_native")
+            if isinstance(parsed, AgentStopForUserResponse):
+                return parsed
+            return AgentStopForUserResponse(reason="done", message=content, requires_approval=False)
+        return RecoverableContractFailure(
+            step=step,
+            method="choose_tool_native",
+            message="Empty response from provider",
+        )
+
     def _chat_agent_json(
         self,
         messages: list[dict[str, str]],
@@ -226,7 +350,14 @@ class OpenAICompatibleLLMClient:
             raise RuntimeError(f"LLM request failed: {exc}") from exc
 
         self._record_usage(data)
-        return data["choices"][0]["message"]["content"]
+        # B1 fix: bounds check before indexing choices[]; return empty string
+        # on empty/missing choices so callers get RecoverableContractFailure
+        # from validate_provider_json rather than a raw IndexError/KeyError.
+        choices = data.get("choices")
+        if not choices or not isinstance(choices, list):
+            return ""
+        message = choices[0].get("message") or {} if isinstance(choices[0], dict) else {}
+        return message.get("content") or ""
 
     def stream_chat(
         self,

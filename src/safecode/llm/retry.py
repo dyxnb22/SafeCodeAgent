@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import random
+import re
 import time
 import urllib.error
 from email.utils import parsedate_to_datetime
@@ -14,6 +15,24 @@ _RETRYABLE_HTTP_STATUSES = frozenset({408, 429, 502, 503, 504})
 
 # Maximum number of seconds to honor a Retry-After header before capping it.
 _MAX_RETRY_AFTER_SECONDS: float = 30.0
+
+
+_URL_PATTERN = re.compile(r"https?://[^\s]+")
+
+
+def _sanitize_retry_reason(reason: str) -> str:
+    """Strip URLs and secrets from retry log messages (B12 fix).
+
+    Replaces ``http://...`` / ``https://...`` with ``[URL]`` and applies
+    secret redaction so internal endpoints and credentials never appear in logs.
+    """
+    sanitized = _URL_PATTERN.sub("[URL]", reason)
+    try:
+        from safecode.context.redaction import redact_secrets
+        sanitized = redact_secrets(sanitized)
+    except Exception:
+        pass
+    return sanitized
 
 
 class RateLimitError(RuntimeError):
@@ -113,7 +132,7 @@ def retry_call(
                 pass
 
         if log_fn is not None:
-            log_fn(attempt + 1, reason)
+            log_fn(attempt + 1, _sanitize_retry_reason(reason))
 
         time.sleep(computed)
 
