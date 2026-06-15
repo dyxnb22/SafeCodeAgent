@@ -23,6 +23,44 @@ from safecode.llm.provider_profiles import (
 )
 
 
+def _init_live_connectivity_check(provider: str, api_key: str, console_obj: object) -> None:
+    """B15 fix: lightweight live API ping after sac init for non-mock providers.
+
+    Uses the same Doctor ping methods as sac doctor --live. On failure prints
+    a yellow warning instead of exiting — setup is already written; the user
+    just needs to know the credentials may be invalid.
+    """
+    try:
+        from safecode.doctor import Doctor
+        from safecode.core.diagnostic import DiagnosticStatus
+
+        console_obj.print("")
+        console_obj.print("[dim]Checking provider connectivity...[/dim]")
+
+        if provider == "anthropic":
+            diag = Doctor._live_anthropic_ping(api_key)
+        else:
+            # For OpenAI-compatible and DeepSeek: use base URL from preset.
+            from safecode.llm.provider_profiles import _PROVIDER_PRESETS
+            preset = _PROVIDER_PRESETS.get(provider, {})
+            base_url = str(preset.get("base_url", ""))
+            diag = Doctor._live_provider_ping(base_url)
+
+        if diag.status == DiagnosticStatus.PASS:
+            console_obj.print("[green]Provider API reachable.[/green]")
+        elif diag.status == DiagnosticStatus.SKIP:
+            pass  # No key or offline — silently skip.
+        else:
+            console_obj.print(
+                "[yellow]Warning: could not reach the provider API. "
+                "Credentials may be missing or invalid.[/yellow]"
+            )
+            console_obj.print("[dim]  Run 'sac doctor --live' after setup to verify connectivity.[/dim]")
+    except Exception:
+        # Never let a ping failure block the init completion.
+        pass
+
+
 def _detect_api_key(provider: str) -> tuple[str, bool]:
     """Return (env_var_name, is_set) for the provider's API key env var."""
     if provider == "deepseek":
@@ -299,6 +337,11 @@ def run_init(
     if setup_result:
         console.print(f"  Project config: {setup_result.config_path}")
     console.print(f"  User config: {user_config_path}")
+
+    # B15 fix: live connectivity check when using a real provider with network.
+    network_enabled = provider != "mock"  # non-mock providers always need network
+    if network_enabled and resolved_key:
+        _init_live_connectivity_check(provider, resolved_key, console)
 
     console.print("")
     console.print("[bold]Ready![/bold] Try these next:")

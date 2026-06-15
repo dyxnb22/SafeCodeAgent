@@ -228,6 +228,7 @@ class Doctor:
         diagnostics.extend(self._project_tooling_diagnostics())
         diagnostics.extend(self._provider_diagnostics())
         diagnostics.append(self._update_check_diagnostic())
+        diagnostics.extend(self._sac_dir_diagnostics())
         if live:
             from safecode.config import SafeCodeConfig
             config = SafeCodeConfig.load(self.project_root)
@@ -561,6 +562,61 @@ class Doctor:
         if getattr(config.llm, "api_key", None):
             return env_name, "user-config"
         return env_name, "missing"
+
+    def _sac_dir_diagnostics(self) -> list[Diagnostic]:
+        """B14 fix: check .sac/ writability and available disk space.
+
+        sac_dir_writable: probe write access by touching a temp file.
+        disk_space: WARN when free space falls below 100 MB.
+        """
+        diagnostics = []
+        sac_dir = self.project_root / ".sac"
+
+        # 1. Writability probe
+        probe = sac_dir / ".doctor_probe"
+        try:
+            sac_dir.mkdir(parents=True, exist_ok=True)
+            probe.touch()
+            probe.unlink()
+            diagnostics.append(Diagnostic(
+                name="sac_dir_writable",
+                status=DiagnosticStatus.PASS,
+                message=".sac/ is writable",
+            ))
+        except Exception as exc:
+            diagnostics.append(Diagnostic(
+                name="sac_dir_writable",
+                status=DiagnosticStatus.FAIL,
+                message=f".sac/ is not writable — apply and rollback operations will fail ({type(exc).__name__})",
+                hints=("Next: check directory permissions with ls -la .sac/",),
+            ))
+
+        # 2. Disk space check (WARN at < 100 MB free)
+        _100_MB = 100 * 1024 * 1024
+        try:
+            usage = shutil.disk_usage(self.project_root)
+            free_mb = usage.free // (1024 * 1024)
+            if usage.free < _100_MB:
+                diagnostics.append(Diagnostic(
+                    name="disk_space",
+                    status=DiagnosticStatus.WARN,
+                    message=f"Low disk space: {free_mb} MB free — apply operations may fail",
+                    hints=("Next: free disk space before using sac apply or sac edit",),
+                ))
+            else:
+                diagnostics.append(Diagnostic(
+                    name="disk_space",
+                    status=DiagnosticStatus.PASS,
+                    message=f"Disk space: {free_mb} MB free",
+                ))
+        except Exception as exc:
+            diagnostics.append(Diagnostic(
+                name="disk_space",
+                status=DiagnosticStatus.SKIP,
+                message=f"Could not check disk space: {type(exc).__name__}",
+            ))
+
+        return diagnostics
 
     def _update_check_diagnostic(self) -> Diagnostic:
         """Check PyPI for a newer version. Skips silently on network failure.
