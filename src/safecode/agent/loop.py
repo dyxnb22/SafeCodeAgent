@@ -111,6 +111,8 @@ class AgentLoop:
         self.full_auto = full_auto  # v5.1.1: also auto-approve run_command (policy gates still apply)
         self.command_delay_ms = command_delay_ms  # v5.1.1: grace period before run_command in full-auto
         self._native_write_count = 0  # v5.1.0: per-session write count for file count guard
+        self._session_observations: list[str] = []  # v5.3.1: accumulated tool results for compaction
+        self._compactor: object | None = None  # v5.3.1: ContextCompactor, lazily initialized
 
     def session_cost(self) -> "TokenUsage | None":
         """Return accumulated token usage for this session, or None if no data."""
@@ -127,6 +129,45 @@ class AgentLoop:
     # ------------------------------------------------------------------
     # P1: Native tool protocol integration (v5.1.0)
     # ------------------------------------------------------------------
+
+    def _get_compactor(self, session_id: str) -> object:
+        """Return (or lazily create) the ContextCompactor for this session (v5.3.1)."""
+        if self._compactor is None:
+            from safecode.context.compaction import ContextCompactor
+            self._compactor = ContextCompactor(
+                self.llm_client,
+                self.project_root,
+                session_id,
+                max_context_tokens=self.config.max_context_chars // 4,  # chars→rough tokens
+            )
+        return self._compactor
+
+    def _maybe_compact_context(self, session_id: str) -> str | None:
+        """If accumulated observations exceed 60% of budget, compact them (v5.3.1).
+
+        Returns the compact summary string if compaction occurred, else None.
+        Prints a notice to stdout when compaction fires.
+        """
+        if not self._session_observations:
+            return None
+        compactor = self._get_compactor(session_id)
+        combined = "\n".join(self._session_observations)
+        token_estimate = len(combined) // 4  # rough chars-to-tokens
+        if not compactor.should_compact(token_estimate):
+            return None
+        try:
+            import sys
+            result = compactor.compact(self._session_observations)
+            notice = (
+                f"[Context compacted: ~{result.tokens_before} → ~{result.tokens_after} tokens "
+                f"({result.observations_archived} observations archived)]"
+            )
+            print(notice, file=sys.stdout, flush=True)
+            self._session_observations = []  # reset after compaction
+            return result.summary
+        except RuntimeError as exc:
+            warnings.warn(f"compaction failed (context preserved): {exc}", RuntimeWarning, stacklevel=2)
+            return None
 
     def _build_dispatcher(self) -> NativeToolDispatcher:
         """Create a NativeToolDispatcher with read/write/command tools registered.
@@ -194,6 +235,11 @@ class AgentLoop:
 
         context = self.context_collector.collect(query=state.goal)
         context = self._enrich_with_subagent_findings(state.session_id, context)
+
+        # v5.3.1: compact accumulated observations before the next LLM call
+        compact_summary = self._maybe_compact_context(state.session_id)
+        if compact_summary:
+            context["compacted_session_summary"] = compact_summary
 
         dispatcher = self._build_dispatcher()
         tool_specs = dispatcher.specs()
@@ -311,6 +357,10 @@ class AgentLoop:
         write_tool_names = {"edit_file", "write_file"}
         write_calls = sum(1 for r in turn_result.tool_calls if r.tool_name in write_tool_names)
         self._native_write_count += write_calls
+
+        # v5.3.1: accumulate observations for potential compaction in the next step
+        if turn_result.observations:
+            self._session_observations.extend(turn_result.observations)
 
         observation = turn_result.context_block() or f"Native turn: {turn_result.stopped_reason}"
         pending_action: dict[str, object] = {
