@@ -43,7 +43,10 @@ Slash commands:
   /apply            apply pending patch (requires confirmation)
   /commit           commit current task locally (requires confirmation)
   /debug            show last failure debug info
-  /clear            reset shell context (clear session history)
+  /clear            reset shell context and agent session history
+  /undo             roll back the most recent write-tool checkpoint
+  /history          show recent shell turns for the current session
+  /tools            list available native tools (v4.20+)
   /help             show this help
   /exit             exit the shell
 
@@ -54,10 +57,15 @@ Mutation actions (apply, commit) always require explicit confirmation.
 
 _SHELL_PROMPT = "sac> "
 
+
+def _shell_prompt(turn: int) -> str:
+    """Return shell prompt with turn counter: sac[N]> (B10/v4.22.1)."""
+    return f"sac[{turn}]> "
+
 _SLASH_COMMANDS = [
     "/status", "/task", "/overview", "/model", "/provider",
-    "/apply", "/commit", "/debug", "/clear", "/help", "/exit",
-    "/quit",
+    "/apply", "/commit", "/debug", "/clear", "/undo", "/history", "/tools",
+    "/help", "/exit", "/quit",
 ]
 
 
@@ -123,16 +131,23 @@ def _maybe_render_markdown(response: str, *, is_tty: bool) -> None:
         console.print(redact_secrets(response))
 
 
-def _read_line(*, is_tty: bool) -> str | None:
-    """Read one line from the user. Returns None on EOF."""
+def _read_line(*, is_tty: bool, turn: int = 0) -> str | None:
+    """Read one line from the user. Returns None on EOF.
+
+    B11 fix: on EOF, prints '\n[exiting shell]' before returning None,
+    consistent across TTY and non-TTY.
+    """
+    prompt = _shell_prompt(turn)  # sac[N]>
     if is_tty:
         try:
-            return input(_SHELL_PROMPT)
+            return input(prompt)
         except EOFError:
+            print("\n[exiting shell]")
             return None
     else:
         line = sys.stdin.readline()
         if not line:
+            print("\n[exiting shell]")
             return None
         return line.rstrip("\n")
 
@@ -478,7 +493,56 @@ def _handle_slash_command(
         )
 
     if name == "/clear":
+        # B10 fix: actually clear the AgentSessionStore so context is reset.
+        try:
+            from safecode.agent.session import AgentSessionStore
+            AgentSessionStore(project_root).clear()
+        except Exception:
+            pass
         return "Shell context cleared. Start a new conversation.", "clear", False
+
+    if name == "/undo":
+        # Roll back the most recent write-tool checkpoint.
+        try:
+            from safecode.checkpoint.manager import CheckpointManager
+            meta = CheckpointManager(project_root).rollback_last()
+            paths = [op.path for op in meta.file_operations]
+            return f"Rolled back checkpoint {meta.checkpoint_id}\nRestored: {', '.join(paths)}", "undo", False
+        except FileNotFoundError:
+            return "No checkpoint to roll back.", "undo", False
+        except Exception as exc:
+            return f"Rollback failed: {exc}", "undo", False
+
+    if name == "/history":
+        # Show current session's turns in a compact table.
+        from safecode.shell_session.store import ShellSessionStore
+        try:
+            store = ShellSessionStore(project_root)
+            session_ids = store.list_sessions()
+            if not session_ids:
+                return "No shell session history.", "history", False
+            latest_id = session_ids[-1]
+            latest = store.load(latest_id)
+            if latest is None:
+                return "No shell session history.", "history", False
+            lines = [f"Session {latest.session_id} — {len(latest.turns)} turns"]
+            for t in latest.turns[-10:]:
+                lines.append(f"  [{t.turn_index}] {t.user_input[:60]!r}")
+            return "\n".join(lines), "history", False
+        except Exception as exc:
+            return f"History unavailable: {exc}", "history", False
+
+    if name == "/tools":
+        # List available native tools (from the NativeToolDispatcher if wired).
+        lines = ["Available native tools (v4.20+, EXPERIMENTAL):"]
+        from safecode.agent.read_tools import READ_FILE_SPEC, LIST_FILES_SPEC, SEARCH_FILES_SPEC, GREP_FILES_SPEC
+        from safecode.agent.write_tools import EDIT_FILE_SPEC, WRITE_FILE_SPEC
+        from safecode.agent.command_tool import RUN_COMMAND_SPEC
+        for spec in sorted([READ_FILE_SPEC, LIST_FILES_SPEC, SEARCH_FILES_SPEC, GREP_FILES_SPEC,
+                             EDIT_FILE_SPEC, WRITE_FILE_SPEC, RUN_COMMAND_SPEC], key=lambda s: s.name):
+            approval = " [requires approval]" if spec.requires_approval else ""
+            lines.append(f"  {spec.name}{approval}: {spec.description[:80]}")
+        return "\n".join(lines), "tools", False
 
     if name == "/apply":
         return _slash_apply(project_root, task_id, is_tty=is_tty), "apply", False
@@ -583,8 +647,9 @@ def run_shell(
         console.print(_SHELL_BANNER)
         _setup_readline()
 
+    turn_count = 0
     while True:
-        line = _read_line(is_tty=is_tty)
+        line = _read_line(is_tty=is_tty, turn=turn_count)
         if line is None:
             break
 
@@ -642,6 +707,8 @@ def run_shell(
             )))
         else:
             _maybe_render_markdown(response, is_tty=is_tty)
+
+        turn_count += 1
 
         if exit_shell:
             break
