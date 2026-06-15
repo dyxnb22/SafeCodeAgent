@@ -592,6 +592,16 @@ Completed. Plan: `docs/version-plans/post-v4.16-shell-ux-roadmap.md` (COMPLETED 
 | `v4.18.1` ✅ | `main` | `src/safecode/agent/loop.py`, `src/safecode/cli_shell.py`, `tests/test_agent_loop_transparency.py` | Agent-loop transparency: Rich Status spinner with on_step callback in agentic mode showing current step/intent. |
 | `v4.18.2` ✅ | `main` | `src/safecode/cli_core.py`, `src/safecode/checkpoint/`, `tests/test_per_patch_undo.py` | Safety regression fix: `--checkpoint <id>` rollback path was missing `ToolCallGate` check present in `--last`; corrected and covered by 5 new tests (gate enforcement, committed-checkpoint refusal, force-uncommit bypass, audit event emission, task sidecar creation). Full suite 4862 passed, 4 skipped. |
 
+## v4.19.x: Local Observability Polish
+
+Completed. Plan: `docs/version-plans/v4.19.x-local-observability-polish-roadmap.md`.
+
+| Version | Status | Key Files | Summary |
+|---|---|---|---|
+| `v4.19.0` ✅ | `dev/v4.19` | `src/safecode/cli_task.py`, `tests/test_task_stats.py`, `docs/version-notes/v4.19.0-task-stats.md` | Experimental read-only `sac task stats [--task <id>] [--json]`: deterministic histograms over TaskIteration event/status/failure_category; budget defaults via TaskBudgetStore; pinned file count via MemoryFacade; all fields redacted; closed tasks readable; 16 tests. |
+| `v4.19.1` ✅ | `dev/v4.19` | `src/safecode/memory/sizing.py`, `src/safecode/cli_memory.py`, `tests/test_memory_size.py`, `docs/version-notes/v4.19.1-memory-size.md` | Experimental read-only `sac memory size [--json]`: pure Path.stat() walk of .sac/ with named scopes (audit/checkpoints/memory/runtime_logs/tasks/other), temp-file and symlink skipping, Rich Table human output; 12 tests. |
+| `v4.19.2` ✅ | `dev/v4.19` | `README.md`, `docs/mvp-user-guide.md`, `docs/troubleshooting.md`, `docs/version_implementation_matrix.md`, `tests/test_mvp_docs.py`, `.claude/skills/current/SKILL.md`, `.claude/versions.json`, `docs/project-final-status-and-roadmap.md`, `docs/version-notes/v4.19.2-observability-docs.md` | v4.19 docs cut: README observability section; MVP guide "Inspecting Local State" section; troubleshooting "Reading local state" entry; matrix v4.19.x rows; docs guard extensions; SKILL.md/versions.json/final-status updated to v4.19.2. |
+
 ## v4.2.x: Project Command Profile
 
 | 版本 | 分支 | 主要入口 | 验收命令 / 结果 |

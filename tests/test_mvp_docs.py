@@ -249,3 +249,35 @@ def test_documented_v47_debug_and_audit_commands_exist() -> None:
     assert query_help.exit_code == 0
     for option in ("--type", "--since", "--task", "--limit", "--json"):
         assert option in query_help.output
+
+
+def test_v419_observability_commands_in_readme() -> None:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    assert "sac task stats" in readme, "README must document sac task stats"
+    assert "sac memory size" in readme, "README must document sac memory size"
+    assert "v4.19" in readme, "README must reference v4.19"
+
+
+def test_v419_mvp_guide_inspecting_local_state_section() -> None:
+    guide = (ROOT / "docs" / "mvp-user-guide.md").read_text(encoding="utf-8")
+    assert "Inspecting Local State" in guide, "MVP guide must have 'Inspecting Local State' section"
+    assert "sac task stats" in guide
+    assert "sac memory size" in guide
+    assert "read-only" in guide.lower()
+
+
+def test_v419_matrix_has_v419_rows() -> None:
+    matrix = (ROOT / "docs" / "version_implementation_matrix.md").read_text(encoding="utf-8")
+    assert "v4.19.0" in matrix
+    assert "v4.19.1" in matrix
+    assert "v4.19.2" in matrix
+
+
+def test_v419_commands_exist_on_typer_apps() -> None:
+    task_help = runner.invoke(app, ["task", "--help"])
+    assert task_help.exit_code == 0
+    assert "stats" in task_help.output
+
+    memory_help = runner.invoke(app, ["memory", "--help"])
+    assert memory_help.exit_code == 0
+    assert "size" in memory_help.output

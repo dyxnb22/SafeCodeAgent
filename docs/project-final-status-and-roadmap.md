@@ -140,11 +140,27 @@ The post-v4.16 shell UX roadmap is COMPLETED as of v4.18.2. All 6 versions shipp
 
 All surfaces remain EXPERIMENTAL. No safety invariants changed.
 
+## Completed v4.19.x Local Observability Polish Train
+
+The v4.19.x local observability train is COMPLETED as of v4.19.2 on the `dev/v4.19`
+branch. All 3 versions shipped:
+
+- **v4.19.0**: `sac task stats [--task <id>] [--json]` — read-only per-task
+  iteration histogram, budget, and pinned file count; 16 tests.
+- **v4.19.1**: `sac memory size [--json]` — read-only `.sac/` byte/file breakdown
+  by named scope (audit/checkpoints/memory/runtime_logs/tasks/other); 12 tests.
+- **v4.19.2**: docs cut — README observability section, MVP guide "Inspecting Local
+  State" section, troubleshooting "Reading local state" entry, matrix rows,
+  docs guard tests, SKILL.md/versions.json/final-status updates.
+
+Both commands are pure read-only: no model, network, or shell; no mutation.
+All surfaces remain EXPERIMENTAL. No stable contract promoted.
+
 ## Current Freeze Goal
 
 `main` is frozen at `v4.18.2` as a learning baseline and portfolio reference.
-Future feature development will continue on a separate development branch.
+The `dev/v4.19` branch baseline is now `v4.19.2`.
 
 No active forward plan at this time. Remaining work (RAG, embeddings, LangGraph,
-IDE surface, remote push/PR, agent hooks expansion) is deferred to that future
+IDE surface, remote push/PR, agent hooks expansion) is deferred to a future
 branch and is NOT part of the current baseline.

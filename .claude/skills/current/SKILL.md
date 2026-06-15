@@ -5,12 +5,12 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v4.18.2
+# Current Baseline - v4.19.2
 
 ## Status
-Implemented. Git baseline: tag `v4.18.2`. Local working version: `v4.18.2`.
-v4.18.2 is a safety-regression fix on top of v4.18.1: `--checkpoint <id>` rollback
-path was missing the ToolCallGate check; corrected and covered by 5 new tests.
+Implemented. Git baseline: tag `v4.19.2`. Local working version: `v4.19.2`.
+v4.19.x is the local observability polish train: three versions adding read-only
+`sac task stats` and `sac memory size` commands plus a docs cut.
 
 ## Stage
 The v4.14–v4.18 usability trains are complete (14 versions shipped):
@@ -32,13 +32,19 @@ v4.17–v4.18 shell & interaction UX train (6 versions):
 - `v4.17.3`: Levenshtein fuzzy matching for model/provider names
 - `v4.18.0`: diff rendering in shell + per-patch undo (--checkpoint, --list)
 - `v4.18.1`: agent-loop transparency (Rich Status spinner, on_step callback)
+- `v4.18.2`: safety-regression fix for `--checkpoint <id>` ToolCallGate
+
+v4.19.x local observability polish train (3 versions):
+- `v4.19.0`: `sac task stats` — read-only per-task iteration/budget/pinned summary
+- `v4.19.1`: `sac memory size` — read-only .sac/ byte/file breakdown by scope
+- `v4.19.2`: docs cut — README, MVP guide, troubleshooting, matrix, guards
 
 All v4 surfaces remain EXPERIMENTAL and carry no stable contract.
 
 ## Current Forward Plan
-Both usability trains are complete. Status lives in
-`docs/project-final-status-and-roadmap.md`. The post-v4.16 shell UX roadmap
-(`docs/version-plans/post-v4.16-shell-ux-roadmap.md`) is COMPLETED.
+The v4.19.x local observability train is complete. Status lives in
+`docs/project-final-status-and-roadmap.md`. Active plan:
+`docs/version-plans/v4.19.x-local-observability-polish-roadmap.md` (COMPLETED).
 No active forward plan at this time.
 
 Previous: `v4.8.2` final-v4-shell-first-docs-cut — T-4.8.2-A v4.8-final-docs-cut: README adds Python tutorial link and task-first daily loop summary (17-command surface, v4.x train complete, no v5.0 promise); `docs/mvp-user-guide.md` updated to v4.8.x with new Task-First Daily Loop section; `docs/public-contracts.md` adds v4.x series contract summary (zero new stable contracts v4.0–v4.8, all new surfaces EXPERIMENTAL); `docs/versioning-policy.md` adds v4.x train closure section and policy changelog entry; `docs/security/threat-model-v3.6.md` adds v4.x shell-first addendum table (task/profile/resume/commit/memory/debug/smoke surfaces). All existing tests pass; no stable public contract promoted; v4.x train is complete.

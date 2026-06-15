@@ -295,6 +295,51 @@ Key safety notes:
   recent failures are bounded and redacted.
 - Debug commands are read-only or metadata-only and remain EXPERIMENTAL.
 
+## Inspecting Local State (v4.19, EXPERIMENTAL)
+
+Two read-only observability commands surface what SafeCode has accumulated under
+`.sac/` without calling the model, network, or shell.
+
+### `sac task stats` — per-task iteration summary
+
+```bash
+sac task stats                    # stats for CURRENT task
+sac task stats --task <task-id>   # stats for a specific task (readable even if closed)
+sac task stats --json             # machine-readable output
+```
+
+Example JSON output:
+
+```json
+{
+  "task_id": "fix-auth-endpoint-a1b2",
+  "status": "open",
+  "iterations": {
+    "total": 3,
+    "last_event": "fix",
+    "by_event": {"edit": 1, "fix": 2},
+    "by_failure_category": {"budget_exceeded": 1}
+  },
+  "budget": {"steps": 8, "time_seconds": 600, "retries": 2, "tokens": 60000},
+  "pinned_files": {"count": 1},
+  "experimental": true
+}
+```
+
+All text fields (goal, last_command) are redacted. This command never mutates
+any `.sac/` file.
+
+### `sac memory size` — .sac/ storage breakdown
+
+```bash
+sac memory size          # human-readable table by scope
+sac memory size --json   # machine-readable output
+```
+
+Reports bytes and file counts per named scope (`audit`, `checkpoints`, `memory`,
+`runtime_logs`, `tasks`, `other`). Uses only `Path.stat()` — never reads file
+contents. `.sac/` content is local-only; nothing is sent off-machine.
+
 ## Project Command Profile (v4.2, EXPERIMENTAL)
 
 Project profiles store detected test/lint/typecheck/build commands in

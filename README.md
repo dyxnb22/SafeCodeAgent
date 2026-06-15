@@ -160,6 +160,19 @@ consume a bounded context quota and never bypass ignore, sensitive-file, binary,
 redaction, or project-root gates. Recent failures can help `sac fix` by adding
 the newest three redacted failures as bounded task context.
 
+**Observability commands (v4.19, EXPERIMENTAL):**
+```bash
+sac task stats                      # read-only summary of a task's iterations, budget, and pinned file count
+sac task stats --task <task-id>     # stats for a specific task
+sac task stats --json               # machine-readable JSON output
+sac memory size                     # read-only .sac/ storage breakdown by scope (bytes + file count)
+sac memory size --json              # machine-readable JSON output
+```
+
+Both commands are read-only and do not call the model, network, or shell. They
+never mutate any file under `.sac/`. JSON output uses the stable `CLIJSONResponse`
+envelope (contract 11).
+
 **Debug commands (v4.7, EXPERIMENTAL):**
 ```bash
 sac debug last-failure

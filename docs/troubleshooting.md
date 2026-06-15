@@ -477,6 +477,24 @@ that validation failure and repair events are still appended in order.
 
 ---
 
+## Reading Local State
+
+SafeCode stores task sidecars, audit events, memory, and checkpoints under
+`.sac/`. Two read-only observability commands surface this data without
+modifying anything:
+
+- **`sac task stats [--task <id>] [--json]`** — iteration histogram, budget
+  usage, pinned file count, last command, and audit trace count for one task.
+  Falls back to CURRENT task when `--task` is omitted.
+- **`sac memory size [--json]`** — byte and file count per `.sac/` scope
+  (`audit`, `checkpoints`, `memory`, `runtime_logs`, `tasks`, `other`). Reports
+  `exists: false` when `.sac/` has not been created yet.
+
+Both commands are EXPERIMENTAL, never mutate, and never call the model,
+network, or shell.
+
+---
+
 ## Getting More Help
 
 - Run `sac --help` for command reference.
