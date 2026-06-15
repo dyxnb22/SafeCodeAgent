@@ -89,6 +89,24 @@ The shell accepts natural-language questions and slash commands (`/status`, `/ov
 confirmation. No auto-apply. No auto-commit. No RAG or embeddings.
 See [docs/tutorials/ai-shell-first-hour.md](docs/tutorials/ai-shell-first-hour.md).
 
+**Trust Modes (v5.1, EXPERIMENTAL):**
+
+| Mode | Command | What auto-approves | Still requires approval |
+|---|---|---|---|
+| `suggest` (default) | `sac shell` | Nothing — every edit/command prompts | All writes and commands |
+| `auto-edit` | `sac shell --auto-edit` | `edit_file`, `write_file` | `run_command`, GitHub writes |
+| `full-auto` | `sac shell --full-auto` | `edit_file`, `write_file`, `run_command` (within policy) | High-risk commands, GitHub writes |
+
+All modes: checkpoints created before every write; `sac rollback --last` always undoes.
+Full-auto prints a command preview and waits 500 ms (configurable via `--command-delay-ms`)
+before executing — press Ctrl-C to abort a specific command. Cannot be persisted.
+
+```bash
+sac shell --auto-edit                        # auto-apply file edits; still prompt for commands
+sac shell --full-auto                        # auto-apply edits AND commands (policy still gates)
+sac shell --full-auto --command-delay-ms 0   # zero delay (for scripting/CI)
+```
+
 ```bash
 sac init                            # [v4.15+] guided first-run: provider, key, model, policy (recommended)
 sac setup                           # first-time: write .sac/config.toml (hidden, still callable)

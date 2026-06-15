@@ -399,3 +399,62 @@ The `ANTHROPIC_API_KEY` is consumed from the environment only; it is never
 written to `.sac/` or project-local config. `sac doctor --live` sends it only
 in the `x-api-key` header to `https://api.anthropic.com/v1/models`; the key
 never appears in diagnostic output messages.
+
+---
+
+## v5.1.0 Trust-Mode Addendum (2026-06-15)
+
+### Trust-mode threat model
+
+Auto-edit and full-auto modes widen the attack surface compared to the default
+`suggest` mode. The threat model for these modes is documented here.
+
+**What changes in auto-edit / full-auto:**
+
+| Surface | Suggest | Auto-edit | Full-auto |
+|---|---|---|---|
+| `edit_file` / `write_file` | User approves per-call | **Auto-executes** | **Auto-executes** |
+| `run_command` | User approves per-call | User approves per-call | **Auto-executes** (within policy) |
+| `github_create_pr` / `github_push_branch` | User approves | User approves | User approves |
+| High-risk commands | Blocked | Blocked | Blocked |
+| Checkpoints | Created | Created | Created |
+| Audit trail | Recorded | Recorded | Recorded |
+| Rollback | Always available | Always available | Always available |
+
+**Primary new threat in auto-edit:**
+A malicious or confused model output can rewrite many files before the user
+notices. **Mitigations:**
+1. The 10-file-per-session guard pauses the session and asks for confirmation.
+2. Every write creates a checkpoint. `sac rollback --session <id>` undoes all
+   writes from a session atomically in reverse order.
+3. The session summary at exit lists the session ID and the number of files
+   edited, giving the user a concrete audit trail.
+
+**Additional threat in full-auto:**
+A malicious or confused model output can execute arbitrary shell commands
+within the project root (policy still blocks high-risk patterns). **Mitigations:**
+1. A preview line prints before each command: `  → run_command  <cmd>`.
+2. A configurable grace period (default 500 ms) allows Ctrl-C abort before
+   execution.
+3. High-risk commands (classified by `RiskClassifier`) are always blocked
+   and never auto-executed.
+4. Commands outside the project root are blocked.
+5. Network-enabled commands require `sandbox.network_enabled = true` in
+   the merged trusted config (unchanged from `suggest` mode).
+
+**What does NOT change regardless of trust mode:**
+- Approval stores, audit anchors, and trust roots remain outside
+  project-controlled paths.
+- Project-local config cannot enable auto-edit or full-auto; only the user
+  can pass these flags at the command line.
+- The `--full-auto` flag cannot be persisted to config (by design).
+- All MCP write operations remain proposal/approval gated.
+- All GitHub write operations (create_pr, push_branch) always prompt.
+
+### v5.1.0 Review Log
+
+| Date | Reviewer | Finding | Resolution |
+|---|---|---|---|
+| 2026-06-15 | Claude Sonnet 4.6 | auto-edit adds auto-write surface | 10-file guard + session rollback documented |
+| 2026-06-15 | Claude Sonnet 4.6 | full-auto adds auto-command surface | Preview + delay + high-risk block documented |
+| 2026-06-15 | Claude Sonnet 4.6 | full-auto cannot be persisted | Confirmed: session-scoped only, no --save flag |

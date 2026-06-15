@@ -689,6 +689,68 @@ sac init --provider anthropic --api-key sk-ant-...
 
 ---
 
+## Trust Mode Issues (v5.1, EXPERIMENTAL)
+
+### How do I undo everything from an auto-edit session?
+
+When a `--auto-edit` or `--full-auto` session ends, the session ID and a
+rollback hint are printed:
+
+```
+Session: sess-abc | Files edited: 4 | Undo all: sac rollback --session sess-abc
+```
+
+Run the printed command to roll back all checkpoints from that session in
+reverse order (most-recent first):
+
+```bash
+sac rollback --session sess-abc
+```
+
+You can also undo one file at a time:
+```bash
+sac rollback --last         # most recent checkpoint
+sac rollback --list         # see all available checkpoints
+```
+
+### Auto-edit edited too many files without asking
+
+SafeCode Agent has a **file count guard**: if the agent would auto-apply more
+than 10 edits in one session, it pauses and asks for confirmation before
+continuing.
+
+If you hit this guard and want to continue, type `y` at the prompt. To reduce
+the chance of surprises, be more specific in your goal: instead of "refactor
+everything", try "rename AuthManager to TokenManager in src/auth/".
+
+### Full-auto ran a command I didn't expect
+
+In `--full-auto` mode, each `run_command` prints a preview line before
+executing:
+
+```
+  → run_command  pytest -q tests/
+```
+
+By default there is a **500 ms grace period** before execution. Press **Ctrl-C**
+during this window to abort the specific command (the agent session continues;
+only that one command is skipped).
+
+To increase the grace period:
+```bash
+sac shell --full-auto --command-delay-ms 2000   # 2 second delay
+```
+
+To undo the effects of a command that already ran:
+```bash
+sac rollback --last    # if the command made file changes via edit_file
+```
+Note: `run_command` side effects (e.g. deleted files, installed packages) are
+not checkpointed. Use full-auto only for commands you would trust in a script.
+
+High-risk commands (`rm -rf /`, commands outside the project root, etc.) are
+**always blocked** regardless of trust mode.
+
 ## Getting More Help
 
 - Run `sac --help` for command reference.

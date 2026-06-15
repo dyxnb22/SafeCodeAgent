@@ -503,6 +503,64 @@ sac rollback --list      # see all available checkpoints
 sac rollback --checkpoint <id>  # roll back a specific edit
 ```
 
+## Trust Modes (v5.1, EXPERIMENTAL)
+
+By default, SafeCode Agent asks for approval before every file edit and command.
+v5.1 adds two optional trust modes that reduce interruptions while preserving
+the full safety infrastructure (checkpoints, audit trail, rollback).
+
+### Choosing a trust mode
+
+| Mode | Flags | Edit_file/write_file | Run_command | GitHub writes |
+|---|---|---|---|---|
+| `suggest` (default) | _(none)_ | prompts | prompts | prompts |
+| `auto-edit` | `--auto-edit` | **auto** | prompts | prompts |
+| `full-auto` | `--full-auto` | **auto** | **auto** (within policy) | prompts |
+
+### Working at speed with auto-edit
+
+Auto-edit lets the agent rewrite files without pausing per edit, while keeping
+command execution gated:
+
+```bash
+sac shell --auto-edit
+# sac[auto-edit]> refactor the auth module to use the new token format
+# → The agent reads files, proposes edits, and applies them automatically.
+# → run_command (e.g. pytest) still requires your confirmation.
+# Session: sess-abc | Files edited: 4 | Undo all: sac rollback --session sess-abc
+```
+
+**File count guard:** if the agent would auto-apply more than 10 edits in one
+session without a pause, it stops and asks "About to edit >10 files. Continue?".
+
+### Using full-auto for scripted or CI-like tasks
+
+Full-auto also auto-approves `run_command` within the existing shell policy:
+
+```bash
+sac shell --full-auto --command-delay-ms 0   # no delay; for CI/scripting
+# sac[full-auto]> run the test suite and fix any failures
+#   → run_command  pytest -q tests/          # preview line printed
+#   ✓ exit 0 (2.1s)
+```
+
+Even in full-auto:
+- High-risk commands (`rm -rf /`, network calls without allowlist, etc.) are
+  still blocked by the policy engine.
+- A preview line prints before each command. With the default 500 ms delay,
+  you can press **Ctrl-C** to abort a single command cleanly.
+- Full-auto cannot be saved as a default: you must pass it explicitly each session.
+
+### Rollback in auto-edit / full-auto sessions
+
+```bash
+sac rollback --last                          # undo the most recent checkpoint
+sac rollback --session <session-id>          # undo all edits from one session (printed at exit)
+```
+
+The session ID is printed at the end of every `--auto-edit` or `--full-auto`
+session. All checkpoints created during the session are listed in reverse order.
+
 ## From Question to Patch in One Turn (v4.22, EXPERIMENTAL)
 
 Starting with v4.22, the agent can execute multiple tool calls per user

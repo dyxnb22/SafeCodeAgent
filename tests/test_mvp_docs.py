@@ -412,3 +412,43 @@ def test_v500_versioning_policy_has_v5_entry() -> None:
 def test_v500_matrix_has_v500_row() -> None:
     matrix = (ROOT / "docs" / "version_implementation_matrix.md").read_text(encoding="utf-8")
     assert "v5.0.0" in matrix
+
+
+# ---------------------------------------------------------------------------
+# v5.1.x Trust Modes doc guards
+# ---------------------------------------------------------------------------
+
+def test_v510_readme_trust_modes_section() -> None:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    assert "Trust Modes" in readme
+    assert "--auto-edit" in readme
+    assert "--full-auto" in readme
+
+
+def test_v510_mvp_guide_trust_modes_section() -> None:
+    guide = (ROOT / "docs" / "mvp-user-guide.md").read_text(encoding="utf-8")
+    assert "Trust Modes" in guide
+    assert "auto-edit" in guide
+    assert "full-auto" in guide
+    assert "rollback --session" in guide
+
+
+def test_v510_troubleshooting_trust_mode_section() -> None:
+    troubleshooting = (ROOT / "docs" / "troubleshooting.md").read_text(encoding="utf-8")
+    assert "Trust Mode" in troubleshooting
+    assert "auto-edit" in troubleshooting
+    assert "full-auto" in troubleshooting
+    assert "rollback --session" in troubleshooting
+
+
+def test_v510_threat_model_v51_addendum() -> None:
+    threat_model = (ROOT / "docs" / "security" / "threat-model-v3.6.md").read_text(encoding="utf-8")
+    assert "v5.1.0 Trust-Mode Addendum" in threat_model
+    assert "auto-edit" in threat_model
+    assert "full-auto" in threat_model
+
+
+def test_v510_matrix_has_v510_and_v511_rows() -> None:
+    matrix = (ROOT / "docs" / "version_implementation_matrix.md").read_text(encoding="utf-8")
+    assert "v5.1.0" in matrix
+    assert "v5.1.1" in matrix
