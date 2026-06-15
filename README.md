@@ -107,6 +107,22 @@ sac shell --full-auto                        # auto-apply edits AND commands (po
 sac shell --full-auto --command-delay-ms 0   # zero delay (for scripting/CI)
 ```
 
+**Shell Display (v5.2, EXPERIMENTAL):**
+
+The shell prompt shows turn count, task status, and cost estimate:
+```
+sac[3 · task:open · 2i · ~$0.02]>
+```
+
+Slash commands for display and tracking:
+- `/cost` — session token count and estimated cost (`anthropic · claude-sonnet-4-6`)
+- `/history` — recent turns with intent labels
+- `/tools` — registered native tools with approval flags
+
+Write-tool diffs show a compact header: `[+12 / -4 lines]  src/auth/login.py`
+
+Long `run_command` output (>40 lines) is collapsed: first 5 + `--- [N lines hidden] ---` + last 5.
+
 ```bash
 sac init                            # [v4.15+] guided first-run: provider, key, model, policy (recommended)
 sac setup                           # first-time: write .sac/config.toml (hidden, still callable)

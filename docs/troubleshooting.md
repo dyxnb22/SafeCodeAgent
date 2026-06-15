@@ -689,6 +689,50 @@ sac init --provider anthropic --api-key sk-ant-...
 
 ---
 
+## Display Issues (v5.2, EXPERIMENTAL)
+
+### Why doesn't `/cost` show a price?
+
+Two possible causes:
+
+1. **Mock provider:** When `sac shell` runs with the default `mock` provider,
+   no real API calls are made and cost tracking is disabled. `/cost` will
+   show "Provider: mock (cost tracking disabled)".
+
+   To see costs, set up a real provider with `sac init` or `sac provider add`.
+
+2. **No usage yet in this session:** If you just opened the shell and haven't
+   sent any messages, `/cost` will show "No token usage recorded yet."
+
+### How do I see the full output of a command?
+
+`run_command` output longer than 40 lines is collapsed in the shell display.
+The full output is always available in the audit log:
+
+```bash
+sac audit query --type tool_call_command --task <task-id>
+```
+
+For scripting or CI where you need full output in the shell:
+
+```bash
+sac shell --full-auto --command-delay-ms 0 --json  # full output in JSON envelope
+```
+
+In JSON output mode, the full `output` field is always untruncated.
+
+### How do I see all files edited in a session?
+
+At the end of every `--auto-edit` or `--full-auto` session, a summary line
+shows how many files were edited and the rollback command:
+
+```
+Session: sess-abc | Files edited: 4 | Undo all: sac rollback --session sess-abc
+```
+
+In the shell, use `/history` to see recent turns with their intent labels and
+which files were mentioned.
+
 ## Trust Mode Issues (v5.1, EXPERIMENTAL)
 
 ### How do I undo everything from an auto-edit session?

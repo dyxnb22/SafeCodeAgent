@@ -561,6 +561,68 @@ sac rollback --session <session-id>          # undo all edits from one session (
 The session ID is printed at the end of every `--auto-edit` or `--full-auto`
 session. All checkpoints created during the session are listed in reverse order.
 
+## Understanding What the Agent Did (v5.2, EXPERIMENTAL)
+
+### Shell prompt
+
+The shell prompt now shows turn count, task status, and running cost:
+
+```
+sac[0]>                                     # no task, no cost
+sac[3 · task:open · 2i]>                   # task active, 2 iterations
+sac[5 · task:acti · 3i · ~$0.04]>          # task active + cost (real provider)
+```
+
+Cost only appears when a real provider is active (hidden for mock).
+
+### `/cost` — session cost breakdown
+
+```
+sac[4]> /cost
+Session cost estimate
+─────────────────────
+Input tokens:    12,340
+Output tokens:    1,890
+Cache reads:      8,000   (cheaper rate)
+Estimated cost: ~$0.065
+Provider: anthropic · claude-sonnet-4-6
+```
+
+Cost is tracked per-session. If the provider is `mock`, cost tracking is disabled.
+
+### Diff display during approval
+
+When a write tool proposes an edit, the approval prompt shows a compact header:
+
+```
+[+12 / -4 lines]  src/auth/login.py
+--- a/src/auth/login.py
++++ b/src/auth/login.py
+@@ -45,7 +45,15 @@
+```
+
+The `[+12 / -4 lines]` header lets you skim a large session's edits quickly.
+
+### Long command output
+
+`run_command` output longer than 40 lines is automatically collapsed:
+
+```
+line 0
+line 1
+line 2
+line 3
+line 4
+--- [45 lines hidden] ---
+line 55
+line 56
+line 57
+line 58
+line 59
+```
+
+The full output is still written to the audit log.
+
 ## From Question to Patch in One Turn (v4.22, EXPERIMENTAL)
 
 Starting with v4.22, the agent can execute multiple tool calls per user

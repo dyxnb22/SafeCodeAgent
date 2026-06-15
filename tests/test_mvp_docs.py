@@ -452,3 +452,34 @@ def test_v510_matrix_has_v510_and_v511_rows() -> None:
     matrix = (ROOT / "docs" / "version_implementation_matrix.md").read_text(encoding="utf-8")
     assert "v5.1.0" in matrix
     assert "v5.1.1" in matrix
+
+
+# ---------------------------------------------------------------------------
+# v5.2.x Display Polish doc guards
+# ---------------------------------------------------------------------------
+
+def test_v520_readme_shell_display_section() -> None:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    assert "Shell Display" in readme
+    assert "/cost" in readme
+    assert "lines hidden" in readme
+
+
+def test_v520_mvp_guide_display_section() -> None:
+    guide = (ROOT / "docs" / "mvp-user-guide.md").read_text(encoding="utf-8")
+    assert "Understanding What the Agent Did" in guide
+    assert "/cost" in guide
+    assert "lines hidden" in guide
+
+
+def test_v520_troubleshooting_display_section() -> None:
+    troubleshooting = (ROOT / "docs" / "troubleshooting.md").read_text(encoding="utf-8")
+    assert "Display Issues" in troubleshooting
+    assert "/cost" in troubleshooting
+    assert "lines hidden" in troubleshooting.lower() or "full output" in troubleshooting.lower()
+
+
+def test_v52_matrix_has_520_and_521_rows() -> None:
+    matrix = (ROOT / "docs" / "version_implementation_matrix.md").read_text(encoding="utf-8")
+    assert "v5.2.0" in matrix
+    assert "v5.2.1" in matrix
