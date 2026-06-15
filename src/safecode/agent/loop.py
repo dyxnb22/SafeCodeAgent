@@ -433,8 +433,11 @@ class AgentLoop:
     def _abort_if_stuck_tool_intent(
         self, state: AgentSessionState, routed: RoutedToolIntent
     ) -> AgentStepResult | None:
-        if TaskStore(self.project_root).current_id() is None:
-            return None
+        # B9 fix: track stuck-loop even when no current task is set.
+        # Inside a task scope: abort after 3 identical intents (existing behaviour).
+        # Outside a task scope: emit a RuntimeWarning but do NOT abort, so that
+        # existing taskless agent sessions (e.g. tests) still run to completion.
+        has_current_task = TaskStore(self.project_root).current_id() is not None
         identity = self._tool_intent_identity(routed)
         if identity == self._last_tool_intent_identity:
             self._last_tool_intent_count += 1
@@ -444,7 +447,26 @@ class AgentLoop:
         if self._last_tool_intent_count < 3:
             return None
 
+        # Always log the warning (B9: visible even outside task scope).
+        import warnings
         observation = "Aborted: repeated identical tool intent detected."
+        RuntimeLogger(self.project_root, self.config).write(
+            "error",
+            "agent.loop",
+            observation,
+            failure_category=FailureCategory.LOOP_STUCK.value,
+            details={"session_id": state.session_id, "has_current_task": has_current_task},
+        )
+
+        if not has_current_task:
+            # B9: outside task scope — warn but do not abort the session.
+            warnings.warn(
+                f"loop_stuck detected outside task scope after {self._last_tool_intent_count} identical intents",
+                RuntimeWarning,
+                stacklevel=2,
+            )
+            return None
+
         updated = state.model_copy(
             update={
                 "pending_action": None,
@@ -462,13 +484,6 @@ class AgentLoop:
                 "intent_identity": list(identity),
                 "consecutive_count": self._last_tool_intent_count,
             },
-        )
-        RuntimeLogger(self.project_root, self.config).write(
-            "error",
-            "agent.loop",
-            observation,
-            failure_category=FailureCategory.LOOP_STUCK.value,
-            details={"session_id": saved.session_id},
         )
         self._record_loop_stuck_on_current_task()
         return AgentStepResult(state=saved, observation=observation)
