@@ -424,6 +424,38 @@ sac rollback --list      # see all available checkpoints
 sac rollback --checkpoint <id>  # roll back a specific edit
 ```
 
+## From Question to Patch in One Turn (v4.22, EXPERIMENTAL)
+
+Starting with v4.22, the agent can execute multiple tool calls per user
+message before generating a final response. A single "turn" might look like:
+
+1. **read_file** `src/auth/login.py` — inspect the current implementation
+2. **search_files** `"handle_session"` — locate the relevant function
+3. **edit_file** `src/auth/login.py` — propose the fix
+
+All of this happens before you see the response. Each `edit_file` creates
+a checkpoint, so you can roll back any individual edit with `/undo` or
+`sac rollback --last`.
+
+### Shell prompt
+
+The shell prompt now shows the turn count: `sac[0]>`, `sac[1]>`, etc.
+This lets you track how many messages you've sent in the current session.
+
+### New shell commands
+
+- `/undo` — Roll back the most recent write-tool checkpoint without leaving
+  the shell.
+- `/history` — Show the last 10 turns of the current session (input and intent).
+- `/tools` — List all available native tools with descriptions and approval flags.
+- `/clear` — Resets both the display and the live agent session state (so the
+  next message starts with a clean context).
+
+### Per-turn cap
+
+Each turn is capped at 20 tool calls. If the cap is hit, the agent stops
+and you see: `"per-turn cap hit — re-send your request to continue"`.
+
 ## Machine-readable output
 
 Many commands support `--json`:

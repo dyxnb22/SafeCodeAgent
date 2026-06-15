@@ -5,12 +5,12 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v4.21.2
+# Current Baseline - v4.22.2
 
 ## Status
-Implemented. Git baseline: tag `v4.21.2`. Local working version: `v4.21.2`.
-v4.21.x is the write-side native tool train: edit_file/write_file (checkpointed,
-approval-gated), run_command (policy-gated), B6/B7/B8 bug fixes, and a docs cut.
+Implemented. Git baseline: tag `v4.22.2`. Local working version: `v4.22.2`.
+v4.22.x is the multi-tool turn train: MultiToolTurnRunner, B9/B10/B11 fixes,
+shell /undo /history /tools, sac[N]> prompt, and a docs cut.
 
 ## Stage
 The v4.14–v4.18 usability trains are complete (14 versions shipped):
@@ -48,6 +48,11 @@ v4.21.x write-side native tool train (3 versions):
 - `v4.21.0`: edit_file/write_file tools (checkpointed, approval-gated); B6/B7/B8 fixes
 - `v4.21.1`: run_command tool via ShellRunner/policy stack
 - `v4.21.2`: docs cut — README, MVP guide, troubleshooting, matrix, guards
+
+v4.22.x multi-tool turn train (3 versions):
+- `v4.22.0`: MultiToolTurnRunner (dispatch_calls/run_turn/identity_sequence); B9 stuck-loop outside task → warning not abort
+- `v4.22.1`: B10 /clear resets AgentSessionStore; B11 EOF prints [exiting shell]; sac[N]> prompt; /undo /history /tools
+- `v4.22.2`: docs cut — README, MVP guide, troubleshooting, matrix, guards
 
 All v4 surfaces remain EXPERIMENTAL and carry no stable contract.
 

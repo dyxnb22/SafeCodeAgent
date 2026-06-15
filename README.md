@@ -195,6 +195,20 @@ Every `edit_file` and `write_file` call creates a checkpoint *before* the mutati
 the agent can make many edits and you can roll back any of them with `sac rollback --last`.
 `run_command` passes through the same policy engine as `sac run`.
 
+**Multi-tool turns and shell UX (v4.22, EXPERIMENTAL):**
+```bash
+sac shell    # prompt now shows turn counter: sac[0]>  sac[1]>  ...
+# New slash commands:
+/undo        # roll back the most recent write-tool checkpoint
+/history     # show recent turns for the current session
+/tools       # list all available native tools
+/clear       # now also resets the live agent session (not just display)
+```
+
+The agent can execute multiple tool calls per user message before generating
+a final response — reading files, searching for patterns, and making edits
+in a single turn.
+
 **Debug commands (v4.7, EXPERIMENTAL):**
 ```bash
 sac debug last-failure

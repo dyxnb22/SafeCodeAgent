@@ -477,6 +477,36 @@ that validation failure and repair events are still appended in order.
 
 ---
 
+## Multi-Tool Turn Issues (v4.22, EXPERIMENTAL)
+
+### Per-turn tool cap hit
+
+**Cause:** The agent emitted more than 20 tool calls in a single turn.
+
+**Fix:** Re-send your message. The agent will continue from where it stopped.
+Alternatively, break the request into smaller parts (e.g., "fix the auth
+module" instead of "fix everything in src/").
+
+### `/clear` not fully resetting context
+
+**Cause (pre-v4.22):** `/clear` only reset the display; agent session state
+was preserved. Fixed in v4.22 (B10): `/clear` now calls `AgentSessionStore.clear()`.
+
+**Fix:** Update to v4.22+; then `/clear` resets both display and agent state.
+
+### `/undo` says "No checkpoint to roll back"
+
+**Cause:** No write-tool checkpoint exists in `.sac/checkpoints/`.
+
+**Fix:** `/undo` only rolls back `edit_file` and `write_file` calls; `read_file`,
+`search_files`, etc. do not create checkpoints. If you used a `sac apply` workflow,
+use `sac rollback --last` instead.
+
+### Shell exits silently on Ctrl-D / EOF (pre-v4.22)
+
+**Cause (pre-v4.22):** EOF caused a silent exit. Fixed in v4.22 (B11): the shell
+now prints `[exiting shell]` before exiting on EOF.
+
 ## Write Tool Issues (v4.21, EXPERIMENTAL)
 
 ### `edit_file` — old_string not found

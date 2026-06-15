@@ -323,3 +323,24 @@ def test_v421_matrix_has_v421_rows() -> None:
     assert "v4.21.0" in matrix
     assert "v4.21.1" in matrix
     assert "v4.21.2" in matrix
+
+
+def test_v422_multi_tool_in_readme() -> None:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    assert "v4.22" in readme
+    assert "/undo" in readme or "multi-tool" in readme.lower()
+
+
+def test_v422_mvp_guide_one_turn_section() -> None:
+    guide = (ROOT / "docs" / "mvp-user-guide.md").read_text(encoding="utf-8")
+    assert "One Turn" in guide or "one turn" in guide.lower()
+    assert "/undo" in guide
+    assert "/history" in guide
+    assert "/tools" in guide
+
+
+def test_v422_matrix_has_v422_rows() -> None:
+    matrix = (ROOT / "docs" / "version_implementation_matrix.md").read_text(encoding="utf-8")
+    assert "v4.22.0" in matrix
+    assert "v4.22.1" in matrix
+    assert "v4.22.2" in matrix

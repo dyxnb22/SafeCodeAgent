@@ -622,6 +622,16 @@ Completed. Plan: `docs/version-plans/v4.20-to-v5.0-product-roadmap.md` (v4.21.x 
 | `v4.21.1` ✅ | `dev/v4.19` | `src/safecode/agent/command_tool.py`, `tests/test_run_command_tool.py`, `docs/version-notes/v4.21.1-run-command-tool.md` | run_command native tool via ShellRunner/policy stack; high-risk blocked; cwd validated within project root; timeout_seconds parameter; auto-approved via existing policy. 10 tests. |
 | `v4.21.2` ✅ | `dev/v4.19` | `README.md`, `docs/mvp-user-guide.md`, `docs/troubleshooting.md`, `docs/version_implementation_matrix.md`, `tests/test_mvp_docs.py`, `.claude/skills/current/SKILL.md`, `.claude/versions.json`, `docs/version-notes/v4.21.2-write-tools-docs.md` | v4.21 docs cut: README write/command tools section; MVP guide "Making Edits with Native Tools" section; troubleshooting old_string errors, disk-full, rollback, high-risk run_command; matrix rows; doc guard tests. |
 
+## v4.22.x: Multi-Tool Turns + Agentic Shell
+
+Completed. Plan: `docs/version-plans/v4.20-to-v5.0-product-roadmap.md` (v4.22.x section).
+
+| Version | Status | Key Files | Summary |
+|---|---|---|---|
+| `v4.22.0` ✅ | `dev/v4.19` | `src/safecode/agent/multi_tool_turn.py`, `src/safecode/agent/loop.py`, `tests/test_multi_tool_turn.py`, `docs/version-notes/v4.22.0-multi-tool-turn.md` | MultiToolTurnRunner: dispatch_calls() (20-tool-per-turn cap, redaction) and run_turn() (iterative llm_next_fn loop). B9 fix: stuck-loop guard tracks has_current_task; outside task scope emits RuntimeWarning but does NOT abort. 17 tests. |
+| `v4.22.1` ✅ | `dev/v4.19` | `src/safecode/cli_shell.py`, `tests/test_shell_session_quality.py`, `docs/version-notes/v4.22.1-shell-session-quality.md` | B10 fix: /clear calls AgentSessionStore.clear(). B11 fix: _read_line() prints [exiting shell] on EOF. Prompt: sac[N]>. New /undo, /history, /tools commands. 13 tests. |
+| `v4.22.2` ✅ | `dev/v4.19` | `README.md`, `docs/mvp-user-guide.md`, `docs/troubleshooting.md`, `docs/version_implementation_matrix.md`, `tests/test_mvp_docs.py`, `.claude/skills/current/SKILL.md`, `.claude/versions.json`, `docs/version-notes/v4.22.2-multi-tool-docs.md` | v4.22 docs cut: README multi-tool/shell section; MVP guide "From Question to Patch in One Turn"; troubleshooting per-turn cap, /clear B10, /undo, B11 EOF; matrix rows; doc guard tests. |
+
 ## v4.2.x: Project Command Profile
 
 | 版本 | 分支 | 主要入口 | 验收命令 / 结果 |
