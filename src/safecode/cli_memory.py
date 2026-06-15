@@ -192,3 +192,31 @@ def clear(
         _print_json("memory clear", "success", data={"scope": scope, "task_id": task_id})
     else:
         console.print(f"[green]Cleared {scope} memory.[/green]")
+
+
+@memory_app.command("size")
+def size(
+    json_output: bool = typer.Option(False, "--json", help="Output result as JSON."),
+) -> None:
+    """[EXPERIMENTAL] Show a read-only byte/file breakdown of .sac/ storage by scope."""
+    from safecode.memory.sizing import compute_sac_size
+    report = compute_sac_size(Path.cwd())
+
+    data = report.model_dump()
+
+    if json_output:
+        _print_json("memory size", "success", data=data)
+        return
+
+    if not report.exists:
+        console.print("[yellow]No .sac/ directory found.[/yellow]")
+        return
+
+    table = Table(title="[EXPERIMENTAL] .sac/ Size Breakdown")
+    table.add_column("Scope")
+    table.add_column("Bytes", justify="right")
+    table.add_column("Files", justify="right")
+    for entry in report.scopes:
+        table.add_row(entry.name, str(entry.bytes), str(entry.files))
+    table.add_row("[bold]Total[/bold]", str(report.total_bytes), str(report.total_files))
+    console.print(table)
