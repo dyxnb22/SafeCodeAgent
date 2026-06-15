@@ -722,6 +722,8 @@ def _run_agentic_shell(
     is_tty: bool = True,
     json_output: bool = False,
     auto_edit: bool = False,
+    full_auto: bool = False,
+    command_delay_ms: int = 500,
 ) -> int:
     """[EXPERIMENTAL] Drive AgentLoop.run() from a single user input line.
 
@@ -729,15 +731,28 @@ def _run_agentic_shell(
     the result. Uses Rich Status panel for real-time step progress in TTY mode.
 
     With --auto-edit, edit_file and write_file execute without prompting.
-    run_command and GitHub write tools always require approval.
+    With --full-auto, run_command also executes (policy gates still apply).
+    run_command and GitHub write tools always require approval in plain agentic mode.
     """
     from safecode.cli_shared_json import CLIJSONResponse, render_json
     from safecode.agent.step_model import APPROVAL_REQUIRED_KINDS
 
-    mode_label = "auto-edit" if auto_edit else "v4.18"
+    if full_auto:
+        mode_label = "full-auto"
+    elif auto_edit:
+        mode_label = "auto-edit"
+    else:
+        mode_label = "v4.18"
+
     if is_tty:
         console.print(f"[bold]SafeCode Shell[/bold] [dim](EXPERIMENTAL --agentic mode {mode_label})[/dim]")
-        if auto_edit:
+        if full_auto:
+            console.print(
+                "[yellow]Full-auto mode: edit_file/write_file/run_command execute automatically. "
+                f"Command grace period: {command_delay_ms}ms (Ctrl-C to abort). "
+                "High-risk commands still blocked. Use sac rollback --last to undo.[/yellow]"
+            )
+        elif auto_edit:
             console.print(
                 "[yellow]Auto-edit mode: edit_file/write_file execute without prompting. "
                 "Use sac rollback --last to undo.[/yellow]"
@@ -751,7 +766,12 @@ def _run_agentic_shell(
         return 0
 
     goal = line.strip()
-    loop = AgentLoop(project_root, auto_edit=auto_edit)
+    loop = AgentLoop(
+        project_root,
+        auto_edit=auto_edit,
+        full_auto=full_auto,
+        command_delay_ms=command_delay_ms,
+    )
 
     step_updates: list[str] = []
     files_edited: list[str] = []
@@ -796,6 +816,7 @@ def _run_agentic_shell(
             "status": result.state.status,
             "step_updates": step_updates,
             "auto_edit": auto_edit,
+            "full_auto": full_auto,
         }
         if files_edited:
             data["files_edited_summary"] = files_edited
@@ -811,13 +832,13 @@ def _run_agentic_shell(
         else:
             print(line_out)
 
-    # Session summary (v5.1.0: always show in auto-edit mode)
+    # Session summary (v5.1.0+: always show in auto-edit/full-auto mode)
     summary_parts = [
         f"Session: {result.state.session_id}",
         f"Status: {result.state.status}",
         f"Stopped: {result.stopped_reason}",
     ]
-    if auto_edit and loop._native_write_count:
+    if (auto_edit or full_auto) and loop._native_write_count:
         summary_parts.append(f"Files edited: {loop._native_write_count}")
         summary_parts.append(f"Undo all: sac rollback --session {result.state.session_id}")
     summary = " | ".join(summary_parts)
@@ -850,6 +871,19 @@ def register(app: typer.Typer) -> None:
                  "run_command and GitHub write tools still require approval. "
                  "Checkpoints are always created. Implies --agentic.",
         ),
+        full_auto: bool = typer.Option(
+            False,
+            "--full-auto",
+            help="[EXPERIMENTAL] Auto-approve edit_file, write_file, AND run_command "
+                 "(within existing shell policy). High-risk commands still blocked. "
+                 "GitHub write tools still prompt. Cannot be persisted. Implies --agentic.",
+        ),
+        command_delay_ms: int = typer.Option(
+            500,
+            "--command-delay-ms",
+            help="[EXPERIMENTAL] Grace period (ms) before run_command executes in --full-auto mode. "
+                 "Press Ctrl-C during delay to abort. Range: 0–2000. Default: 500.",
+        ),
     ) -> None:
         """[EXPERIMENTAL] Start an interactive AI shell session.
 
@@ -862,9 +896,14 @@ def register(app: typer.Typer) -> None:
 
         With --auto-edit (implies --agentic), edit_file and write_file execute
         without per-call prompts. Use 'sac rollback --last' or '/undo' to undo.
+
+        With --full-auto (implies --agentic), run_command also executes automatically
+        within policy limits. A preview line is printed and a grace period allows
+        Ctrl-C abort. High-risk commands are still blocked. Cannot be persisted.
         """
         project_root = Path.cwd()
         is_tty = sys.stdin.isatty() and sys.stdout.isatty() and not non_tty
+        delay_ms = max(0, min(2000, command_delay_ms))
         if model:
             from safecode.cli_model import apply_model_override_env
             try:
@@ -877,12 +916,14 @@ def register(app: typer.Typer) -> None:
                     console.print(f"[yellow]{suggestion}[/yellow]")
                 console.print(f"[dim]Session model override: {resolved}[/dim]")
 
-        if auto_edit or agentic:
+        if full_auto or auto_edit or agentic:
             code = _run_agentic_shell(
                 project_root,
                 is_tty=is_tty,
                 json_output=json_output,
                 auto_edit=auto_edit,
+                full_auto=full_auto,
+                command_delay_ms=delay_ms,
             )
         else:
             code = run_shell(

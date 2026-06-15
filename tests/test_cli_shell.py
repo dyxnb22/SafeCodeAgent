@@ -464,7 +464,8 @@ class TestShellAgenticMode:
         captured = {}
 
         class FakeLoop:
-            def __init__(self, project_root, llm_client=None, *, auto_edit=False):
+            def __init__(self, project_root, llm_client=None, *, auto_edit=False,
+                         full_auto=False, command_delay_ms=500):
                 self._native_write_count = 0
 
             def run(self, goal, max_steps=8, *, on_step=None):
@@ -519,7 +520,8 @@ class TestShellAgenticMode:
         agent_loop_called = []
 
         class FakeLoop:
-            def __init__(self, project_root, llm_client=None, *, auto_edit=False):
+            def __init__(self, project_root, llm_client=None, *, auto_edit=False,
+                         full_auto=False, command_delay_ms=500):
                 agent_loop_called.append(True)
                 self._native_write_count = 0
 

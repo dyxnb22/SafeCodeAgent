@@ -75,6 +75,8 @@ class AgentLoop:
         llm_client: object | None = None,
         *,
         auto_edit: bool = False,
+        full_auto: bool = False,
+        command_delay_ms: int = 500,
     ) -> None:
         self.project_root = project_root
         self.config = SafeCodeConfig.load(project_root)
@@ -88,6 +90,8 @@ class AgentLoop:
         self._last_typed_result: TypedAgentStepResult | None = None
         self.no_validate = False
         self.auto_edit = auto_edit  # v5.1.0: auto-approve edit_file/write_file
+        self.full_auto = full_auto  # v5.1.1: also auto-approve run_command (policy gates still apply)
+        self.command_delay_ms = command_delay_ms  # v5.1.1: grace period before run_command in full-auto
         self._native_write_count = 0  # v5.1.0: per-session write count for file count guard
 
     @property
@@ -102,9 +106,10 @@ class AgentLoop:
     def _build_dispatcher(self) -> NativeToolDispatcher:
         """Create a NativeToolDispatcher with read/write/command tools registered.
 
-        When auto_edit=True, write tools are registered with approved=True so they
-        execute immediately without blocking.  run_command always uses approved=True
-        (policy gates still apply via ShellRunner).
+        When auto_edit=True or full_auto=True, write tools are registered with
+        approved=True so they execute immediately without blocking.
+        In full_auto mode, run_command is registered with a delay for Ctrl-C abort.
+        Policy gates (high-risk blocking) still apply via ShellRunner.
         """
         from safecode.agent.read_tools import register_read_tools
         from safecode.agent.write_tools import register_write_tools
@@ -112,8 +117,10 @@ class AgentLoop:
 
         dispatcher = NativeToolDispatcher()
         register_read_tools(dispatcher, self.project_root)
-        register_write_tools(dispatcher, self.project_root, approved=self.auto_edit)
-        register_command_tool(dispatcher, self.project_root)
+        write_approved = self.auto_edit or self.full_auto
+        register_write_tools(dispatcher, self.project_root, approved=write_approved)
+        cmd_delay = self.command_delay_ms if self.full_auto else -1
+        register_command_tool(dispatcher, self.project_root, full_auto_delay_ms=cmd_delay)
         return dispatcher
 
     def native_step(self, goal: str | None = None) -> "AgentStepResult":
