@@ -59,11 +59,15 @@ Mutation actions (apply, commit) always require explicit confirmation.
 _SHELL_PROMPT = "sac> "
 
 
-def _shell_prompt(turn: int, cost_str: str = "") -> str:
-    """Return shell prompt with turn counter and optional cost: sac[N · ~$0.03]>"""
+def _shell_prompt(turn: int, cost_str: str = "", task_str: str = "") -> str:
+    """Return shell prompt with turn counter, optional cost, optional task status (v5.2.1)."""
+    parts = [str(turn)]
+    if task_str:
+        parts.append(task_str)
     if cost_str:
-        return f"sac[{turn} · {cost_str}]> "
-    return f"sac[{turn}]> "
+        parts.append(cost_str)
+    inner = " · ".join(parts)
+    return f"sac[{inner}]> "
 
 _SLASH_COMMANDS = [
     "/status", "/task", "/overview", "/model", "/provider",
@@ -134,13 +138,14 @@ def _maybe_render_markdown(response: str, *, is_tty: bool) -> None:
         console.print(redact_secrets(response))
 
 
-def _read_line(*, is_tty: bool, turn: int = 0) -> str | None:
+def _read_line(*, is_tty: bool, turn: int = 0, prompt_override: str | None = None) -> str | None:
     """Read one line from the user. Returns None on EOF.
 
     B11 fix: on EOF, prints '\n[exiting shell]' before returning None,
     consistent across TTY and non-TTY.
+    v5.2.1: prompt_override allows callers to pass a pre-formatted prompt string.
     """
-    prompt = _shell_prompt(turn)  # sac[N]>
+    prompt = prompt_override if prompt_override is not None else _shell_prompt(turn)
     if is_tty:
         try:
             return input(prompt)
@@ -213,6 +218,68 @@ def _slash_cost(project_root: Path) -> str:
         return "\n".join(lines)
     except Exception as exc:
         return f"Cost estimate unavailable: {exc}"
+
+
+def _session_edit_summary(project_root: Path, session_id: str) -> str:
+    """Render a file-tree-style summary of edits from the session journal (v5.2.1)."""
+    try:
+        from safecode.state.journal import AgentJournalStore
+        events = AgentJournalStore(project_root).read(session_id)
+    except Exception:
+        return ""
+
+    # Collect file paths and operations from journal events
+    edits: dict[str, list[str]] = {}  # path → list of operations
+    for event in events:
+        if event.type not in ("action", "typed_result"):
+            continue
+        payload = event.payload or {}
+        pending = payload.get("pending_action") or {}
+        if isinstance(pending, dict):
+            tool = pending.get("tool_name", "")
+            if tool in ("edit_file", "write_file"):
+                path = str(pending.get("intent_fields", {}).get("path", "") or "")
+                op = "edited" if tool == "edit_file" else "created/overwritten"
+                if path:
+                    edits.setdefault(path, []).append(op)
+
+    if not edits:
+        return ""
+
+    # Build file-tree style output
+    root = project_root.resolve()
+    tree: dict[str, list[tuple[str, str]]] = {}  # dir → list of (filename, op)
+    for path_str, ops in edits.items():
+        p = (root / path_str).resolve()
+        try:
+            rel = p.relative_to(root)
+        except ValueError:
+            rel = p
+        parts = rel.parts
+        if len(parts) >= 2:
+            directory = str(Path(*parts[:-1])) + "/"
+            filename = parts[-1]
+        else:
+            directory = "./"
+            filename = str(rel)
+        tree.setdefault(directory, []).append((filename, ops[-1]))
+
+    if not tree:
+        return ""
+
+    lines = ["Files changed this session"]
+    dirs = sorted(tree.keys())
+    for i, directory in enumerate(dirs):
+        is_last_dir = i == len(dirs) - 1
+        dir_prefix = "└── " if is_last_dir else "├── "
+        lines.append(f"{dir_prefix}{directory}")
+        files = tree[directory]
+        for j, (filename, op) in enumerate(sorted(files)):
+            is_last_file = j == len(files) - 1
+            file_prefix = "    └── " if is_last_dir else "│   └── " if is_last_file else "│   ├── "
+            lines.append(f"{file_prefix}{filename}   {op}")
+
+    return "\n".join(lines)
 
 
 def _slash_status(project_root: Path) -> str:
@@ -715,7 +782,19 @@ def run_shell(
 
     turn_count = 0
     while True:
-        line = _read_line(is_tty=is_tty, turn=turn_count)
+        # v5.2.1: build task status string for prompt
+        _task_str = ""
+        try:
+            _current_tid = task_store.current_id()
+            if _current_tid:
+                _task_state = task_store.load(_current_tid)
+                if _task_state:
+                    _iters = len(_task_state.iterations)
+                    _task_str = f"task:{_task_state.status[:4]} · {_iters}i"
+        except Exception:
+            pass
+
+        line = _read_line(is_tty=is_tty, turn=turn_count, prompt_override=_shell_prompt(turn_count, task_str=_task_str) if _task_str else None)
         if line is None:
             break
 

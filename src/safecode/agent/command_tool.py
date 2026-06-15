@@ -25,6 +25,24 @@ from safecode.shell.runner import ShellRunner
 
 _DEFAULT_TIMEOUT = 60
 _FULL_AUTO_PREVIEW_PREFIX = "  → run_command  "
+_OUTPUT_COLLAPSE_LINES = 40
+_OUTPUT_HEAD_TAIL = 5
+
+
+def _collapse_output(text: str) -> str:
+    """Collapse long command output: show first 5 + last 5 lines with a hidden-count line (v5.2.1)."""
+    if not text:
+        return text
+    lines = text.splitlines()
+    if len(lines) <= _OUTPUT_COLLAPSE_LINES:
+        return text
+    hidden = len(lines) - _OUTPUT_HEAD_TAIL * 2
+    parts = (
+        lines[:_OUTPUT_HEAD_TAIL]
+        + [f"--- [{hidden} lines hidden] ---"]
+        + lines[-_OUTPUT_HEAD_TAIL:]
+    )
+    return "\n".join(parts)
 
 
 def _run_command_handler(call_id: str, inp: dict[str, Any]) -> NativeToolResult:
@@ -93,16 +111,21 @@ def _run_command_handler(call_id: str, inp: dict[str, Any]) -> NativeToolResult:
         duration_s = elapsed_ms / 1000
         print(f"  {icon} exit {result.exit_code} ({duration_s:.1f}s)", file=sys.stdout, flush=True)
 
-    output = (result.stdout or "") + ("\n" + result.stderr if result.stderr else "")
+    raw_output = (result.stdout or "") + ("\n" + result.stderr if result.stderr else "")
+    raw_output = raw_output.strip()
+    # v5.2.1: collapse long output for model context (full output still in audit log)
+    collapsed_output = _collapse_output(raw_output)
     return NativeToolResult(
         call_id=call_id,
         tool_name="run_command",
         status="success",
-        output=output.strip(),
+        output=collapsed_output,
         metadata={
             "exit_code": result.exit_code,
             "duration_ms": result.duration_ms if result.duration_ms is not None else elapsed_ms,
             "command": command,
+            "output_collapsed": collapsed_output != raw_output,
+            "full_output_lines": len(raw_output.splitlines()),
         },
     )
 

@@ -53,15 +53,15 @@ def _make_proposal(task: str, operation: str, file_path: str,
 
 
 def _compact_diff(old: str, new: str, path: str) -> str:
-    """Return a short unified diff for display in StopForUser messages."""
-    diff = list(difflib.unified_diff(
-        old.splitlines(keepends=True),
-        new.splitlines(keepends=True),
-        fromfile=f"a/{path}",
-        tofile=f"b/{path}",
-        n=3,
-    ))
-    return "".join(diff[:60])  # Cap at 60 diff lines for display
+    """Return a short unified diff with +N/-M header for display in approval prompts (v5.2.1)."""
+    old_lines = old.splitlines(keepends=True)
+    new_lines = new.splitlines(keepends=True)
+    diff = list(difflib.unified_diff(old_lines, new_lines, fromfile=f"a/{path}", tofile=f"b/{path}", n=3))
+    added = sum(1 for line in diff if line.startswith("+") and not line.startswith("+++"))
+    removed = sum(1 for line in diff if line.startswith("-") and not line.startswith("---"))
+    header = f"[+{added} / -{removed} lines]  {path}\n"
+    body = "".join(diff[:60])  # Cap at 60 diff lines for display
+    return header + body
 
 
 # ---------------------------------------------------------------------------
