@@ -1,5 +1,6 @@
 """Create checkpoints and restore them during rollback."""
 
+import hashlib
 import json
 import shutil
 from pathlib import Path
@@ -8,6 +9,36 @@ from safecode.checkpoint.models import CheckpointFileOperation, CheckpointMetada
 from safecode.patch.models import PatchProposal
 from safecode.sandbox.filesystem import FilesystemBoundary
 from safecode.utils.time import utc_now_iso
+
+
+class CheckpointIntegrityError(RuntimeError):
+    """Raised when a backup file's sha256 does not match the stored value (B13 fix).
+
+    Prevents silent restoration of corrupt or tampered checkpoint backups.
+    The checkpoint_id and path are recorded; never attempt a restore of an
+    integrity-failing backup — investigate and delete the checkpoint if corrupt.
+    """
+
+    def __init__(self, path: str, checkpoint_id: str, expected: str, actual: str) -> None:
+        self.path = path
+        self.checkpoint_id = checkpoint_id
+        self.expected = expected
+        self.actual = actual
+        super().__init__(
+            f"Checkpoint integrity failure: backup sha256 mismatch for {path!r} "
+            f"in checkpoint {checkpoint_id!r}. "
+            f"Expected {expected[:16]}... got {actual[:16]}.... "
+            "Do not restore this checkpoint — delete it and re-apply the patch."
+        )
+
+
+def _sha256_of_file(path: Path) -> str:
+    """Return lowercase hex sha256 of a file's contents."""
+    h = hashlib.sha256()
+    with open(path, "rb") as fh:
+        for chunk in iter(lambda: fh.read(65536), b""):
+            h.update(chunk)
+    return h.hexdigest()
 
 
 class CheckpointManager:
@@ -30,11 +61,14 @@ class CheckpointManager:
             backup_path: str | None = None
             existed_before = target_path.exists()
 
+            backup_sha256: str | None = None
             if existed_before:
                 relative_backup = Path("files") / block.file_path
                 backup_file = checkpoint_dir / relative_backup
                 backup_file.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(target_path, backup_file)
+                # B13 fix: record sha256 so restore can verify backup integrity.
+                backup_sha256 = _sha256_of_file(backup_file)
                 backup_path = relative_backup.as_posix()
             else:
                 files_dir.mkdir(parents=True, exist_ok=True)
@@ -45,6 +79,7 @@ class CheckpointManager:
                     operation=block.operation,
                     existed_before=existed_before,
                     backup_path=backup_path,
+                    backup_sha256=backup_sha256,
                 )
             )
 
@@ -94,8 +129,34 @@ class CheckpointManager:
         return result
 
     def _restore_checkpoint(self, metadata: CheckpointMetadata) -> None:
-        """Restore files from a checkpoint."""
+        """Restore files from a checkpoint.
+
+        B13 fix: verifies sha256 of each backup file before copying. If the
+        stored sha256 doesn't match the actual backup, raises
+        CheckpointIntegrityError and aborts the restore without touching any
+        target files.
+        """
         checkpoint_dir = self.checkpoints_dir / metadata.checkpoint_id
+
+        # Pre-flight integrity check: verify all backups before touching any target file.
+        for operation in metadata.file_operations:
+            if not operation.existed_before or operation.backup_path is None:
+                continue
+            if operation.backup_sha256 is None:
+                # Old checkpoint without sha256 — skip verification (backward compat).
+                continue
+            backup_file = checkpoint_dir / operation.backup_path
+            if not backup_file.exists():
+                raise FileNotFoundError(f"Missing checkpoint backup file: {backup_file}")
+            actual = _sha256_of_file(backup_file)
+            if actual != operation.backup_sha256:
+                raise CheckpointIntegrityError(
+                    path=operation.path,
+                    checkpoint_id=metadata.checkpoint_id,
+                    expected=operation.backup_sha256,
+                    actual=actual,
+                )
+
         for operation in metadata.file_operations:
             target_path = self.filesystem.validate(self.project_root / operation.path)
             if operation.existed_before:

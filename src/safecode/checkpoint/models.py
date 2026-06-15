@@ -10,6 +10,7 @@ class CheckpointFileOperation(BaseModel):
     operation: str
     existed_before: bool
     backup_path: str | None = None
+    backup_sha256: str | None = None  # B13: sha256 of the backup file; None on old checkpoints
 
 
 class CheckpointMetadata(BaseModel):
