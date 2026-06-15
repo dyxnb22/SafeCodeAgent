@@ -299,7 +299,7 @@ class AgentLoop:
     def run(
         self,
         goal: str | None = None,
-        max_steps: int = 5,
+        max_steps: int = 20,  # B8 fix: raised from 5 to 20 for real coding tasks
         *,
         on_step: "Callable[[AgentStepResult], None] | None" = None,
     ) -> AgentRunResult:

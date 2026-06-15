@@ -11,6 +11,19 @@ from safecode.patch.validator import PatchValidationError
 from safecode.sandbox.filesystem import FilesystemBoundary
 
 
+class PatchApplyError(PatchValidationError):
+    """Structured error from a failed filesystem mutation (B7).
+
+    Extends PatchValidationError so existing callers that catch
+    PatchValidationError continue to work.
+    """
+
+    def __init__(self, failure_reason: str, path: str = "") -> None:
+        super().__init__(f"Apply failed and was rolled back: {failure_reason} (path={path!r})")
+        self.failure_reason = failure_reason
+        self.path = path
+
+
 @dataclass(frozen=True)
 class PreparedOperation:
     """One validated file replacement."""
@@ -22,6 +35,7 @@ class PreparedOperation:
     file_mode: int
     file_device: int | None
     file_inode: int | None
+    operation: str = "update"  # "update", "create", "delete"
 
 
 class PatchApplier:
@@ -32,61 +46,122 @@ class PatchApplier:
         self.filesystem = FilesystemBoundary(self.project_root)
 
     def apply(self, proposal: PatchProposal) -> None:
-        """Apply a validated patch proposal with rollback on failure."""
+        """Apply a validated patch proposal with rollback on failure.
+
+        Supports update (B6: also create and delete) operation types.
+        Wraps filesystem mutations to surface PermissionError/OSError as
+        PatchApplyError rather than letting them bubble uncaught (B7).
+        """
         operations = self._prepare_operations(proposal)
-        replaced: list[tuple[Path, PreparedOperation]] = []
+        applied: list[tuple[Path, PreparedOperation]] = []
 
         try:
-            for operation in operations:
-                resolved_path = self._validate_write_target(operation)
-                current_content = resolved_path.read_text(encoding="utf-8")
-                if current_content != operation.original_content:
-                    raise PatchValidationError(f"File changed after validation: {operation.target_path}")
-                self._atomic_write(resolved_path, operation.updated_content, operation.file_mode)
-                replaced.append((resolved_path, operation))
-        except Exception as exc:
+            for op in operations:
+                if op.operation == "delete":
+                    # B6: delete — remove the file; checkpoint already backed it up.
+                    try:
+                        if op.target_path.exists():
+                            op.target_path.unlink()
+                    except (PermissionError, OSError) as exc:
+                        raise PatchApplyError(
+                            failure_reason=f"delete failed: {type(exc).__name__}: {exc}",
+                            path=str(op.relative_path),
+                        ) from exc
+                    applied.append((op.target_path, op))
+                elif op.operation == "create":
+                    # B6: create — write new file (no prior content check).
+                    try:
+                        self._atomic_write(op.target_path, op.updated_content, op.file_mode)
+                    except (PermissionError, OSError) as exc:
+                        raise PatchApplyError(
+                            failure_reason=f"create failed: {type(exc).__name__}: {exc}",
+                            path=str(op.relative_path),
+                        ) from exc
+                    applied.append((op.target_path, op))
+                else:
+                    # update — existing behaviour with B7 error wrapping.
+                    resolved_path = self._validate_write_target(op)
+                    try:
+                        current_content = resolved_path.read_text(encoding="utf-8")
+                    except (PermissionError, OSError) as exc:
+                        raise PatchApplyError(
+                            failure_reason=f"read before update failed: {type(exc).__name__}: {exc}",
+                            path=str(op.relative_path),
+                        ) from exc
+                    if current_content != op.original_content:
+                        raise PatchValidationError(f"File changed after validation: {op.target_path}")
+                    try:
+                        self._atomic_write(resolved_path, op.updated_content, op.file_mode)
+                    except (PermissionError, OSError) as exc:
+                        raise PatchApplyError(
+                            failure_reason=f"write failed: {type(exc).__name__}: {exc}",
+                            path=str(op.relative_path),
+                        ) from exc
+                    applied.append((resolved_path, op))
+
+        except (PatchApplyError, PatchValidationError, Exception) as exc:
             rollback_errors: list[str] = []
-            for resolved_path, operation in reversed(replaced):
+            for resolved_path, op in reversed(applied):
                 try:
-                    self._atomic_write(resolved_path, operation.original_content, operation.file_mode)
+                    if op.operation == "delete":
+                        # Restore deleted file from original_content
+                        self._atomic_write(resolved_path, op.original_content, op.file_mode)
+                    elif op.operation == "create":
+                        # Remove the newly created file
+                        if resolved_path.exists():
+                            resolved_path.unlink()
+                    else:
+                        self._atomic_write(resolved_path, op.original_content, op.file_mode)
                 except Exception as rollback_exc:
-                    rollback_errors.append(f"{operation.target_path}: {rollback_exc}")
+                    rollback_errors.append(f"{op.target_path}: {rollback_exc}")
             if rollback_errors:
                 raise PatchValidationError(
                     f"Transactional apply failed and rollback also failed: {exc}; rollback_errors={rollback_errors}"
                 ) from exc
+            if isinstance(exc, (PatchApplyError, PatchValidationError)):
+                raise
             raise PatchValidationError(f"Transactional apply failed and was rolled back: {exc}") from exc
 
     def _prepare_operations(self, proposal: PatchProposal) -> list[PreparedOperation]:
-        """Validate and render all file updates before writing any file."""
+        """Validate and render all file operations before writing any file.
+
+        B6: Supports 'update', 'create', and 'delete' operations.
+        """
         operations: list[PreparedOperation] = []
         for block in proposal.blocks:
-            if block.operation != "update":
-                raise PatchValidationError("v0.1.3 can apply update blocks only.")
-            if block.search is None or block.replace is None:
-                raise PatchValidationError("Update block requires SEARCH and REPLACE.")
+            op_type = block.operation
+
+            if op_type not in ("update", "create", "delete"):
+                raise PatchValidationError(f"Unknown operation type: {op_type!r}. Supported: update, create, delete.")
 
             try:
                 original_path = self.project_root / block.file_path
                 if original_path.is_symlink():
                     raise PatchValidationError(f"Refusing to apply to symlinked path: {block.file_path}")
-                target_path = self.filesystem.validate(original_path)
-            except PermissionError as exc:
+                # For create, validate parent dir not outside root; file need not exist yet.
+                if op_type == "create":
+                    target_path = original_path.resolve()
+                    # Verify it stays inside project root.
+                    target_path.relative_to(self.project_root)
+                else:
+                    target_path = self.filesystem.validate(original_path)
+            except (PermissionError, ValueError) as exc:
                 raise PatchValidationError(str(exc)) from exc
 
-            try:
-                content = target_path.read_text(encoding="utf-8")
-            except UnicodeDecodeError as exc:
-                raise PatchValidationError(f"Cannot apply text patch to non-UTF-8 file: {block.file_path}") from exc
-            if content.count(block.search) != 1:
-                raise PatchValidationError(
-                    f"SEARCH content must match exactly once in {block.file_path} before apply."
-                )
-
-            updated = content.replace(block.search, block.replace, 1)
-            stat_info = target_path.stat()
-            operations.append(
-                PreparedOperation(
+            if op_type == "update":
+                if block.search is None or block.replace is None:
+                    raise PatchValidationError("Update block requires SEARCH and REPLACE.")
+                try:
+                    content = target_path.read_text(encoding="utf-8")
+                except UnicodeDecodeError as exc:
+                    raise PatchValidationError(f"Cannot apply text patch to non-UTF-8 file: {block.file_path}") from exc
+                if content.count(block.search) != 1:
+                    raise PatchValidationError(
+                        f"SEARCH content must match exactly once in {block.file_path} before apply."
+                    )
+                updated = content.replace(block.search, block.replace, 1)
+                stat_info = target_path.stat()
+                operations.append(PreparedOperation(
                     relative_path=block.file_path,
                     target_path=target_path,
                     original_content=content,
@@ -94,8 +169,43 @@ class PatchApplier:
                     file_mode=stat.S_IMODE(stat_info.st_mode),
                     file_device=stat_info.st_dev if hasattr(stat_info, "st_dev") else None,
                     file_inode=stat_info.st_ino if hasattr(stat_info, "st_ino") else None,
-                )
-            )
+                    operation="update",
+                ))
+
+            elif op_type == "create":
+                # B6: create — content is the new file body; file must not exist yet
+                # (or caller explicitly wants to overwrite — treat as create either way).
+                new_content = block.content or ""
+                target_path.parent.mkdir(parents=True, exist_ok=True)
+                operations.append(PreparedOperation(
+                    relative_path=block.file_path,
+                    target_path=target_path,
+                    original_content="",
+                    updated_content=new_content,
+                    file_mode=0o644,
+                    file_device=None,
+                    file_inode=None,
+                    operation="create",
+                ))
+
+            else:  # delete
+                # B6: delete — remove file; checkpoint (created before apply) holds the backup.
+                try:
+                    content = target_path.read_text(encoding="utf-8")
+                except (OSError, UnicodeDecodeError):
+                    content = ""
+                stat_info = target_path.stat() if target_path.exists() else None
+                operations.append(PreparedOperation(
+                    relative_path=block.file_path,
+                    target_path=target_path,
+                    original_content=content,
+                    updated_content="",
+                    file_mode=stat.S_IMODE(stat_info.st_mode) if stat_info else 0o644,
+                    file_device=stat_info.st_dev if stat_info and hasattr(stat_info, "st_dev") else None,
+                    file_inode=stat_info.st_ino if stat_info and hasattr(stat_info, "st_ino") else None,
+                    operation="delete",
+                ))
+
         return operations
 
     def _atomic_write(self, target_path: Path, content: str, file_mode: int | None = None) -> None:
