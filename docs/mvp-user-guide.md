@@ -360,6 +360,29 @@ sac run --suite build
 `--test-command` overrides still win. Missing tools are reported as SKIP by
 `sac doctor`, not FAIL.
 
+## Exploring a Codebase with Native Tools (v4.20, EXPERIMENTAL)
+
+Starting with v4.20.0, the agent can call four read-only tools directly
+rather than relying on pre-packaged context:
+
+| Tool | What it does |
+|---|---|
+| `read_file` | Read a file by path (up to 400 lines, secrets redacted). |
+| `list_files` | List files/directories under a project path. |
+| `search_files` | Literal substring search across project files. |
+| `grep_files` | Regex search using Python `re`, with optional `case_insensitive`. |
+
+All four tools:
+- Are **auto-approved** — no user prompt needed.
+- **Never write** to any file.
+- **Validate paths** against the project root (root escapes are blocked).
+- **Redact secrets** from all output before the model sees it.
+- Are **audited** as `tool_call_read` events.
+
+The agent can now answer "what does `src/auth/login.py` import?" or
+"where is `handle_request` defined?" in a single turn without you
+having to specify which files to include in context.
+
 ## Machine-readable output
 
 Many commands support `--json`:

@@ -281,3 +281,25 @@ def test_v419_commands_exist_on_typer_apps() -> None:
     memory_help = runner.invoke(app, ["memory", "--help"])
     assert memory_help.exit_code == 0
     assert "size" in memory_help.output
+
+
+def test_v420_native_tools_in_readme() -> None:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    assert "v4.20" in readme, "README must reference v4.20"
+    assert "read_file" in readme or "native tool" in readme.lower(), "README must mention native tools"
+
+
+def test_v420_mvp_guide_native_tools_section() -> None:
+    guide = (ROOT / "docs" / "mvp-user-guide.md").read_text(encoding="utf-8")
+    assert "Native Tools" in guide or "native tool" in guide.lower()
+    assert "read_file" in guide
+    assert "list_files" in guide
+    assert "search_files" in guide
+    assert "grep_files" in guide
+
+
+def test_v420_matrix_has_v420_rows() -> None:
+    matrix = (ROOT / "docs" / "version_implementation_matrix.md").read_text(encoding="utf-8")
+    assert "v4.20.0" in matrix
+    assert "v4.20.1" in matrix
+    assert "v4.20.2" in matrix

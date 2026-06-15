@@ -5,12 +5,13 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v4.19.2
+# Current Baseline - v4.20.2
 
 ## Status
-Implemented. Git baseline: tag `v4.19.2`. Local working version: `v4.19.2`.
-v4.19.x is the local observability polish train: three versions adding read-only
-`sac task stats` and `sac memory size` commands plus a docs cut.
+Implemented. Git baseline: tag `v4.20.2`. Local working version: `v4.20.2`.
+v4.20.x is the native tool protocol train: NativeToolSpec/Call/Result/Dispatcher
+abstractions, four read-only tools (read_file/list_files/search_files/grep_files),
+B4/B5/B17 context budget bug fixes, and a docs cut.
 
 ## Stage
 The v4.14–v4.18 usability trains are complete (14 versions shipped):
@@ -38,6 +39,11 @@ v4.19.x local observability polish train (3 versions):
 - `v4.19.0`: `sac task stats` — read-only per-task iteration/budget/pinned summary
 - `v4.19.1`: `sac memory size` — read-only .sac/ byte/file breakdown by scope
 - `v4.19.2`: docs cut — README, MVP guide, troubleshooting, matrix, guards
+
+v4.20.x native tool protocol train (3 versions):
+- `v4.20.0`: NativeToolSpec/Call/Result, NativeToolDispatcher, AgentNativeToolCallResponse; B4/B5/B17 fixes
+- `v4.20.1`: read_file, list_files, search_files, grep_files — auto-approved, path-validated, redacted
+- `v4.20.2`: docs cut — README, MVP guide, troubleshooting, matrix, guards
 
 All v4 surfaces remain EXPERIMENTAL and carry no stable contract.
 

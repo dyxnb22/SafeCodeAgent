@@ -477,6 +477,39 @@ that validation failure and repair events are still appended in order.
 
 ---
 
+## Native Tool Issues (v4.20, EXPERIMENTAL)
+
+### `read_file` blocked with "outside the project root"
+
+**Cause:** The path resolves outside the project directory (e.g., `../../etc/passwd`).
+
+**Fix:** Use paths relative to the project root. Absolute paths are validated
+against the root boundary.
+
+### `read_file` blocked as sensitive
+
+**Cause:** The file matches a sensitive-path pattern (`.env*`, `*.pem`, `*.key`,
+`id_*`, `*secret*`, `*password*`, etc.) or is in a skipped directory (`.git/`, `.sac/`).
+
+**Fix:** These files are intentionally excluded for security. If you need to inspect
+policy configuration, check `src/safecode/context/collector.py:SENSITIVE_PATTERNS`.
+
+### Large file or truncated results
+
+**Cause:** `read_file` caps at 400 lines; `list_files` caps at 500 entries;
+`search_files` and `grep_files` cap at 100 results.
+
+**Fix:** Use `start_line`/`end_line` parameters on `read_file` for large files.
+Use `path` to narrow the search scope for search/grep tools.
+
+### File tree shown as truncated in context
+
+**Cause:** `context.max_tree_files` cap was reached during context collection (B5 fix).
+The model sees `file_tree_meta.truncated: true` in its context.
+
+**Fix:** The agent can use `list_files` or `search_files` to discover more files
+that did not fit in the initial context pack.
+
 ## Reading Local State
 
 SafeCode stores task sidecars, audit events, memory, and checkpoints under

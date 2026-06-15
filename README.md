@@ -173,6 +173,17 @@ Both commands are read-only and do not call the model, network, or shell. They
 never mutate any file under `.sac/`. JSON output uses the stable `CLIJSONResponse`
 envelope (contract 11).
 
+**Agent Tool Calling (v4.20, EXPERIMENTAL):**
+```bash
+# The agent now calls read-only tools directly instead of packaging context up front.
+# Tool calls are auto-approved, audited as tool_call_read events, and never write files.
+# Available tools: read_file, list_files, search_files, grep_files
+```
+
+The native tool protocol lets the agent explore a codebase on demand: reading files
+by path, listing directories, and searching for patterns — all within the project root,
+with secret redaction applied to every result.
+
 **Debug commands (v4.7, EXPERIMENTAL):**
 ```bash
 sac debug last-failure

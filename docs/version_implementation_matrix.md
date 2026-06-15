@@ -602,6 +602,16 @@ Completed. Plan: `docs/version-plans/v4.19.x-local-observability-polish-roadmap.
 | `v4.19.1` ✅ | `dev/v4.19` | `src/safecode/memory/sizing.py`, `src/safecode/cli_memory.py`, `tests/test_memory_size.py`, `docs/version-notes/v4.19.1-memory-size.md` | Experimental read-only `sac memory size [--json]`: pure Path.stat() walk of .sac/ with named scopes (audit/checkpoints/memory/runtime_logs/tasks/other), temp-file and symlink skipping, Rich Table human output; 12 tests. |
 | `v4.19.2` ✅ | `dev/v4.19` | `README.md`, `docs/mvp-user-guide.md`, `docs/troubleshooting.md`, `docs/version_implementation_matrix.md`, `tests/test_mvp_docs.py`, `.claude/skills/current/SKILL.md`, `.claude/versions.json`, `docs/project-final-status-and-roadmap.md`, `docs/version-notes/v4.19.2-observability-docs.md` | v4.19 docs cut: README observability section; MVP guide "Inspecting Local State" section; troubleshooting "Reading local state" entry; matrix v4.19.x rows; docs guard extensions; SKILL.md/versions.json/final-status updated to v4.19.2. |
 
+## v4.20.x: Native Tool Protocol — Read Side
+
+Completed. Plan: `docs/version-plans/v4.20-to-v5.0-product-roadmap.md` (v4.20.x section).
+
+| Version | Status | Key Files | Summary |
+|---|---|---|---|
+| `v4.20.0` ✅ | `dev/v4.19` | `src/safecode/agent/native_tools.py`, `src/safecode/agent/native_dispatcher.py`, `src/safecode/agent/schemas.py`, `src/safecode/context/budget.py`, `src/safecode/context/collector.py`, `src/safecode/index/files.py`, `tests/test_native_tool_protocol.py`, `docs/version-notes/v4.20.0-native-tool-protocol.md` | Native tool wire format (NativeToolSpec/Call/Result + NativeToolDispatcher). AgentNativeToolCallResponse added to schema union. B4 fix: TOKEN_CHAR_RATIO 4→3.5, _CODE_TOKEN_CHAR_RATIO=3.2. B5 fix: _list_files() returns truncated flag; collect() emits file_tree_meta. B17 fix: pack() skips string/list sources when budget exhausted. 28 tests. |
+| `v4.20.1` ✅ | `dev/v4.19` | `src/safecode/agent/read_tools.py`, `tests/test_read_tools.py`, `docs/version-notes/v4.20.1-read-tools.md` | Four read-only native tools: read_file (400-line cap, redacted, sensitive/binary blocked), list_files (500-entry cap, SKIP_DIRS respected, recursive option), search_files (literal substring, 100-result cap, include_glob), grep_files (regex via re, case_insensitive option). All auto-approved, audited as tool_call_read, path-validated. register_read_tools() wires all four. 24 tests. |
+| `v4.20.2` ✅ | `dev/v4.19` | `README.md`, `docs/mvp-user-guide.md`, `docs/troubleshooting.md`, `docs/version_implementation_matrix.md`, `tests/test_mvp_docs.py`, `.claude/skills/current/SKILL.md`, `.claude/versions.json`, `docs/version-notes/v4.20.2-read-tools-docs.md` | v4.20 docs cut: README native tool calling section; MVP guide "Exploring a Codebase with Native Tools"; troubleshooting for root-escape, sensitive-path, truncation, and file-tree-cap entries; matrix v4.20.x rows; docs guard tests. |
+
 ## v4.2.x: Project Command Profile
 
 | 版本 | 分支 | 主要入口 | 验收命令 / 结果 |
