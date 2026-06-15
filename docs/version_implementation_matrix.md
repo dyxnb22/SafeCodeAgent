@@ -676,6 +676,12 @@ Completed. Plan: `docs/version-plans/v4.20-to-v5.0-product-roadmap.md` (v4.25.x 
 | `v5.1.1` ✅ | `dev/v4.19` | `src/safecode/agent/command_tool.py`, `src/safecode/agent/loop.py`, `src/safecode/cli_shell.py`, `tests/test_full_auto_mode.py`, `tests/test_cli_shell.py` | Full-auto mode: `--full-auto` flag for `sac shell` (implies --agentic); `AgentLoop(full_auto=True)` registers write tools with `approved=True` and command tool with preview+delay; `--command-delay-ms` (0–2000, default 500) grace period before run_command executes; Ctrl-C during delay returns status=blocked; high-risk commands still blocked via ShellRunner policy; `run_command` prints "→ run_command <cmd>" preview and "✓ exit N (Xs)" after; cannot be persisted (session-scoped). 5203 passed, 4 skipped. |
 | `v5.1.2` ✅ | `dev/v4.19` | `README.md`, `docs/mvp-user-guide.md`, `docs/troubleshooting.md`, `docs/security/threat-model-v3.6.md`, `tests/test_mvp_docs.py` | Trust modes docs cut: README "Trust Modes (v5.1)" section with mode comparison table; MVP guide "Trust Modes" section with auto-edit walkthrough, full-auto CI example, and session rollback; troubleshooting "Trust Mode Issues" section covering undo-all, file count guard, full-auto unexpected command, Ctrl-C abort, and command-delay-ms; threat model v5.1.0 addendum (trust-mode surface table, mitigations, what does NOT change); 5 doc guard tests. 5208 passed, 4 skipped. |
 
+## v5.2.x: Display Polish
+
+| 版本 | 分支 | 主要入口 | 验收命令 / 结果 |
+|---|---|---|---|
+| `v5.2.0` ✅ | `dev/v4.19` | `src/safecode/agent/session.py`, `src/safecode/agent/loop.py`, `src/safecode/llm/factory.py`, `src/safecode/cli_shell.py`, `tests/test_session_cost.py`, `tests/test_cli_shell.py`, `tests/test_full_auto_mode.py` | Per-session cost tracking: `AgentSessionState` gains `cost_tokens_in`, `cost_tokens_out`, `cost_cache_read` (additive). `AgentLoop` generates stable `_cost_session_id`; `create_llm_client()` wires `sac_dir` to `OpenAICompatibleLLMClient`/`AnthropicLLMClient` for cost accumulation; `AgentLoop.session_cost()` reads accumulated cost. `_format_cost()` helper formats tokens/USD. `/cost` slash command reads all session cost files. Session end summary includes cost estimate. Agentic shell `--json` output includes `cost` field. `_shell_prompt()` signature updated to accept optional cost string. 5223 passed, 4 skipped. |
+
 ## v4.2.x: Project Command Profile
 
 | 版本 | 分支 | 主要入口 | 验收命令 / 结果 |

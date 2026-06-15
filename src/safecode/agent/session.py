@@ -28,6 +28,10 @@ class AgentSessionState(BaseModel):
     created_at: str
     updated_at: str
     schema_version: int = Field(default=1)
+    # v5.2.0: accumulated token counts for this session (additive, backward compat)
+    cost_tokens_in: int = 0
+    cost_tokens_out: int = 0
+    cost_cache_read: int = 0
 
 
 class AgentSessionStore:

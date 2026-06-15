@@ -47,6 +47,7 @@ Slash commands:
   /undo             roll back the most recent write-tool checkpoint
   /history          show recent shell turns for the current session
   /tools            list available native tools (v4.20+)
+  /cost             show session token and cost estimate (v5.2+)
   /help             show this help
   /exit             exit the shell
 
@@ -58,14 +59,16 @@ Mutation actions (apply, commit) always require explicit confirmation.
 _SHELL_PROMPT = "sac> "
 
 
-def _shell_prompt(turn: int) -> str:
-    """Return shell prompt with turn counter: sac[N]> (B10/v4.22.1)."""
+def _shell_prompt(turn: int, cost_str: str = "") -> str:
+    """Return shell prompt with turn counter and optional cost: sac[N · ~$0.03]>"""
+    if cost_str:
+        return f"sac[{turn} · {cost_str}]> "
     return f"sac[{turn}]> "
 
 _SLASH_COMMANDS = [
     "/status", "/task", "/overview", "/model", "/provider",
     "/apply", "/commit", "/debug", "/clear", "/undo", "/history", "/tools",
-    "/help", "/exit", "/quit",
+    "/cost", "/help", "/exit", "/quit",
 ]
 
 
@@ -150,6 +153,66 @@ def _read_line(*, is_tty: bool, turn: int = 0) -> str | None:
             print("\n[exiting shell]")
             return None
         return line.rstrip("\n")
+
+
+def _format_cost(tokens_in: int, tokens_out: int, cache_read: int = 0) -> str:
+    """Format token counts as a compact display string for shell prompt or /cost."""
+    # Rough pricing: input ~$3/Mtok, output ~$15/Mtok, cache read ~$0.30/Mtok
+    cost_usd = (tokens_in / 1_000_000) * 3.0 + (tokens_out / 1_000_000) * 15.0 + (cache_read / 1_000_000) * 0.30
+    if cost_usd >= 0.01:
+        return f"~${cost_usd:.2f}"
+    if cost_usd > 0:
+        return f"~${cost_usd:.3f}"
+    return ""
+
+
+def _slash_cost(project_root: Path) -> str:
+    """Return session cost estimate (v5.2.0)."""
+    try:
+        from safecode.config import SafeCodeConfig
+        from safecode.llm.cost import SessionCostAccumulator
+
+        config = SafeCodeConfig.load(project_root)
+        sac_dir = project_root / config.sac_dir
+        provider = config.llm.provider
+        model = config.llm.model
+
+        if provider == "mock":
+            return "Session cost estimate\n─────────────────────\nProvider: mock (cost tracking disabled)"
+
+        # Sum all known session cost files
+        sessions_dir = sac_dir / "sessions"
+        total_in = total_out = total_cache = 0
+        if sessions_dir.exists():
+            for cost_file in sessions_dir.glob("*/cost.json"):
+                try:
+                    session_id = cost_file.parent.name
+                    usage = SessionCostAccumulator(sac_dir, session_id).load()
+                    if usage:
+                        total_in += usage.prompt_tokens
+                        total_out += usage.completion_tokens
+                        total_cache += usage.cache_read_tokens
+                except Exception:
+                    pass
+
+        if total_in == 0 and total_out == 0:
+            return "Session cost estimate\n─────────────────────\nNo token usage recorded yet."
+
+        cost_str = _format_cost(total_in, total_out, total_cache)
+        lines = [
+            "Session cost estimate",
+            "─────────────────────",
+            f"Input tokens:   {total_in:>8,}",
+            f"Output tokens:  {total_out:>8,}",
+        ]
+        if total_cache:
+            lines.append(f"Cache reads:    {total_cache:>8,}   (cheaper rate)")
+        if cost_str:
+            lines.append(f"Estimated cost: {cost_str}")
+        lines.append(f"Provider: {provider} · {model}")
+        return "\n".join(lines)
+    except Exception as exc:
+        return f"Cost estimate unavailable: {exc}"
 
 
 def _slash_status(project_root: Path) -> str:
@@ -472,6 +535,9 @@ def _handle_slash_command(
 
     if name == "/status":
         return _slash_status(project_root), "status", False
+
+    if name == "/cost":
+        return _slash_cost(project_root), "cost", False
 
     if name == "/task":
         return _slash_task(project_root), "task", False
@@ -822,6 +888,19 @@ def _run_agentic_shell(
             data["files_edited_summary"] = files_edited
         if last_typed is not None:
             data["last_typed_result"] = last_typed.model_dump()
+        session_cost_json = loop.session_cost()
+        if session_cost_json:
+            data["cost"] = {
+                "input_tokens": session_cost_json.prompt_tokens,
+                "output_tokens": session_cost_json.completion_tokens,
+                "cache_read_tokens": session_cost_json.cache_read_tokens,
+                "estimated_usd": round(
+                    (session_cost_json.prompt_tokens / 1_000_000) * 3.0
+                    + (session_cost_json.completion_tokens / 1_000_000) * 15.0
+                    + (session_cost_json.cache_read_tokens / 1_000_000) * 0.30,
+                    4,
+                ),
+            }
         print(render_json(CLIJSONResponse(command="shell --agentic", status=status, data=data)))
         return 0
 
@@ -833,6 +912,7 @@ def _run_agentic_shell(
             print(line_out)
 
     # Session summary (v5.1.0+: always show in auto-edit/full-auto mode)
+    # v5.2.0: include cost estimate
     summary_parts = [
         f"Session: {result.state.session_id}",
         f"Status: {result.state.status}",
@@ -841,6 +921,15 @@ def _run_agentic_shell(
     if (auto_edit or full_auto) and loop._native_write_count:
         summary_parts.append(f"Files edited: {loop._native_write_count}")
         summary_parts.append(f"Undo all: sac rollback --session {result.state.session_id}")
+
+    session_cost = loop.session_cost()
+    if session_cost and (session_cost.prompt_tokens or session_cost.completion_tokens):
+        cost_str = _format_cost(session_cost.prompt_tokens, session_cost.completion_tokens, session_cost.cache_read_tokens)
+        tokens_k_in = session_cost.prompt_tokens // 1000
+        tokens_k_out = session_cost.completion_tokens // 1000
+        cost_display = f"Cost: {cost_str} ({tokens_k_in}k in / {tokens_k_out}k out)" if cost_str else f"Tokens: {tokens_k_in}k in / {tokens_k_out}k out"
+        summary_parts.append(cost_display)
+
     summary = " | ".join(summary_parts)
     if is_tty:
         console.print(f"[dim]{summary}[/dim]")

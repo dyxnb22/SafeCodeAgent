@@ -8,9 +8,14 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
+from typing import TYPE_CHECKING
+
 from safecode.agent.native_dispatcher import NativeToolDispatcher
 from safecode.agent.native_tools import NativeToolCall
 from safecode.agent.multi_tool_turn import MultiToolTurnResult, MultiToolTurnRunner
+
+if TYPE_CHECKING:
+    from safecode.llm.cost import TokenUsage
 from safecode.agent.orchestrator import AgentOrchestrator
 from safecode.agent.pending_action import PatchPendingAction, StopForUserAction, ToolPendingAction
 from safecode.agent.schemas import AgentNativeToolCallResponse, AgentStopForUserResponse, AgentToolIntentResponse, RecoverableContractFailure
@@ -78,10 +83,23 @@ class AgentLoop:
         full_auto: bool = False,
         command_delay_ms: int = 500,
     ) -> None:
+        from uuid import uuid4
+        from safecode.llm.cost import SessionCostAccumulator
+
         self.project_root = project_root
         self.config = SafeCodeConfig.load(project_root)
         self.context_collector = ContextCollector(project_root, self.config)
-        self.llm_client = llm_client if llm_client is not None else create_llm_client(self.config)
+        self._sac_dir = project_root / self.config.sac_dir
+        self._cost_session_id = uuid4().hex  # v5.2.0: stable ID for cost accumulator
+        if llm_client is not None:
+            self.llm_client = llm_client
+        else:
+            self.llm_client = create_llm_client(
+                self.config,
+                session_id=self._cost_session_id,
+                sac_dir=self._sac_dir,
+            )
+        self._cost_accumulator = SessionCostAccumulator(self._sac_dir, self._cost_session_id)
         self.store = AgentSessionStore(project_root)
         self.journal = AgentJournalStore(project_root)
         self._last_tool_intent_identity: tuple[str, str, str, str] | None = None
@@ -93,6 +111,13 @@ class AgentLoop:
         self.full_auto = full_auto  # v5.1.1: also auto-approve run_command (policy gates still apply)
         self.command_delay_ms = command_delay_ms  # v5.1.1: grace period before run_command in full-auto
         self._native_write_count = 0  # v5.1.0: per-session write count for file count guard
+
+    def session_cost(self) -> "TokenUsage | None":
+        """Return accumulated token usage for this session, or None if no data."""
+        try:
+            return self._cost_accumulator.load()
+        except Exception:
+            return None
 
     @property
     def last_typed_result(self) -> TypedAgentStepResult | None:

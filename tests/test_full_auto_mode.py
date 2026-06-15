@@ -197,6 +197,9 @@ class TestFullAutoCLIFlags:
                 captured["command_delay_ms"] = command_delay_ms
                 self._native_write_count = 0
 
+            def session_cost(self):
+                return None
+
             def run(self, goal, max_steps=8, *, on_step=None):
                 state = AgentSessionState(
                     session_id="fa-sess",
@@ -242,6 +245,9 @@ class TestFullAutoCLIFlags:
                          full_auto=False, command_delay_ms=500):
                 captured["command_delay_ms"] = command_delay_ms
                 self._native_write_count = 0
+
+            def session_cost(self):
+                return None
 
             def run(self, goal, max_steps=8, *, on_step=None):
                 state = AgentSessionState(
