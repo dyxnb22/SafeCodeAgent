@@ -195,6 +195,26 @@ Every `edit_file` and `write_file` call creates a checkpoint *before* the mutati
 the agent can make many edits and you can roll back any of them with `sac rollback --last`.
 `run_command` passes through the same policy engine as `sac run`.
 
+**GitHub tools (v4.24, EXPERIMENTAL):**
+
+```bash
+# Read tools (auto-approved, require network: true)
+sac shell
+sac> github_read_issue owner=acme repo=myapp issue=42
+sac> github_read_pr    owner=acme repo=myapp pr=7
+sac> github_read_file  owner=acme repo=myapp path=README.md ref=main
+sac> web_fetch         url=https://docs.example.com/api
+
+# Write tools (approval-gated, require network: true)
+sac> github_create_pr  title="My PR" body="Fixes #42" base=main
+sac> github_push_branch branch=dev/feature-x
+```
+
+Read tools use `gh` CLI with `shell=False` (no injection surface). Write tools
+(`github_create_pr`, `github_push_branch`) are approval-gated — they pause
+and show the command before executing. Auth via `GITHUB_TOKEN` env or
+`gh auth status`. `web_fetch` strips scripts/style and caps at 50 KB.
+
 **Anthropic / Claude as first-class provider (v4.23, EXPERIMENTAL):**
 
 SafeCode now speaks the Anthropic native tool-use wire format. When using the

@@ -5,12 +5,12 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v4.23.2
+# Current Baseline - v4.24.2
 
 ## Status
-Implemented. Git baseline: tag `v4.23.2`. Local working version: `v4.23.2`.
-v4.23.x is the Anthropic/Claude first-class provider train: native tool use,
-B1/B2/B3/B12/B16 fixes, OpenAI function calling, and a docs cut.
+Implemented. Git baseline: tag `v4.24.2`. Local working version: `v4.24.2`.
+v4.24.x is the Web + GitHub integration train: web_fetch, GitHub read/write tools,
+and a docs cut.
 
 ## Stage
 The v4.14–v4.18 usability trains are complete (14 versions shipped):
@@ -58,6 +58,11 @@ v4.23.x Anthropic/Claude first-class provider train (3 versions):
 - `v4.23.0`: AnthropicLLMClient.choose_tool_native(); _native_spec_to_anthropic(); _extract_native_result(); B2 content validation; B3 StreamTimeoutError 30s; B16 Doctor._live_anthropic_ping()
 - `v4.23.1`: OpenAICompatibleLLMClient.choose_tool_native(); _native_spec_to_openai(); B1 choices[] bounds check; B12 _sanitize_retry_reason() URL/secret stripping
 - `v4.23.2`: docs cut — README provider table, MVP guide "First-run with Claude", threat model addendum, matrix rows, guards
+
+v4.24.x Web + GitHub integration train (3 versions):
+- `v4.24.0`: web_fetch — HTTP GET, text/HTML only, _strip_html(), _MaxRedirectHandler(3), 50KB cap, requires network: true, URL not in errors
+- `v4.24.1`: github_read_issue/read_pr/read_file — gh CLI shell=False; _validate_gh_name(); path traversal blocked; base64 decode for read_file
+- `v4.24.2`: github_create_pr/github_push_branch — approval-gated; _validate_branch(); force=True explicit; docs cut: README, MVP guide, matrix rows, guards
 
 All v4 surfaces remain EXPERIMENTAL and carry no stable contract.
 

@@ -363,3 +363,22 @@ def test_v423_matrix_has_v423_rows() -> None:
     assert "v4.23.0" in matrix
     assert "v4.23.1" in matrix
     assert "v4.23.2" in matrix
+
+
+def test_v424_github_tools_in_readme() -> None:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    assert "v4.24" in readme
+    assert "github" in readme.lower()
+
+
+def test_v424_mvp_guide_pr_section() -> None:
+    guide = (ROOT / "docs" / "mvp-user-guide.md").read_text(encoding="utf-8")
+    assert "Open PR" in guide or "open PR" in guide.lower() or "local edits" in guide.lower()
+    assert "github_create_pr" in guide
+
+
+def test_v424_matrix_has_v424_rows() -> None:
+    matrix = (ROOT / "docs" / "version_implementation_matrix.md").read_text(encoding="utf-8")
+    assert "v4.24.0" in matrix
+    assert "v4.24.1" in matrix
+    assert "v4.24.2" in matrix

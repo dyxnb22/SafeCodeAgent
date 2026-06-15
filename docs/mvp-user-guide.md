@@ -53,6 +53,45 @@ sac doctor
 Expected result: `sac doctor` prints a table with Python, project root, config,
 and command checks.
 
+## From Local Edits to Open PR (v4.24, EXPERIMENTAL)
+
+Starting with v4.24, the agent can fetch web pages, read GitHub issues/PRs/files,
+and open pull requests — all within a single shell session.
+
+**Quick start (requires network: true and `gh` auth):**
+
+```bash
+export GITHUB_TOKEN=ghp_...
+sac provider add anthropic --model claude-sonnet-4-6 --network
+sac shell
+```
+
+**Typical workflow:**
+
+```
+sac[0]> Read issue #42 in acme/myapp and fix the bug described there.
+# Agent calls: github_read_issue → read_file → edit_file (approval) → github_create_pr (approval)
+sac[0]> github_push_branch branch=dev/fix-issue-42
+```
+
+**Tool overview:**
+
+| Tool | Approval? | Network? | Notes |
+|---|---|---|---|
+| `web_fetch` | No | Yes | text/HTML only, 50 KB cap, scripts stripped |
+| `github_read_issue` | No | Yes | via `gh issue view` |
+| `github_read_pr` | No | Yes | via `gh pr view` |
+| `github_read_file` | No | Yes | via `gh api repos/.../contents/...` |
+| `github_create_pr` | **Yes** | Yes | via `gh pr create`; pauses for confirmation |
+| `github_push_branch` | **Yes** | Yes | via `git push -u origin`; pauses for confirmation |
+
+**Safety notes:**
+- Write tools always pause for user confirmation before executing.
+- `owner`/`repo`/`branch` inputs are validated against safe patterns; shell metacharacters rejected.
+- All subprocess calls use `shell=False`; no injection surface.
+- `force=true` in `github_push_branch` must be explicitly set; it is not defaulted.
+- All tool outputs are redacted and capped before entering model context.
+
 ## First-Run with Claude (v4.23, EXPERIMENTAL)
 
 Starting with v4.23.0, SafeCode uses the Anthropic native tool-use API when

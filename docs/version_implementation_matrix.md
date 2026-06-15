@@ -642,6 +642,16 @@ Completed. Plan: `docs/version-plans/v4.20-to-v5.0-product-roadmap.md` (v4.23.x 
 | `v4.23.1` ✅ | `dev/v4.19` | `src/safecode/llm/openai_client.py`, `src/safecode/llm/retry.py`, `tests/test_openai_native_tool_use.py`, `docs/version-notes/v4.23.1-openai-native-tool-use.md` | B1 fix: _chat() bounds-checks choices[] before indexing; empty/missing choices → "" → RecoverableContractFailure from validate_provider_json. B12 fix: _sanitize_retry_reason() strips https?:// URLs → [URL] and applies redact_secrets(); applied to all retry_call log_fn calls. OpenAICompatibleLLMClient.choose_tool_native(): sends tools (function calling format); maps tool_calls to AgentNativeToolCallResponse; DeepSeek inherits via compat path. 14 tests. Full suite 5057 passed. |
 | `v4.23.2` ✅ | `dev/v4.19` | `README.md`, `docs/mvp-user-guide.md`, `docs/security/threat-model-v3.6.md`, `docs/version_implementation_matrix.md`, `tests/test_mvp_docs.py`, `.claude/skills/current/SKILL.md`, `.claude/versions.json`, `docs/version-notes/v4.23.2-provider-docs.md` | v4.23 docs cut: README provider table with anthropic first-class; MVP guide "First-run with Claude" section; threat model v4.23 native tool-use surface addendum; matrix rows; doc guard tests. |
 
+## v4.24.x: Web + GitHub Integration
+
+Completed. Plan: `docs/version-plans/v4.20-to-v5.0-product-roadmap.md` (v4.24.x section).
+
+| 版本 | 分支 | 主要入口 | 验收命令 / 结果 |
+|---|---|---|---|
+| `v4.24.0` ✅ | `dev/v4.19` | `src/safecode/agent/web_fetch_tool.py`, `tests/test_web_fetch_tool.py`, `docs/version-notes/v4.24.0-web-fetch-tool.md` | web_fetch: HTTP GET text/HTML only; _MaxRedirectHandler (max 3); _strip_html() removes script/style; requires network: true (blocked by default); only http/https; binary content type → blocked; output capped at max_bytes (50 KB default); URL never in error messages; redact_secrets(). 16 tests. Full suite 5076 passed. |
+| `v4.24.1` ✅ | `dev/v4.19` | `src/safecode/agent/github_read_tools.py`, `tests/test_github_read_tools.py`, `docs/version-notes/v4.24.1-github-read-tools.md` | github_read_issue/github_read_pr via gh CLI JSON output; github_read_file via gh api + base64 decode; _validate_gh_name() blocks shell metacharacters; shell=False always; path traversal blocked in read_file; requires network: true; redact_secrets(). 19 tests. |
+| `v4.24.2` ✅ | `dev/v4.19` | `src/safecode/agent/github_write_tools.py`, `tests/test_github_write_tools.py`, `README.md`, `docs/mvp-user-guide.md`, `docs/version_implementation_matrix.md`, `tests/test_mvp_docs.py`, `.claude/skills/current/SKILL.md`, `.claude/versions.json`, `docs/version-notes/v4.24.2-github-write-and-docs.md` | github_create_pr (approval-gated, gh pr create) and github_push_branch (approval-gated, git push; force requires explicit flag); _validate_branch(); shell=False; docs cut: README GitHub tools section, MVP guide "From local edits to open PR"; matrix rows; doc guard tests. 21 tests. |
+
 ## v4.2.x: Project Command Profile
 
 | 版本 | 分支 | 主要入口 | 验收命令 / 结果 |
