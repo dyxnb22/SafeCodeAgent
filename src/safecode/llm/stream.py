@@ -27,6 +27,10 @@ class StreamError(RuntimeError):
     """Raised when a stream fails in a non-recoverable way."""
 
 
+class StreamTimeoutError(StreamError):
+    """Raised when no chunk arrives within the per-chunk timeout (v4.23, B3 fix)."""
+
+
 def aggregate_chunks(chunks: Iterator[StreamChunk]) -> StreamResult:
     """Collect all chunks into a StreamResult. Exhausts the iterator."""
     parts: list[str] = []

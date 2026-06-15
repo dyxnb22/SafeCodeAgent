@@ -121,6 +121,55 @@ class Doctor:
                 hints=(f"Next: verify network access to {base_url}",),
             )
 
+    @staticmethod
+    def _live_anthropic_ping(api_key: str, *, timeout: int = 5) -> Diagnostic:
+        """Check Anthropic API connectivity using the configured key (v4.23, B16 fix).
+
+        Performs GET /v1/models with the API key — a lightweight authenticated check.
+        The key is only sent in the header; never appears in diagnostic messages.
+        """
+        if os.getenv("SAFECODE_DOCTOR_UPDATE_CHECK") == "0":
+            return Diagnostic(
+                name="anthropic_connectivity",
+                status=DiagnosticStatus.SKIP,
+                message="offline mode (SAFECODE_DOCTOR_UPDATE_CHECK=0)",
+            )
+        if not api_key:
+            return Diagnostic(
+                name="anthropic_connectivity",
+                status=DiagnosticStatus.SKIP,
+                message="no ANTHROPIC_API_KEY configured",
+            )
+        try:
+            from urllib.request import Request, urlopen
+            req = Request(
+                "https://api.anthropic.com/v1/models",
+                method="GET",
+            )
+            req.add_header("x-api-key", api_key)
+            req.add_header("anthropic-version", "2023-06-01")
+            req.add_header("User-Agent", "SafeCode-Doctor-LiveCheck/1.0")
+            with urlopen(req, timeout=timeout) as resp:
+                status = resp.status
+                if 100 <= status < 500:
+                    return Diagnostic(
+                        name="anthropic_connectivity",
+                        status=DiagnosticStatus.PASS,
+                        message=f"Anthropic API reachable (HTTP {status})",
+                    )
+                return Diagnostic(
+                    name="anthropic_connectivity",
+                    status=DiagnosticStatus.FAIL,
+                    message=f"Anthropic API unreachable (HTTP {status})",
+                )
+        except Exception as exc:
+            return Diagnostic(
+                name="anthropic_connectivity",
+                status=DiagnosticStatus.FAIL,
+                message=f"Anthropic API unreachable ({type(exc).__name__})",
+                hints=("Next: verify ANTHROPIC_API_KEY is valid and network is reachable",),
+            )
+
     def run_diagnostics(self, *, release: bool = False, live: bool = False) -> list[Diagnostic]:
         """Return typed diagnostics (v2.8.x substrate).
 
@@ -184,6 +233,14 @@ class Doctor:
             config = SafeCodeConfig.load(self.project_root)
             base_url = config.llm.base_url
             diagnostics.append(self._live_provider_ping(base_url))
+            # B16 fix: Anthropic-specific connectivity check with auth
+            if getattr(config.llm, "provider", None) == "anthropic":
+                api_key = (
+                    os.getenv("ANTHROPIC_API_KEY")
+                    or os.getenv("SAFECODE_LLM_API_KEY")
+                    or getattr(config.llm, "api_key", "") or ""
+                )
+                diagnostics.append(self._live_anthropic_ping(api_key))
         if release:
             diagnostics.extend(self.run_release_diagnostics())
         return diagnostics

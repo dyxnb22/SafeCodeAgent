@@ -3,24 +3,25 @@
 Implements the same high-level contract as OpenAICompatibleLLMClient,
 reusing retry, cost, and streaming infrastructure.
 
+v4.23.0: native tool use via Anthropic `tools` parameter; B2/B3/B16 fixes.
 Provider behavior is experimental — not promoted to a public stable contract.
-Prompt caching metadata is recorded when present in the response but caching
-configuration (cache_control headers) is deferred until it can be fully tested.
 """
 
 from __future__ import annotations
 
 import json
 import os
+import socket
 import urllib.error
 import urllib.request
 import warnings
 from pathlib import Path
-from typing import Callable, Iterator
+from typing import TYPE_CHECKING, Any, Callable, Iterator
 
 from safecode.agent.schemas import (
     AgentAnswer,
     AgentError,
+    AgentNativeToolCallResponse,
     AgentPatchResponse,
     AgentPlanResponse,
     AgentStopForUserResponse,
@@ -32,15 +33,99 @@ from safecode.agent.prompts import SYSTEM_PROMPT
 from safecode.config import SafeCodeConfig
 from safecode.llm.cost import SessionCostAccumulator, TokenUsage
 from safecode.llm.retry import retry_call
-from safecode.llm.stream import StreamChunk, StreamError, parse_sse_stream
+from safecode.llm.stream import StreamChunk, StreamError, StreamTimeoutError, parse_sse_stream
 from safecode.sandbox.network import NetworkPolicy
+
+if TYPE_CHECKING:
+    from safecode.agent.native_tools import NativeToolSpec
 
 _ANTHROPIC_API_VERSION = "2023-06-01"
 _DEFAULT_MAX_TOKENS = 4096
+_STREAM_CHUNK_TIMEOUT = 30  # seconds; B3 fix
 
 
 def _log_retry(attempt: int, reason: str) -> None:
     warnings.warn(f"Anthropic LLM retry attempt {attempt}: {reason}", RuntimeWarning, stacklevel=4)
+
+
+def _native_spec_to_anthropic(spec: "NativeToolSpec") -> dict[str, Any]:
+    """Convert a NativeToolSpec to the Anthropic tools parameter format."""
+    schema = dict(spec.input_schema)
+    if "type" not in schema:
+        schema["type"] = "object"
+    return {
+        "name": spec.name,
+        "description": spec.description,
+        "input_schema": schema,
+    }
+
+
+def _extract_text(data: dict) -> str:
+    """Extract text from Anthropic Messages API response.
+
+    B2 fix: validate content blocks exist before indexing; return empty string
+    rather than crashing when the response has no text blocks.
+    """
+    content = data.get("content")
+    # B2: validate non-empty list before access
+    if not content or not isinstance(content, list):
+        return ""
+    parts = [
+        block.get("text", "")
+        for block in content
+        if isinstance(block, dict) and block.get("type") == "text"
+    ]
+    return "".join(parts)
+
+
+def _extract_native_result(
+    data: dict,
+    *,
+    step: int,
+    method: str,
+) -> list[AgentNativeToolCallResponse] | str | RecoverableContractFailure:
+    """Extract tool_use or text blocks from Anthropic response.
+
+    Returns:
+      - list[AgentNativeToolCallResponse] when tool_use blocks are present
+      - str (text content) when only text blocks are present
+      - RecoverableContractFailure when content is missing or malformed (B2 fix)
+    """
+    content = data.get("content")
+    # B2 fix: fail gracefully on empty/missing content
+    if not content or not isinstance(content, list):
+        return RecoverableContractFailure(
+            step=step,
+            method=method,
+            message="Empty or missing content blocks in Anthropic response",
+        )
+
+    tool_calls: list[AgentNativeToolCallResponse] = []
+    text_parts: list[str] = []
+    for block in content:
+        if not isinstance(block, dict):
+            continue
+        block_type = block.get("type")
+        if block_type == "tool_use":
+            raw_input = block.get("input")
+            tool_calls.append(AgentNativeToolCallResponse(
+                tool_name=block.get("name", ""),
+                input=raw_input if isinstance(raw_input, dict) else {},
+                call_id=block.get("id", ""),
+            ))
+        elif block_type == "text":
+            text_parts.append(block.get("text", ""))
+
+    if tool_calls:
+        return tool_calls
+    text = "".join(text_parts).strip()
+    if text:
+        return text
+    return RecoverableContractFailure(
+        step=step,
+        method=method,
+        message="No tool_use or text blocks in Anthropic response",
+    )
 
 
 class AnthropicLLMClient:
@@ -48,6 +133,8 @@ class AnthropicLLMClient:
 
     Implements the same four-method contract as ``OpenAICompatibleLLMClient``
     so it is a drop-in provider alternative for the orchestrator and agent loop.
+
+    v4.23.0 additions: native tool use via ``choose_tool_native()``.
 
     The default base URL is ``https://api.anthropic.com/v1/messages``.
     Override via ``config.llm.base_url`` for testing or proxy use.
@@ -109,6 +196,39 @@ class AnthropicLLMClient:
         if not isinstance(response, (AgentToolIntentResponse, AgentStopForUserResponse)):
             raise ValueError(f"Expected tool_intent or stop_for_user response, got {response.type}.")
         return response
+
+    def choose_tool_native(
+        self,
+        goal: str,
+        context: dict,
+        tool_specs: list["NativeToolSpec"],
+        *,
+        step: int = 0,
+    ) -> list[AgentNativeToolCallResponse] | AgentStopForUserResponse | RecoverableContractFailure:
+        """Call Anthropic with native tool use; return tool calls or stop (v4.23.0, EXPERIMENTAL).
+
+        Sends ``tool_specs`` as the Anthropic ``tools`` parameter. When the model
+        responds with ``tool_use`` blocks, maps them to ``AgentNativeToolCallResponse``.
+        When the model responds with text, parses it as a stop_for_user fallback.
+        """
+        tools = [_native_spec_to_anthropic(spec) for spec in tool_specs]
+        data = self._messages_with_tools(
+            system=SYSTEM_PROMPT,
+            user=f"Goal: {goal}\nContext: {json.dumps(context)[:12000]}",
+            tools=tools,
+        )
+        result = _extract_native_result(data, step=step, method="choose_tool_native")
+        if isinstance(result, RecoverableContractFailure):
+            return result
+        if isinstance(result, list):
+            return result
+        # Text fallback: try to parse as stop_for_user; on non-JSON, wrap as one
+        parsed = validate_provider_json(result, step=step, method="choose_tool_native")
+        if isinstance(parsed, AgentStopForUserResponse):
+            return parsed
+        # Non-JSON text or unrecognized type → wrap as stop_for_user so the loop
+        # can surface it to the user rather than silently dropping it.
+        return AgentStopForUserResponse(reason="done", message=result, requires_approval=False)
 
     def propose_patch(self, task: str, context: dict) -> AgentPatchResponse:
         """Return patch text, leaving parsing and validation to SafeCode."""
@@ -223,6 +343,50 @@ class AnthropicLLMClient:
         self._record_usage(data)
         return _extract_text(data)
 
+    def _messages_with_tools(self, *, system: str, user: str, tools: list[dict]) -> dict:
+        """Call Anthropic Messages API with native tool definitions; return raw response dict."""
+        payload = json.dumps({
+            "model": self.model,
+            "max_tokens": _DEFAULT_MAX_TOKENS,
+            "system": system,
+            "tools": tools,
+            "messages": [{"role": "user", "content": user}],
+        }).encode("utf-8")
+        request = urllib.request.Request(
+            self.base_url,
+            data=payload,
+            headers={
+                "x-api-key": self.api_key,
+                "anthropic-version": _ANTHROPIC_API_VERSION,
+                "Content-Type": "application/json",
+            },
+            method="POST",
+        )
+        _last_http_error: list[urllib.error.HTTPError] = []
+
+        def _do_request() -> dict:
+            _last_http_error.clear()
+            try:
+                with urllib.request.urlopen(request, timeout=60) as response:
+                    return json.loads(response.read().decode("utf-8"))
+            except urllib.error.HTTPError as exc:
+                _last_http_error.append(exc)
+                raise
+
+        def _get_retry_after() -> float | None:
+            if _last_http_error:
+                from safecode.llm.retry import _parse_retry_after
+                header = _last_http_error[-1].headers.get("Retry-After", "")
+                return _parse_retry_after(header) if header else None
+            return None
+
+        try:
+            data = retry_call(_do_request, log_fn=_log_retry, get_retry_after=_get_retry_after)
+        except urllib.error.URLError as exc:
+            raise RuntimeError(f"Anthropic request failed: {exc}") from exc
+        self._record_usage(data)
+        return data
+
     def _record_usage(self, data: dict) -> None:
         if self._session_id is None or self._sac_dir is None:
             return
@@ -243,7 +407,11 @@ class AnthropicLLMClient:
             pass
 
     def _http_stream_lines_anthropic(self, messages: list[dict[str, str]]) -> Iterator[str]:
-        """Open an Anthropic SSE stream and yield raw text lines."""
+        """Open an Anthropic SSE stream and yield raw text lines.
+
+        B3 fix: per-chunk timeout of 30 seconds. If no data arrives within
+        30s, raises StreamTimeoutError (recoverable in the agent loop).
+        """
         user_content = " ".join(
             m.get("content", "") for m in messages if m.get("role") == "user"
         ) or "assist"
@@ -264,24 +432,16 @@ class AnthropicLLMClient:
             method="POST",
         )
         try:
-            with urllib.request.urlopen(request, timeout=120) as response:
+            # B3: timeout=30 applies per socket read (per chunk), not just connection
+            with urllib.request.urlopen(request, timeout=_STREAM_CHUNK_TIMEOUT) as response:
                 for raw_line in response:
                     yield raw_line.decode("utf-8").rstrip("\n\r")
+        except socket.timeout as exc:
+            raise StreamTimeoutError(
+                f"Anthropic stream timed out: no chunk received within {_STREAM_CHUNK_TIMEOUT}s"
+            ) from exc
         except urllib.error.URLError as exc:
             raise StreamError(f"Anthropic stream request failed: {exc}") from exc
-
-
-def _extract_text(data: dict) -> str:
-    """Extract the assistant's text from an Anthropic Messages API response."""
-    content = data.get("content")
-    if isinstance(content, list):
-        parts = [
-            block.get("text", "")
-            for block in content
-            if isinstance(block, dict) and block.get("type") == "text"
-        ]
-        return "".join(parts)
-    return str(content or "")
 
 
 def _parse_anthropic_sse(lines: Iterator[str]) -> Iterator[StreamChunk]:
