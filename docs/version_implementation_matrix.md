@@ -632,6 +632,16 @@ Completed. Plan: `docs/version-plans/v4.20-to-v5.0-product-roadmap.md` (v4.22.x 
 | `v4.22.1` ✅ | `dev/v4.19` | `src/safecode/cli_shell.py`, `tests/test_shell_session_quality.py`, `docs/version-notes/v4.22.1-shell-session-quality.md` | B10 fix: /clear calls AgentSessionStore.clear(). B11 fix: _read_line() prints [exiting shell] on EOF. Prompt: sac[N]>. New /undo, /history, /tools commands. 13 tests. |
 | `v4.22.2` ✅ | `dev/v4.19` | `README.md`, `docs/mvp-user-guide.md`, `docs/troubleshooting.md`, `docs/version_implementation_matrix.md`, `tests/test_mvp_docs.py`, `.claude/skills/current/SKILL.md`, `.claude/versions.json`, `docs/version-notes/v4.22.2-multi-tool-docs.md` | v4.22 docs cut: README multi-tool/shell section; MVP guide "From Question to Patch in One Turn"; troubleshooting per-turn cap, /clear B10, /undo, B11 EOF; matrix rows; doc guard tests. |
 
+## v4.23.x: Anthropic / Claude as First-Class Provider
+
+Completed. Plan: `docs/version-plans/v4.20-to-v5.0-product-roadmap.md` (v4.23.x section).
+
+| 版本 | 分支 | 主要入口 | 验收命令 / 结果 |
+|---|---|---|---|
+| `v4.23.0` ✅ | `dev/v4.19` | `src/safecode/llm/stream.py`, `src/safecode/llm/anthropic_client.py`, `src/safecode/doctor.py`, `tests/test_anthropic_native_tool_use.py`, `docs/version-notes/v4.23.0-anthropic-native-tool-use.md` | B2 fix: _extract_text()/_extract_native_result() validate content list non-empty before access; return RecoverableContractFailure on missing/empty content. B3 fix: StreamTimeoutError(StreamError) added; stream timeout 30s per-chunk; socket.timeout → StreamTimeoutError. B16 fix: Doctor._live_anthropic_ping() authenticated GET /v1/models; shown in sac doctor --live when provider=anthropic. AnthropicLLMClient.choose_tool_native(): sends NativeToolSpec list as Anthropic tools parameter; maps tool_use blocks to AgentNativeToolCallResponse; text fallback → AgentStopForUserResponse. 25 tests. Full suite 5043 passed. |
+| `v4.23.1` ✅ | `dev/v4.19` | `src/safecode/llm/openai_client.py`, `src/safecode/llm/retry.py`, `tests/test_openai_native_tool_use.py`, `docs/version-notes/v4.23.1-openai-native-tool-use.md` | B1 fix: _chat() bounds-checks choices[] before indexing; empty/missing choices → "" → RecoverableContractFailure from validate_provider_json. B12 fix: _sanitize_retry_reason() strips https?:// URLs → [URL] and applies redact_secrets(); applied to all retry_call log_fn calls. OpenAICompatibleLLMClient.choose_tool_native(): sends tools (function calling format); maps tool_calls to AgentNativeToolCallResponse; DeepSeek inherits via compat path. 14 tests. Full suite 5057 passed. |
+| `v4.23.2` ✅ | `dev/v4.19` | `README.md`, `docs/mvp-user-guide.md`, `docs/security/threat-model-v3.6.md`, `docs/version_implementation_matrix.md`, `tests/test_mvp_docs.py`, `.claude/skills/current/SKILL.md`, `.claude/versions.json`, `docs/version-notes/v4.23.2-provider-docs.md` | v4.23 docs cut: README provider table with anthropic first-class; MVP guide "First-run with Claude" section; threat model v4.23 native tool-use surface addendum; matrix rows; doc guard tests. |
+
 ## v4.2.x: Project Command Profile
 
 | 版本 | 分支 | 主要入口 | 验收命令 / 结果 |

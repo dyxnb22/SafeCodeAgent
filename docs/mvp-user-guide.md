@@ -53,6 +53,46 @@ sac doctor
 Expected result: `sac doctor` prints a table with Python, project root, config,
 and command checks.
 
+## First-Run with Claude (v4.23, EXPERIMENTAL)
+
+Starting with v4.23.0, SafeCode uses the Anthropic native tool-use API when
+the `anthropic` provider is active. The agent sends tool schemas (`read_file`,
+`list_files`, `search_files`, `grep_files`, `edit_file`, `write_file`,
+`run_command`) as Anthropic `tools` parameters and receives structured
+`tool_use` blocks — the same protocol Claude Code itself uses.
+
+**Quick start:**
+
+```bash
+export ANTHROPIC_API_KEY=sk-ant-...
+sac provider add anthropic --model claude-sonnet-4-6 --network
+sac doctor --live     # verifies Anthropic API connectivity (B16 fix)
+sac shell             # enter the native-tool-use shell with Claude
+```
+
+**What changes with native tool use:**
+- Tool calls arrive as structured `tool_use` blocks instead of freeform JSON.
+- Empty or malformed content blocks surface as `RecoverableContractFailure`
+  (B2 fix) — the loop retries once instead of crashing.
+- Stream reads have a 30-second per-chunk timeout (B3 fix); stalled streams
+  raise `StreamTimeoutError` and are treated as recoverable.
+- `sac doctor --live` now includes an Anthropic API connectivity check that
+  sends your API key as an authenticated GET /v1/models ping.
+
+**OpenAI and DeepSeek (v4.23.1):**
+OpenAI-compatible providers also use native function calling. DeepSeek
+inherits through the OpenAI-compatible path.
+
+```bash
+sac provider add openai --model gpt-4o --network
+sac doctor --live
+sac shell
+```
+
+All safety gates are unchanged: every `edit_file` / `write_file` call still
+creates a checkpoint before applying; `run_command` still passes through the
+shell policy; all tool outputs are redacted before entering model context.
+
 ## Provider Profile UX (v4.14.0, EXPERIMENTAL)
 
 **Mental model: Provider account first, model switch second, project safety third.**

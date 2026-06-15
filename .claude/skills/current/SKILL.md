@@ -5,12 +5,12 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v4.22.2
+# Current Baseline - v4.23.2
 
 ## Status
-Implemented. Git baseline: tag `v4.22.2`. Local working version: `v4.22.2`.
-v4.22.x is the multi-tool turn train: MultiToolTurnRunner, B9/B10/B11 fixes,
-shell /undo /history /tools, sac[N]> prompt, and a docs cut.
+Implemented. Git baseline: tag `v4.23.2`. Local working version: `v4.23.2`.
+v4.23.x is the Anthropic/Claude first-class provider train: native tool use,
+B1/B2/B3/B12/B16 fixes, OpenAI function calling, and a docs cut.
 
 ## Stage
 The v4.14–v4.18 usability trains are complete (14 versions shipped):
@@ -53,6 +53,11 @@ v4.22.x multi-tool turn train (3 versions):
 - `v4.22.0`: MultiToolTurnRunner (dispatch_calls/run_turn/identity_sequence); B9 stuck-loop outside task → warning not abort
 - `v4.22.1`: B10 /clear resets AgentSessionStore; B11 EOF prints [exiting shell]; sac[N]> prompt; /undo /history /tools
 - `v4.22.2`: docs cut — README, MVP guide, troubleshooting, matrix, guards
+
+v4.23.x Anthropic/Claude first-class provider train (3 versions):
+- `v4.23.0`: AnthropicLLMClient.choose_tool_native(); _native_spec_to_anthropic(); _extract_native_result(); B2 content validation; B3 StreamTimeoutError 30s; B16 Doctor._live_anthropic_ping()
+- `v4.23.1`: OpenAICompatibleLLMClient.choose_tool_native(); _native_spec_to_openai(); B1 choices[] bounds check; B12 _sanitize_retry_reason() URL/secret stripping
+- `v4.23.2`: docs cut — README provider table, MVP guide "First-run with Claude", threat model addendum, matrix rows, guards
 
 All v4 surfaces remain EXPERIMENTAL and carry no stable contract.
 

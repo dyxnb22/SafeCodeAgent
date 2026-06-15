@@ -195,6 +195,29 @@ Every `edit_file` and `write_file` call creates a checkpoint *before* the mutati
 the agent can make many edits and you can roll back any of them with `sac rollback --last`.
 `run_command` passes through the same policy engine as `sac run`.
 
+**Anthropic / Claude as first-class provider (v4.23, EXPERIMENTAL):**
+
+SafeCode now speaks the Anthropic native tool-use wire format. When using the
+`anthropic` provider, the agent sends tool schemas as the Anthropic `tools`
+parameter and receives structured `tool_use` blocks instead of freeform JSON.
+OpenAI function calling is also wired for OpenAI-compatible providers.
+
+```bash
+export ANTHROPIC_API_KEY=sk-ant-...
+sac provider add anthropic --model claude-sonnet-4-6 --network
+sac doctor --live   # now includes Anthropic API connectivity check (B16)
+sac shell           # native tool use active for Claude
+```
+
+Key provider table (EXPERIMENTAL — not promoted to stable):
+
+| Provider | Key env | Default model | Protocol |
+|---|---|---|---|
+| `mock` | — | `mock-model` | freeform JSON (default, deterministic) |
+| `anthropic` | `ANTHROPIC_API_KEY` | `claude-sonnet-4-6` | native tool use (v4.23) |
+| `openai` | `OPENAI_API_KEY` | configured | function calling (v4.23) |
+| `deepseek` | `DEEPSEEK_API_KEY` | `deepseek-v4-flash` | function calling via compat path |
+
 **Multi-tool turns and shell UX (v4.22, EXPERIMENTAL):**
 ```bash
 sac shell    # prompt now shows turn counter: sac[0]>  sac[1]>  ...

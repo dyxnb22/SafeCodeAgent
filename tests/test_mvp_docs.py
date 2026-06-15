@@ -344,3 +344,22 @@ def test_v422_matrix_has_v422_rows() -> None:
     assert "v4.22.0" in matrix
     assert "v4.22.1" in matrix
     assert "v4.22.2" in matrix
+
+
+def test_v423_anthropic_in_readme() -> None:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    assert "v4.23" in readme
+    assert "anthropic" in readme.lower()
+
+
+def test_v423_mvp_guide_first_run_with_claude() -> None:
+    guide = (ROOT / "docs" / "mvp-user-guide.md").read_text(encoding="utf-8")
+    assert "First-Run with Claude" in guide or "First-run with Claude" in guide
+    assert "ANTHROPIC_API_KEY" in guide
+
+
+def test_v423_matrix_has_v423_rows() -> None:
+    matrix = (ROOT / "docs" / "version_implementation_matrix.md").read_text(encoding="utf-8")
+    assert "v4.23.0" in matrix
+    assert "v4.23.1" in matrix
+    assert "v4.23.2" in matrix

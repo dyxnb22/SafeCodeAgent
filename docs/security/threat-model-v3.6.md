@@ -331,3 +331,42 @@ Reviewers should update this file and add a dated entry to the review log below.
 | Date | Version | Reviewer | Notes |
 |------|---------|----------|-------|
 | 2026-06-03 | v3.6.4 | SafeCode team | Initial v3.6 threat model |
+| 2026-06-15 | v4.23.2 | SafeCode team | Native tool-use addendum |
+
+---
+
+## v4.23 Native Tool-Use Surface Addendum
+
+Starting with v4.23.0, the Anthropic and OpenAI providers use native tool
+calling: the model controls `input` fields sent to `read_file`, `list_files`,
+`search_files`, `grep_files`, `edit_file`, `write_file`, and `run_command`.
+
+### New threat surface: model-controlled tool inputs
+
+**Threat:** The model (or a prompt-injected payload) supplies a crafted `path`
+or `command` input designed to escape the project root, access sensitive files,
+or execute high-risk commands.
+
+**Mitigations already in place (defence in depth):**
+
+| Layer | What it does |
+|---|---|
+| Path validation in every tool | `edit_file`, `write_file`, `read_file`, `list_files`, `search_files`, `grep_files` all validate `path` against the project root boundary — identical to the existing `sac apply` and `sac run` paths. |
+| Sensitive-path gate | `read_file` rejects `.env`, credential files, and other `SafeFilters`-blocked paths regardless of model instruction. |
+| Shell policy gate | `run_command` passes through `ShellRunner`/`RiskClassifier`; high-risk patterns are blocked and returned as `NativeToolResult(status="blocked")`. |
+| Checkpoint before write | Every `edit_file` / `write_file` creates a `CheckpointRecord` before mutation; rollback is always available. |
+| `redact_secrets()` on output | All tool outputs are redacted before entering model context; secrets cannot be exfiltrated via tool results. |
+| `ToolCallGate` | Consulted before every mutating tool call. |
+
+### Stream timeout (B3)
+
+The per-chunk stream timeout (30 seconds) limits exposure to adversarially
+stalled streams. `StreamTimeoutError` is treated as recoverable (one retry,
+then fail closed with `failure_category: network`).
+
+### Anthropic API key security
+
+The `ANTHROPIC_API_KEY` is consumed from the environment only; it is never
+written to `.sac/` or project-local config. `sac doctor --live` sends it only
+in the `x-api-key` header to `https://api.anthropic.com/v1/models`; the key
+never appears in diagnostic output messages.
