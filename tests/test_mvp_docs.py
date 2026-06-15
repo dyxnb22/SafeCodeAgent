@@ -382,3 +382,16 @@ def test_v424_matrix_has_v424_rows() -> None:
     assert "v4.24.0" in matrix
     assert "v4.24.1" in matrix
     assert "v4.24.2" in matrix
+
+
+def test_v425_troubleshooting_has_hardening_sections() -> None:
+    trouble = (ROOT / "docs" / "troubleshooting.md").read_text(encoding="utf-8")
+    assert "CheckpointIntegrityError" in trouble or "checkpoint integrity" in trouble.lower()
+    assert "sac_dir_writable" in trouble or ".sac/" in trouble
+
+
+def test_v425_matrix_has_v425_rows() -> None:
+    matrix = (ROOT / "docs" / "version_implementation_matrix.md").read_text(encoding="utf-8")
+    assert "v4.25.0" in matrix
+    assert "v4.25.1" in matrix
+    assert "v4.25.2" in matrix

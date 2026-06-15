@@ -5,12 +5,12 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v4.24.2
+# Current Baseline - v4.25.2
 
 ## Status
-Implemented. Git baseline: tag `v4.24.2`. Local working version: `v4.24.2`.
-v4.24.x is the Web + GitHub integration train: web_fetch, GitHub read/write tools,
-and a docs cut.
+Implemented. Git baseline: tag `v4.25.2`. Local working version: `v4.25.2`.
+v4.25.x is the Reliability Hardening train: B13 checkpoint integrity, B14 doctor
+disk/writable diagnostics, B15 sac init connectivity check, and a docs cut.
 
 ## Stage
 The v4.14–v4.18 usability trains are complete (14 versions shipped):
@@ -63,6 +63,11 @@ v4.24.x Web + GitHub integration train (3 versions):
 - `v4.24.0`: web_fetch — HTTP GET, text/HTML only, _strip_html(), _MaxRedirectHandler(3), 50KB cap, requires network: true, URL not in errors
 - `v4.24.1`: github_read_issue/read_pr/read_file — gh CLI shell=False; _validate_gh_name(); path traversal blocked; base64 decode for read_file
 - `v4.24.2`: github_create_pr/github_push_branch — approval-gated; _validate_branch(); force=True explicit; docs cut: README, MVP guide, matrix rows, guards
+
+v4.25.x Reliability Hardening train (3 versions):
+- `v4.25.0`: CheckpointIntegrityError; _sha256_of_file(); backup_sha256 stored in create(); _restore_checkpoint() pre-flight sha256 verification; backward compat for sha256=None (B13 fix)
+- `v4.25.1`: Doctor._sac_dir_diagnostics() — sac_dir_writable probe + disk_space WARN; _init_live_connectivity_check() — post-setup ping with yellow warning on fail (B14 + B15 fixes)
+- `v4.25.2`: docs cut — troubleshooting checkpoint integrity/writable/disk/init-connectivity, matrix rows, guards
 
 All v4 surfaces remain EXPERIMENTAL and carry no stable contract.
 

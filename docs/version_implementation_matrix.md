@@ -652,6 +652,16 @@ Completed. Plan: `docs/version-plans/v4.20-to-v5.0-product-roadmap.md` (v4.24.x 
 | `v4.24.1` ✅ | `dev/v4.19` | `src/safecode/agent/github_read_tools.py`, `tests/test_github_read_tools.py`, `docs/version-notes/v4.24.1-github-read-tools.md` | github_read_issue/github_read_pr via gh CLI JSON output; github_read_file via gh api + base64 decode; _validate_gh_name() blocks shell metacharacters; shell=False always; path traversal blocked in read_file; requires network: true; redact_secrets(). 19 tests. |
 | `v4.24.2` ✅ | `dev/v4.19` | `src/safecode/agent/github_write_tools.py`, `tests/test_github_write_tools.py`, `README.md`, `docs/mvp-user-guide.md`, `docs/version_implementation_matrix.md`, `tests/test_mvp_docs.py`, `.claude/skills/current/SKILL.md`, `.claude/versions.json`, `docs/version-notes/v4.24.2-github-write-and-docs.md` | github_create_pr (approval-gated, gh pr create) and github_push_branch (approval-gated, git push; force requires explicit flag); _validate_branch(); shell=False; docs cut: README GitHub tools section, MVP guide "From local edits to open PR"; matrix rows; doc guard tests. 21 tests. |
 
+## v4.25.x: Reliability Hardening
+
+Completed. Plan: `docs/version-plans/v4.20-to-v5.0-product-roadmap.md` (v4.25.x section).
+
+| 版本 | 分支 | 主要入口 | 验收命令 / 结果 |
+|---|---|---|---|
+| `v4.25.0` ✅ | `dev/v4.19` | `src/safecode/checkpoint/models.py`, `src/safecode/checkpoint/manager.py`, `tests/test_checkpoint.py`, `docs/version-notes/v4.25.0-checkpoint-integrity.md` | B13 fix: CheckpointIntegrityError(RuntimeError) with path/checkpoint_id/expected/actual; _sha256_of_file(); CheckpointFileOperation.backup_sha256 (optional, backward compat); create() stores sha256 after copy2; _restore_checkpoint() pre-flight integrity check — raises CheckpointIntegrityError without touching targets if mismatch; sha256=None skips verification. 5 new tests (7 total). Full suite 5121 passed. |
+| `v4.25.1` ✅ | `dev/v4.19` | `src/safecode/doctor.py`, `src/safecode/cli_init.py`, `tests/test_doctor_sac_dir.py`, `tests/test_cli_init_b15.py`, `docs/version-notes/v4.25.1-doctor-and-init-hardening.md` | B14 fix: Doctor._sac_dir_diagnostics() adds sac_dir_writable (probe touch, PASS/FAIL) and disk_space (WARN <100 MB, SKIP on error); appended to run_diagnostics(). B15 fix: cli_init._init_live_connectivity_check() pings API after setup for non-mock providers; yellow warning + sac doctor --live hint on FAIL; never raises. 15 new tests. Full suite 5139 passed. |
+| `v4.25.2` ✅ | `dev/v4.19` | `docs/troubleshooting.md`, `docs/version_implementation_matrix.md`, `tests/test_mvp_docs.py`, `.claude/skills/current/SKILL.md`, `.claude/versions.json`, `docs/version-notes/v4.25.2-hardening-docs.md` | v4.25 docs cut: troubleshooting sections for checkpoint integrity error, .sac/ not writable, low disk space, provider not reachable after init; matrix rows; doc guard tests. |
+
 ## v4.2.x: Project Command Profile
 
 | 版本 | 分支 | 主要入口 | 验收命令 / 结果 |

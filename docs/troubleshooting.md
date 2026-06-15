@@ -607,6 +607,88 @@ network, or shell.
 
 ---
 
+## Reliability Hardening Issues (v4.25, EXPERIMENTAL)
+
+### Checkpoint Integrity Error
+
+**Symptom:** `sac rollback` or `/undo` raises `CheckpointIntegrityError` with a message
+like `"Checkpoint integrity failure: backup sha256 mismatch for 'src/foo.py' in
+checkpoint 'chkpt-xyz'."`.
+
+**Cause (B13 fix):** The backup file stored in `.sac/checkpoints/<id>/files/` has been
+corrupted or modified since the checkpoint was created. The sha256 hash no longer matches
+the value recorded at checkpoint time. SafeCode refuses to restore a corrupt backup.
+
+**Fix:**
+1. Do **not** force-rollback — the backup may be unrecoverable.
+2. Manually inspect the backup file:
+   ```bash
+   ls .sac/checkpoints/<id>/files/
+   cat .sac/checkpoints/<id>/metadata.json
+   ```
+3. If the backup is corrupt, delete the checkpoint directory:
+   ```bash
+   rm -rf .sac/checkpoints/<id>/
+   ```
+4. Re-apply the original patch from your task context, or manually restore
+   the file from git: `git checkout src/foo.py`.
+
+---
+
+### `.sac/` Directory Not Writable
+
+**Symptom:** `sac doctor` reports `FAIL: sac_dir_writable — .sac/ is not writable`
+(B14 fix, added v4.25.1).
+
+**Cause:** The `.sac/` directory exists but the current user lacks write permission.
+
+**Fix:**
+```bash
+ls -la .sac/            # inspect permissions
+chmod u+w .sac/         # restore write permission for your user
+# or on systems with restricted permissions:
+sudo chown -R $USER .sac/
+```
+
+---
+
+### Low Disk Space Warning
+
+**Symptom:** `sac doctor` reports `WARN: disk_space — Low disk space: Xmb free`
+(B14 fix, added v4.25.1).
+
+**Cause:** Available disk space is below 100 MB. This is a WARN (not FAIL) — SafeCode
+can still operate, but apply operations that write checkpoint backups may fail.
+
+**Fix:**
+```bash
+df -h .                  # see available space
+# Free space before using sac apply or sac edit:
+# rm large files, empty Trash, clear unused Docker images, etc.
+```
+
+---
+
+### Provider Not Reachable After `sac init`
+
+**Symptom:** After running `sac init`, a yellow warning appears:
+`"Warning: could not reach the provider API. Credentials may be missing or invalid."`
+(B15 fix, added v4.25.1).
+
+**Cause:** The live connectivity ping performed after config write failed. Common causes:
+- API key is invalid or expired.
+- Network is not enabled or the provider host is blocked by firewall.
+- The provider API has a temporary outage.
+
+**Fix:**
+```bash
+sac doctor --live        # full live connectivity check with verbose output
+# Re-run init with correct credentials:
+sac init --provider anthropic --api-key sk-ant-...
+```
+
+---
+
 ## Getting More Help
 
 - Run `sac --help` for command reference.
