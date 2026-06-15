@@ -16,6 +16,17 @@ from safecode.context.redactor import redact_secrets
 from safecode.task.budget import TaskBudget, TaskBudgetStore, resolve_budget_task
 from safecode.task.store import TaskStore
 
+
+def _histogram(values: list, skip_none: bool = True) -> dict:
+    """Build a deterministic sorted-key histogram over the given values."""
+    counts: dict = {}
+    for v in values:
+        if skip_none and v is None:
+            continue
+        key = str(v)
+        counts[key] = counts.get(key, 0) + 1
+    return dict(sorted(counts.items()))
+
 task_app = typer.Typer(
     name="task",
     help="[EXPERIMENTAL] Manage task sidecars. (v4.1+)",
@@ -355,3 +366,97 @@ def task_delete(
         )))
     else:
         console.print(f"[green]Task deleted:[/green] {task_id}")
+
+
+@task_app.command("stats")
+def task_stats(
+    task_id: Optional[str] = typer.Option(None, "--task", help="Task id (default: CURRENT)."),
+    json_output: bool = typer.Option(False, "--json", help="Output result as JSON."),
+) -> None:
+    """[EXPERIMENTAL] Show a deterministic read-only summary of a task's iterations and budget."""
+    project_root = Path.cwd()
+    store = TaskStore(project_root)
+    tid = task_id or store.current_id()
+    if not tid:
+        msg = "No task specified and no CURRENT task."
+        if json_output:
+            print(render_json(CLIJSONResponse(command="task stats", status="error", error=msg)))
+        else:
+            console.print(f"[red]{msg}[/red]")
+        raise typer.Exit(code=1)
+
+    state = store.load(tid)
+    if state is None:
+        msg = f"Task not found: {tid}"
+        if json_output:
+            print(render_json(CLIJSONResponse(command="task stats", status="error", error=msg)))
+        else:
+            console.print(f"[red]{msg}[/red]")
+        raise typer.Exit(code=1)
+
+    iters = state.iterations
+    budget = TaskBudgetStore(project_root).load(state.task_id)
+
+    from safecode.memory.facade import MemoryFacade
+    pinned_count = len(MemoryFacade(project_root).read_pinned_files())
+
+    last_cmd = None
+    if state.last_command:
+        last_cmd = {
+            "command": redact_secrets(state.last_command.command),
+            "exit_code": state.last_command.exit_code,
+        }
+
+    data = {
+        "task_id": state.task_id,
+        "status": state.status,
+        "created_at": state.created_at,
+        "updated_at": state.updated_at,
+        "goal": redact_secrets(state.goal),
+        "iterations": {
+            "total": len(iters),
+            "last_iteration_index": iters[-1].iteration_index if iters else -1,
+            "last_event": iters[-1].event if iters else None,
+            "by_event": _histogram([it.event for it in iters]),
+            "by_status": _histogram([it.status for it in iters]),
+            "by_failure_category": _histogram([it.failure_category for it in iters]),
+        },
+        "pending_patch_id": state.pending_patch_id,
+        "last_command": last_cmd,
+        "audit_trace_count": len(state.audit_trace_ids),
+        "budget": {
+            "steps": budget.steps,
+            "time_seconds": budget.time_seconds,
+            "retries": budget.retries,
+            "tokens": budget.tokens,
+        },
+        "pinned_files": {"count": pinned_count},
+        "experimental": True,
+    }
+
+    if json_output:
+        print(render_json(CLIJSONResponse(command="task stats", status="success", data=data)))
+        return
+
+    console.print("[bold][EXPERIMENTAL] Task Stats[/bold]")
+    console.print(f"task_id: {data['task_id']}")
+    console.print(f"status: {data['status']}")
+    console.print(f"goal: {data['goal']}")
+    console.print(f"created_at: {data['created_at']}")
+    console.print(f"updated_at: {data['updated_at']}")
+    idata = data["iterations"]
+    console.print(f"iterations.total: {idata['total']}")
+    console.print(f"iterations.last_iteration_index: {idata['last_iteration_index']}")
+    console.print(f"iterations.last_event: {idata['last_event']}")
+    console.print(f"iterations.by_event: {idata['by_event']}")
+    console.print(f"iterations.by_status: {idata['by_status']}")
+    console.print(f"iterations.by_failure_category: {idata['by_failure_category']}")
+    console.print(f"pending_patch_id: {data['pending_patch_id']}")
+    console.print(f"last_command: {data['last_command']}")
+    console.print(f"audit_trace_count: {data['audit_trace_count']}")
+    bdata = data["budget"]
+    console.print(f"budget.steps: {bdata['steps']}")
+    console.print(f"budget.time_seconds: {bdata['time_seconds']}")
+    console.print(f"budget.retries: {bdata['retries']}")
+    console.print(f"budget.tokens: {bdata['tokens']}")
+    console.print(f"pinned_files.count: {data['pinned_files']['count']}")
