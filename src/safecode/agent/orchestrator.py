@@ -1,9 +1,35 @@
 """Coordinate context collection, LLM responses, patch handling, and audit logs."""
 
+from __future__ import annotations
+
 import json
+import re
 from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
+
+
+def _extract_seed_files(task: str, project_root: Path) -> list[str]:
+    """Extract mentioned file paths from a task description for import-graph seeding (v5.3.0).
+
+    Scans the task text for path-like tokens and returns those that actually exist
+    within the project root. Returns at most 3 seed files.
+    """
+    root = project_root.resolve()
+    # Match path-like tokens: word chars, dots, slashes (but not URLs)
+    candidates = re.findall(r'(?<![:/])(?:[\w./]+\.(?:py|ts|tsx|js|jsx|go|rs|rb|java|kt))', task)
+    result: list[str] = []
+    for candidate in candidates:
+        path = root / candidate
+        try:
+            path.resolve().relative_to(root)
+            if path.is_file():
+                result.append(candidate)
+        except (ValueError, OSError):
+            pass
+        if len(result) >= 3:
+            break
+    return result
 
 from safecode.agent.planner import DiffPlanner, DiffScopeResult
 from safecode.audit.logger import AuditLogger
@@ -143,7 +169,13 @@ class AgentOrchestrator:
         planner = DiffPlanner()
         diff_plan = planner.predict(task)
 
-        context = self.context_collector.collect()
+        # v5.3.0: extract seed files from task description for import-graph seeding
+        seed_files = _extract_seed_files(task, self.project_root)
+        context = self.context_collector.collect(
+            query=task,
+            seed_files=seed_files if seed_files else None,
+            include_git_context=True,
+        )
         try:
             patch_response = self.llm_client.propose_patch(task, context)
         except Exception as exc:

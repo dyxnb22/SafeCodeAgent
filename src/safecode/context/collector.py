@@ -35,8 +35,20 @@ class ContextCollector:
         self.config = config or SafeCodeConfig.load(project_root)
         self.filesystem = FilesystemBoundary(self.project_root, self.config)
 
-    def collect(self, query: str | None = None) -> dict:
-        """Return bounded project context with optional task-focused sources."""
+    def collect(
+        self,
+        query: str | None = None,
+        *,
+        seed_files: list[str] | None = None,
+        include_git_context: bool = False,
+    ) -> dict:
+        """Return bounded project context with optional task-focused sources.
+
+        v5.3.0 additions:
+        - seed_files: list of paths to seed import-graph context (first-degree imports
+          pre-loaded up to N=5 per seed file, budget-gated).
+        - include_git_context: when True, inject recent git activity block.
+        """
         files, file_tree_truncated = self._list_files()
         context: dict = {
             "project_root": "[PROJECT_ROOT]",
@@ -50,7 +62,49 @@ class ContextCollector:
             context["file_tree_meta"] = {"truncated": True, "cap": self.config.max_tree_files}
         if query:
             context["selected_context"] = self._selected_context(query)
+        if seed_files:
+            context["import_context"] = self._import_graph_context(seed_files)
+        if include_git_context:
+            git_block = self._git_context_block()
+            if git_block:
+                context["git_context"] = git_block
         return self._cap_context(context)
+
+    def _import_graph_context(self, seed_files: list[str]) -> dict:
+        """Return import-graph-seeded snippets for seed_files (v5.3.0)."""
+        try:
+            from safecode.index.import_graph import ImportGraph
+            graph = ImportGraph(self.project_root)
+            seeded: dict[str, list[str]] = {}
+            all_imports: set[str] = set()
+            for seed in seed_files:
+                imports = graph.first_degree_imports(seed, limit=5)
+                if imports:
+                    seeded[seed] = imports
+                    all_imports.update(imports)
+
+            # Read snippets for all discovered imports (budget-gated via _cap_context)
+            snippets: dict[str, str | None] = {}
+            for rel_path in sorted(all_imports)[:10]:  # hard cap at 10 total
+                if not self._should_skip(Path(rel_path)):
+                    snippets[rel_path] = self._read_limited(rel_path, max_lines=40)
+
+            return {
+                "seeds": list(seed_files),
+                "first_degree_imports": seeded,
+                "snippets": {p: s for p, s in snippets.items() if s is not None},
+            }
+        except Exception:
+            return {}
+
+    def _git_context_block(self) -> str:
+        """Return a bounded git context block for this project (v5.3.0)."""
+        try:
+            from safecode.context.git_context import collect_git_context
+            ctx = collect_git_context(self.project_root)
+            return ctx.to_context_block()
+        except Exception:
+            return ""
 
     def _list_files(self) -> tuple[list[str], bool]:
         """Return (file_list, truncated) relative to project_root.
