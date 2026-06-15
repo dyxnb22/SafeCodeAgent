@@ -107,6 +107,23 @@ sac shell --full-auto                        # auto-apply edits AND commands (po
 sac shell --full-auto --command-delay-ms 0   # zero delay (for scripting/CI)
 ```
 
+**Context Intelligence (v5.3, EXPERIMENTAL):**
+
+SafeCode Agent now automatically pre-loads context relevant to your task:
+
+- **Import-graph seeding:** when your task mentions a file (`edit src/auth/login.py`),
+  SafeCode traces its first-degree imports and pre-loads up to 5 related files
+  so the agent starts with the right context, not just keyword matches.
+- **Git-aware context:** recent commits, files changed since your branch diverged
+  from `main`, and high-churn files are injected into every session automatically.
+- **Context compaction:** when accumulated tool results exceed 60% of the context
+  budget, the model summarises what it has learned so far and archives the raw
+  observations to `.sac/sessions/`. Long sessions no longer lose earlier context.
+
+```
+[Context compacted: ~3200 → ~600 tokens (12 observations archived)]
+```
+
 **Shell Display (v5.2, EXPERIMENTAL):**
 
 The shell prompt shows turn count, task status, and cost estimate:

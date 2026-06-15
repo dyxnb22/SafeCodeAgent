@@ -1,11 +1,80 @@
 # SafeCode Agent Final Status and Roadmap
 
-Status: current project baseline after `v5.0.0`.
+Status: current project baseline after `v5.3.2`.
 Last updated: 2026-06-15.
 
-> **Update (2026-06-15):** All v4.19.x–v5.0.0 trains complete (22 versions).
-> Active forward plan: `docs/version-plans/v5.1-to-v5.3-product-roadmap.md` (next: v5.1.x).
-> Extended roadmap: `docs/version-plans/v5.4-to-v5.6-product-roadmap.md` (MCP, IDE, production).
+> **Update (2026-06-15, v5.3.2):** All v4.19.x–v5.3.x trains complete (34 versions shipped).
+> Active forward plan: `docs/version-plans/v5.4-to-v5.6-product-roadmap.md` (v5.4.x MCP, v5.5.x production).
+> Extended roadmap: `docs/version-plans/v5.6-to-v5.8-product-roadmap.md` (quality, security, v6 prep).
+>
+> **v5.3.2 is the complete product baseline.** Terminal experience comparable to
+> Claude Code / Codex CLI: native tool calling, multi-tool turns, trust modes,
+> import-graph context, git-aware context, and context compaction.
+
+---
+
+## v5.3.2 Complete Product Baseline (2026-06-15)
+
+SafeCode Agent v5.3.2 delivers terminal experience parity with Claude Code and
+Codex CLI across all major dimensions:
+
+### Core capabilities
+
+| Capability | Status | Version |
+|---|---|---|
+| Native tool calling (read/write/command) | ✅ Stable contracts | v5.0.0 |
+| Multi-tool turns (20-tool cap) | ✅ | v4.22.0 |
+| Anthropic + OpenAI provider support | ✅ | v4.23.0 |
+| Trust modes (auto-edit, full-auto) | ✅ EXPERIMENTAL | v5.1.x |
+| Prompt caching (Anthropic) | ✅ EXPERIMENTAL | v5.1.0 |
+| Session cost tracking (/cost) | ✅ EXPERIMENTAL | v5.2.0 |
+| Import-graph context seeding | ✅ EXPERIMENTAL | v5.3.0 |
+| Git-aware context | ✅ EXPERIMENTAL | v5.3.0 |
+| Context compaction (60% threshold) | ✅ EXPERIMENTAL | v5.3.1 |
+
+### Safety infrastructure (all stable)
+
+| Feature | Status |
+|---|---|
+| Checkpoint before every write | ✅ Stable contract |
+| Rollback by checkpoint / session | ✅ Stable contract |
+| Hash-chained audit log | ✅ Stable contract |
+| Policy-gated command execution | ✅ Stable contract |
+| Project-config cannot weaken user policy | ✅ Stable invariant |
+| B-series reliability bugs (B1–B17) | ✅ All closed |
+
+### All B-series reliability bugs closed
+
+| Bug | Fix version | Description |
+|---|---|---|
+| B1 | v4.23.0 | Empty choices[] in OpenAI response |
+| B2 | v4.23.0 | Empty content blocks in Anthropic response |
+| B3 | v4.23.0 | Stream timeout (per-chunk 30s) |
+| B4 | v4.20.0 | Path traversal in read_file |
+| B5 | v4.20.0 | File tree truncation not signalled |
+| B6 | v4.21.0 | edit_file multi-match not detected |
+| B7 | v4.21.0 | write_file disk-full error |
+| B8 | v4.21.0 | max_steps too low (5→20) |
+| B9 | v4.22.0 | Stuck loop detection outside task scope |
+| B10 | v4.22.0 | /clear not resetting AgentSessionStore |
+| B11 | v4.22.0 | EOF handling non-consistent TTY/non-TTY |
+| B12 | v4.23.0 | URL in retry log messages |
+| B13 | v4.25.0 | Checkpoint no sha256 |
+| B14 | v4.25.1 | Doctor no disk check |
+| B15 | v4.25.1 | Init no connectivity check |
+| B16 | v4.23.0 | Doctor no Anthropic API check |
+| B17 | v4.20.0 | Sensitive path bypass in list_files |
+
+### Explicitly deferred post-v5.3
+
+| Item | Reason |
+|---|---|
+| **Computer use / screenshot input** | Requires multimodal model + screen permission model |
+| **IDE integration** | SafeCode is a terminal tool by design |
+| **RAG / embeddings / vector search** | High complexity; import graph + git context covers the common case |
+| **Multi-repo context** | Requires cross-repo path validation redesign |
+| **Remote / background agents** | Requires server infrastructure |
+| **Anthropic MCP server** | Reverses client direction; separate product |
 
 This document is the consolidated product description for SafeCode Agent through
 the v4.14–v4.18 usability trains. Both the post-v4.14 usability roadmap (8 versions)

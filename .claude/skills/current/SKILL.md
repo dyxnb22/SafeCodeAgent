@@ -5,12 +5,13 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v5.0.0
+# Current Baseline - v5.3.2
 
 ## Status
-Implemented. Git baseline: tag `v5.0.0`. Local working version: `v5.0.0`.
-v5.0.0 is the first major version boundary: native tool-use shell promoted to
-stable contract. Zero breaking changes to v4.x stable contracts.
+Implemented. Git baseline: tag `v5.3.2`. Local working version: `v5.3.2`.
+v5.3.2 is the complete product baseline: terminal experience comparable to
+Claude Code / Codex CLI with import-graph context, git-aware context, compaction,
+trust modes (auto-edit/full-auto), and all B-series reliability bugs closed.
 
 ## Stage
 The v4.14–v4.18 usability trains are complete (14 versions shipped):

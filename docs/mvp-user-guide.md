@@ -503,6 +503,60 @@ sac rollback --list      # see all available checkpoints
 sac rollback --checkpoint <id>  # roll back a specific edit
 ```
 
+## Working with Large Codebases (v5.3, EXPERIMENTAL)
+
+### Import-graph seeding (C1/C4)
+
+When you ask the agent to edit a specific file, SafeCode automatically traces
+its import graph and pre-loads the most relevant related files into context:
+
+```
+sac shell --agentic
+sac[0]> refactor the auth module in src/auth/login.py
+# → SafeCode detects 'src/auth/login.py' in your goal
+# → Automatically loads src/auth/session.py, src/auth/models.py (first-degree imports)
+# → Agent starts with the right files already in context
+```
+
+You can also pass seed files explicitly from the CLI:
+```bash
+sac edit "update the database connection layer" --seed src/db/connection.py
+```
+
+### Git-aware context (C6)
+
+Every session automatically includes recent git activity:
+- Last 10 commits with file lists
+- Files changed since your branch diverged from `main`/`master`
+- High-churn files (frequently modified in the last 30 days)
+
+The agent can use this to understand what you've been working on and connect
+your request to recent changes without extra `read_file` calls.
+
+### Context compaction (C2/C3)
+
+Long agent sessions (many tool calls) accumulate observations that can fill the
+context window. When the accumulated context exceeds 60% of the model's budget,
+SafeCode automatically:
+
+1. Asks the model to summarise what it has learned so far.
+2. Archives the raw observations to `.sac/sessions/<id>/observations_compacted_N.jsonl`.
+3. Replaces the raw observations with the compact summary in the next call.
+4. Prints a notice: `[Context compacted: ~3200 → ~600 tokens (12 observations archived)]`
+
+**To see what was compacted:**
+```bash
+sac audit query --type tool_call_compact --task <task-id>   # audit events
+ls .sac/sessions/<session-id>/observations_compacted_*.jsonl  # raw archives
+```
+
+**To change the compaction threshold** (default 60%):
+Add to `.safecode/config.toml` (user config only; project config ignored):
+```toml
+[context]
+compaction_threshold_ratio = 0.75   # trigger at 75% instead
+```
+
 ## Trust Modes (v5.1, EXPERIMENTAL)
 
 By default, SafeCode Agent asks for approval before every file edit and command.

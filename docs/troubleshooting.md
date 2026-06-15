@@ -689,6 +689,61 @@ sac init --provider anthropic --api-key sk-ant-...
 
 ---
 
+## Context Intelligence Issues (v5.3, EXPERIMENTAL)
+
+### Why is the agent not reading the right files?
+
+Import-graph seeding activates automatically when you mention a file path in
+your goal. If the agent is reading irrelevant files:
+
+1. **Mention the file explicitly:** "Edit `src/auth/login.py` to add MFA support"
+   triggers seeding; "add MFA support" does not.
+2. **Use manual `read_file` first:** in the shell, start with
+   `/read src/auth/login.py` before your main goal.
+3. **Pin the file in memory:** `sac memory pin src/auth/login.py` ensures the
+   file is always considered in context selection.
+
+### What happened to my earlier tool results?
+
+Long sessions trigger automatic context compaction. A notice appears when it
+fires:
+
+```
+[Context compacted: ~3200 → ~600 tokens (12 observations archived)]
+```
+
+The raw observations are archived (not deleted) to:
+```
+.sac/sessions/<session-id>/observations_compacted_N.jsonl
+```
+
+You can read the archives at any time:
+```bash
+cat .sac/sessions/<session-id>/observations_compacted_1.jsonl | python3 -m json.tool
+```
+
+The model's compact summary replaces the raw observations in future calls. If
+the summary missed something important, you can restart the session with
+`/clear` and re-state the relevant context in your next message.
+
+### Compaction is costing extra tokens
+
+Each compaction costs one LLM call (the summarisation prompt). To raise the
+threshold so compaction fires less often:
+
+In your user config (`~/.safecode/config.toml`):
+```toml
+[context]
+compaction_threshold_ratio = 0.80   # trigger at 80% instead of 60%
+```
+
+Note: project-local config cannot change this setting.
+
+To see how many compaction calls were made in a session:
+```bash
+sac audit query --type tool_call_compact
+```
+
 ## Display Issues (v5.2, EXPERIMENTAL)
 
 ### Why doesn't `/cost` show a price?

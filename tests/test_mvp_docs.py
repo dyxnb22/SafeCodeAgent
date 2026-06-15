@@ -483,3 +483,40 @@ def test_v52_matrix_has_520_and_521_rows() -> None:
     matrix = (ROOT / "docs" / "version_implementation_matrix.md").read_text(encoding="utf-8")
     assert "v5.2.0" in matrix
     assert "v5.2.1" in matrix
+
+
+# ---------------------------------------------------------------------------
+# v5.3.x Context Intelligence doc guards
+# ---------------------------------------------------------------------------
+
+def test_v530_readme_context_intelligence_section() -> None:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    assert "Context Intelligence" in readme
+    assert "import-graph" in readme.lower() or "import graph" in readme.lower()
+    assert "compaction" in readme.lower()
+
+
+def test_v530_mvp_guide_working_with_large_codebases() -> None:
+    guide = (ROOT / "docs" / "mvp-user-guide.md").read_text(encoding="utf-8")
+    assert "Working with Large Codebases" in guide
+    assert "compaction" in guide.lower()
+    assert "import-graph" in guide.lower() or "seed" in guide.lower()
+
+
+def test_v530_troubleshooting_context_intelligence() -> None:
+    troubleshooting = (ROOT / "docs" / "troubleshooting.md").read_text(encoding="utf-8")
+    assert "Context Intelligence" in troubleshooting
+    assert "compaction" in troubleshooting.lower()
+    assert "seed" in troubleshooting.lower() or "import" in troubleshooting.lower()
+
+
+def test_v530_project_final_status_updated() -> None:
+    status = (ROOT / "docs" / "project-final-status-and-roadmap.md").read_text(encoding="utf-8")
+    assert "v5.3.2" in status
+    assert "B-series" in status
+
+
+def test_v53_matrix_has_530_and_531_rows() -> None:
+    matrix = (ROOT / "docs" / "version_implementation_matrix.md").read_text(encoding="utf-8")
+    assert "v5.3.0" in matrix
+    assert "v5.3.1" in matrix
