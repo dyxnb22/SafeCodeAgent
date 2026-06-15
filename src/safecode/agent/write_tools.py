@@ -213,6 +213,7 @@ EDIT_FILE_SPEC = NativeToolSpec(
     },
     requires_approval=True,
     audit_event_type="tool_call_write",
+    experimental=False,  # Stable contract since v5.0.0
 )
 
 WRITE_FILE_SPEC = NativeToolSpec(
@@ -229,6 +230,7 @@ WRITE_FILE_SPEC = NativeToolSpec(
     },
     requires_approval=True,
     audit_event_type="tool_call_write",
+    experimental=False,  # Stable contract since v5.0.0
 )
 
 

@@ -332,6 +332,35 @@ Reviewers should update this file and add a dated entry to the review log below.
 |------|---------|----------|-------|
 | 2026-06-03 | v3.6.4 | SafeCode team | Initial v3.6 threat model |
 | 2026-06-15 | v4.23.2 | SafeCode team | Native tool-use addendum |
+| 2026-06-15 | v5.0.0 | SafeCode team | v5.0 stable contract promotion note |
+
+---
+
+## v5.0.0 Stable Contract Promotion Note
+
+The native tool-use surface (seven tools, three audit event types, write-tool
+checkpoint rollback, `sac shell` loop) graduates from EXPERIMENTAL to stable
+at v5.0.0. The following security properties are now part of the stable contract
+and must be maintained through the v5.x series:
+
+1. **Path validation is mandatory.** Every tool accepting a `path` input must
+   validate it against the project root boundary before any I/O.
+2. **`redact_secrets()` is mandatory on all tool outputs** before they enter
+   model context. Removing or bypassing redaction is a contract violation.
+3. **Write tools must create a checkpoint before mutation.** `edit_file` and
+   `write_file` must call `CheckpointManager.create()` before applying changes.
+   Skipping the checkpoint for performance is a contract violation.
+4. **`run_command` must route through `ShellRunner`/`RiskClassifier`.** Bypassing
+   the risk classifier to execute arbitrary shell commands is a contract violation.
+5. **Integrity verification at restore.** `CheckpointManager._restore_checkpoint()`
+   must verify sha256 before restoring (v4.25.0+). Disabling this check is a
+   contract violation.
+
+**What this does NOT change:**
+- GitHub tools (`github_create_pr`, etc.) and `web_fetch` remain EXPERIMENTAL;
+  their security properties are advisory.
+- Anthropic/OpenAI client internals remain EXPERIMENTAL.
+- The threat model review cadence remains semi-annual.
 
 ---
 

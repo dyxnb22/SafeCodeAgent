@@ -88,6 +88,7 @@ RUN_COMMAND_SPEC = NativeToolSpec(
     },
     requires_approval=False,
     audit_event_type="tool_call_command",
+    experimental=False,  # Stable contract since v5.0.0
 )
 
 

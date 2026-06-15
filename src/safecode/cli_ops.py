@@ -399,6 +399,22 @@ def doctor(
     console.print(table)
 
 
+_V5_STABLE_CONTRACTS = [
+    "read_file",
+    "list_files",
+    "search_files",
+    "grep_files",
+    "edit_file",
+    "write_file",
+    "run_command",
+    "tool_call_read",
+    "tool_call_write",
+    "tool_call_command",
+    "write_tool_checkpoint_rollback",
+    "sac_shell_loop",
+]
+
+
 @ops_app.command("version", hidden=True)
 def version(
     json_output: bool = typer.Option(False, "--json", help="Output result as JSON."),
@@ -407,7 +423,11 @@ def version(
     from safecode.cli_shared_json import CLIJSONResponse, render_json
 
     if json_output:
-        print(render_json(CLIJSONResponse(command="version", status="success", data={"version": __version__})))
+        print(render_json(CLIJSONResponse(
+            command="version",
+            status="success",
+            data={"version": __version__, "stable_contracts": _V5_STABLE_CONTRACTS},
+        )))
         return
     console.print(f"SafeCode Agent {__version__}")
     console.print("Update source checkout: git pull --ff-only && python -m pytest -q")

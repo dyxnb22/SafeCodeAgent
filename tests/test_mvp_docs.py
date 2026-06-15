@@ -395,3 +395,20 @@ def test_v425_matrix_has_v425_rows() -> None:
     assert "v4.25.0" in matrix
     assert "v4.25.1" in matrix
     assert "v4.25.2" in matrix
+
+
+def test_v500_public_contracts_has_v5_section() -> None:
+    contracts = (ROOT / "docs" / "public-contracts.md").read_text(encoding="utf-8")
+    assert "v5.0.0 Stable Contract Promotions" in contracts
+    assert "sac shell" in contracts.lower() or "sac_shell_loop" in contracts or "shell loop" in contracts.lower()
+
+
+def test_v500_versioning_policy_has_v5_entry() -> None:
+    policy = (ROOT / "docs" / "versioning-policy.md").read_text(encoding="utf-8")
+    assert "v5.0.0" in policy
+    assert "v5.x" in policy
+
+
+def test_v500_matrix_has_v500_row() -> None:
+    matrix = (ROOT / "docs" / "version_implementation_matrix.md").read_text(encoding="utf-8")
+    assert "v5.0.0" in matrix

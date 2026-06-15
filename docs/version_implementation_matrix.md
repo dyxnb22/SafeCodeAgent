@@ -662,6 +662,12 @@ Completed. Plan: `docs/version-plans/v4.20-to-v5.0-product-roadmap.md` (v4.25.x 
 | `v4.25.1` ✅ | `dev/v4.19` | `src/safecode/doctor.py`, `src/safecode/cli_init.py`, `tests/test_doctor_sac_dir.py`, `tests/test_cli_init_b15.py`, `docs/version-notes/v4.25.1-doctor-and-init-hardening.md` | B14 fix: Doctor._sac_dir_diagnostics() adds sac_dir_writable (probe touch, PASS/FAIL) and disk_space (WARN <100 MB, SKIP on error); appended to run_diagnostics(). B15 fix: cli_init._init_live_connectivity_check() pings API after setup for non-mock providers; yellow warning + sac doctor --live hint on FAIL; never raises. 15 new tests. Full suite 5139 passed. |
 | `v4.25.2` ✅ | `dev/v4.19` | `docs/troubleshooting.md`, `docs/version_implementation_matrix.md`, `tests/test_mvp_docs.py`, `.claude/skills/current/SKILL.md`, `.claude/versions.json`, `docs/version-notes/v4.25.2-hardening-docs.md` | v4.25 docs cut: troubleshooting sections for checkpoint integrity error, .sac/ not writable, low disk space, provider not reachable after init; matrix rows; doc guard tests. |
 
+## v5.0.0: First Stable Contract
+
+| 版本 | 分支 | 主要入口 | 验收命令 / 结果 |
+|---|---|---|---|
+| `v5.0.0` ✅ | `dev/v4.19` | `src/safecode/agent/read_tools.py`, `src/safecode/agent/write_tools.py`, `src/safecode/agent/command_tool.py`, `src/safecode/cli_ops.py`, `docs/public-contracts.md`, `docs/versioning-policy.md`, `docs/security/threat-model-v3.6.md`, `tests/test_v5_stable_contracts.py`, `tests/test_mvp_docs.py`, `.claude/skills/current/SKILL.md`, `.claude/versions.json`, `docs/version-notes/v5.0.0-first-stable-contract.md` | Seven tool specs promoted to experimental=False (read_file, list_files, search_files, grep_files, edit_file, write_file, run_command). sac version --json gains stable_contracts list (12 entries). public-contracts.md sections 13-16 added. versioning-policy.md v5.x contract promise added. threat-model v5.0 stable contract security properties. Zero breaking changes to 12 v4.0 stable contracts. |
+
 ## v4.2.x: Project Command Profile
 
 | 版本 | 分支 | 主要入口 | 验收命令 / 结果 |

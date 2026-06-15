@@ -298,6 +298,7 @@ READ_FILE_SPEC = NativeToolSpec(
     },
     requires_approval=False,
     audit_event_type="tool_call_read",
+    experimental=False,  # Stable contract since v5.0.0
 )
 
 LIST_FILES_SPEC = NativeToolSpec(
@@ -312,6 +313,7 @@ LIST_FILES_SPEC = NativeToolSpec(
     },
     requires_approval=False,
     audit_event_type="tool_call_read",
+    experimental=False,  # Stable contract since v5.0.0
 )
 
 SEARCH_FILES_SPEC = NativeToolSpec(
@@ -328,6 +330,7 @@ SEARCH_FILES_SPEC = NativeToolSpec(
     },
     requires_approval=False,
     audit_event_type="tool_call_read",
+    experimental=False,  # Stable contract since v5.0.0
 )
 
 GREP_FILES_SPEC = NativeToolSpec(
@@ -344,6 +347,7 @@ GREP_FILES_SPEC = NativeToolSpec(
     },
     requires_approval=False,
     audit_event_type="tool_call_read",
+    experimental=False,  # Stable contract since v5.0.0
 )
 
 

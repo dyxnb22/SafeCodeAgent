@@ -104,6 +104,28 @@ The twelve v4.0.0 stable contracts remain stable and unchanged through v4.9.3.
 No deferred surface (IDE JSON-RPC, TUI, HTML report, sandbox real-execution) was
 promoted in v4.9. v4.9 does not schedule v5.
 
+## v5.x Contract Promise
+
+v5.0.0 promotes four new stable contracts (sections 13–16 of
+`docs/public-contracts.md`):
+
+1. **Native tool schemas** for `read_file`, `list_files`, `search_files`,
+   `grep_files`, `edit_file`, `write_file`, `run_command`.
+2. **Audit event types** `tool_call_read`, `tool_call_write`, `tool_call_command`.
+3. **Write-tool checkpoint rollback** round-trip (write → checkpoint → rollback).
+4. **`sac shell` loop** with `/clear`, `/undo`, `/history`, `/tools` and the
+   `sac[N]>` prompt format.
+
+The v5.0.0 contract churn budget:
+- **Four new stable contracts** promoted from experimental (listed above).
+- **Zero breaking changes** to the twelve v4.0.0 stable contracts.
+- `web_fetch`, GitHub tools, and provider client internals remain EXPERIMENTAL.
+- Any CLI subcommand outside the 17-command visible surface remains EXPERIMENTAL.
+
+For v5.1.x and beyond, the same policy applies: minor releases may add
+experimental surfaces; major releases required for any breaking change to any
+of the sixteen stable contracts (sections 1–16).
+
 ## Policy Changelog
 
 | Version | Change |
@@ -113,3 +135,4 @@ promoted in v4.9. v4.9 does not schedule v5.
 | v4.0.0 | Contract cut honored the budget: zero new v4 stable contracts and zero v3.0 breaking changes. |
 | v4.8.2 | v4.x shell-first train closed. Zero new stable contracts added in v4.1–v4.8. No v5.0 currently scheduled. |
 | v4.9.3 | v4.9 AI shell train closed. Zero new stable contracts added in v4.9.0–v4.9.3. No v5.0 scheduled. |
+| v5.0.0 | First major bump since v4.0.0. Four new stable contracts (native tool schemas, audit event types, write-tool rollback, sac shell loop). Zero v4.x breaking changes. |

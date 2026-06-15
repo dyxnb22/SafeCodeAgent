@@ -64,6 +64,104 @@ checkpoint, audit, rollback, policy, dirty-tree, and network gates. It does
 not add auto-apply, auto-commit, push, pull request automation, RAG,
 embeddings, LangGraph, IDE requirements, cloud tasks, or background execution.
 
+## v5.0.0 Stable Contract Promotions
+
+v5.0.0 is the first major version boundary since v4.0.0. The following surfaces
+graduate from EXPERIMENTAL to **stable contracts** at v5.0.0:
+
+### 13. Native Tool Schemas (v5.0.0)
+
+**Promoted tools:** `read_file`, `list_files`, `search_files`, `grep_files`,
+`edit_file`, `write_file`, `run_command`.
+
+**Contract:** The `NativeToolSpec` shape — `name`, `description`,
+`input_schema` (JSON Schema object), `requires_approval`, `audit_event_type` —
+is now stable for the seven promoted tools. The `input_schema` properties
+and `required` fields will not be removed or renamed without a v6 major bump.
+
+**Stable invariants:**
+- `read_file`, `list_files`, `search_files`, `grep_files`: `requires_approval=False`; auto-executed.
+- `edit_file`, `write_file`: `requires_approval=True`; always paused for user approval; checkpoint created before mutation.
+- `run_command`: `requires_approval=False`; high-risk patterns blocked by `ShellRunner`/`RiskClassifier`; `cwd` validated to project root.
+- Path inputs validated against project root boundary; root escapes blocked.
+- `redact_secrets()` applied to all tool outputs before model context.
+
+**What is NOT stable in this contract:**
+- `web_fetch`, `github_read_issue/pr/file`, `github_create_pr`, `github_push_branch` remain EXPERIMENTAL.
+- `choose_tool_native()` LLM client internals (Anthropic/OpenAI wire format) remain EXPERIMENTAL.
+- `NativeToolSpec.experimental` field itself is informational only.
+
+**Source:** `src/safecode/agent/read_tools.py`, `write_tools.py`, `command_tool.py`
+
+---
+
+### 14. Audit Event Types for Native Tools (v5.0.0)
+
+**Contract:** Three audit event type strings are now stable:
+- `"tool_call_read"` — emitted for every `read_file`, `list_files`, `search_files`, `grep_files` call.
+- `"tool_call_write"` — emitted for every `edit_file`, `write_file` call.
+- `"tool_call_command"` — emitted for every `run_command` call.
+
+These values may appear in `sac audit query --type <value>` and in
+`.sac/logs/events.jsonl` `event_type` fields. They will not be renamed or
+removed without a v6 major bump.
+
+**Source:** `src/safecode/audit/logger.py`, `AuditEvent.event_type`
+
+---
+
+### 15. Write-Tool Checkpoint Rollback Contract (v5.0.0)
+
+**Contract:** Every `edit_file` and `write_file` call creates a
+`CheckpointRecord` before mutation. The rollback path (`sac rollback --last`,
+`/undo` in shell) restores the backed-up files using `CheckpointManager._restore_checkpoint()`.
+
+As of v4.25.0, backup files carry a `sha256` hash; `_restore_checkpoint()`
+verifies integrity before restoring and raises `CheckpointIntegrityError` on
+mismatch without touching target files.
+
+This round-trip — write → checkpoint → rollback → original state — is now
+stable. Write tools that bypass this checkpoint path would be a contract violation.
+
+**Source:** `src/safecode/checkpoint/manager.py`
+
+---
+
+### 16. `sac shell` Loop Contract (v5.0.0)
+
+**Contract:** The `sac shell` interactive loop exposes four stable slash commands:
+- `/clear` — resets live agent session state (`AgentSessionStore.clear()`).
+- `/undo` — triggers rollback of the most recent write-tool checkpoint.
+- `/history` — shows current session's tool calls and observations.
+- `/tools` — lists all registered `NativeToolSpec` names with approval flags.
+
+The shell prompt format `sac[N]>` (where N is the turn counter) is stable.
+EOF and Ctrl-D exit print `[exiting shell]` before returning.
+
+**Not stable:** slash commands specific to GitHub/web tools, shell streaming
+behavior, session state file layout under `.sac/shell/`.
+
+**Source:** `src/safecode/cli_shell.py`
+
+---
+
+### What is NOT promoted at v5.0.0
+
+The following surfaces remain EXPERIMENTAL and may change without a major bump:
+
+- `web_fetch`, `github_read_issue`, `github_read_pr`, `github_read_file`,
+  `github_create_pr`, `github_push_branch`
+- Anthropic/OpenAI native tool-use client internals (`choose_tool_native()`)
+- Any CLI subcommand outside the 17-command visible surface (`sac --help`)
+- `.sac/tasks/`, `.sac/memory/`, `.sac/shell/` file layouts
+- `sac task`, `sac status`, `sac profile`, `sac resume`, `sac commit`, `sac debug`
+- Failure category enumeration, per-task budget, `sac fix --watch`
+- Agentic typed steps, `sac agent run`
+
+Zero breaking changes to the twelve v4.0.0 stable contracts (sections 1–12).
+
+---
+
 ## Stable Contracts
 
 ### 1. Config Precedence and Lowering Rules

@@ -5,12 +5,12 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v4.25.2
+# Current Baseline - v5.0.0
 
 ## Status
-Implemented. Git baseline: tag `v4.25.2`. Local working version: `v4.25.2`.
-v4.25.x is the Reliability Hardening train: B13 checkpoint integrity, B14 doctor
-disk/writable diagnostics, B15 sac init connectivity check, and a docs cut.
+Implemented. Git baseline: tag `v5.0.0`. Local working version: `v5.0.0`.
+v5.0.0 is the first major version boundary: native tool-use shell promoted to
+stable contract. Zero breaking changes to v4.x stable contracts.
 
 ## Stage
 The v4.14–v4.18 usability trains are complete (14 versions shipped):
@@ -68,6 +68,9 @@ v4.25.x Reliability Hardening train (3 versions):
 - `v4.25.0`: CheckpointIntegrityError; _sha256_of_file(); backup_sha256 stored in create(); _restore_checkpoint() pre-flight sha256 verification; backward compat for sha256=None (B13 fix)
 - `v4.25.1`: Doctor._sac_dir_diagnostics() — sac_dir_writable probe + disk_space WARN; _init_live_connectivity_check() — post-setup ping with yellow warning on fail (B14 + B15 fixes)
 - `v4.25.2`: docs cut — troubleshooting checkpoint integrity/writable/disk/init-connectivity, matrix rows, guards
+
+v5.0.0 First Stable Contract (1 version):
+- `v5.0.0`: 7 tool specs experimental=False; _V5_STABLE_CONTRACTS (12 entries); sac version --json stable_contracts field; public-contracts.md sections 13-16; versioning-policy.md v5.x section; threat model v5.0 note; 26 new tests
 
 All v4 surfaces remain EXPERIMENTAL and carry no stable contract.
 
