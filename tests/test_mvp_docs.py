@@ -303,3 +303,23 @@ def test_v420_matrix_has_v420_rows() -> None:
     assert "v4.20.0" in matrix
     assert "v4.20.1" in matrix
     assert "v4.20.2" in matrix
+
+
+def test_v421_write_tools_in_readme() -> None:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    assert "v4.21" in readme
+    assert "edit_file" in readme or "write_file" in readme
+
+
+def test_v421_mvp_guide_making_edits_section() -> None:
+    guide = (ROOT / "docs" / "mvp-user-guide.md").read_text(encoding="utf-8")
+    assert "edit_file" in guide
+    assert "write_file" in guide
+    assert "run_command" in guide
+
+
+def test_v421_matrix_has_v421_rows() -> None:
+    matrix = (ROOT / "docs" / "version_implementation_matrix.md").read_text(encoding="utf-8")
+    assert "v4.21.0" in matrix
+    assert "v4.21.1" in matrix
+    assert "v4.21.2" in matrix

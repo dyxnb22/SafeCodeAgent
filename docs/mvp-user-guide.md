@@ -383,6 +383,47 @@ The agent can now answer "what does `src/auth/login.py` import?" or
 "where is `handle_request` defined?" in a single turn without you
 having to specify which files to include in context.
 
+## Making Edits with Native Tools (v4.21, EXPERIMENTAL)
+
+Starting with v4.21.0, the agent can make file edits and run commands
+through native tools. Each edit is checkpointed so rollback is always
+available.
+
+### `edit_file` — approval-gated string replacement
+
+The agent proposes an exact string replacement. You see a diff preview
+before it executes. After approval, a checkpoint is created and the file
+is modified.
+
+```
+edit_file:
+  path: "src/auth/login.py"
+  old_string: "return None"
+  new_string: "return redirect('/dashboard')"
+```
+
+**If the match is not unique**, the tool returns an error rather than
+applying. This prevents accidental multi-site edits.
+
+### `write_file` — approval-gated create/overwrite
+
+Creates a new file or overwrites an existing one. Also checkpointed.
+Blocked for `.sac/`, `.git/`, and other protected directories.
+
+### `run_command` — policy-gated shell execution
+
+Runs a shell command through the same risk-classification and policy
+engine as `sac run`. High-risk commands are blocked automatically.
+
+### Rollback after native tool edits
+
+Each `edit_file` or `write_file` creates a separate checkpoint:
+```bash
+sac rollback --last      # undo the most recent edit
+sac rollback --list      # see all available checkpoints
+sac rollback --checkpoint <id>  # roll back a specific edit
+```
+
 ## Machine-readable output
 
 Many commands support `--json`:

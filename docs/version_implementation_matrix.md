@@ -612,6 +612,16 @@ Completed. Plan: `docs/version-plans/v4.20-to-v5.0-product-roadmap.md` (v4.20.x 
 | `v4.20.1` ✅ | `dev/v4.19` | `src/safecode/agent/read_tools.py`, `tests/test_read_tools.py`, `docs/version-notes/v4.20.1-read-tools.md` | Four read-only native tools: read_file (400-line cap, redacted, sensitive/binary blocked), list_files (500-entry cap, SKIP_DIRS respected, recursive option), search_files (literal substring, 100-result cap, include_glob), grep_files (regex via re, case_insensitive option). All auto-approved, audited as tool_call_read, path-validated. register_read_tools() wires all four. 24 tests. |
 | `v4.20.2` ✅ | `dev/v4.19` | `README.md`, `docs/mvp-user-guide.md`, `docs/troubleshooting.md`, `docs/version_implementation_matrix.md`, `tests/test_mvp_docs.py`, `.claude/skills/current/SKILL.md`, `.claude/versions.json`, `docs/version-notes/v4.20.2-read-tools-docs.md` | v4.20 docs cut: README native tool calling section; MVP guide "Exploring a Codebase with Native Tools"; troubleshooting for root-escape, sensitive-path, truncation, and file-tree-cap entries; matrix v4.20.x rows; docs guard tests. |
 
+## v4.21.x: Native Tool Protocol — Write Side
+
+Completed. Plan: `docs/version-plans/v4.20-to-v5.0-product-roadmap.md` (v4.21.x section).
+
+| Version | Status | Key Files | Summary |
+|---|---|---|---|
+| `v4.21.0` ✅ | `dev/v4.19` | `src/safecode/agent/write_tools.py`, `src/safecode/patch/applier.py`, `src/safecode/agent/loop.py`, `tests/test_write_tools.py`, `docs/version-notes/v4.21.0-edit-and-write-tools.md` | edit_file (unique old_string, checkpoint, diff preview, approval gate) and write_file (create/overwrite, SKIP_DIRS guard, checkpoint, approval gate). B6: patch/applier supports create/delete operations. B7: PatchApplyError(PatchValidationError) wraps PermissionError/OSError. B8: AgentLoop.run() max_steps 5→20. 23 tests. |
+| `v4.21.1` ✅ | `dev/v4.19` | `src/safecode/agent/command_tool.py`, `tests/test_run_command_tool.py`, `docs/version-notes/v4.21.1-run-command-tool.md` | run_command native tool via ShellRunner/policy stack; high-risk blocked; cwd validated within project root; timeout_seconds parameter; auto-approved via existing policy. 10 tests. |
+| `v4.21.2` ✅ | `dev/v4.19` | `README.md`, `docs/mvp-user-guide.md`, `docs/troubleshooting.md`, `docs/version_implementation_matrix.md`, `tests/test_mvp_docs.py`, `.claude/skills/current/SKILL.md`, `.claude/versions.json`, `docs/version-notes/v4.21.2-write-tools-docs.md` | v4.21 docs cut: README write/command tools section; MVP guide "Making Edits with Native Tools" section; troubleshooting old_string errors, disk-full, rollback, high-risk run_command; matrix rows; doc guard tests. |
+
 ## v4.2.x: Project Command Profile
 
 | 版本 | 分支 | 主要入口 | 验收命令 / 结果 |

@@ -5,13 +5,12 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v4.20.2
+# Current Baseline - v4.21.2
 
 ## Status
-Implemented. Git baseline: tag `v4.20.2`. Local working version: `v4.20.2`.
-v4.20.x is the native tool protocol train: NativeToolSpec/Call/Result/Dispatcher
-abstractions, four read-only tools (read_file/list_files/search_files/grep_files),
-B4/B5/B17 context budget bug fixes, and a docs cut.
+Implemented. Git baseline: tag `v4.21.2`. Local working version: `v4.21.2`.
+v4.21.x is the write-side native tool train: edit_file/write_file (checkpointed,
+approval-gated), run_command (policy-gated), B6/B7/B8 bug fixes, and a docs cut.
 
 ## Stage
 The v4.14–v4.18 usability trains are complete (14 versions shipped):
@@ -44,6 +43,11 @@ v4.20.x native tool protocol train (3 versions):
 - `v4.20.0`: NativeToolSpec/Call/Result, NativeToolDispatcher, AgentNativeToolCallResponse; B4/B5/B17 fixes
 - `v4.20.1`: read_file, list_files, search_files, grep_files — auto-approved, path-validated, redacted
 - `v4.20.2`: docs cut — README, MVP guide, troubleshooting, matrix, guards
+
+v4.21.x write-side native tool train (3 versions):
+- `v4.21.0`: edit_file/write_file tools (checkpointed, approval-gated); B6/B7/B8 fixes
+- `v4.21.1`: run_command tool via ShellRunner/policy stack
+- `v4.21.2`: docs cut — README, MVP guide, troubleshooting, matrix, guards
 
 All v4 surfaces remain EXPERIMENTAL and carry no stable contract.
 

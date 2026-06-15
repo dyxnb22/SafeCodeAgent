@@ -184,6 +184,17 @@ The native tool protocol lets the agent explore a codebase on demand: reading fi
 by path, listing directories, and searching for patterns — all within the project root,
 with secret redaction applied to every result.
 
+**Write and command tools (v4.21, EXPERIMENTAL):**
+```bash
+# edit_file — approval-gated exact string replacement with per-edit checkpoint
+# write_file — approval-gated file create/overwrite with per-write checkpoint
+# run_command — policy-gated shell command through ShellRunner (high-risk blocked)
+```
+
+Every `edit_file` and `write_file` call creates a checkpoint *before* the mutation —
+the agent can make many edits and you can roll back any of them with `sac rollback --last`.
+`run_command` passes through the same policy engine as `sac run`.
+
 **Debug commands (v4.7, EXPERIMENTAL):**
 ```bash
 sac debug last-failure

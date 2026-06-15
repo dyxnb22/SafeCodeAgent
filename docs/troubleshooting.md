@@ -477,6 +477,55 @@ that validation failure and repair events are still appended in order.
 
 ---
 
+## Write Tool Issues (v4.21, EXPERIMENTAL)
+
+### `edit_file` — old_string not found
+
+**Cause:** The exact string in `old_string` does not appear in the file.
+
+**Fix:** Use `read_file` first to confirm the current file content, then
+adjust `old_string` to match exactly (whitespace and line endings included).
+
+### `edit_file` — old_string matches more than once
+
+**Cause:** The string appears multiple times; the tool refuses to apply
+to avoid ambiguous edits.
+
+**Fix:** Include more context in `old_string` to make it unique. For
+example, include the surrounding function signature or comment.
+
+### `write_file` blocked for protected directory
+
+**Cause:** The path resolves into `.sac/`, `.git/`, or another SKIP_DIR.
+
+**Fix:** These directories are intentionally write-protected. Use standard
+SafeCode commands to modify `.sac/` state (e.g., `sac task new`).
+
+### Rollback after a native tool edit
+
+**Cause:** An `edit_file` or `write_file` call produced an unwanted result.
+
+**Fix:** Every write tool call creates a checkpoint before executing.
+Run `sac rollback --last` to undo the most recent write, or
+`sac rollback --list` + `sac rollback --checkpoint <id>` for a specific one.
+
+### Disk-full error during apply (B7)
+
+**Cause:** `edit_file` / `write_file` raised `OSError` (ENOSPC) mid-apply.
+
+**Fix:** Free disk space, then re-run the command. The previous checkpoint
+was created before the error, so `sac rollback --last` restores the pre-edit
+state if the file was partially written.
+
+### `run_command` blocked as high-risk
+
+**Cause:** The command matches a high-risk pattern in the policy engine
+(e.g., `rm -rf`, network calls without `network: true`, etc.).
+
+**Fix:** Review the policy with `sac config show`. For intentionally risky
+commands, consider running them manually in your terminal rather than
+through the agent.
+
 ## Native Tool Issues (v4.20, EXPERIMENTAL)
 
 ### `read_file` blocked with "outside the project root"
