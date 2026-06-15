@@ -15,6 +15,8 @@ class TokenUsage:
     completion_tokens: int = 0
     total_tokens: int = 0
     cost_usd: float | None = None  # None when pricing is unknown
+    cache_read_tokens: int = 0      # v5.1.0: Anthropic prompt-cache read hits
+    cache_creation_tokens: int = 0  # v5.1.0: Anthropic prompt-cache writes
 
     def __add__(self, other: "TokenUsage") -> "TokenUsage":
         return TokenUsage(
@@ -22,6 +24,8 @@ class TokenUsage:
             completion_tokens=self.completion_tokens + other.completion_tokens,
             total_tokens=self.total_tokens + other.total_tokens,
             cost_usd=None,  # pricing aggregation deferred
+            cache_read_tokens=self.cache_read_tokens + other.cache_read_tokens,
+            cache_creation_tokens=self.cache_creation_tokens + other.cache_creation_tokens,
         )
 
     def as_dict(self) -> dict:
@@ -59,6 +63,8 @@ class SessionCostAccumulator:
                 completion_tokens=int(data.get("completion_tokens", 0)),
                 total_tokens=int(data.get("total_tokens", 0)),
                 cost_usd=data.get("cost_usd"),
+                cache_read_tokens=int(data.get("cache_read_tokens", 0)),
+                cache_creation_tokens=int(data.get("cache_creation_tokens", 0)),
             )
         except (json.JSONDecodeError, OSError, ValueError):
             return None

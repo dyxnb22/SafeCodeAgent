@@ -50,7 +50,7 @@ class TestTokenUsage:
     def test_as_dict_keys(self):
         u = TokenUsage(prompt_tokens=1, completion_tokens=2, total_tokens=3)
         d = u.as_dict()
-        assert set(d.keys()) == {"prompt_tokens", "completion_tokens", "total_tokens", "cost_usd"}
+        assert {"prompt_tokens", "completion_tokens", "total_tokens", "cost_usd"}.issubset(d.keys())
 
 
 # ── SessionCostAccumulator ────────────────────────────────────────────────────

@@ -8,9 +8,12 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
+from safecode.agent.native_dispatcher import NativeToolDispatcher
+from safecode.agent.native_tools import NativeToolCall
+from safecode.agent.multi_tool_turn import MultiToolTurnResult, MultiToolTurnRunner
 from safecode.agent.orchestrator import AgentOrchestrator
 from safecode.agent.pending_action import PatchPendingAction, StopForUserAction, ToolPendingAction
-from safecode.agent.schemas import AgentStopForUserResponse, AgentToolIntentResponse, RecoverableContractFailure
+from safecode.agent.schemas import AgentNativeToolCallResponse, AgentStopForUserResponse, AgentToolIntentResponse, RecoverableContractFailure
 from safecode.agent.session import AgentSessionState, AgentSessionStore
 from safecode.agent.tools import RoutedToolIntent, ToolIntentRouter
 from safecode.config import SafeCodeConfig
@@ -66,7 +69,13 @@ class AgentRunResult:
 class AgentLoop:
     """Deterministic stepping loop used before model-driven autonomy."""
 
-    def __init__(self, project_root: Path, llm_client: object | None = None) -> None:
+    def __init__(
+        self,
+        project_root: Path,
+        llm_client: object | None = None,
+        *,
+        auto_edit: bool = False,
+    ) -> None:
         self.project_root = project_root
         self.config = SafeCodeConfig.load(project_root)
         self.context_collector = ContextCollector(project_root, self.config)
@@ -78,11 +87,234 @@ class AgentLoop:
         self._last_typed_step: TypedAgentStep | None = None
         self._last_typed_result: TypedAgentStepResult | None = None
         self.no_validate = False
+        self.auto_edit = auto_edit  # v5.1.0: auto-approve edit_file/write_file
+        self._native_write_count = 0  # v5.1.0: per-session write count for file count guard
 
     @property
     def last_typed_result(self) -> TypedAgentStepResult | None:
         """The typed result from the most recently completed step, or None."""
         return self._last_typed_result
+
+    # ------------------------------------------------------------------
+    # P1: Native tool protocol integration (v5.1.0)
+    # ------------------------------------------------------------------
+
+    def _build_dispatcher(self) -> NativeToolDispatcher:
+        """Create a NativeToolDispatcher with read/write/command tools registered.
+
+        When auto_edit=True, write tools are registered with approved=True so they
+        execute immediately without blocking.  run_command always uses approved=True
+        (policy gates still apply via ShellRunner).
+        """
+        from safecode.agent.read_tools import register_read_tools
+        from safecode.agent.write_tools import register_write_tools
+        from safecode.agent.command_tool import register_command_tool
+
+        dispatcher = NativeToolDispatcher()
+        register_read_tools(dispatcher, self.project_root)
+        register_write_tools(dispatcher, self.project_root, approved=self.auto_edit)
+        register_command_tool(dispatcher, self.project_root)
+        return dispatcher
+
+    def native_step(self, goal: str | None = None) -> "AgentStepResult":
+        """Advance one step via the native tool protocol (P1, v5.1.0).
+
+        Unlike step() which uses the JSON contract, native_step() calls
+        choose_tool_native() and dispatches results through MultiToolTurnRunner.
+        The model's tool calls are dispatched, results fed back as context, and
+        the loop continues until the model emits a stop or the turn cap is reached.
+
+        Falls back to step() when the LLM client does not support native tools.
+        """
+        if not hasattr(self.llm_client, "choose_tool_native"):
+            return self.step(goal)
+
+        state = self.store.load()
+        if state is None:
+            if not goal:
+                raise FileNotFoundError("No agent session found. Provide a goal or run 'sac agent start'.")
+            state = self._start_planned_session(goal)
+        elif goal and goal != state.goal:
+            state = self._start_planned_session(goal)
+        elif not state.plan:
+            planned = self._plan_steps(state.goal)
+            state = state.model_copy(update={"plan": planned, "current_step": 0})
+            state = self.store.save(state)
+            self.journal.record_plan(state.session_id, state.goal, planned)
+
+        if state.current_step >= len(state.plan):
+            updated = state.model_copy(
+                update={
+                    "status": "completed",
+                    "pending_action": None,
+                    "last_observation": "Plan already completed.",
+                }
+            )
+            saved = self.store.save(updated)
+            self._classify_and_record(
+                step_index=saved.current_step,
+                pending_action=None,
+                observation=saved.last_observation,
+                stopped_for_approval=False,
+                session_id=saved.session_id,
+            )
+            return AgentStepResult(state=saved, observation=saved.last_observation)
+
+        context = self.context_collector.collect(query=state.goal)
+        context = self._enrich_with_subagent_findings(state.session_id, context)
+
+        dispatcher = self._build_dispatcher()
+        tool_specs = dispatcher.specs()
+
+        # File count guard: if in auto_edit mode and session write count is near limit, pause.
+        _AUTO_EDIT_FILE_GUARD = 10
+        if self.auto_edit and self._native_write_count >= _AUTO_EDIT_FILE_GUARD:
+            observation = (
+                f"About to edit more than {_AUTO_EDIT_FILE_GUARD} files this session. "
+                "Pausing for review. Approve with /continue or type another goal."
+            )
+            stop_action = StopForUserAction(
+                reason="file_count_guard",
+                message=observation,
+                requires_approval=True,
+            )
+            pending_action = stop_action.to_dict()
+            updated = state.model_copy(
+                update={
+                    "pending_action": pending_action,
+                    "last_observation": observation,
+                    "status": "waiting_for_user",
+                    "last_error": None,
+                }
+            )
+            saved = self.store.save(updated)
+            self._classify_and_record(
+                step_index=saved.current_step,
+                pending_action=pending_action,
+                observation=observation,
+                stopped_for_approval=True,
+                session_id=saved.session_id,
+            )
+            return AgentStepResult(state=saved, observation=observation, stopped_for_approval=True)
+
+        # Call model with native tool protocol.
+        raw_result = self.llm_client.choose_tool_native(
+            state.goal, context, tool_specs, step=state.current_step
+        )
+
+        if isinstance(raw_result, RecoverableContractFailure):
+            # Single retry on recoverable failures.
+            raw_result = self.llm_client.choose_tool_native(
+                state.goal, context, tool_specs, step=state.current_step
+            )
+            if isinstance(raw_result, RecoverableContractFailure):
+                observation = f"Native tool contract failure after retry: {raw_result.message}"
+                updated = state.model_copy(
+                    update={
+                        "pending_action": None,
+                        "last_observation": observation,
+                        "status": "active",
+                        "last_error": observation,
+                    }
+                )
+                saved = self.store.save(updated)
+                self._classify_and_record(
+                    step_index=saved.current_step,
+                    pending_action=None,
+                    observation=observation,
+                    stopped_for_approval=False,
+                    failure_category="model_output_invalid",
+                    session_id=saved.session_id,
+                )
+                return AgentStepResult(state=saved, observation=observation)
+
+        if isinstance(raw_result, AgentStopForUserResponse):
+            stop_action = StopForUserAction(
+                reason=raw_result.reason,
+                message=raw_result.message,
+                requires_approval=raw_result.requires_approval,
+            )
+            pending_action = stop_action.to_dict()
+            updated = state.model_copy(
+                update={
+                    "pending_action": pending_action,
+                    "last_observation": raw_result.message,
+                    "status": "waiting_for_user",
+                    "last_error": None,
+                }
+            )
+            saved = self.store.save(updated)
+            self._classify_and_record(
+                step_index=saved.current_step,
+                pending_action=pending_action,
+                observation=raw_result.message,
+                stopped_for_approval=True,
+                session_id=saved.session_id,
+            )
+            return AgentStepResult(state=saved, observation=raw_result.message, stopped_for_approval=True)
+
+        # raw_result is list[AgentNativeToolCallResponse] — dispatch via MultiToolTurnRunner.
+        native_calls = [
+            NativeToolCall(tool_name=c.tool_name, input=c.input, call_id=c.call_id)
+            for c in raw_result
+        ]
+
+        def _llm_next_fn(obs_text: str, ctx: dict):
+            """Feed tool results back to model; return next calls or None to stop."""
+            enriched = {**ctx, "tool_results": obs_text}
+            next_raw = self.llm_client.choose_tool_native(
+                state.goal, enriched, tool_specs, step=state.current_step
+            )
+            if isinstance(next_raw, list):
+                return [
+                    NativeToolCall(tool_name=c.tool_name, input=c.input, call_id=c.call_id)
+                    for c in next_raw
+                ]
+            return None  # stop_for_user or RCF → end the turn
+
+        runner = MultiToolTurnRunner(dispatcher)
+        turn_result = runner.run_turn(native_calls, llm_next_fn=_llm_next_fn, context=context)
+
+        # Count write tool calls for file count guard.
+        write_tool_names = {"edit_file", "write_file"}
+        write_calls = sum(1 for r in turn_result.tool_calls if r.tool_name in write_tool_names)
+        self._native_write_count += write_calls
+
+        observation = turn_result.context_block() or f"Native turn: {turn_result.stopped_reason}"
+        pending_action: dict[str, object] = {
+            "type": "native_turn",
+            "route": "native.dispatch",
+            "stopped_reason": turn_result.stopped_reason,
+            "tool_calls_count": str(len(turn_result.tool_calls)),
+            "cap_hit": str(turn_result.cap_hit).lower(),
+            "write_calls": str(write_calls),
+        }
+        stopped_for_approval = turn_result.stopped_reason in {"stop_for_user", "error"} and not self.auto_edit
+
+        updated = state.model_copy(
+            update={
+                "current_step": state.current_step + 1,
+                "pending_action": pending_action,
+                "last_observation": observation,
+                "status": "active",
+                "last_error": None,
+            }
+        )
+        saved = self.store.save(updated)
+        self.journal.record_action(
+            saved.session_id,
+            saved.current_step,
+            observation,
+            pending_action,
+        )
+        self._classify_and_record(
+            step_index=saved.current_step,
+            pending_action=pending_action,
+            observation=observation,
+            stopped_for_approval=stopped_for_approval,
+            session_id=saved.session_id,
+        )
+        return AgentStepResult(state=saved, observation=observation, stopped_for_approval=stopped_for_approval)
 
     def _classify_and_record(
         self,

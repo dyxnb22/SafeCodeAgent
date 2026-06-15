@@ -668,6 +668,12 @@ Completed. Plan: `docs/version-plans/v4.20-to-v5.0-product-roadmap.md` (v4.25.x 
 |---|---|---|---|
 | `v5.0.0` ✅ | `dev/v4.19` | `src/safecode/agent/read_tools.py`, `src/safecode/agent/write_tools.py`, `src/safecode/agent/command_tool.py`, `src/safecode/cli_ops.py`, `docs/public-contracts.md`, `docs/versioning-policy.md`, `docs/security/threat-model-v3.6.md`, `tests/test_v5_stable_contracts.py`, `tests/test_mvp_docs.py`, `.claude/skills/current/SKILL.md`, `.claude/versions.json`, `docs/version-notes/v5.0.0-first-stable-contract.md` | Seven tool specs promoted to experimental=False (read_file, list_files, search_files, grep_files, edit_file, write_file, run_command). sac version --json gains stable_contracts list (12 entries). public-contracts.md sections 13-16 added. versioning-policy.md v5.x contract promise added. threat-model v5.0 stable contract security properties. Zero breaking changes to 12 v4.0 stable contracts. |
 
+## v5.1.x: Agentic Loop Foundation
+
+| 版本 | 分支 | 主要入口 | 验收命令 / 结果 |
+|---|---|---|---|
+| `v5.1.0` ✅ | `dev/v4.19` | `src/safecode/agent/loop.py`, `src/safecode/llm/anthropic_client.py`, `src/safecode/llm/cost.py`, `src/safecode/checkpoint/models.py`, `src/safecode/cli_shell.py`, `tests/test_auto_edit_mode.py`, `tests/test_llm_cost_accounting.py`, `tests/test_cli_shell.py` | P1: AgentLoop gains `native_step()` wired to MultiToolTurnRunner; `_build_dispatcher()` creates NativeToolDispatcher with read/write/command tools; falls back to step() when LLM has no choose_tool_native. P2: AnthropicLLMClient `_messages()` and `_messages_with_tools()` send block-format system prompt and first user turn with `cache_control: {"type": "ephemeral"}`; `_record_usage()` surfaces cache_read_tokens and cache_creation_tokens; TokenUsage gains two new fields. CheckpointMetadata gains `session_id` field (additive, backward compat). Auto-edit mode: `--auto-edit` flag for `sac shell --agentic`; `AgentLoop(auto_edit=True)` registers write tools with `approved=True`; file count guard at 10 writes/session; session summary printed on exit. 5191 passed, 4 skipped. |
+
 ## v4.2.x: Project Command Profile
 
 | 版本 | 分支 | 主要入口 | 验收命令 / 结果 |

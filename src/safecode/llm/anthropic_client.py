@@ -304,8 +304,10 @@ class AnthropicLLMClient:
         payload = json.dumps({
             "model": self.model,
             "max_tokens": _DEFAULT_MAX_TOKENS,
-            "system": system,
-            "messages": [{"role": "user", "content": user}],
+            "system": [{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}],
+            "messages": [{"role": "user", "content": [
+                {"type": "text", "text": user, "cache_control": {"type": "ephemeral"}}
+            ]}],
         }).encode("utf-8")
         request = urllib.request.Request(
             self.base_url,
@@ -348,9 +350,11 @@ class AnthropicLLMClient:
         payload = json.dumps({
             "model": self.model,
             "max_tokens": _DEFAULT_MAX_TOKENS,
-            "system": system,
+            "system": [{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}],
             "tools": tools,
-            "messages": [{"role": "user", "content": user}],
+            "messages": [{"role": "user", "content": [
+                {"type": "text", "text": user, "cache_control": {"type": "ephemeral"}}
+            ]}],
         }).encode("utf-8")
         request = urllib.request.Request(
             self.base_url,
@@ -395,11 +399,15 @@ class AnthropicLLMClient:
             return
         prompt = int(usage_raw.get("input_tokens", 0))
         completion = int(usage_raw.get("output_tokens", 0))
+        cache_read = int(usage_raw.get("cache_read_input_tokens", 0))
+        cache_creation = int(usage_raw.get("cache_creation_input_tokens", 0))
         usage = TokenUsage(
             prompt_tokens=prompt,
             completion_tokens=completion,
             total_tokens=prompt + completion,
             cost_usd=None,
+            cache_read_tokens=cache_read,
+            cache_creation_tokens=cache_creation,
         )
         try:
             SessionCostAccumulator(self._sac_dir, self._session_id).record(usage)

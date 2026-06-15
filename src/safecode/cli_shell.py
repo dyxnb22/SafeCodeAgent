@@ -721,18 +721,27 @@ def _run_agentic_shell(
     *,
     is_tty: bool = True,
     json_output: bool = False,
+    auto_edit: bool = False,
 ) -> int:
     """[EXPERIMENTAL] Drive AgentLoop.run() from a single user input line.
 
     Reads one line of user input as the goal, runs the AgentLoop, and renders
     the result. Uses Rich Status panel for real-time step progress in TTY mode.
-    All mutation paths require explicit approval.
+
+    With --auto-edit, edit_file and write_file execute without prompting.
+    run_command and GitHub write tools always require approval.
     """
     from safecode.cli_shared_json import CLIJSONResponse, render_json
     from safecode.agent.step_model import APPROVAL_REQUIRED_KINDS
 
+    mode_label = "auto-edit" if auto_edit else "v4.18"
     if is_tty:
-        console.print("[bold]SafeCode Shell[/bold] [dim](EXPERIMENTAL --agentic mode v4.18)[/dim]")
+        console.print(f"[bold]SafeCode Shell[/bold] [dim](EXPERIMENTAL --agentic mode {mode_label})[/dim]")
+        if auto_edit:
+            console.print(
+                "[yellow]Auto-edit mode: edit_file/write_file execute without prompting. "
+                "Use sac rollback --last to undo.[/yellow]"
+            )
         console.print("Enter your goal (one line), or Ctrl-C to exit.")
 
     line = _read_line(is_tty=is_tty)
@@ -742,18 +751,30 @@ def _run_agentic_shell(
         return 0
 
     goal = line.strip()
-    loop = AgentLoop(project_root)
+    loop = AgentLoop(project_root, auto_edit=auto_edit)
 
     step_updates: list[str] = []
+    files_edited: list[str] = []
 
     def on_step(result):
         obs = result.observation[:120]
         step_updates.append(obs)
+        # Track auto-edited files for session summary.
+        if auto_edit and result.state.pending_action:
+            action = result.state.pending_action
+            if action.get("type") == "native_turn":
+                write_calls = int(action.get("write_calls", "0") or "0")
+                if write_calls:
+                    files_edited.append(f"+{write_calls} files (step {len(step_updates)})")
+            if is_tty and not json_output:
+                write_calls = int(action.get("write_calls", "0") or "0") if action.get("type") == "native_turn" else 0
+                if write_calls:
+                    console.print(f"  [green]✓[/green] {write_calls} file(s) edited")
 
     try:
         if is_tty and not json_output:
             from rich.status import Status
-            with Status("[bold blue]Agent loop running...", spinner="dots") as status:
+            with Status("[bold blue]Agent loop running...", spinner="dots"):
                 result = loop.run(goal, max_steps=8, on_step=on_step)
         else:
             result = loop.run(goal, max_steps=8, on_step=on_step)
@@ -774,7 +795,10 @@ def _run_agentic_shell(
             "steps_count": len(result.steps),
             "status": result.state.status,
             "step_updates": step_updates,
+            "auto_edit": auto_edit,
         }
+        if files_edited:
+            data["files_edited_summary"] = files_edited
         if last_typed is not None:
             data["last_typed_result"] = last_typed.model_dump()
         print(render_json(CLIJSONResponse(command="shell --agentic", status=status, data=data)))
@@ -787,11 +811,16 @@ def _run_agentic_shell(
         else:
             print(line_out)
 
-    summary = (
-        f"Session: {result.state.session_id} | "
-        f"Status: {result.state.status} | "
-        f"Stopped: {result.stopped_reason}"
-    )
+    # Session summary (v5.1.0: always show in auto-edit mode)
+    summary_parts = [
+        f"Session: {result.state.session_id}",
+        f"Status: {result.state.status}",
+        f"Stopped: {result.stopped_reason}",
+    ]
+    if auto_edit and loop._native_write_count:
+        summary_parts.append(f"Files edited: {loop._native_write_count}")
+        summary_parts.append(f"Undo all: sac rollback --session {result.state.session_id}")
+    summary = " | ".join(summary_parts)
     if is_tty:
         console.print(f"[dim]{summary}[/dim]")
     else:
@@ -814,6 +843,13 @@ def register(app: typer.Typer) -> None:
             "--agentic",
             help="[EXPERIMENTAL] Route user input directly to AgentLoop.run() instead of the intent router.",
         ),
+        auto_edit: bool = typer.Option(
+            False,
+            "--auto-edit",
+            help="[EXPERIMENTAL] Auto-approve edit_file/write_file in --agentic mode. "
+                 "run_command and GitHub write tools still require approval. "
+                 "Checkpoints are always created. Implies --agentic.",
+        ),
     ) -> None:
         """[EXPERIMENTAL] Start an interactive AI shell session.
 
@@ -823,6 +859,9 @@ def register(app: typer.Typer) -> None:
         With --agentic, user input becomes the goal for an AgentLoop.run() invocation
         (the same loop sac agent run drives). Existing shell behavior is unchanged
         without --agentic.
+
+        With --auto-edit (implies --agentic), edit_file and write_file execute
+        without per-call prompts. Use 'sac rollback --last' or '/undo' to undo.
         """
         project_root = Path.cwd()
         is_tty = sys.stdin.isatty() and sys.stdout.isatty() and not non_tty
@@ -838,8 +877,13 @@ def register(app: typer.Typer) -> None:
                     console.print(f"[yellow]{suggestion}[/yellow]")
                 console.print(f"[dim]Session model override: {resolved}[/dim]")
 
-        if agentic:
-            code = _run_agentic_shell(project_root, is_tty=is_tty, json_output=json_output)
+        if auto_edit or agentic:
+            code = _run_agentic_shell(
+                project_root,
+                is_tty=is_tty,
+                json_output=json_output,
+                auto_edit=auto_edit,
+            )
         else:
             code = run_shell(
                 project_root,

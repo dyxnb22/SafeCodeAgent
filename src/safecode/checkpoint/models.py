@@ -21,3 +21,4 @@ class CheckpointMetadata(BaseModel):
     patch_id: str
     created_at: str
     file_operations: list[CheckpointFileOperation]
+    session_id: str | None = None  # v5.1.0: agent session that created this checkpoint
