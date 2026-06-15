@@ -1,7 +1,11 @@
 # SafeCode Agent Final Status and Roadmap
 
-Status: current project baseline after `v4.18.2` (pre-freeze).
-Last updated: 2026-06-06.
+Status: current project baseline after `v5.0.0`.
+Last updated: 2026-06-15.
+
+> **Update (2026-06-15):** All v4.19.x–v5.0.0 trains complete (22 versions).
+> Active forward plan: `docs/version-plans/v5.1-to-v5.3-product-roadmap.md` (next: v5.1.x).
+> Extended roadmap: `docs/version-plans/v5.4-to-v5.6-product-roadmap.md` (MCP, IDE, production).
 
 This document is the consolidated product description for SafeCode Agent through
 the v4.14–v4.18 usability trains. Both the post-v4.14 usability roadmap (8 versions)
