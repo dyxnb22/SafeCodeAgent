@@ -7,17 +7,14 @@ Verifies:
 - Typed failure categories are correct for known failure modes.
 - ClassifiedLoopFailure.as_dict() is serializable.
 - LoopFailureCategory enum values are stable.
-- sac eval --mode loop mentions all six fixture names.
 """
 
 from __future__ import annotations
 
 import pytest
-from typer.testing import CliRunner
 
 from safecode.agent.schemas import AgentPatchResponse, AgentStopForUserResponse, AgentToolIntentResponse
 from safecode.agent.tools import ToolIntent
-from safecode.cli import app
 from safecode.eval.loop_runner import (
     ClassifiedLoopFailure,
     LLMContractViolation,
@@ -31,8 +28,6 @@ from safecode.eval.loop_runner import (
     _classify_loop_result,
     default_loop_fixtures,
 )
-
-runner = CliRunner()
 
 EXPECTED_FIXTURE_NAMES = {
     "docs-edit",
@@ -258,19 +253,4 @@ class TestRecoverableContractFailureType:
         assert type(rcf) is not type(v)
 
 
-# ── CLI shows all six fixture names ──────────────────────────────────────
-
-
-@pytest.mark.slow
-@pytest.mark.eval
-class TestEvalLoopModeCLISixFixtures:
-    def test_eval_loop_mode_shows_all_six_names(self, monkeypatch, tmp_path):
-        monkeypatch.chdir(tmp_path)
-        result = runner.invoke(app, ["eval", "--mode", "loop"], catch_exceptions=False)
-        for name in EXPECTED_FIXTURE_NAMES:
-            assert name in result.output, f"Fixture name {name!r} not in CLI output"
-
-    def test_eval_loop_mode_exits_zero(self, monkeypatch, tmp_path):
-        monkeypatch.chdir(tmp_path)
-        result = runner.invoke(app, ["eval", "--mode", "loop"], catch_exceptions=False)
-        assert result.exit_code == 0, f"Exit {result.exit_code}: {result.output}"
+# CLI output for loop fixtures is covered by tests/test_eval_loop_mode_ci_gate.py.

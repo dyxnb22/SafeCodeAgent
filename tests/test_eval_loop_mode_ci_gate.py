@@ -110,21 +110,12 @@ class TestEvalLoopModeBehavior:
         "import-cleanup",
     }
 
-    def test_eval_loop_mode_exits_zero(self, monkeypatch, tmp_path):
+    def test_eval_loop_mode_exits_zero_shows_fixtures_and_no_network_markers(self, monkeypatch, tmp_path):
         monkeypatch.chdir(tmp_path)
         result = runner.invoke(app, ["eval", "--mode", "loop"], catch_exceptions=False)
         assert result.exit_code == 0, f"Exit {result.exit_code}: {result.output}"
-
-    def test_eval_loop_mode_shows_all_fixture_names(self, monkeypatch, tmp_path):
-        monkeypatch.chdir(tmp_path)
-        result = runner.invoke(app, ["eval", "--mode", "loop"], catch_exceptions=False)
         for name in self.EXPECTED_NAMES:
             assert name in result.output, f"Fixture {name!r} not shown in CLI output"
-
-    def test_eval_loop_mode_no_network_markers(self, monkeypatch, tmp_path):
-        """Output must not contain markers that indicate live provider calls."""
-        monkeypatch.chdir(tmp_path)
-        result = runner.invoke(app, ["eval", "--mode", "loop"], catch_exceptions=False)
         assert "openai" not in result.output.lower()
         assert "anthropic" not in result.output.lower()
 
@@ -172,12 +163,4 @@ class TestLoopEvalBlockingPromotion:
         assert "OPENAI_API_KEY" not in job_str
         assert "ANTHROPIC_API_KEY" not in job_str
 
-    @pytest.mark.slow
-    def test_loop_eval_clean_run_exits_zero_locally(self, monkeypatch, tmp_path):
-        """Scripted loop mode exits 0 locally — confirming readiness for future promotion."""
-        monkeypatch.chdir(tmp_path)
-        result = runner.invoke(app, ["eval", "--mode", "loop"], catch_exceptions=False)
-        assert result.exit_code == 0, (
-            f"sac eval --mode loop must exit 0 before CI promotion is possible. "
-            f"Exit={result.exit_code}: {result.output}"
-        )
+    # Local clean-run behavior is covered by TestEvalLoopModeBehavior above.

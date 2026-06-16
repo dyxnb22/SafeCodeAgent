@@ -20,12 +20,12 @@ _PORTFOLIO_DOC = _ROOT / "docs" / "demo" / "portfolio-demo.md"
 _README = _ROOT / "README.md"
 
 
-def test_demo_directory_exists():
+def test_demo_core_files_exist():
     assert _DEMO_DIR.is_dir()
-
-
-def test_demo_fixture_source_exists():
     assert _DEMO_FIXTURE_SRC.exists()
+    assert _DEMO_FIXTURE_TEST.exists()
+    assert _DEMO_SCRIPT.exists()
+    assert _DEMO_TRANSCRIPT.exists()
 
 
 def test_demo_fixture_source_has_bug():
@@ -33,10 +33,6 @@ def test_demo_fixture_source_has_bug():
     text = _DEMO_FIXTURE_SRC.read_text()
     assert "return a + b" in text
     assert "subtract" in text
-
-
-def test_demo_fixture_test_exists():
-    assert _DEMO_FIXTURE_TEST.exists()
 
 
 class TestDemoFixtureIsBrokenThenFixable:
@@ -69,9 +65,6 @@ class TestDemoFixtureIsBrokenThenFixable:
 
 
 class TestDemoScript:
-    def test_demo_script_exists(self):
-        assert _DEMO_SCRIPT.exists()
-
     def test_demo_script_is_executable(self):
         assert os.access(str(_DEMO_SCRIPT), os.X_OK)
 
@@ -81,32 +74,11 @@ class TestDemoScript:
 
 
 class TestExpectedTranscript:
-    def test_transcript_exists(self):
-        assert _DEMO_TRANSCRIPT.exists()
-
-    def test_transcript_contains_diff_preview(self):
+    def test_transcript_contains_expected_flow_markers(self):
         text = _DEMO_TRANSCRIPT.read_text()
+        for marker in ("checkpoint", "audit", "passed", "rollback", "commit"):
+            assert marker in text.lower()
         assert "diff" in text.lower() or "patch proposal" in text.lower()
-
-    def test_transcript_contains_checkpoint(self):
-        text = _DEMO_TRANSCRIPT.read_text()
-        assert "checkpoint" in text.lower()
-
-    def test_transcript_contains_audit(self):
-        text = _DEMO_TRANSCRIPT.read_text()
-        assert "audit" in text.lower()
-
-    def test_transcript_contains_test_pass(self):
-        text = _DEMO_TRANSCRIPT.read_text()
-        assert "passed" in text.lower()
-
-    def test_transcript_contains_rollback_evidence(self):
-        text = _DEMO_TRANSCRIPT.read_text()
-        assert "rollback" in text.lower()
-
-    def test_transcript_contains_commit_offer(self):
-        text = _DEMO_TRANSCRIPT.read_text()
-        assert "commit" in text.lower()
 
 
 class TestPortfolioDoc:
@@ -125,15 +97,9 @@ class TestPortfolioDoc:
 
 
 class TestReadmeLinks:
-    def test_readme_links_golden_demo(self):
+    def test_readme_links_demo_and_safety_loop(self):
         text = _README.read_text()
         assert "golden-demo" in text
-
-    def test_readme_links_portfolio_demo_doc(self):
-        text = _README.read_text()
         assert "portfolio-demo.md" in text
-
-    def test_readme_safety_loop_visible(self):
-        text = _README.read_text()
         assert "checkpoint" in text.lower()
         assert "rollback" in text.lower()

@@ -209,7 +209,7 @@ print("not-json")
 
 @pytest.mark.timeout
 class TestTimeout:
-    def test_timeout_returns_failure(self, tmp_path):
+    def test_timeout_result_shape(self, tmp_path):
         argv = _write_server(tmp_path, "server.py", """\
 import sys, time
 sys.stdin.readline()
@@ -217,23 +217,7 @@ time.sleep(60)
 """)
         result = call_stdio(argv, "method", timeout_seconds=0.15)
         assert result.success is False
-
-    def test_timeout_exit_code_124(self, tmp_path):
-        argv = _write_server(tmp_path, "server.py", """\
-import sys, time
-sys.stdin.readline()
-time.sleep(60)
-""")
-        result = call_stdio(argv, "method", timeout_seconds=0.15)
         assert result.exit_code == 124
-
-    def test_timeout_error_message(self, tmp_path):
-        argv = _write_server(tmp_path, "server.py", """\
-import sys, time
-sys.stdin.readline()
-time.sleep(60)
-""")
-        result = call_stdio(argv, "method", timeout_seconds=0.15)
         assert "timed out" in result.error.lower()
 
     def test_timeout_process_cleaned_up(self, tmp_path):

@@ -5,18 +5,15 @@ Verifies:
 - LLM contract violation fails closed with a clear failure object.
 - LoopModeEvalRunner completes a pending patch flow for each fixture.
 - Default fixtures cover docs-edit and python-function-fix.
-- sac eval --mode loop CLI exits 0 when all fixtures pass.
 - No real network calls are made.
 """
 
 from pathlib import Path
 
 import pytest
-from typer.testing import CliRunner
 
 from safecode.agent.schemas import AgentPatchResponse, AgentToolIntentResponse, AgentStopForUserResponse
 from safecode.agent.tools import ToolIntent
-from safecode.cli import app
 from safecode.eval.loop_runner import (
     LLMContractViolation,
     LoopEvalFixture,
@@ -25,9 +22,6 @@ from safecode.eval.loop_runner import (
     ScriptedStep,
     default_loop_fixtures,
 )
-
-runner = CliRunner()
-
 
 # ── ScriptedLLMClient unit tests ──────────────────────────────────────────
 
@@ -151,25 +145,4 @@ class TestLoopModeEvalRunnerFixtures:
             assert isinstance(result.passed, bool)
 
 
-# ── CLI integration ───────────────────────────────────────────────────────
-
-
-@pytest.mark.slow
-@pytest.mark.eval
-class TestEvalLoopModeCLI:
-    def test_eval_loop_mode_exits_zero(self, monkeypatch, tmp_path):
-        monkeypatch.chdir(tmp_path)
-        result = runner.invoke(app, ["eval", "--mode", "loop"], catch_exceptions=False)
-        assert result.exit_code == 0, f"Exit {result.exit_code}: {result.output}"
-
-    def test_eval_loop_mode_output_mentions_fixtures(self, monkeypatch, tmp_path):
-        monkeypatch.chdir(tmp_path)
-        result = runner.invoke(app, ["eval", "--mode", "loop"], catch_exceptions=False)
-        assert "docs-edit" in result.output
-        assert "python-function-fix" in result.output
-
-    def test_eval_default_mode_unchanged(self, monkeypatch, tmp_path):
-        monkeypatch.chdir(tmp_path)
-        result = runner.invoke(app, ["eval"], catch_exceptions=False)
-        assert result.exit_code == 0
-        assert "SafeCode Eval" in result.output
+# Loop CLI integration is covered by tests/test_eval_loop_mode_ci_gate.py.

@@ -16,11 +16,15 @@ _SCRIPT = _DEMO / "demo" / "run-demo.sh"
 _TRANSCRIPT = _DEMO / "demo" / "expected-transcript.md"
 
 
-def test_realistic_demo_files_exist() -> None:
+def test_realistic_demo_static_contract() -> None:
     assert (_DEMO / "src" / "todo_service" / "api.py").exists()
     assert (_DEMO / "src" / "todo_service" / "store.py").exists()
     assert (_DEMO / "tests" / "test_todo_service.py").exists()
     assert _TRANSCRIPT.exists()
+    assert os.access(_SCRIPT, os.X_OK)
+    text = _TRANSCRIPT.read_text()
+    for marker in ["review boundary", "checkpoint", "audit", "rollback"]:
+        assert marker in text.lower()
 
 
 def test_realistic_demo_starts_failing() -> None:
@@ -57,7 +61,6 @@ def test_realistic_demo_is_fixable() -> None:
 
 
 def test_realistic_demo_script_runs_to_green() -> None:
-    assert os.access(_SCRIPT, os.X_OK)
     result = subprocess.run(
         ["bash", str(_SCRIPT)],
         cwd=_ROOT,
@@ -68,9 +71,3 @@ def test_realistic_demo_script_runs_to_green() -> None:
     assert result.returncode == 0
     assert "2 passed" in result.stdout
     assert "Checkpoint created" in result.stdout
-
-
-def test_realistic_demo_transcript_contains_safety_gates() -> None:
-    text = _TRANSCRIPT.read_text()
-    for marker in ["review boundary", "checkpoint", "audit", "rollback"]:
-        assert marker in text.lower()

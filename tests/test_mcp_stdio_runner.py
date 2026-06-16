@@ -344,25 +344,13 @@ sys.stdout.flush()
 
 @pytest.mark.timeout
 class TestTimeoutKill:
-    def test_timeout_returns_failure(self, tmp_path):
-        a, _ = _adapter(tmp_path, _SLEEP_SERVER, timeout=0.15)
-        r = a.call_readonly("list_files")
-        assert r.success is False
-
-    def test_timeout_not_blocked(self, tmp_path):
+    def test_timeout_result_shape(self, tmp_path):
         # Timeout is a transport failure, not a classification block.
         a, _ = _adapter(tmp_path, _SLEEP_SERVER, timeout=0.15)
         r = a.call_readonly("list_files")
+        assert r.success is False
         assert r.blocked is False
-
-    def test_timeout_exit_code_124(self, tmp_path):
-        a, _ = _adapter(tmp_path, _SLEEP_SERVER, timeout=0.15)
-        r = a.call_readonly("list_files")
         assert r.exit_code == 124
-
-    def test_timeout_error_not_empty(self, tmp_path):
-        a, _ = _adapter(tmp_path, _SLEEP_SERVER, timeout=0.15)
-        r = a.call_readonly("list_files")
         assert r.error != ""
 
 
@@ -405,6 +393,7 @@ class TestNoParamsInError:
         secret = "bearer-secret-token-xyz"
         r = a.call_readonly("list_files", {"auth": secret})
         assert secret not in r.error
+        assert isinstance(r, StdioCallResult)
 
     def test_call_args_not_in_unknown_block_error(self, tmp_path):
         a, _ = _adapter(tmp_path, _content_block_server("nope"))
@@ -426,11 +415,6 @@ class TestNeverRaises:
     def test_write_tool_no_raise(self, tmp_path):
         a, _ = _adapter(tmp_path, _content_block_server("nope"))
         result = a.call_readonly("write_file")
-        assert isinstance(result, StdioCallResult)
-
-    def test_timeout_no_raise(self, tmp_path):
-        a, _ = _adapter(tmp_path, _SLEEP_SERVER, timeout=0.15)
-        result = a.call_readonly("list_files")
         assert isinstance(result, StdioCallResult)
 
     def test_missing_binary_no_raise(self, tmp_path):

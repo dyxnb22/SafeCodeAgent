@@ -224,65 +224,34 @@ def test_tutorial_commands_exist_in_cli(tutorial_path: Path):
 
 
 class TestPythonTutorial:
-    def test_mentions_pyproject_toml(self):
+    def test_python_stack_requirements(self):
         text = PYTHON_TUTORIAL.read_text(encoding="utf-8")
         assert "pyproject.toml" in text, "Python tutorial must mention pyproject.toml"
-
-    def test_mentions_pytest(self):
-        text = PYTHON_TUTORIAL.read_text(encoding="utf-8")
         assert "pytest" in text, "Python tutorial must mention pytest"
-
-    def test_has_sac_quickstart(self):
-        assert "sac quickstart" in PYTHON_TUTORIAL.read_text(encoding="utf-8")
-
-    def test_has_sac_task_new(self):
-        assert "sac task new" in PYTHON_TUTORIAL.read_text(encoding="utf-8")
-
-    def test_has_sac_fix_watch(self):
-        assert "sac fix --watch" in PYTHON_TUTORIAL.read_text(encoding="utf-8")
-
-    def test_never_auto_applies(self):
-        text = PYTHON_TUTORIAL.read_text(encoding="utf-8")
+        for command in ("sac quickstart", "sac task new", "sac fix --watch"):
+            assert command in text
         assert "never auto-applies" in text.lower() or "never auto-apply" in text.lower() or \
                "It never auto-applies" in text, "Python tutorial must state fix --watch never auto-applies"
 
 
 class TestTypescriptTutorial:
-    def test_mentions_package_json(self):
+    def test_typescript_stack_requirements(self):
         text = TS_TUTORIAL.read_text(encoding="utf-8")
         assert "package.json" in text, "TypeScript tutorial must mention package.json"
-
-    def test_mentions_sac_fix(self):
-        assert "sac fix" in TS_TUTORIAL.read_text(encoding="utf-8")
-
-    def test_has_sac_task_new(self):
-        assert "sac task new" in TS_TUTORIAL.read_text(encoding="utf-8")
-
-    def test_has_sac_profile_detect(self):
-        assert "sac profile detect" in TS_TUTORIAL.read_text(encoding="utf-8")
-
-    def test_no_unsupported_claims(self):
-        text = TS_TUTORIAL.read_text(encoding="utf-8").lower()
+        for command in ("sac fix", "sac task new", "sac profile detect"):
+            assert command in text
+        text = text.lower()
         for claim in ("sac push", "marketplace"):
             assert claim not in text, f"TypeScript tutorial must not claim {claim!r}"
 
 
 class TestGoTutorial:
-    def test_mentions_go_mod(self):
+    def test_go_stack_requirements(self):
         text = GO_TUTORIAL.read_text(encoding="utf-8")
         assert "go.mod" in text, "Go tutorial must mention go.mod"
-
-    def test_mentions_sac_fix(self):
-        assert "sac fix" in GO_TUTORIAL.read_text(encoding="utf-8")
-
-    def test_has_sac_task_new(self):
-        assert "sac task new" in GO_TUTORIAL.read_text(encoding="utf-8")
-
-    def test_has_sac_profile_detect(self):
-        assert "sac profile detect" in GO_TUTORIAL.read_text(encoding="utf-8")
-
-    def test_no_unsupported_claims(self):
-        text = GO_TUTORIAL.read_text(encoding="utf-8").lower()
+        for command in ("sac fix", "sac task new", "sac profile detect"):
+            assert command in text
+        text = text.lower()
         for claim in ("sac push", "marketplace"):
             assert claim not in text, f"Go tutorial must not claim {claim!r}"
 

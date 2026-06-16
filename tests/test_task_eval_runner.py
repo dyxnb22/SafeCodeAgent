@@ -551,13 +551,6 @@ class TestTimeoutBehaviour:
         assert result.passed is False
         assert result.validation_details[0].exit_code == 124
         assert result.validation_details[0].passed is False
-
-    def test_timeout_failure_reason_descriptive(self):
-        fix = _fixture(
-            validation_commands=["sleep 10"],
-            timeout_seconds=1,
-        )
-        result = _runner().run(fix)
         assert any("timed out" in r or "timeout" in r.lower() for r in result.failure_reasons)
 
 
