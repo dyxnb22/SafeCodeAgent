@@ -141,7 +141,6 @@ SAFECODE_PUBLISH=1 sac release publish --no-dry-run
 | Method | Command | Notes |
 |---|---|---|
 | **PyPI (recommended)** | `pipx install safecode-agent` | Requires pipx ≥ 1.0; Python 3.11+ |
-| **macOS Homebrew** | `brew install safecode/tap/safecode-agent` | Requires the homebrew-safecode tap |
 | **Offline wheel** | `uv build && pipx install dist/<wheel>` | From source checkout |
 | **Source dev** | `git clone … && uv sync` | Full dev environment with tests |
 
@@ -156,14 +155,6 @@ To upgrade an existing install:
 
 ```bash
 pipx upgrade safecode-agent
-```
-
-### macOS Homebrew Install
-
-```bash
-brew tap safecode/tap
-brew install safecode/tap/safecode-agent
-sac doctor
 ```
 
 ### Offline Wheel Install

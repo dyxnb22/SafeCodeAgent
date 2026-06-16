@@ -19,16 +19,17 @@
 
 ## v5.8.2 Pre-v6.0 Baseline (2026-06-16)
 
-SafeCode Agent v5.5.2 is production-distributed via PyPI and Homebrew, with full
-MCP tool bridge support.  All terminal-experience parity goals are complete.
+SafeCode Agent v5.8.2 is the pre-v6.0 baseline. PyPI (pipx) is the production
+install path. MCP tool bridge, trust modes, cost guardrails, and 17 stable
+contracts are complete.
 
 ### Distribution
 
 | Method | Command | Status |
 |---|---|---|
-| PyPI | `pipx install safecode-agent` | ✅ v5.5.0 |
-| Homebrew (macOS) | `brew install safecode/tap/safecode-agent` | ✅ v5.5.1 |
+| PyPI (recommended) | `pipx install safecode-agent` | ✅ v5.5.0+ |
 | Source dev | `git clone … && uv sync` | ✅ always |
+| Offline wheel | `uv build && pipx install dist/<wheel>` | ✅ always |
 
 ### MCP Integration (v5.4)
 
