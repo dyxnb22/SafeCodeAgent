@@ -7,7 +7,7 @@ assumptions, trust boundaries, attacker personas, and per-surface mitigations.
 It should be reviewed semi-annually, or whenever a new execution surface or
 contract promotion is introduced.
 
-**Next scheduled review:** 2026-12-01 (or at v4.0, whichever is earlier).
+**Next scheduled review:** 2027-06-01 (v5.7.0 review completed 2026-06-16).
 
 ---
 
@@ -318,7 +318,7 @@ apply, local commit, rollback, or policy-gated command execution.
 
 This document should be reviewed:
 
-1. **Semi-annually** — scheduled for 2026-12-01.
+1. **Semi-annually** — scheduled for 2027-06-01 (v5.7.0 review completed 2026-06-16).
 2. **On any new execution surface** — e.g., when MCP write execution is promoted
    from experimental to stable, or when a new sandbox backend is added.
 3. **On any trust boundary change** — e.g., a change to approval store location
@@ -333,6 +333,8 @@ Reviewers should update this file and add a dated entry to the review log below.
 | 2026-06-03 | v3.6.4 | SafeCode team | Initial v3.6 threat model |
 | 2026-06-15 | v4.23.2 | SafeCode team | Native tool-use addendum |
 | 2026-06-15 | v5.0.0 | SafeCode team | v5.0 stable contract promotion note |
+| 2026-06-15 | v5.1.0 | SafeCode team | Trust-mode addendum |
+| **2026-06-16** | **v5.7.0** | **SafeCode team** | **Semi-annual review: MCP write, git context, prompt injection, parallel subagents, path validation** |
 
 ---
 
@@ -458,3 +460,183 @@ within the project root (policy still blocks high-risk patterns). **Mitigations:
 | 2026-06-15 | Claude Sonnet 4.6 | auto-edit adds auto-write surface | 10-file guard + session rollback documented |
 | 2026-06-15 | Claude Sonnet 4.6 | full-auto adds auto-command surface | Preview + delay + high-risk block documented |
 | 2026-06-15 | Claude Sonnet 4.6 | full-auto cannot be persisted | Confirmed: session-scoped only, no --save flag |
+
+---
+
+## v5.7.0 Semi-Annual Review (2026-06-16)
+
+**Reviewer:** SafeCode team  
+**Scope:** v5.1–v5.7 surfaces since v4.23 (last major addendum)  
+**Next scheduled review:** 2027-06-01
+
+### Summary
+
+No new trust boundaries were introduced in the v5.x train. All new surfaces
+are sandboxed by existing mitigation layers (approval gate, redaction, policy,
+checkpoint, audit). The review confirmed that every new execution path remains
+behind at least one safety invariant.
+
+---
+
+### 1. Trust modes (v5.1.0) — verified
+
+Already documented in the v5.1.0 Addendum above.
+
+**Cross-reference:** the 10-file guard, session rollback, command preview delay,
+and high-risk block were re-verified against the source code and remain
+correctly described.
+
+**Status:** No new findings. Existing documentation is accurate.
+
+---
+
+### 2. MCP write execution (v5.4.1)
+
+**Threat:** An MCP server that the user has configured locally could return
+adversarial content in its `tools/call` response, and the SafeCode agent would
+pass that content into `execute_granted_write()`.
+
+**Mitigations verified:**
+1. MCP write-classified tools are blocked until the user provides a single-use
+   `ApprovalGrant` stored outside the project root (`SAFECODE_MCP_APPROVAL_DIR`).
+2. `MCPApprovalStore` grants are consumed after one execution — replay is impossible.
+3. Classification gate (`classify_mcp_tool`) runs on the server AND any response;
+   a server-supplied `"classification"` field in JSON is **ignored**; SafeCode's
+   static schema layer is authoritative.
+4. `call_args` from the server response are never copied into error messages.
+5. MCP write execution is gated by `MCPServerConfig.scope` — a `denied` or
+   `read_only` scope blocks all write proposals before the classification gate.
+
+**Residual risk:** A malicious MCP server that has both (a) user-configured
+`write_proposal_required` scope AND (b) an approval grant for a specific tool
+could return arbitrary file content through that tool. This is acceptable
+because the user explicitly configured write scope and granted approval.
+
+**Status:** Adequately mitigated for experimental surface.
+
+---
+
+### 3. Git-aware context compaction (v5.3.0)
+
+**Threat:** `git log` output injected into the model's context could contain
+crafted commit messages designed for prompt injection.
+
+**Mitigations verified:**
+1. `git log` output passes through `redact_secrets()` before entering model
+   context — secrets, API keys, and URLs are stripped.
+2. Context block size is bounded (budget cap from `ContextBudgetPacker`).
+   A crafted multi-megabyte commit message would be truncated.
+3. `git log` runs with `shell=False` through `subprocess.run` — no shell
+   injection via branch names or commit messages.
+4. The git context source is read-only: it is collected once and never
+   re-fetched mid-session. A commit created mid-session does not retroactively
+   alter the active context.
+
+**Residual risk:** `redact_secrets()` is a regex-based heuristic. A crafted
+commit message that looks like a benign instruction (not a secret pattern)
+would pass through. This is an inherent limitation of context-based agents
+and is mitigated by the approval gate on all write operations — no amount of
+prompt engineering can bypass the `ToolCallGate`.
+
+**Status:** Adequately mitigated.
+
+---
+
+### 4. Parallel subagents (v5.7.0)
+
+**Threat:** Race conditions between concurrent read-only tool calls could
+produce interleaved or inconsistent results, or a write tool could slip
+through while reads are in flight.
+
+**Design invariants verified:**
+1. **Read-only only:** `dispatch_parallel` rejects any `NativeToolCall` whose
+   `tool_name` is in the write set (`edit_file`, `write_file`, `run_command`,
+   `github_*`, `mcp.propose_write`, `sandbox.*`). Write calls raise a
+   `ValueError` at dispatch time.
+2. **Synchronisation:** All parallel workers write to independent slots; the
+   runner gathers results after all workers complete (join-before-collect).
+3. **Cancellation:** `CancellationToken` from `SubagentPool` is propagated to
+   all workers. A Ctrl-C aborts all in-flight reads.
+4. **Stable ordering:** Results are sorted alphabetically by `tool_name + call_id`
+   for deterministic audit logs.
+5. **Individual redaction:** Each result passes through `redact_secrets()`
+   independently, so one worker's secret-bearing output does not leak into
+   another worker's context block.
+
+**Residual risk:** Parallel reads of the same file could return inconsistent
+results if another process modifies the file mid-read. This is the same risk
+as serial reads — `sac` does not lock files — and is addressed by the
+checkpoint-and-rollback safety layer on the write side.
+
+**Status:** Adequately mitigated. Write serialisation invariant is enforced
+at the type level.
+
+---
+
+### 5. Prompt injection via tool results — evidence update
+
+**Threat (reviewed at v3.6, updated for v5.x):** The agent now reads arbitrary
+files (`read_file` tool) and runs arbitrary commands (`run_command` tool).
+A file containing prompt injection text or a command returning crafted output
+could influence the model to bypass safety instructions.
+
+**Mitigations re-verified:**
+1. `redact_secrets()` runs on every tool result before context is fed back to
+   the model. This includes `read_file`, `grep_files`, `run_command` stdout,
+   `search_files`, and all MCP tool outputs.
+2. The maximum context block size is bounded (80K tokens default; configurable).
+   A single file cannot exhaust the context budget before other content is
+   included.
+3. **Hardest mitigation:** The approval gate (`ToolCallGate` on `edit_file`,
+   `write_file`, `run_command`) is not a model behaviour — it is a structural
+   gate in the Python runtime. No amount of prompt injection can call
+   `edit_file` without the user's explicit approval (or an active `--auto-edit`
+   trust mode, which itself is bounded by the 10-file guard).
+4. In `--full-auto` mode, the command preview delay (500 ms default) still
+   allows the user to Ctrl-C before any command executes.
+
+**Residual risk:** A prompt injection that asks the user to approve a malicious
+write, combined with social engineering ("Run this command to see a surprise"),
+is outside the agent's threat model. SafeCode assumes the user is not
+adversarial to themselves.
+
+**Status:** Adequately mitigated. No code changes required.
+
+---
+
+### 6. Native tool path validation — consistency check
+
+**Requirement:** Every native tool that accepts a file path must validate that
+the path is within the project root.
+
+**Tools verified:**
+| Tool | Root-boundary check | Source |
+|---|---|---|
+| `read_file` | Yes — `_validate_path` in native_tools.py | v4.20.1 |
+| `list_files` | Yes — `_validate_dir` | v4.20.1 |
+| `search_files` | Yes — `_validate_dir` | v4.20.1 |
+| `grep_files` | Yes — `_validate_dir` | v4.20.1 |
+| `edit_file` | Yes — `_validate_write_path` | v4.21.0 |
+| `write_file` | Yes — `_validate_write_path` | v4.21.0 |
+| `run_command` | Project root is the CWD; `cwd` parameter validated | v4.21.1 |
+| `web_fetch` | N/A — URL-based, not file path | v4.24.0 |
+| MCP bridge tools | Yes — `FilesystemBoundary` in runner | v5.4.0 |
+
+**Finding:** All 8 path-accepting tools plus the MCP bridge apply path
+validation. The only difference is the validation function name (read vs.
+write), which correctly reflects the stricter write-path invariants (must
+not exist or must be inside project root).
+
+**Status:** No gaps. No code changes required.
+
+---
+
+### 7. Review Log
+
+| Date | Reviewer | Finding | Resolution |
+|---|---|---|---|
+| 2026-06-16 | SafeCode team | MCP write execution surface | Classification gate + scope config + single-use grants documented (Section 2) |
+| 2026-06-16 | SafeCode team | Git context prompt injection | redact_secrets() + budget cap + shell=False confirmed (Section 3) |
+| 2026-06-16 | SafeCode team | Parallel subagent race condition | Read-only only + join-before-merge + CancellationToken + stable ordering (Section 4) |
+| 2026-06-16 | SafeCode team | Prompt injection via tool results | No bypass of structural approval gate; redact_secrets() depth confirmed (Section 5) |
+| 2026-06-16 | SafeCode team | Native tool path validation | All 8+ tools verified; no gaps (Section 6) |

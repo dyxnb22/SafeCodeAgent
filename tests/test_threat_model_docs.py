@@ -81,3 +81,58 @@ def test_threat_model_mentions_executor_preflight_promotion_state() -> None:
 def test_threat_model_sandbox_default_remains_noop() -> None:
     text = _text().lower()
     assert "default recommendation remains noop" in text
+
+
+# ---------------------------------------------------------------------------
+# v5.7.0: Semi-annual review extensions
+# ---------------------------------------------------------------------------
+
+
+def test_threat_model_review_has_v570_section() -> None:
+    text = _text()
+    assert "v5.7.0 Semi-Annual Review" in text or "v5.7.0" in text
+
+
+def test_threat_model_covers_trust_modes() -> None:
+    text = _text()
+    assert "Trust mode" in text or "auto-edit" in text or "full-auto" in text
+
+
+def test_threat_model_covers_mcp_write_execution() -> None:
+    text = _text()
+    assert "MCP write execution" in text or "v5.4.1" in text
+
+
+def test_threat_model_covers_git_context() -> None:
+    text = _text()
+    assert "git" in text.lower() and "context" in text.lower()
+
+
+def test_threat_model_covers_parallel_subagents() -> None:
+    text = _text()
+    assert "Parallel subagent" in text or "parallel" in text.lower()
+
+
+def test_threat_model_covers_prompt_injection_via_tool_results() -> None:
+    text = _text()
+    assert "Prompt injection" in text or "tool results" in text
+
+
+def test_threat_model_covers_native_tool_path_validation() -> None:
+    text = _text()
+    assert "path validation" in text.lower() or "root-boundary" in text.lower()
+
+
+def test_threat_model_next_review_updated_to_2027() -> None:
+    text = _text()
+    assert "2027-06-01" in text
+
+
+def test_threat_model_review_log_has_v570_entry() -> None:
+    text = _text()
+    assert "v5.7.0" in text
+
+
+def test_threat_model_review_cadence_mentions_v570() -> None:
+    text = _text().lower()
+    assert "v5.7.0" in text.lower() or "5.7.0" in text

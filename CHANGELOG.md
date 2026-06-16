@@ -8,6 +8,25 @@ Format: `[vX.Y.Z] — YYYY-MM-DD — short-description`
 
 ## Unreleased
 
+## [v5.7.0] — 2026-06-16 — threat-model-review-and-subagents
+
+- Completed semi-annual threat model review covering 6 surfaces: trust modes
+  (verified existing v5.1.0 documentation), MCP write execution (classification
+  gate + scope config + single-use grants), git-aware context (redact_secrets()
+  + budget cap + shell=False), parallel subagents (read-only only invariant),
+  prompt injection via tool results (structural approval gate cannot be bypassed),
+  and native tool path validation (all 8+ tools verified).
+- Updated next scheduled review to 2027-06-01.
+- Added `dispatch_parallel()` to `MultiToolTurnRunner` using ThreadPoolExecutor
+  for concurrent read-only tool calls. Write-classified tools raise ValueError
+  at dispatch time. Stable ordering by original index. Error isolation between
+  workers.
+- New `tests/test_subagent_activation.py` (14 cases): parallel dispatch
+  correctness, write tool blocking, performance advantage, error isolation,
+  worker crash resilience.
+- Extended `tests/test_threat_model_docs.py` (10 new cases): v5.7 review
+  section, each surface named, next review date, review log entry.
+
 ## [v5.6.2] — 2026-06-16 — golden-demo-project
 
 - Created `examples/golden-demo/` with a deterministic broken calculator fixture

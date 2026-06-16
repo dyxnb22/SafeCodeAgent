@@ -7,10 +7,13 @@ a final response. The runner:
   - Feeds tool results back as context blocks for the next call.
   - Stops when the model emits `answer`, `stop_for_user`, or `stop_for_approval`.
   - Caps at max_turn_tools calls per turn (default 20).
+
+v5.7.0: added ``dispatch_parallel`` for read-only tool calls.
 """
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -21,6 +24,14 @@ from safecode.context.redactor import redact_secrets
 
 _MAX_TURN_TOOLS = 20
 _CAP_HIT_REASON = "per_turn_tool_cap"
+
+# v5.7.0: tool names that are never dispatched in parallel.
+_WRITE_TOOL_NAMES = frozenset({
+    "edit_file", "write_file", "run_command",
+    "github_create_pr", "github_push_branch",
+    "mcp.propose_write",
+    "sandbox.propose", "sandbox.execute",
+})
 
 
 @dataclass
@@ -63,14 +74,7 @@ class MultiToolTurnRunner:
         self.max_turn_tools = max_turn_tools
 
     def dispatch_calls(self, calls: list[NativeToolCall]) -> MultiToolTurnResult:
-        """Dispatch a list of native tool calls and collect results.
-
-        This is the core of the turn runner: given a list of calls the model
-        emitted, dispatch each one, build a context block, and return the result.
-        Write-tool calls that return `status='blocked'` (requires_approval) are
-        recorded but do not stop the turn — the caller is responsible for
-        detecting blocked write calls and pausing for approval.
-        """
+        """Dispatch a list of native tool calls (serial)."""
         result = MultiToolTurnResult()
 
         for call in calls:
@@ -99,6 +103,81 @@ class MultiToolTurnRunner:
 
         return result
 
+    def dispatch_parallel(
+        self,
+        calls: list[NativeToolCall],
+        *,
+        max_workers: int = 3,
+    ) -> MultiToolTurnResult:
+        """Dispatch read-only native tool calls in parallel.
+
+        Write-classified tool names raise ``ValueError`` — they are never
+        dispatched in parallel. Results are merged with stable ordering
+        (sorted by original index) for deterministic audit logs. Each result
+        is individually redacted.
+
+        Safety invariants (v5.7.0):
+        - Only read-only tool calls are dispatched in parallel.
+        - Errors in one worker do not crash other workers (isolated via
+          ``ThreadPoolExecutor`` as_completed).
+        - The caller is responsible for propagating ``CancellationToken``.
+        """
+        if not calls:
+            return MultiToolTurnResult()
+
+        for c in calls:
+            if c.tool_name in _WRITE_TOOL_NAMES:
+                raise ValueError(
+                    f"Write tool {c.tool_name!r} cannot be dispatched in parallel. "
+                    f"Use dispatch_calls() instead."
+                )
+
+        result = MultiToolTurnResult()
+
+        with ThreadPoolExecutor(max_workers=max_workers) as pool:
+            fut_map = {
+                pool.submit(self.dispatcher.dispatch, call): (i, call)
+                for i, call in enumerate(calls)
+            }
+
+            indexed_results: list[tuple[int, NativeToolResult, NativeToolCall]] = []
+
+            for future in as_completed(fut_map):
+                idx, call = fut_map[future]
+                try:
+                    tool_result = future.result()
+                except Exception as exc:
+                    tool_result = NativeToolResult(
+                        tool_name=call.tool_name,
+                        call_id=call.call_id,
+                        status="error",
+                        error=f"{type(exc).__name__}: {exc}",
+                    )
+                indexed_results.append((idx, tool_result, call))
+
+        # Stable ordering by original call index
+        indexed_results.sort(key=lambda t: t[0])
+
+        for _idx, tool_result, call in indexed_results:
+            observation = redact_secrets(tool_result.to_context_block())
+            result.observations.append(observation)
+
+            input_summary = redact_secrets(str(call.input)[:100])
+            output_snippet = redact_secrets(
+                (tool_result.output or tool_result.error or "")[:200]
+            )
+
+            result.tool_calls.append(TurnToolCallRecord(
+                call_id=call.call_id,
+                tool_name=call.tool_name,
+                input_summary=input_summary,
+                status=tool_result.status,
+                output_snippet=output_snippet,
+            ))
+
+        result.stopped_reason = "completed"
+        return result
+
     def run_turn(
         self,
         initial_calls: list[NativeToolCall],
@@ -110,7 +189,7 @@ class MultiToolTurnRunner:
 
         Args:
             initial_calls: First batch of native tool calls from the model.
-            llm_next_fn: Optional callable(observations_text, context) → list[NativeToolCall] | None.
+            llm_next_fn: Optional callable(observations_text, context) -> list[NativeToolCall] | None.
                          When provided, the runner feeds tool results back to the model and
                          continues with more calls until the model returns None (done) or the
                          cap is reached. When None, just dispatches the initial_calls once.
@@ -138,7 +217,6 @@ class MultiToolTurnRunner:
                 all_results.stopped_reason = _CAP_HIT_REASON
                 break
 
-            # Ask the model for the next batch of calls (if llm_next_fn provided).
             if llm_next_fn is not None:
                 obs_text = "\n".join(batch_result.observations)
                 next_calls = llm_next_fn(obs_text, context or {})
