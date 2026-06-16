@@ -52,9 +52,10 @@ class TestGithubWriteSpecs:
         assert GITHUB_CREATE_PR_SPEC.name == "github_create_pr"
         assert GITHUB_PUSH_BRANCH_SPEC.name == "github_push_branch"
 
-    def test_audit_event_type_is_write(self):
-        for spec in (GITHUB_CREATE_PR_SPEC, GITHUB_PUSH_BRANCH_SPEC):
-            assert spec.audit_event_type == "tool_call_write"
+    def test_audit_event_types_stable(self):
+        # v6.4.0: promoted to stable specific event types (Section 20)
+        assert GITHUB_CREATE_PR_SPEC.audit_event_type == "github_pr_created"
+        assert GITHUB_PUSH_BRANCH_SPEC.audit_event_type == "github_branch_pushed"
 
 
 # ---------------------------------------------------------------------------
@@ -196,7 +197,7 @@ class TestGithubPushBranch:
         assert result.metadata["force"] is False
 
     def test_force_flag_passed_to_git(self, tmp_path):
-        """Verify --force is passed when force=True."""
+        """Verify --force is passed when force=True (on a non-protected branch)."""
         captured = []
         mock_result = MagicMock()
         mock_result.returncode = 0
@@ -209,11 +210,12 @@ class TestGithubPushBranch:
 
         with _enabled_network():
             with patch("safecode.agent.github_write_tools.shutil.which", return_value="/usr/bin/git"):
-                with patch("subprocess.run", side_effect=mock_run):
-                    _push_branch_handler("c1", {
-                        "_project_root": str(tmp_path),
-                        "branch": "main", "force": True,
-                    })
+                with patch("safecode.agent.github_write_tools._get_current_branch", return_value="feature/fix"):
+                    with patch("subprocess.run", side_effect=mock_run):
+                        _push_branch_handler("c1", {
+                            "_project_root": str(tmp_path),
+                            "branch": "feature/fix", "force": True,
+                        })
 
         assert captured and "--force" in captured[0]
 

@@ -259,7 +259,48 @@ the `--force-uncommit` flag behaviour beyond refusal of post-commit rollback.
 
 ---
 
-### 20. Project Memory Store Shape (v6.2.0 — CANDIDATE, not yet stable)
+### 20. GitHub PR Workflow Contract (v6.4.0)
+
+**Promoted surface:** `github_create_pr` and `github_push_branch` — the two
+GitHub write tools registered on `NativeToolDispatcher`.
+
+**Contract:** The structural safety gates, approval requirement, audit event
+types, and PR body footer are stable invariants.
+
+**Stable invariants:**
+
+- `github_push_branch` **always rejects pushes to `main`, `master`, and `trunk`**.
+  This is a code-level structural gate — it cannot be bypassed by agent input,
+  model output, configuration, or project-local files. The block message always
+  mentions that it "cannot be overridden by configuration."
+- `github_create_pr` always appends a SafeCode audit footer to the PR body.
+  The footer contains: branch name, latest checkpoint ID, timestamp, and tool
+  identifier. Users see this in the approval preview before any network call.
+- Both tools require `requires_approval=True`. No push or PR creation occurs
+  without a human approval step.
+- `dry_run=True` validates inputs and builds the preview but makes no network
+  calls. This flag is stable on both tools.
+- `audit_event_type="github_pr_created"` is stable for `github_create_pr`.
+- `audit_event_type="github_branch_pushed"` is stable for `github_push_branch`.
+- Failure never modifies local checkpoint or pending patch state — all local
+  state mutations precede the network call.
+- All subprocess calls use `shell=False` argv lists (no shell injection from
+  model output).
+- Branch names are validated against the pattern `^[a-zA-Z0-9._/-]{1,200}$`
+  and must not start with `-`.
+- Both tools require `network_enabled=True` in config; blocked by default.
+
+**Not stable:** the exact wording of the blocked-push error message; the
+format of the PR body footer beyond the presence of "SafeCode Audit Reference",
+branch, checkpoint, and timestamp fields; `_get_current_branch()` internals.
+
+**Source:** `src/safecode/agent/github_write_tools.py`
+
+**Contract tests:** `tests/test_github_pr_contract.py`
+
+---
+
+### 21. Project Memory Store Shape (v6.2.0 — CANDIDATE, not yet stable)
 
 **Surface:** `SessionSummaryStore` and `ProjectFactStore` — the two stores
 written to `.sac/memory/sessions.jsonl` and `.sac/memory/facts.json`.
