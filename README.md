@@ -51,6 +51,11 @@ For a more realistic multi-file service example, run:
 examples/realistic-demo/demo/run-demo.sh
 ```
 
+**Real-world example:** see
+[`examples/real-world-demo/`](examples/real-world-demo/) for an Arrow parser
+exception-boundary bug based on a public GitHub issue, with a reproducer script,
+demo transcript, and SWE-bench-Lite-shaped fixture.
+
 ## Install
 
 **PyPI / pipx (recommended):**
@@ -583,7 +588,8 @@ SAFECODE_LIVE_TESTS=1 sac eval --mode swebench-lite \
 }
 ```
 
-**Honest baseline:** Mock provider passes 0/7 synthetic tasks (expected — mock
+**Honest baseline:** Mock provider passes 0/8 tasks (7 synthetic + 1 real-world
+inline adaptation; expected — mock
 generates no real patches). Real provider results: see
 [`docs/demo/swebench-eval-summary.md`](docs/demo/swebench-eval-summary.md) and
 [`tests/snapshots/swebench_lite/latest.json`](tests/snapshots/swebench_lite/latest.json).

@@ -13,7 +13,7 @@
       "output_snippet": ".F                                                                       [100%]\n=================================== FAILURES ===================================\n_______________________________ test_divide_zero _______________________________\n\n    def test_divide_zero():\n>       assert divide(10, 0) ",
       "passed": false,
       "stopped_reason": "failed",
-      "wall_seconds": 0.56
+      "wall_seconds": 0.45
     },
     {
       "exit_code": 1,
@@ -25,7 +25,7 @@
       "output_snippet": ".F                                                                       [100%]\n=================================== FAILURES ===================================\n_______________________________ test_missing_key _______________________________\n\n    def test_missing_key():\n        c = Config({'a': 1})\n",
       "passed": false,
       "stopped_reason": "failed",
-      "wall_seconds": 0.37
+      "wall_seconds": 0.43
     },
     {
       "exit_code": 1,
@@ -37,7 +37,7 @@
       "output_snippet": ".F                                                                       [100%]\n=================================== FAILURES ===================================\n____________________ test_invalid_input_raises_value_error _____________________\n\n    def test_invalid_input_raises_value_error():\n>       ",
       "passed": false,
       "stopped_reason": "failed",
-      "wall_seconds": 0.37
+      "wall_seconds": 0.41
     },
     {
       "exit_code": 1,
@@ -49,7 +49,7 @@
       "output_snippet": "F.                                                                       [100%]\n=================================== FAILURES ===================================\n__________________________ test_dedup_preserves_order __________________________\n\n    def test_dedup_preserves_order():\n>       assert dedu",
       "passed": false,
       "stopped_reason": "failed",
-      "wall_seconds": 0.35
+      "wall_seconds": 0.36
     },
     {
       "exit_code": 1,
@@ -62,6 +62,18 @@
       "passed": false,
       "stopped_reason": "failed",
       "wall_seconds": 0.36
+    },
+    {
+      "exit_code": 1,
+      "failure_reasons": [
+        "Expected last validation command exit code 0, got 1.",
+        "Expected last validation command exit code 0, got 1."
+      ],
+      "instance_id": "arrow__parser-error-boundary",
+      "output_snippet": "F.                                                                       [100%]\n=================================== FAILURES ===================================\n______________ test_invalid_multiformat_date_raises_parser_error _______________\n\n    def test_invalid_multiformat_date_raises_parser_error",
+      "passed": false,
+      "stopped_reason": "failed",
+      "wall_seconds": 0.37
     },
     {
       "exit_code": 1,
@@ -85,10 +97,10 @@
       "output_snippet": "F.                                                                       [100%]\n=================================== FAILURES ===================================\n_________________________________ test_reverse _________________________________\n\n    def test_reverse():\n>       assert reverse_string('he",
       "passed": false,
       "stopped_reason": "failed",
-      "wall_seconds": 0.36
+      "wall_seconds": 0.33
     }
   ],
-  "run_at": "2026-06-16T11:44:15.337715+00:00",
+  "run_at": "2026-06-16T11:49:52.578327+00:00",
   "suite": "swebench-lite",
-  "total": 7
+  "total": 8
 }

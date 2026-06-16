@@ -390,7 +390,7 @@ class TestBuiltinFixtures:
 
     def test_fixture_files_are_valid(self) -> None:
         tasks = load_tasks_from_dir(self._FIXTURE_DIR)
-        assert len(tasks) == 7
+        assert len(tasks) == 8
 
     def test_fixture_ids_match_builtin_suite(self) -> None:
         tasks = load_tasks_from_dir(self._FIXTURE_DIR)
@@ -402,6 +402,7 @@ class TestBuiltinFixtures:
             "safecode__parse-int-edge",
             "safecode__retry-logic",
             "safecode__date-format",
+            "arrow__parser-error-boundary",
         }
 
     def test_all_fixtures_have_inline_repos(self) -> None:

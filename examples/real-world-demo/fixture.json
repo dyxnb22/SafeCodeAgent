@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "instance_id": "arrow__parser-error-boundary",
+  "problem_statement": "Arrow issue #535 reports that arrow.get('20171017', ['YYYY.M.D']) leaks ValueError instead of raising ParserError. Preserve the parser exception boundary by converting invalid candidate date construction failures into ParserError.",
+  "repo": {
+    "kind": "inline",
+    "files": {
+      "arrow_parser.py": "class ParserError(ValueError):\n    pass\n\n\ndef parse_with_format(value, fmt):\n    if fmt == 'YYYYMMDD':\n        year = int(value[0:4])\n        month = int(value[4:6])\n        day = int(value[6:8])\n        if month < 1 or month > 12:\n            raise ValueError('month must be in 1..12')\n        return year, month, day\n    if fmt == 'YYYY.M.D':\n        year = int(value[0:4])\n        month = int(value[4:6])\n        day = int(value[6:8])\n        if month < 1 or month > 12:\n            raise ValueError('month must be in 1..12')\n        return year, month, day\n    raise ParserError('unsupported format')\n\n\ndef get(value, formats):\n    for fmt in formats:\n        try:\n            return parse_with_format(value, fmt)\n        except ParserError:\n            continue\n    raise ParserError('Could not match input to any format')\n",
+      "tests/test_arrow_parser.py": "import pytest\n\nfrom arrow_parser import ParserError, get\n\n\ndef test_invalid_multiformat_date_raises_parser_error():\n    with pytest.raises(ParserError):\n        get('20171017', ['YYYY.M.D'])\n\n\ndef test_valid_date_still_parses():\n    assert get('20171017', ['YYYYMMDD']) == (2017, 10, 17)\n"
+    },
+    "setup_commands": []
+  },
+  "test_command": "python -m pytest tests/ -q",
+  "pass_condition": "exit_code_0",
+  "hints": "Catch ValueError raised while trying a candidate format and continue or wrap it as ParserError. Keep valid parsing behavior intact."
+}

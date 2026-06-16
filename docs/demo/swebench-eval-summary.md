@@ -1,6 +1,7 @@
 # SWE-bench Lite Eval Summary
 
-**Status:** Harness complete. 7 synthetic tasks, mock provider baseline.
+**Status:** Harness complete. 8 tasks: 7 synthetic fixtures plus 1 real-world
+inline adaptation, mock provider baseline.
 **Last run:** 2026-06-16
 
 ---
@@ -12,7 +13,7 @@ infrastructure to read SWE-bench-shaped tasks, run the agent on them, and record
 structured pass/fail results. This is not a claim of SWE-bench score; it is the
 scaffolding for reproducible, comparable coding-agent evaluation.
 
-## Mock provider baseline (7 tasks)
+## Mock provider baseline (8 tasks)
 
 | Instance | Passed | Failure reason |
 |---|---|---|
@@ -23,8 +24,9 @@ scaffolding for reproducible, comparable coding-agent evaluation.
 | `safecode__parse-int-edge` | No | mock provider proposes no real patch |
 | `safecode__retry-logic` | No | mock provider proposes no real patch |
 | `safecode__date-format` | No | mock provider proposes no real patch |
+| `arrow__parser-error-boundary` | No | mock provider proposes no real patch |
 
-**Pass rate: 0/7 (mock baseline)**
+**Pass rate: 0/8 (mock baseline)**
 
 This is expected and honest: the mock provider (`safecode.llm.mock.MockLLMClient`)
 returns scripted responses for the existing test fixtures but does not generate real

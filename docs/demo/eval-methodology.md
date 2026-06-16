@@ -48,7 +48,8 @@ SAFECODE_LIVE_TESTS=1 sac eval --mode swebench-lite --suite tests/eval_fixtures/
 ## Current Benchmark Statement
 
 The current committed SWE-bench Lite snapshot is an honest mock-provider
-baseline over seven synthetic inline fixtures. A `0/7` mock score is expected:
+baseline over seven synthetic inline fixtures plus one real-world inline
+adaptation. A `0/8` mock score is expected:
 it proves the harness can run and report failures, not that the mock provider
 can solve coding tasks. Real-provider results should be recorded separately
 with provider, model, date, and environment details.
