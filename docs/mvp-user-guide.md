@@ -888,3 +888,52 @@ All stored content is redacted with `redact_secrets()` before persistence.
 Project-local files cannot create or approve facts.
 
 All surfaces in this section are EXPERIMENTAL and carry no stable contract.
+
+## Hybrid Context Retrieval (v6.3, EXPERIMENTAL)
+
+SafeCode Agent v6.3 adds a hybrid retrieval pipeline combining keyword
+path-matching, git recency, and semantic embedding similarity.
+
+### Quick start
+
+```bash
+# Search without a semantic index (keyword + recency only — always works)
+sac search "authentication flow"
+
+# Build a local embedding index for semantic search
+# (requires: pip install sentence-transformers)
+sac index build
+
+# Now search uses embedding similarity too
+sac search "token expiry"
+sac search "database retry logic" --limit 20
+sac search "where is config loaded" --json
+```
+
+### selection_reason
+
+Every search result shows why it was selected:
+
+```
+Score  File                        Reason
+0.82   src/auth/session.py         path matched: auth; semantic (0.81)
+0.61   src/middleware/jwt.py       semantic (0.61)
+0.40   tests/test_auth.py          path matched: auth; recently modified
+```
+
+### Index management
+
+```bash
+sac index build          # incremental (only re-embeds changed files)
+sac index build --force  # full rebuild
+sac index status         # files, chunks, backend, last-built
+sac index files          # list all indexed files
+```
+
+### Fallback behaviour
+
+If `sentence-transformers` is not installed, the system uses `NullEmbeddingBackend`
+and `semantic_score = 0` for all files. `sac search` still works using keyword
+and recency signals only. Install `sentence-transformers` to unlock semantic search.
+
+All surfaces in this section are EXPERIMENTAL and carry no stable contract.

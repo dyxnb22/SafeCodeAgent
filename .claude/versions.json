@@ -1,7 +1,7 @@
 {
   "project": "SafeCode Agent",
-  "current_implemented_tag": "v6.2.2",
-  "current_local_version": "v6.2.2",
+  "current_implemented_tag": "v6.3.2",
+  "current_local_version": "v6.3.2",
   "current_baseline": ".claude/skills/current/SKILL.md",
   "runtime_summary": ".claude/skills/shared/core-runtime.md",
   "version_index": "docs/version_implementation_matrix.md",
@@ -9,7 +9,7 @@
   "active_planning_roadmap": "docs/version-plans/v6.2-to-v6.5-product-roadmap.md",
   "extended_planning_roadmap": "docs/version-plans/v6.2-to-v6.5-product-roadmap.md",
   "scope_decision": "terminal-only tool; VS Code/JetBrains extension deliberately out of scope",
-  "freeze_note": "v6.2.2 completes the cross-session memory train: SessionSummaryStore, ProjectFactStore with approve/reject workflow, auto-detect conventions from sessions, approved facts injected into context, full CLI (inspect, export, list-facts, approve-fact, reject-fact), Section 20 contract candidate, docs cut. v6.0.0 remains the latest stable-contract cut.",
+  "freeze_note": "v6.3.2 completes the semantic retrieval train: EmbeddingStore (SQLite WAL), NullEmbeddingBackend fallback, HybridRetriever with selection_reason, sac index build/status, sac search. v6.2.2 completed cross-session memory. SessionSummaryStore, ProjectFactStore with approve/reject workflow, auto-detect conventions from sessions, approved facts injected into context, full CLI (inspect, export, list-facts, approve-fact, reject-fact), Section 20 contract candidate, docs cut. v6.0.0 remains the latest stable-contract cut.",
   "previous_planning_roadmap": "docs/version-plans/v4.20-to-v5.0-product-roadmap.md",
   "readiness_audit": "docs/commercial-v1-readiness-audit-v3.11.x.md",
   "architecture_reference": "docs/product-commercialization-roadmap.md",

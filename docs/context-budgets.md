@@ -95,3 +95,50 @@ cat tests/snapshots/bench/python-function-fix.json
 - The `TOKEN_CHAR_RATIO = 4` is a conservative estimate; actual tokens may be fewer.
 - No context content is written to `.sac/metrics.jsonl`; only byte counts are stored
   when metrics are enabled.
+
+---
+
+## Hybrid Retrieval (v6.3, EXPERIMENTAL)
+
+The v6.3.x train adds a hybrid retrieval pipeline on top of the existing
+keyword-based `ContextSelector`.
+
+### Signal sources
+
+| Signal | Source | Always available |
+|---|---|---|
+| Keyword (path match) | `ContextSelector.select_sources()` | Yes |
+| Git recency bonus | `git log -n50 --name-only` | Yes (falls back silently) |
+| Semantic similarity | `EmbeddingStore.search()` | No (requires index build + library) |
+| Pinned files | `.sac/memory/pinned-files.txt` | Yes |
+
+### Merging
+
+```
+combined_score = (1 - semantic_weight) * keyword_score + semantic_weight * semantic_score
+```
+
+Default `semantic_weight = 0.4`. When no embedding index exists, `semantic_score = 0`
+and combined scoring reduces to keyword-only.
+
+### selection_reason field
+
+Every `HybridResult` and `SelectedContextSource` carries a `selection_reason`
+string that is visible in `sac search` output and `sac context explain` output.
+Examples:
+
+- `"path matched: auth, login; recently modified"`
+- `"path matched: database; semantic (0.74)"`
+- `"pinned file"`
+- `"recency"` (recently modified but no keyword match)
+
+### Building the embedding index
+
+```bash
+sac index build          # incremental (skip unchanged chunks)
+sac index build --force  # re-embed everything
+sac index status         # show files, chunks, backend, last-built
+```
+
+The index lives at `.sac/index/embeddings.db` (SQLite, WAL mode).
+Without `sentence-transformers`, the null backend is used and `is_semantic=false`.

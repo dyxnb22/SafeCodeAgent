@@ -556,6 +556,37 @@ export SAFECODE_POLICY=strict
 - An unknown project config policy name cannot override a known user policy.
 - Project config cannot lower user-level policy.
 
+## Semantic Code Search (v6.3, EXPERIMENTAL)
+
+SafeCode Agent includes a hybrid context retrieval pipeline that combines
+keyword path-matching, git recency, and semantic embedding similarity.
+Every result carries a `selection_reason` explaining why it was selected.
+
+```bash
+# Build the local embedding index (requires sentence-transformers; falls
+# back to keyword-only if not installed)
+sac index build
+sac index build --force          # re-embed all chunks
+sac index status                 # show index stats
+
+# Search the codebase — works with or without the embedding index
+sac search "authentication flow"
+sac search "database connection retry" --limit 20
+sac search "token expiry" --json
+```
+
+**How it works:**
+- `sac search` runs keyword scoring on file paths + semantic similarity on
+  chunk embeddings (if index is built), then merges both scores.
+- `selection_reason` in the output says which signal fired: `path matched: auth`,
+  `semantic (0.81)`, `recently modified`, or `pinned file`.
+- Without `sentence-transformers` installed, the system gracefully falls back
+  to keyword-only mode. Install it to unlock semantic search:
+  `pip install sentence-transformers`
+
+**Storage:** embedding index at `.sac/index/embeddings.db` (SQLite, WAL mode).
+Incremental builds skip unchanged file chunks.
+
 ## Project Memory (v6.2, EXPERIMENTAL)
 
 SafeCode Agent automatically records a bounded, redacted summary after each session.

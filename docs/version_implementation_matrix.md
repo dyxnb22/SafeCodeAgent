@@ -792,3 +792,11 @@ Completed. Plan: `docs/version-plans/v4.20-to-v5.0-product-roadmap.md` (v4.25.x 
 | `v6.2.0` ✅ | `dev/v4.19` | `src/safecode/memory/session_store.py`, `src/safecode/memory/summary.py`, `src/safecode/agent/loop.py`, `src/safecode/cli_memory.py`, `tests/test_memory_session_store.py` | SessionSummaryStore: auto-written JSONL after each run(); `sac memory inspect`/`export`; approved facts prepended to next session's context. 38 new tests. |
 | `v6.2.1` ✅ | `dev/v4.19` | `src/safecode/memory/facts.py`, `src/safecode/agent/loop.py`, `src/safecode/cli_memory.py`, `tests/test_memory_facts.py` | ProjectFactStore: propose/approve/reject convention facts; auto-detection from commands_run and touched_files; `sac memory list-facts`/`approve-fact`/`reject-fact`; audit-logged approvals; 47 new tests. |
 | `v6.2.2` ✅ | `dev/v4.19` | `README.md`, `docs/public-contracts.md`, `docs/version_implementation_matrix.md`, `docs/mvp-user-guide.md`, `.claude/skills/current/SKILL.md`, `.claude/versions.json` | Docs cut: README "Project Memory" section; public-contracts Section 20 candidate; matrix v6.2.x rows; MVP guide memory workflow. |
+
+## v6.3.x: Semantic Code Retrieval
+
+| 版本 | 分支 | 主要入口 | 验收命令 / 结果 |
+|---|---|---|---|
+| `v6.3.0` ✅ | `dev/v4.19` | `src/safecode/index/chunker.py`, `src/safecode/index/embedding_backend.py`, `src/safecode/index/embedding_store.py`, `src/safecode/cli_project.py`, `tests/test_index_embedding.py` | Chunker, NullEmbeddingBackend/SentenceTransformerBackend, EmbeddingStore (SQLite WAL, incremental build); `sac index build`/`status`; 42 tests; works without sentence-transformers installed. |
+| `v6.3.1` ✅ | `dev/v4.19` | `src/safecode/context/hybrid_retrieval.py`, `src/safecode/cli.py`, `tests/test_index_embedding.py` | HybridRetriever: keyword + semantic + recency; `selection_reason` field; `sac search "<query>"`; falls back to keyword-only when no index. |
+| `v6.3.2` ✅ | `dev/v4.19` | `README.md`, `docs/context-budgets.md`, `docs/mvp-user-guide.md`, `docs/version_implementation_matrix.md`, `.claude/skills/current/SKILL.md`, `.claude/versions.json` | Docs cut: README semantic search section; context-budgets hybrid retrieval section; MVP guide search workflow; matrix v6.3.x rows. |

@@ -5,15 +5,14 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v6.2.2
+# Current Baseline - v6.3.2
 
 ## Status
 Implemented. Git baseline: tag `v6.2.2`. Local working version: `v6.2.2`.
-v6.0.0 is the latest stable-contract cut. v6.2.x adds cross-session project
-memory: auto-written session summaries, project convention facts with
-approve/reject workflow, approved facts injected into subsequent sessions,
-and full CLI (`sac memory inspect`, `export`, `list-facts`, `approve-fact`,
-`reject-fact`).
+v6.0.0 is the latest stable-contract cut. v6.3.x adds semantic code search:
+local embedding index (SQLite, incremental build), NullEmbeddingBackend fallback,
+HybridRetriever (keyword + semantic + recency + selection_reason), and `sac search`.
+v6.2.x added cross-session project memory (SessionSummaryStore, ProjectFactStore).
 
 ## Stage
 The v4.14–v4.18 usability trains are complete (14 versions shipped):
