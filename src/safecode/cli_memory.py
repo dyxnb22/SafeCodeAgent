@@ -194,6 +194,117 @@ def clear(
         console.print(f"[green]Cleared {scope} memory.[/green]")
 
 
+@memory_app.command("list-facts")
+def list_facts(
+    pending: bool = typer.Option(False, "--pending", help="Show only pending facts."),
+    approved: bool = typer.Option(False, "--approved", help="Show only approved facts."),
+    json_output: bool = typer.Option(False, "--json", help="Output result as JSON."),
+) -> None:
+    """[EXPERIMENTAL] List project convention facts (pending or approved)."""
+    from safecode.memory.facts import ProjectFactStore
+    sac_dir = Path.cwd() / ".sac"
+    store = ProjectFactStore(sac_dir)
+
+    if pending and approved:
+        console.print("[red]Use --pending or --approved, not both.[/red]")
+        raise typer.Exit(code=1)
+
+    status_filter = "pending" if pending else ("approved" if approved else None)
+    facts = store.list_facts(status=status_filter)
+
+    if json_output:
+        _print_json("memory list-facts", "success", data={"facts": [f.to_dict() for f in facts]})
+        return
+
+    if not facts:
+        label = f" ({status_filter})" if status_filter else ""
+        console.print(f"[yellow]No facts found{label}.[/yellow]")
+        return
+
+    table = Table(title="[EXPERIMENTAL] Project Convention Facts")
+    table.add_column("ID", style="cyan", no_wrap=True)
+    table.add_column("Status")
+    table.add_column("Key")
+    table.add_column("Value")
+    table.add_column("Source")
+    for f in facts:
+        status_style = "green" if f.status == "approved" else ("yellow" if f.status == "pending" else "red")
+        table.add_row(
+            f.fact_id[:8],
+            f"[{status_style}]{f.status}[/{status_style}]",
+            f.key,
+            f.value[:60],
+            f.source,
+        )
+    console.print(table)
+
+
+@memory_app.command("approve-fact")
+def approve_fact(
+    fact_id: str = typer.Argument(..., help="Fact ID (or prefix) to approve."),
+    json_output: bool = typer.Option(False, "--json", help="Output result as JSON."),
+) -> None:
+    """[EXPERIMENTAL] Approve a pending project convention fact."""
+    from safecode.memory.facts import ProjectFactStore
+    from safecode.audit.logger import AuditLogger
+    from safecode.audit.models import AuditEvent
+    from safecode.utils.time import utc_now_iso
+
+    sac_dir = Path.cwd() / ".sac"
+    store = ProjectFactStore(sac_dir)
+    try:
+        fact = store.approve(fact_id)
+    except ValueError as exc:
+        if json_output:
+            _print_json("memory approve-fact", "error", error=str(exc))
+        else:
+            console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(code=1) from exc
+
+    # Audit-log the approval (fact approval is a write-side event)
+    try:
+        AuditLogger(Path.cwd()).write(
+            AuditEvent(
+                type="memory_fact_approved",
+                timestamp=utc_now_iso(),
+                status="success",
+                message=f"{fact.key}: {fact.value[:80]}",
+                metadata={"fact_id": fact.fact_id, "key": fact.key, "source": fact.source},
+            )
+        )
+    except Exception:
+        pass
+
+    if json_output:
+        _print_json("memory approve-fact", "success", data={"fact": fact.to_dict()})
+    else:
+        console.print(f"[green]Approved:[/green] [{fact.fact_id[:8]}] {fact.key}: {fact.value}")
+
+
+@memory_app.command("reject-fact")
+def reject_fact(
+    fact_id: str = typer.Argument(..., help="Fact ID (or prefix) to reject."),
+    json_output: bool = typer.Option(False, "--json", help="Output result as JSON."),
+) -> None:
+    """[EXPERIMENTAL] Reject a pending project convention fact."""
+    from safecode.memory.facts import ProjectFactStore
+    sac_dir = Path.cwd() / ".sac"
+    store = ProjectFactStore(sac_dir)
+    try:
+        fact = store.reject(fact_id)
+    except ValueError as exc:
+        if json_output:
+            _print_json("memory reject-fact", "error", error=str(exc))
+        else:
+            console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(code=1) from exc
+
+    if json_output:
+        _print_json("memory reject-fact", "success", data={"fact": fact.to_dict()})
+    else:
+        console.print(f"[dim]Rejected: [{fact.fact_id[:8]}] {fact.key}: {fact.value}[/dim]")
+
+
 @memory_app.command("inspect")
 def inspect(
     limit: int = typer.Option(5, "--limit", "-n", help="Number of recent sessions to show."),

@@ -697,18 +697,23 @@ class AgentLoop:
         return AgentRunResult(state=state, steps=steps, stopped_reason=stopped_reason)
 
     def _prepend_session_memory(self, goal: str | None) -> str | None:
-        """Load recent session summaries and prepend to goal as context hint."""
+        """Load recent session summaries and approved facts; prepend to goal."""
         try:
             from safecode.memory.session_store import SessionSummaryStore
             from safecode.memory.summary import format_memory_context
-            store = SessionSummaryStore(self._sac_dir)
-            summaries = store.load_recent(limit=3)
-            if not summaries:
+            from safecode.memory.facts import ProjectFactStore
+            blocks: list[str] = []
+            facts_ctx = ProjectFactStore(self._sac_dir).approved_context()
+            if facts_ctx:
+                blocks.append(facts_ctx)
+            summaries = SessionSummaryStore(self._sac_dir).load_recent(limit=3)
+            session_ctx = format_memory_context(summaries)
+            if session_ctx:
+                blocks.append(session_ctx)
+            if not blocks:
                 return goal
-            context = format_memory_context(summaries)
-            if not context:
-                return goal
-            return f"{context}\n\n{goal}" if goal else context
+            prefix = "\n\n".join(blocks)
+            return f"{prefix}\n\n{goal}" if goal else prefix
         except Exception:
             return goal
 
@@ -736,6 +741,15 @@ class AgentLoop:
                 approved_patches=approved,
             )
             SessionSummaryStore(self._sac_dir).append(summary)
+            # Propose conventions inferred from this session (fail-closed)
+            try:
+                from safecode.memory.facts import ProjectFactStore
+                ProjectFactStore(self._sac_dir).propose_from_session_summary(
+                    commands_run=summary.commands_run,
+                    touched_files=summary.touched_files,
+                )
+            except Exception:
+                pass
         except Exception:
             pass
 
