@@ -141,9 +141,8 @@ def _maybe_render_markdown(response: str, *, is_tty: bool) -> None:
 def _read_line(*, is_tty: bool, turn: int = 0, prompt_override: str | None = None) -> str | None:
     """Read one line from the user. Returns None on EOF.
 
-    B11 fix: on EOF, prints '\n[exiting shell]' before returning None,
-    consistent across TTY and non-TTY.
-    v5.2.1: prompt_override allows callers to pass a pre-formatted prompt string.
+    EOF prints '\n[exiting shell]' consistently across TTY and non-TTY.
+    Callers may pass a pre-formatted prompt string via prompt_override.
     """
     prompt = prompt_override if prompt_override is not None else _shell_prompt(turn)
     if is_tty:
@@ -1026,8 +1025,7 @@ def _run_agentic_shell(
         else:
             print(line_out)
 
-    # Session summary (v5.1.0+: always show in auto-edit/full-auto mode)
-    # v5.2.0: include cost estimate
+    # Always show the reversible session summary for auto modes.
     summary_parts = [
         f"Session: {result.state.session_id}",
         f"Status: {result.state.status}",

@@ -5,20 +5,19 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v6.6.2
+# Current Baseline - v6.6.3
 
 ## Status
-Implemented. Git baseline: tag `v6.6.1`. Local working version: `v6.6.2`.
-v6.0.0 was the previous stable-contract cut. v6.6.2 adds a real-world demo
-scaffold for an Arrow parser exception-boundary issue and an inline SWE-bench
-Lite adaptation, bringing the mock baseline to 0/8. v6.6.1 expands live eval to
-five representative local coding fixtures and expands the synthetic SWE-bench
-Lite suite to seven inline fixtures. v6.6.0 makes semantic retrieval an
-optional dependency via `safecode-agent[semantic]` and adds explicit null
-backend install hints. v6.5.x adds a SWE-bench-Lite-compatible eval harness
-(SWEBenchRunner, task_to_fixture adapter, sac eval --mode swebench-lite).
-v6.4.0 promoted GitHub PR to Stable Contract #20; v6.3.x added semantic
-search; v6.2.x added cross-session project memory.
+Implemented. Git baseline: tag `v6.6.3`. Local working version: `v6.6.3`.
+v6.0.0 was the previous stable-contract cut. v6.6.3 cleans current docs and
+guard tests: Section 20/21 numbering is consistent, stable-contract labels are
+current, README duplicate provider/memory/search material now points to
+canonical docs, and stale version comments are reduced in hot runtime files.
+v6.6.2 adds a real-world demo scaffold for an Arrow parser exception-boundary
+issue and an inline SWE-bench Lite adaptation, bringing the mock baseline to
+0/8. v6.6.1 expands live eval to five representative local coding fixtures and
+the synthetic SWE-bench Lite suite to seven inline fixtures. v6.6.0 makes
+semantic retrieval an optional dependency via `safecode-agent[semantic]`.
 
 ## Stage
 The v4.14–v4.18 usability trains are complete (14 versions shipped):

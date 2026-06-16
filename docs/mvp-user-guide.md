@@ -132,7 +132,7 @@ All safety gates are unchanged: every `edit_file` / `write_file` call still
 creates a checkpoint before applying; `run_command` still passes through the
 shell policy; all tool outputs are redacted before entering model context.
 
-## Provider Profile UX (v4.14.0, EXPERIMENTAL)
+## Provider Profiles
 
 **Mental model: Provider account first, model switch second, project safety third.**
 
@@ -557,11 +557,12 @@ Add to `.safecode/config.toml` (user config only; project config ignored):
 compaction_threshold_ratio = 0.75   # trigger at 75% instead
 ```
 
-## Trust Modes (v5.1, EXPERIMENTAL)
+## Trust Modes (Stable Contract #18)
 
 By default, SafeCode Agent asks for approval before every file edit and command.
-v5.1 adds two optional trust modes that reduce interruptions while preserving
-the full safety infrastructure (checkpoints, audit trail, rollback).
+SafeCode exposes two optional trust modes that reduce interruptions while
+preserving the stable safety invariants in Public Contract #18: checkpoints,
+audit trail, rollback, command policy, and session rollback.
 
 ### Choosing a trust mode
 

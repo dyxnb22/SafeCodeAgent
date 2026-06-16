@@ -155,7 +155,7 @@ The shell accepts natural-language questions and slash commands (`/status`, `/ov
 confirmation. No auto-apply. No auto-commit. No RAG or embeddings.
 See [docs/tutorials/ai-shell-first-hour.md](docs/tutorials/ai-shell-first-hour.md).
 
-**Trust Modes (v5.1, EXPERIMENTAL):**
+**Trust Modes (Stable Contract #18):**
 
 | Mode | Command | What auto-approves | Still requires approval |
 |---|---|---|---|
@@ -340,7 +340,7 @@ Every `edit_file` and `write_file` call creates a checkpoint *before* the mutati
 the agent can make many edits and you can roll back any of them with `sac rollback --last`.
 `run_command` passes through the same policy engine as `sac run`.
 
-**GitHub tools (v4.24, EXPERIMENTAL):**
+**GitHub tools (read tools experimental; write workflow Stable Contract #20):**
 
 ```bash
 # Read tools (auto-approved, require network: true)
@@ -350,15 +350,17 @@ sac> github_read_pr    owner=acme repo=myapp pr=7
 sac> github_read_file  owner=acme repo=myapp path=README.md ref=main
 sac> web_fetch         url=https://docs.example.com/api
 
-# Write tools (approval-gated, require network: true)
+# Write tools (Stable Contract #20; approval-gated, require network: true)
 sac> github_create_pr  title="My PR" body="Fixes #42" base=main
 sac> github_push_branch branch=dev/feature-x
 ```
 
 Read tools use `gh` CLI with `shell=False` (no injection surface). Write tools
-(`github_create_pr`, `github_push_branch`) are approval-gated — they pause
-and show the command before executing. Auth via `GITHUB_TOKEN` env or
-`gh auth status`. `web_fetch` strips scripts/style and caps at 50 KB.
+(`github_create_pr`, `github_push_branch`) are part of Stable Contract #20:
+they are approval-gated, block pushes to `main`/`master`/`trunk`, support
+`dry_run=true`, and add a SafeCode audit footer to PR bodies. Auth via
+`GITHUB_TOKEN` env or `gh auth status`. `web_fetch` strips scripts/style and
+caps at 50 KB.
 
 **Anthropic / Claude as first-class provider (v4.23, EXPERIMENTAL):**
 
@@ -490,8 +492,8 @@ Since v4.16.0, `sac --help` shows the 7 most-common daily commands (init, ask,
 edit, apply, fix, commit, doctor). Run `sac help --all` to see the full callable
 surface of 20+ commands including status, task, rollback, run, profile, resume,
 memory, debug, shell, model, provider, version, and setup. All v4.x additions
-remain EXPERIMENTAL. All trains through v4.18.2 are complete. No v5.0 release
-is currently scheduled.
+remain EXPERIMENTAL unless later promoted in `docs/public-contracts.md`; v5.x
+and v6.x contract promotions are documented there.
 
 Use `--json` on most commands for machine-readable output:
 ```bash
@@ -625,6 +627,8 @@ sac[2]> github_create_pr title="Fix auth timeout" body="Resolves the session exp
 SafeCode Agent includes a hybrid context retrieval pipeline that combines
 keyword path-matching, git recency, and semantic embedding similarity.
 Every result carries a `selection_reason` explaining why it was selected.
+Full workflow details live in the
+[MVP User Guide](docs/mvp-user-guide.md#hybrid-context-retrieval-v63-experimental).
 
 ```bash
 # Enable semantic search (optional dependency)
@@ -633,11 +637,8 @@ pip install 'safecode-agent[semantic]'
 # or with uv:
 uv pip install 'safecode-agent[semantic]'
 
-# Then build the index
+# Then build the local embedding index
 sac index build
-
-# Build the local embedding index (requires sentence-transformers; falls
-# back to keyword-only if not installed)
 sac index build --force          # re-embed all chunks
 sac index status                 # show index stats
 
@@ -664,6 +665,8 @@ Incremental builds skip unchanged file chunks.
 SafeCode Agent automatically records a bounded, redacted summary after each session.
 On the next session, recent summaries and any approved project conventions are
 prepended to the agent's context so it remembers what was done before.
+The canonical walkthrough is in the
+[MVP User Guide](docs/mvp-user-guide.md#cross-session-project-memory-v62-experimental).
 
 ```bash
 sac memory inspect                       # view recent session summaries
@@ -700,6 +703,8 @@ Runtime logs are structured JSONL events with component, level, message, error t
 ## Real LLM Mode
 
 The default provider is `mock`, which keeps local tests deterministic.
+The canonical provider reference is [docs/providers.md](docs/providers.md);
+this README keeps only the quick-start path.
 
 To use an OpenAI-compatible provider:
 
@@ -713,9 +718,11 @@ Model output is still parsed and validated by SafeCode before any write can happ
 
 Real LLM mode also requires trusted user-level and project-level network policy. A project-local config cannot enable network access by itself, and a project-local config cannot switch the model provider. Environment variables still take priority for temporary overrides.
 
-See [docs/mvp-user-guide.md](docs/mvp-user-guide.md#model-configuration) for the exact config files.
+See [docs/mvp-user-guide.md](docs/mvp-user-guide.md#model-configuration) for
+the exact config files, and [docs/providers.md](docs/providers.md) for provider
+contract details, retry behavior, and live-lane status.
 
-### Real provider quickstart — provider profile UX (v4.14.0, EXPERIMENTAL)
+### Real provider quickstart — provider profiles
 
 Configure your provider once, then switch models by short alias:
 
@@ -736,7 +743,7 @@ sac> /model flash        # switch (persisted globally)
 sac> /provider status    # show provider profile status
 ```
 
-### Real provider quickstart (DeepSeek, v4.10, EXPERIMENTAL)
+### DeepSeek quickstart
 
 ```bash
 sac model deepseek-v4-pro --provider deepseek --api-key sk-... --network

@@ -91,7 +91,7 @@ class AgentLoop:
         self.config = SafeCodeConfig.load(project_root)
         self.context_collector = ContextCollector(project_root, self.config)
         self._sac_dir = project_root / self.config.sac_dir
-        self._cost_session_id = uuid4().hex  # v5.2.0: stable ID for cost accumulator
+        self._cost_session_id = uuid4().hex
         if llm_client is not None:
             self.llm_client = llm_client
         else:
@@ -108,12 +108,12 @@ class AgentLoop:
         self._last_typed_step: TypedAgentStep | None = None
         self._last_typed_result: TypedAgentStepResult | None = None
         self.no_validate = False
-        self.auto_edit = auto_edit  # v5.1.0: auto-approve edit_file/write_file
-        self.full_auto = full_auto  # v5.1.1: also auto-approve run_command (policy gates still apply)
-        self.command_delay_ms = command_delay_ms  # v5.1.1: grace period before run_command in full-auto
-        self._native_write_count = 0  # v5.1.0: per-session write count for file count guard
-        self._session_observations: list[str] = []  # v5.3.1: accumulated tool results for compaction
-        self._compactor: object | None = None  # v5.3.1: ContextCompactor, lazily initialized
+        self.auto_edit = auto_edit
+        self.full_auto = full_auto
+        self.command_delay_ms = command_delay_ms
+        self._native_write_count = 0
+        self._session_observations: list[str] = []
+        self._compactor: object | None = None
 
     def session_cost(self) -> "TokenUsage | None":
         """Return accumulated token usage for this session, or None if no data."""
@@ -127,12 +127,8 @@ class AgentLoop:
         """The typed result from the most recently completed step, or None."""
         return self._last_typed_result
 
-    # ------------------------------------------------------------------
-    # P1: Native tool protocol integration (v5.1.0)
-    # ------------------------------------------------------------------
-
     def _get_compactor(self, session_id: str) -> object:
-        """Return (or lazily create) the ContextCompactor for this session (v5.3.1)."""
+        """Return or lazily create the ContextCompactor for this session."""
         if self._compactor is None:
             from safecode.context.compaction import ContextCompactor
             self._compactor = ContextCompactor(
@@ -144,7 +140,7 @@ class AgentLoop:
         return self._compactor
 
     def _maybe_compact_context(self, session_id: str) -> str | None:
-        """If accumulated observations exceed 60% of budget, compact them (v5.3.1).
+        """If accumulated observations exceed the configured budget ratio, compact them.
 
         Returns the compact summary string if compaction occurred, else None.
         Prints a notice to stdout when compaction fires.
@@ -239,7 +235,7 @@ class AgentLoop:
         context = self.context_collector.collect(query=state.goal)
         context = self._enrich_with_subagent_findings(state.session_id, context)
 
-        # v5.3.1: compact accumulated observations before the next LLM call
+        # Compact old observations before the next LLM call so long sessions stay usable.
         compact_summary = self._maybe_compact_context(state.session_id)
         if compact_summary:
             context["compacted_session_summary"] = compact_summary
@@ -361,7 +357,7 @@ class AgentLoop:
         write_calls = sum(1 for r in turn_result.tool_calls if r.tool_name in write_tool_names)
         self._native_write_count += write_calls
 
-        # v5.3.1: accumulate observations for potential compaction in the next step
+        # Keep tool observations available for later compaction.
         if turn_result.observations:
             self._session_observations.extend(turn_result.observations)
 

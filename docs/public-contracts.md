@@ -1,7 +1,7 @@
 # SafeCode Agent Public Contracts
 
-This document describes the local safety contracts that are stable through
-v4.0.0 and the surfaces that remain explicitly experimental. Build workflows on
+This document describes the local safety contracts currently stable in SafeCode
+Agent and the surfaces that remain explicitly experimental. Build workflows on
 top of the stable contracts. Do not rely on experimental surfaces for
 automation; they may change without a major version bump.
 
@@ -87,7 +87,10 @@ and `required` fields will not be removed or renamed without a v6 major bump.
 - `redact_secrets()` applied to all tool outputs before model context.
 
 **What is NOT stable in this contract:**
-- `web_fetch`, `github_read_issue/pr/file`, `github_create_pr`, `github_push_branch` remain EXPERIMENTAL.
+- `web_fetch`, `github_read_issue`, `github_read_pr`, and `github_read_file`
+  remain EXPERIMENTAL.
+- `github_create_pr` and `github_push_branch` are not part of this v5.0 tool
+  schema contract; they are promoted separately in Stable Contract #20.
 - `choose_tool_native()` LLM client internals (Anthropic/OpenAI wire format) remain EXPERIMENTAL.
 - `NativeToolSpec.experimental` field itself is informational only.
 
@@ -331,8 +334,7 @@ stable contract in v6.2.x.
 
 The following surfaces remain EXPERIMENTAL and may change without a major bump:
 
-- `web_fetch`, `github_read_issue`, `github_read_pr`, `github_read_file`,
-  `github_create_pr`, `github_push_branch`
+- `web_fetch`, `github_read_issue`, `github_read_pr`, `github_read_file`
 - Anthropic/OpenAI native tool-use client internals (`choose_tool_native()`)
 - Any CLI subcommand outside the 17-command visible surface (`sac --help`)
 - `.sac/tasks/`, `.sac/memory/`, `.sac/shell/` file layouts

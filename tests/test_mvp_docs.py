@@ -367,8 +367,8 @@ def test_v423_matrix_has_v423_rows() -> None:
 
 def test_v424_github_tools_in_readme() -> None:
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
-    assert "v4.24" in readme
     assert "github" in readme.lower()
+    assert "Stable Contract #20" in readme
 
 
 def test_v424_mvp_guide_pr_section() -> None:

@@ -359,8 +359,9 @@ and must be maintained through the v5.x series:
    contract violation.
 
 **What this does NOT change:**
-- GitHub tools (`github_create_pr`, etc.) and `web_fetch` remain EXPERIMENTAL;
-  their security properties are advisory.
+- GitHub read tools and `web_fetch` remain EXPERIMENTAL;
+  GitHub write tools (`github_create_pr`, `github_push_branch`) are covered by
+  Stable Contract #20.
 - Anthropic/OpenAI client internals remain EXPERIMENTAL.
 - The threat model review cadence remains semi-annual.
 
