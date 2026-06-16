@@ -800,3 +800,10 @@ Completed. Plan: `docs/version-plans/v4.20-to-v5.0-product-roadmap.md` (v4.25.x 
 | `v6.3.0` ✅ | `dev/v4.19` | `src/safecode/index/chunker.py`, `src/safecode/index/embedding_backend.py`, `src/safecode/index/embedding_store.py`, `src/safecode/cli_project.py`, `tests/test_index_embedding.py` | Chunker, NullEmbeddingBackend/SentenceTransformerBackend, EmbeddingStore (SQLite WAL, incremental build); `sac index build`/`status`; 42 tests; works without sentence-transformers installed. |
 | `v6.3.1` ✅ | `dev/v4.19` | `src/safecode/context/hybrid_retrieval.py`, `src/safecode/cli.py`, `tests/test_index_embedding.py` | HybridRetriever: keyword + semantic + recency; `selection_reason` field; `sac search "<query>"`; falls back to keyword-only when no index. |
 | `v6.3.2` ✅ | `dev/v4.19` | `README.md`, `docs/context-budgets.md`, `docs/mvp-user-guide.md`, `docs/version_implementation_matrix.md`, `.claude/skills/current/SKILL.md`, `.claude/versions.json` | Docs cut: README semantic search section; context-budgets hybrid retrieval section; MVP guide search workflow; matrix v6.3.x rows. |
+
+## v6.4.x: GitHub PR Stable Contract
+
+| 版本 | 分支 | 主要入口 | 验收命令 / 结果 |
+|---|---|---|---|
+| `v6.4.0` ✅ | `dev/v4.19` | `src/safecode/agent/github_write_tools.py`, `tests/test_github_pr_contract.py`, `tests/test_github_write_tools.py`, `docs/public-contracts.md` | Structural main/master/trunk block; PR body audit footer (branch+checkpoint+timestamp); dry_run flag; stable audit event types github_pr_created/github_branch_pushed; Section 20 in public-contracts.md; 35 new contract tests. |
+| `v6.4.1` ✅ | `dev/v4.19` | `README.md`, `docs/mvp-user-guide.md`, `docs/version_implementation_matrix.md`, `.claude/skills/current/SKILL.md`, `.claude/versions.json` | Docs cut: README GitHub PR Workflow section; MVP guide PR workflow; matrix v6.4.x rows. |

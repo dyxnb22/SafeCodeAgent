@@ -556,6 +556,30 @@ export SAFECODE_POLICY=strict
 - An unknown project config policy name cannot override a known user policy.
 - Project config cannot lower user-level policy.
 
+## GitHub PR Workflow (v6.4, Stable Contract #20)
+
+SafeCode Agent can push a branch and open a PR, with structural safety gates
+that cannot be bypassed by model output or configuration.
+
+```bash
+# Validate without executing (always safe to run)
+sac agent run "push this branch and create a PR for the auth fix"
+# → shows PR preview with title, body + SafeCode audit footer
+# → you approve → branch push → gh pr create
+
+# Or call the tools directly in shell mode
+sac shell
+sac[1]> github_push_branch branch=feature/auth-fix
+sac[2]> github_create_pr title="Fix auth timeout" body="Resolves the session expiry bug."
+```
+
+**Stable invariants:**
+- `main`, `master`, `trunk` are always blocked — code-level gate, no config can override
+- PR body always gets a SafeCode audit footer (branch, checkpoint ID, timestamp)
+- `dry_run=true` previews without any network call
+- Audit events: `github_pr_created` / `github_branch_pushed` (stable types)
+- `requires_approval=true` — approval always required before branch push or PR creation
+
 ## Semantic Code Search (v6.3, EXPERIMENTAL)
 
 SafeCode Agent includes a hybrid context retrieval pipeline that combines

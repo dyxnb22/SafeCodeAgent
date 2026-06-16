@@ -937,3 +937,63 @@ and `semantic_score = 0` for all files. `sac search` still works using keyword
 and recency signals only. Install `sentence-transformers` to unlock semantic search.
 
 All surfaces in this section are EXPERIMENTAL and carry no stable contract.
+
+## GitHub PR Workflow (v6.4, Stable Contract #20)
+
+SafeCode Agent can push a branch and open a GitHub PR as part of the agent
+loop. Two structural safety gates apply regardless of model output or config:
+
+1. `main`, `master`, and `trunk` are always blocked from push — code-level.
+2. The PR body always includes a SafeCode audit footer before any network call.
+
+### Workflow
+
+```bash
+# Step 1: make your edits and apply them
+sac edit "fix the auth timeout"
+sac apply
+
+# Step 2: preview the push (dry run — no network call)
+sac shell
+sac[1]> github_push_branch branch=feature/auth-fix dry_run=true
+# Shows: [DRY RUN] Would push branch: feature/auth-fix to origin.
+
+# Step 3: push the branch (requires approval)
+sac[2]> github_push_branch branch=feature/auth-fix
+# → approval gate → git push -u origin feature/auth-fix
+
+# Step 4: preview the PR (dry run)
+sac[3]> github_create_pr title="Fix auth timeout" body="Resolves session expiry." dry_run=true
+# Shows the PR body with SafeCode audit footer
+
+# Step 5: create the PR (requires approval)
+sac[4]> github_create_pr title="Fix auth timeout" body="Resolves session expiry."
+# → approval gate → gh pr create → returns PR URL
+```
+
+### PR body footer (always present)
+
+Every PR created by SafeCode Agent includes:
+
+```markdown
+---
+**SafeCode Audit Reference**
+- Branch: `feature/auth-fix`
+- Checkpoint: `2026-06-16T10-05-00Z_patch-abc123`
+- Created: 2026-06-16T10:05:02+00:00
+- Tool: SafeCode Agent `github_create_pr`
+```
+
+This lets reviewers trace the PR back to the exact checkpoint and audit event.
+
+### Stable contract invariants
+
+| Invariant | Guarantee |
+|---|---|
+| Protected branch block | `main`, `master`, `trunk` always rejected — structural |
+| PR audit footer | Always appended — user sees it in approval preview |
+| `dry_run=true` | No network call; always safe to run |
+| `requires_approval` | Always true — cannot be disabled |
+| Audit event types | `github_pr_created` / `github_branch_pushed` |
+
+All surfaces in this section are part of **Stable Contract #20**.
