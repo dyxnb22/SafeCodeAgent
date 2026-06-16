@@ -1,0 +1,22 @@
+{
+  "pass_rate": 0.0,
+  "passed": 0,
+  "provider": "mock",
+  "results": [
+    {
+      "exit_code": 4,
+      "failure_reasons": [
+        "Expected last validation command exit code 0, got 4.",
+        "Expected last validation command exit code 0, got 4."
+      ],
+      "instance_id": "proj__issue-1",
+      "output_snippet": "\nno tests ran in 0.00s\nERROR: file or directory not found: tests/\n\n",
+      "passed": false,
+      "stopped_reason": "failed",
+      "wall_seconds": 0.29
+    }
+  ],
+  "run_at": "2026-06-16T11:08:43.521895+00:00",
+  "suite": "swebench-lite",
+  "total": 1
+}

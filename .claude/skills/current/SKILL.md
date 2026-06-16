@@ -5,14 +5,14 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v6.4.1
+# Current Baseline - v6.5.1
 
 ## Status
 Implemented. Git baseline: tag `v6.2.2`. Local working version: `v6.2.2`.
-v6.0.0 was the previous stable-contract cut. v6.4.0 promotes the GitHub PR
-workflow to Stable Contract #20: structural main/master/trunk block, PR body
-audit footer, dry_run flag, stable audit event types. v6.3.x added semantic
-code search; v6.2.x added cross-session project memory.
+v6.0.0 was the previous stable-contract cut. v6.5.x adds a SWE-bench-Lite-
+compatible eval harness (SWEBenchRunner, task_to_fixture adapter, sac eval
+--mode swebench-lite). v6.4.0 promoted GitHub PR to Stable Contract #20;
+v6.3.x added semantic search; v6.2.x added cross-session project memory.
 
 ## Stage
 The v4.14–v4.18 usability trains are complete (14 versions shipped):

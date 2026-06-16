@@ -556,6 +556,38 @@ export SAFECODE_POLICY=strict
 - An unknown project config policy name cannot override a known user policy.
 - Project config cannot lower user-level policy.
 
+## Evaluation Harness (v6.5, EXPERIMENTAL)
+
+SafeCode Agent ships a **SWE-bench-Lite-compatible eval harness** for
+reproducible, comparable coding-agent evaluation.
+
+```bash
+# Run the built-in synthetic tasks (mock provider — measures harness, not agent quality)
+sac eval --mode swebench-lite --suite tests/eval_fixtures/swebench_lite
+
+# Run with a real provider (requires SAFECODE_LIVE_TESTS=1 and provider credentials)
+SAFECODE_LIVE_TESTS=1 sac eval --mode swebench-lite \
+  --suite tests/eval_fixtures/swebench_lite \
+  --provider deepseek --limit 5
+```
+
+**Task format** (`tests/eval_fixtures/swebench_lite/*.json`):
+```json
+{
+  "schema_version": 1,
+  "instance_id": "project__issue-42",
+  "problem_statement": "The divide() function crashes on zero...",
+  "repo": {"kind": "inline", "files": {"calc.py": "..."}},
+  "test_command": "python -m pytest tests/ -q",
+  "pass_condition": "exit_code_0"
+}
+```
+
+**Honest baseline:** Mock provider passes 0/3 synthetic tasks (expected — mock
+generates no real patches). Real provider results: see
+[`docs/demo/swebench-eval-summary.md`](docs/demo/swebench-eval-summary.md) and
+[`tests/snapshots/swebench_lite/latest.json`](tests/snapshots/swebench_lite/latest.json).
+
 ## GitHub PR Workflow (v6.4, Stable Contract #20)
 
 SafeCode Agent can push a branch and open a PR, with structural safety gates
