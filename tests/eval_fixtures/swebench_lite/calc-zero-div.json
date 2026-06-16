@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "instance_id": "safecode__calc-zero-div",
+  "problem_statement": "The divide function in calc.py raises ZeroDivisionError when b is zero. Fix it to return None instead.",
+  "repo": {
+    "kind": "inline",
+    "files": {
+      "calc.py": "def divide(a, b):\n    return a / b\n",
+      "tests/test_calc.py": "from calc import divide\n\ndef test_divide_normal():\n    assert divide(10, 2) == 5.0\n\ndef test_divide_zero():\n    assert divide(10, 0) is None\n"
+    },
+    "setup_commands": []
+  },
+  "test_command": "python -m pytest tests/ -q",
+  "pass_condition": "exit_code_0",
+  "hints": "Guard against b == 0 and return None."
+}

@@ -90,17 +90,20 @@ def export_report(output: Path = typer.Option(Path(".sac/reports/latest.md"), "-
 
 @ops_app.command("eval", hidden=True)
 def eval_demo(
-    mode: str = typer.Option("default", "--mode", help="Eval mode: default, loop, bench, or live."),
+    mode: str = typer.Option("default", "--mode", help="Eval mode: default, loop, bench, live, or swebench-lite."),
     update_baseline: bool = typer.Option(False, "--update-baseline", help="Overwrite bench baseline snapshots."),
     provider: str = typer.Option("anthropic", "--provider", help="LLM provider for --mode live."),
     model: str = typer.Option("", "--model", help="Model override for --mode live."),
     fixture: str = typer.Option("", "--fixture", help="Run one named fixture (live mode only)."),
+    suite: str = typer.Option("", "--suite", help="Eval suite for --mode swebench-lite (dir of task JSON files)."),
+    limit: int = typer.Option(10, "--limit", help="Max tasks for --mode swebench-lite."),
 ) -> None:
     """Run lightweight local eval cases.
 
-    --mode loop  runs realistic scripted agent-loop fixtures (no real LLM).
-    --mode bench runs eval bench and collects timing/hash metrics per fixture.
-    --mode live  runs real coding tasks against a live provider (requires SAFECODE_LIVE_TESTS=1).
+    --mode loop           runs realistic scripted agent-loop fixtures (no real LLM).
+    --mode bench          runs eval bench and collects timing/hash metrics per fixture.
+    --mode live           runs real coding tasks against a live provider (requires SAFECODE_LIVE_TESTS=1).
+    --mode swebench-lite  runs SWE-bench-Lite-compatible tasks from --suite <dir>.
     """
     if mode == "loop":
         fixtures = default_loop_fixtures()
@@ -166,6 +169,30 @@ def eval_demo(
             raise typer.Exit(code=1)
         all_passed = all(r.success for r in live_results)
         raise typer.Exit(code=0 if all_passed else 1)
+    elif mode == "swebench-lite":
+        from safecode.eval.swebench_adapter import (
+            SWEBenchRunner, load_tasks_from_dir, render_report_text, save_report
+        )
+        from safecode.eval.swebench_adapter import SWEBenchLoadError
+        suite_dir = Path(suite) if suite else Path.cwd() / "tests" / "eval_fixtures" / "swebench_lite"
+        if not suite_dir.is_dir():
+            console.print(f"[red]Suite directory not found: {suite_dir}[/red]")
+            console.print("[dim]Create JSON task files in the directory or pass --suite <dir>[/dim]")
+            raise typer.Exit(code=1)
+        try:
+            tasks = load_tasks_from_dir(suite_dir)
+        except SWEBenchLoadError as exc:
+            console.print(f"[red]{exc}[/red]")
+            raise typer.Exit(code=1) from exc
+        if not tasks:
+            console.print(f"[yellow]No task files found in {suite_dir}[/yellow]")
+            raise typer.Exit(code=0)
+        runner = SWEBenchRunner(project_root=Path.cwd())
+        report = runner.run_suite(tasks, limit=limit, provider="mock")
+        console.print(render_report_text(report))
+        out_path = save_report(report)
+        console.print(f"\n[dim]Report saved: {out_path}[/dim]")
+        raise typer.Exit(code=0 if report.passed == report.total else 1)
     else:
         results_legacy = EvalRunner(Path.cwd()).run(default_cases())
         table = Table(title="SafeCode Eval")

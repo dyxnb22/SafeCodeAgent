@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "instance_id": "safecode__string-reverse",
+  "problem_statement": "The reverse_string function in utils.py returns the string unchanged instead of reversing it. Fix the implementation.",
+  "repo": {
+    "kind": "inline",
+    "files": {
+      "utils.py": "def reverse_string(s):\n    return s\n",
+      "tests/test_utils.py": "from utils import reverse_string\n\ndef test_reverse():\n    assert reverse_string('hello') == 'olleh'\n\ndef test_reverse_empty():\n    assert reverse_string('') == ''\n"
+    },
+    "setup_commands": []
+  },
+  "test_command": "python -m pytest tests/ -q",
+  "pass_condition": "exit_code_0",
+  "hints": "Use Python slice notation s[::-1]."
+}

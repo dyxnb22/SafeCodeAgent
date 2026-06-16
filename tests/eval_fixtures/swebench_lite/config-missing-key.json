@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "instance_id": "safecode__config-missing-key",
+  "problem_statement": "The get_value function in config.py raises KeyError when the key is not present. Fix it to return a default value of None.",
+  "repo": {
+    "kind": "inline",
+    "files": {
+      "config.py": "class Config:\n    def __init__(self, data):\n        self._data = data\n\n    def get_value(self, key):\n        return self._data[key]\n",
+      "tests/test_config.py": "from config import Config\n\ndef test_existing_key():\n    c = Config({'a': 1})\n    assert c.get_value('a') == 1\n\ndef test_missing_key():\n    c = Config({'a': 1})\n    assert c.get_value('missing') is None\n"
+    },
+    "setup_commands": []
+  },
+  "test_command": "python -m pytest tests/ -q",
+  "pass_condition": "exit_code_0",
+  "hints": "Use dict.get() instead of direct key access."
+}
