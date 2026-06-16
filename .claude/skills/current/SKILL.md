@@ -5,13 +5,13 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v6.1.0
+# Current Baseline - v6.2.0
 
 ## Status
-Implemented. Git baseline: tag `v6.1.0`. Local working version: `v6.1.0`.
-v6.0.0 is the latest stable-contract cut. v6.1.0 is the portfolio maturity
-baseline: real DeepSeek live eval evidence, realistic multi-file demo, hooks
-MVP, and diagnostics-aware context.
+Implemented. Git baseline: tag `v6.2.0`. Local working version: `v6.2.0`.
+v6.0.0 is the latest stable-contract cut. v6.2.0 adds cross-session project
+memory: auto-written session summaries after each run(), injection into
+subsequent sessions, and `sac memory inspect`/`export` CLI commands.
 
 ## Stage
 The v4.14–v4.18 usability trains are complete (14 versions shipped):

@@ -194,6 +194,58 @@ def clear(
         console.print(f"[green]Cleared {scope} memory.[/green]")
 
 
+@memory_app.command("inspect")
+def inspect(
+    limit: int = typer.Option(5, "--limit", "-n", help="Number of recent sessions to show."),
+    json_output: bool = typer.Option(False, "--json", help="Output result as JSON."),
+) -> None:
+    """[EXPERIMENTAL] Show recent session summaries written by the agent loop."""
+    from safecode.memory.session_store import SessionSummaryStore
+    sac_dir = Path.cwd() / ".sac"
+    store = SessionSummaryStore(sac_dir)
+    summaries = store.load_recent(limit=limit)
+
+    if json_output:
+        _print_json("memory inspect", "success", data={"summaries": [s.to_dict() for s in summaries]})
+        return
+
+    if not summaries:
+        console.print("[yellow]No session summaries found. Run the agent first.[/yellow]")
+        return
+
+    for s in summaries:
+        console.print(f"[bold cyan]{s.session_id[:12]}[/bold cyan]  {s.ended_at[:19]}")
+        console.print(f"  Goal:    {s.goal[:100]}")
+        if s.touched_files:
+            console.print(f"  Files:   {', '.join(s.touched_files[:5])}")
+        if s.commands_run:
+            console.print(f"  Cmds:    {', '.join(s.commands_run[:3])}")
+        if s.tests_passed is not None:
+            status = "[green]passed[/green]" if s.tests_passed else "[red]failed[/red]"
+            console.print(f"  Tests:   {status}")
+        console.print(f"  Outcome: {s.stopped_reason}  ({s.steps} steps)")
+        console.print()
+
+
+@memory_app.command("export")
+def export(
+    out: Optional[Path] = typer.Option(None, "--out", "-o", help="Output file path (default: stdout)."),
+    limit: int = typer.Option(50, "--limit", "-n", help="Max sessions to export."),
+) -> None:
+    """[EXPERIMENTAL] Export session summaries to JSON."""
+    import json as _json
+    from safecode.memory.session_store import SessionSummaryStore
+    sac_dir = Path.cwd() / ".sac"
+    store = SessionSummaryStore(sac_dir)
+    data = store.export_all()[:limit]
+    text = _json.dumps(data, indent=2, sort_keys=True, ensure_ascii=False)
+    if out is not None:
+        out.write_text(text, encoding="utf-8")
+        console.print(f"[green]Exported {len(data)} session(s) to {out}[/green]")
+    else:
+        print(text)
+
+
 @memory_app.command("size")
 def size(
     json_output: bool = typer.Option(False, "--json", help="Output result as JSON."),

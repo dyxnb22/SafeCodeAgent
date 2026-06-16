@@ -6,6 +6,7 @@ import warnings
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 
 from typing import TYPE_CHECKING
@@ -628,9 +629,10 @@ class AgentLoop:
             raise ValueError("max_steps must be >= 1")
 
         steps: list[AgentStepResult] = []
-        next_goal = goal
+        next_goal = self._prepend_session_memory(goal)
         stopped_reason = "max_steps_reached"
         state: AgentSessionState | None = self.store.load()
+        run_started_at = datetime.now(timezone.utc).isoformat()
         started_at = time.monotonic()
         budget_task_id = TaskStore(self.project_root).current_id()
         budget = TaskBudgetStore(self.project_root).load(budget_task_id) if budget_task_id else None
@@ -684,7 +686,58 @@ class AgentLoop:
             # This is only reachable if step() behavior changes.
             raise FileNotFoundError("No agent session found.")
 
+        self._write_session_summary(
+            session_id=state.session_id,
+            goal=goal or state.goal or "",
+            steps=steps,
+            stopped_reason=stopped_reason,
+            started_at=run_started_at,
+        )
+
         return AgentRunResult(state=state, steps=steps, stopped_reason=stopped_reason)
+
+    def _prepend_session_memory(self, goal: str | None) -> str | None:
+        """Load recent session summaries and prepend to goal as context hint."""
+        try:
+            from safecode.memory.session_store import SessionSummaryStore
+            from safecode.memory.summary import format_memory_context
+            store = SessionSummaryStore(self._sac_dir)
+            summaries = store.load_recent(limit=3)
+            if not summaries:
+                return goal
+            context = format_memory_context(summaries)
+            if not context:
+                return goal
+            return f"{context}\n\n{goal}" if goal else context
+        except Exception:
+            return goal
+
+    def _write_session_summary(
+        self,
+        session_id: str,
+        goal: str,
+        steps: list[AgentStepResult],
+        stopped_reason: str,
+        started_at: str,
+    ) -> None:
+        """Write a bounded session summary to the session store after run() completes."""
+        try:
+            from safecode.memory.session_store import SessionSummaryStore
+            from safecode.memory.summary import build_session_summary
+            observations = [s.observation for s in steps if s.observation]
+            approved = sum(1 for s in steps if s.stopped_for_approval)
+            summary = build_session_summary(
+                session_id=session_id,
+                goal=goal,
+                step_observations=observations,
+                stopped_reason=stopped_reason,
+                started_at=started_at,
+                ended_at=datetime.now(timezone.utc).isoformat(),
+                approved_patches=approved,
+            )
+            SessionSummaryStore(self._sac_dir).append(summary)
+        except Exception:
+            pass
 
     def _should_validate_after_step(self) -> bool:
         if self.no_validate:
