@@ -259,6 +259,33 @@ the `--force-uncommit` flag behaviour beyond refusal of post-commit rollback.
 
 ---
 
+### 20. Project Memory Store Shape (v6.2.0 — CANDIDATE, not yet stable)
+
+**Surface:** `SessionSummaryStore` and `ProjectFactStore` — the two stores
+written to `.sac/memory/sessions.jsonl` and `.sac/memory/facts.json`.
+
+**Candidate invariants (subject to change before promotion):**
+
+- `sessions.jsonl`: append-only JSONL, one `SessionSummary` dict per line,
+  newest entry last, capped at 50 entries. All string values are redacted
+  before persistence.
+- `facts.json`: JSON object `{"version": 1, "facts": [...]}`. Each fact has
+  `fact_id`, `key`, `value`, `source`, `status`, `created_at`, `approved_at`.
+  `status` ∈ {`pending`, `approved`, `rejected`}.
+- Facts require explicit `sac memory approve-fact <id>` before being injected
+  into agent context. Project-local files cannot approve facts.
+- Fact approval is audit-logged with `type="memory_fact_approved"`.
+- `SessionSummaryStore.load_recent()` returns summaries newest-first.
+
+**Not yet stable:** The exact field set of `SessionSummary` and `ProjectFact`
+may expand before promotion. The `.sac/memory/` directory layout is not a
+stable contract in v6.2.x.
+
+**Source:** `src/safecode/memory/session_store.py`,
+`src/safecode/memory/facts.py`, `src/safecode/memory/summary.py`
+
+---
+
 ### What is NOT promoted at v5.0.0
 
 The following surfaces remain EXPERIMENTAL and may change without a major bump:

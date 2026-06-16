@@ -784,3 +784,11 @@ Completed. Plan: `docs/version-plans/v4.20-to-v5.0-product-roadmap.md` (v4.25.x 
 | 版本 | 分支 | 主要入口 | 验收命令 / 结果 |
 |---|---|---|---|
 | `v6.1.0` ✅ | `dev/v4.19` | `src/safecode/eval/live.py`, `src/safecode/llm/openai_client.py`, `src/safecode/context/diagnostics.py`, `src/safecode/hooks/runner.py`, `examples/realistic-demo/`, `docs/demo/live-eval-summary.md`, `tests/test_live_eval_mode.py`, `tests/test_hooks_mvp.py`, `tests/test_context_diagnostics.py`, `tests/test_realistic_demo.py` | Portfolio maturity: real DeepSeek `deepseek-v4-flash` live eval 2/2 pass, realistic multi-file demo, hooks MVP, diagnostics-aware context, structured provider patch contract. |
+
+## v6.2.x: Cross-Session Project Memory
+
+| 版本 | 分支 | 主要入口 | 验收命令 / 结果 |
+|---|---|---|---|
+| `v6.2.0` ✅ | `dev/v4.19` | `src/safecode/memory/session_store.py`, `src/safecode/memory/summary.py`, `src/safecode/agent/loop.py`, `src/safecode/cli_memory.py`, `tests/test_memory_session_store.py` | SessionSummaryStore: auto-written JSONL after each run(); `sac memory inspect`/`export`; approved facts prepended to next session's context. 38 new tests. |
+| `v6.2.1` ✅ | `dev/v4.19` | `src/safecode/memory/facts.py`, `src/safecode/agent/loop.py`, `src/safecode/cli_memory.py`, `tests/test_memory_facts.py` | ProjectFactStore: propose/approve/reject convention facts; auto-detection from commands_run and touched_files; `sac memory list-facts`/`approve-fact`/`reject-fact`; audit-logged approvals; 47 new tests. |
+| `v6.2.2` ✅ | `dev/v4.19` | `README.md`, `docs/public-contracts.md`, `docs/version_implementation_matrix.md`, `docs/mvp-user-guide.md`, `.claude/skills/current/SKILL.md`, `.claude/versions.json` | Docs cut: README "Project Memory" section; public-contracts Section 20 candidate; matrix v6.2.x rows; MVP guide memory workflow. |

@@ -556,6 +556,33 @@ export SAFECODE_POLICY=strict
 - An unknown project config policy name cannot override a known user policy.
 - Project config cannot lower user-level policy.
 
+## Project Memory (v6.2, EXPERIMENTAL)
+
+SafeCode Agent automatically records a bounded, redacted summary after each session.
+On the next session, recent summaries and any approved project conventions are
+prepended to the agent's context so it remembers what was done before.
+
+```bash
+sac memory inspect                       # view recent session summaries
+sac memory inspect --limit 10            # show last 10 sessions
+sac memory export --out sessions.json    # dump all session summaries to JSON
+
+sac memory list-facts                    # list all proposed convention facts
+sac memory list-facts --pending          # only pending facts (awaiting approval)
+sac memory list-facts --approved         # only approved (injected into context)
+sac memory approve-fact <fact-id>        # approve a pending fact
+sac memory reject-fact <fact-id>         # reject a pending fact
+```
+
+**How facts work:** After each session the agent proposes inferred conventions
+(test command, lint command, guarded directories) as *pending* facts.
+Facts are never injected into context until you explicitly approve them with
+`sac memory approve-fact`. Approved facts are audit-logged. Project-local files
+cannot create or approve facts — only the CLI gate can.
+
+**Storage:** Session summaries at `.sac/memory/sessions.jsonl` (capped at 50).
+Convention facts at `.sac/memory/facts.json`. All content is redacted before storage.
+
 ## Debug Runtime Logs
 
 When a command fails, inspect recent runtime logs:

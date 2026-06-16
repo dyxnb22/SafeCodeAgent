@@ -824,3 +824,67 @@ All MCP tools are prefixed `mcp_<server>_<tool>` (dashes and dots replaced with 
 This guarantees they never shadow built-in tools (`read_file`, `edit_file`, etc.).
 
 All surfaces in this section are EXPERIMENTAL and carry no stable contract.
+
+## Cross-Session Project Memory (v6.2, EXPERIMENTAL)
+
+SafeCode Agent remembers what happened in previous sessions and can learn
+project-specific conventions over time.
+
+### Session summaries
+
+After every `sac ask`, `sac edit`, or `sac agent run` call, a bounded session
+summary is automatically written to `.sac/memory/sessions.jsonl`. The next
+session loads the last 3 summaries and prepends them to the agent's context.
+
+```bash
+sac memory inspect              # show recent session summaries
+sac memory inspect --limit 10   # last 10 sessions
+sac memory export               # print all summaries as JSON
+sac memory export --out mem.json
+```
+
+### Project convention facts
+
+During each session the agent infers conventions from what it observed — test
+commands, lint commands, guarded directories — and proposes them as *pending*
+facts. Pending facts are never injected into context until you explicitly
+approve them.
+
+```bash
+sac memory list-facts            # all facts (pending + approved + rejected)
+sac memory list-facts --pending  # awaiting your review
+sac memory list-facts --approved # already active
+sac memory approve-fact <id>     # approve a pending fact (audit-logged)
+sac memory reject-fact <id>      # reject a pending fact
+```
+
+Approving a fact means it will appear in the "Approved Project Conventions"
+section of the agent's context on every subsequent session.
+
+### Adding your own facts
+
+```bash
+# Propose a fact manually (it starts as pending; you still need to approve it)
+sac memory list-facts --pending
+sac memory approve-fact <id>
+```
+
+Or use `sac memory add-note` for free-form project notes (always visible,
+no approval gate):
+
+```bash
+sac memory add-note "the /health endpoint must stay synchronous"
+```
+
+### Storage
+
+| File | Purpose | Cap |
+|---|---|---|
+| `.sac/memory/sessions.jsonl` | Session summaries | 50 entries |
+| `.sac/memory/facts.json` | Convention facts | 200 facts |
+| `.sac/memory/project.md` | Free-form project notes | no cap |
+
+All stored content is redacted with `redact_secrets()` before persistence.
+Project-local files cannot create or approve facts.
+
+All surfaces in this section are EXPERIMENTAL and carry no stable contract.

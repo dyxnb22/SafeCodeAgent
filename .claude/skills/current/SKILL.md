@@ -5,13 +5,15 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v6.2.0
+# Current Baseline - v6.2.2
 
 ## Status
-Implemented. Git baseline: tag `v6.2.0`. Local working version: `v6.2.0`.
-v6.0.0 is the latest stable-contract cut. v6.2.0 adds cross-session project
-memory: auto-written session summaries after each run(), injection into
-subsequent sessions, and `sac memory inspect`/`export` CLI commands.
+Implemented. Git baseline: tag `v6.2.2`. Local working version: `v6.2.2`.
+v6.0.0 is the latest stable-contract cut. v6.2.x adds cross-session project
+memory: auto-written session summaries, project convention facts with
+approve/reject workflow, approved facts injected into subsequent sessions,
+and full CLI (`sac memory inspect`, `export`, `list-facts`, `approve-fact`,
+`reject-fact`).
 
 ## Stage
 The v4.14–v4.18 usability trains are complete (14 versions shipped):
