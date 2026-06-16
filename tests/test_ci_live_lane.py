@@ -259,3 +259,50 @@ class TestLiveProviderLaneRecord:
         env = test_job.get("env", {}) or {}
         assert "OPENAI_API_KEY" not in env
         assert "ANTHROPIC_API_KEY" not in env
+
+
+# ---------------------------------------------------------------------------
+# v5.6.1: live-eval CI job
+# ---------------------------------------------------------------------------
+
+
+class TestLiveEvalCIJob:
+    """Verify the live-eval CI job added in v5.6.1."""
+
+    def test_live_eval_job_exists(self) -> None:
+        ci = _load_ci()
+        assert "live-eval" in ci["jobs"], "live-eval job must exist in CI"
+
+    def test_live_eval_job_is_advisory(self) -> None:
+        ci = _load_ci()
+        job = ci["jobs"]["live-eval"]
+        assert job.get("continue-on-error") is True
+
+    def test_live_eval_job_gated_by_enable_live_llm_tests(self) -> None:
+        ci = _load_ci()
+        job = ci["jobs"]["live-eval"]
+        assert "ENABLE_LIVE_LLM_TESTS" in str(job.get("if", ""))
+
+    def test_live_eval_job_sets_safecode_live_tests(self) -> None:
+        ci = _load_ci()
+        job = ci["jobs"]["live-eval"]
+        env = job.get("env", {})
+        assert env.get("SAFECODE_LIVE_TESTS") == "1"
+
+    def test_live_eval_job_runs_live_mode(self) -> None:
+        ci = _load_ci()
+        job = ci["jobs"]["live-eval"]
+        steps_str = str(job.get("steps", []))
+        assert "--mode live" in steps_str
+
+    def test_live_eval_job_does_not_need_test_job(self) -> None:
+        """live-eval is advisory and must not block or depend on test job."""
+        ci = _load_ci()
+        job = ci["jobs"]["live-eval"]
+        assert "needs" not in job or "test" not in str(job.get("needs", ""))
+
+    def test_live_eval_uploads_results_artifact(self) -> None:
+        ci = _load_ci()
+        job = ci["jobs"]["live-eval"]
+        steps_str = str(job.get("steps", []))
+        assert "live_eval" in steps_str or "live-eval" in steps_str

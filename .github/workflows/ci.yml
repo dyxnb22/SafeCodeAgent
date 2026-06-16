@@ -82,6 +82,40 @@ jobs:
       - name: Run agent loop eval (scripted, no live provider)
         run: PYTHONPATH=src python3 -m safecode.cli eval --mode loop
 
+  live-eval:
+    name: Live eval harness (advisory, secret-gated)
+    runs-on: ubuntu-latest
+    # Advisory: live eval failures do not block merges.
+    continue-on-error: true
+    # Only run when ENABLE_LIVE_LLM_TESTS is set to 'true'.
+    if: ${{ vars.ENABLE_LIVE_LLM_TESTS == 'true' }}
+    env:
+      SAFECODE_LIVE_TESTS: "1"
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install test dependencies
+        run: python -m pip install -e ".[dev]"
+
+      - name: Run live eval fixtures (anthropic)
+        run: PYTHONPATH=src python3 -m safecode.cli eval --mode live --provider anthropic
+
+      - name: Upload live eval results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: live-eval-results
+          path: tests/snapshots/live_eval/latest.json
+          if-no-files-found: warn
+
   live-provider:
     name: Live provider eval (advisory, secret-gated)
     runs-on: ubuntu-latest

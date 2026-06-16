@@ -1,0 +1,5 @@
+{
+  "schema_version": 1,
+  "note": "Initial baseline — no fixtures have run yet. Ratchet will not fail until a passing run updates this file.",
+  "results": []
+}

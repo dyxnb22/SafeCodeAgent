@@ -90,13 +90,16 @@ def export_report(output: Path = typer.Option(Path(".sac/reports/latest.md"), "-
 
 @ops_app.command("eval", hidden=True)
 def eval_demo(
-    mode: str = typer.Option("default", "--mode", help="Eval mode: default, loop, or bench."),
+    mode: str = typer.Option("default", "--mode", help="Eval mode: default, loop, bench, or live."),
     update_baseline: bool = typer.Option(False, "--update-baseline", help="Overwrite bench baseline snapshots."),
+    provider: str = typer.Option("anthropic", "--provider", help="LLM provider for --mode live."),
+    fixture: str = typer.Option("", "--fixture", help="Run one named fixture (live mode only)."),
 ) -> None:
     """Run lightweight local eval cases.
 
-    --mode loop runs realistic scripted agent-loop fixtures (no real LLM).
+    --mode loop  runs realistic scripted agent-loop fixtures (no real LLM).
     --mode bench runs eval bench and collects timing/hash metrics per fixture.
+    --mode live  runs real coding tasks against a live provider (requires SAFECODE_LIVE_TESTS=1).
     """
     if mode == "loop":
         fixtures = default_loop_fixtures()
@@ -120,6 +123,45 @@ def eval_demo(
         summary = bench_runner.run_all(update_baseline=update_baseline)
         console.print(render_bench_summary(summary))
         raise typer.Exit(code=0 if summary.all_passed else 1)
+    elif mode == "live":
+        import os as _os
+        from safecode.eval.live import (
+            LiveEvalRunner,
+            check_ratchet,
+            default_live_fixtures,
+            render_live_summary,
+            save_latest,
+        )
+
+        if not _os.environ.get("SAFECODE_LIVE_TESTS"):
+            console.print(
+                "[yellow]Live eval skipped: set SAFECODE_LIVE_TESTS=1 to enable.[/yellow]"
+            )
+            raise typer.Exit(code=0)
+
+        all_fixtures = default_live_fixtures()
+        if fixture:
+            selected = [f for f in all_fixtures if f.name == fixture]
+            if not selected:
+                names = ", ".join(f.name for f in all_fixtures)
+                console.print(f"[red]Unknown fixture {fixture!r}. Available: {names}[/red]")
+                raise typer.Exit(code=1)
+        else:
+            selected = all_fixtures
+
+        live_runner = LiveEvalRunner(provider=provider)
+        console.print(f"Running {len(selected)} live fixture(s) with provider={provider!r} …")
+        live_results = live_runner.run_all(selected)
+        save_latest(live_results)
+        console.print(render_live_summary(live_results))
+        ratchet_failures = check_ratchet(live_results)
+        if ratchet_failures:
+            console.print("[red]Ratchet failures:[/red]")
+            for msg in ratchet_failures:
+                console.print(f"  {msg}")
+            raise typer.Exit(code=1)
+        all_passed = all(r.success for r in live_results)
+        raise typer.Exit(code=0 if all_passed else 1)
     else:
         results_legacy = EvalRunner(Path.cwd()).run(default_cases())
         table = Table(title="SafeCode Eval")
