@@ -9,8 +9,7 @@
 > are complete. Next: **v6.0.0 major contract cut**.
 >
 > See [docs/v6-contract-candidates.md](v6-contract-candidates.md) for the v6.0
-> candidate assessment. See [docs/version-plans/v5.6-to-v5.8-product-roadmap.md](
-> version-plans/v5.6-to-v5.8-product-roadmap.md) for the complete train plan.
+> candidate assessment. See [version-plans/v5.6-to-v5.8-product-roadmap.md](version-plans/v5.6-to-v5.8-product-roadmap.md) for the complete train plan.
 >
 > **v5.8.2 is the pre-v6.0 baseline.** Terminal-only tool by design. 17 stable
 > contracts (sections 1-17 of public-contracts.md). Cost guardrails, live eval,
