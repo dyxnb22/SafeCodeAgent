@@ -108,10 +108,10 @@ exact format:
 ```
 *** Begin Patch
 *** Update File: path/to/file.py
-@@
--old line exact
-+new line exact
-@@
+SEARCH:
+old line exact
+REPLACE:
+new line exact
 *** End Patch
 ```
 

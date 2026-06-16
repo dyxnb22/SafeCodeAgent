@@ -1,0 +1,27 @@
+{
+  "results": [
+    {
+      "error": null,
+      "fixture_name": "python-add-function",
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "redundant_reads": 0,
+      "success": true,
+      "tool_calls": 1,
+      "turns_used": 1,
+      "wall_seconds": 9.706
+    },
+    {
+      "error": null,
+      "fixture_name": "python-fix-failing-test",
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "redundant_reads": 0,
+      "success": true,
+      "tool_calls": 1,
+      "turns_used": 1,
+      "wall_seconds": 3.871
+    }
+  ],
+  "schema_version": 1
+}

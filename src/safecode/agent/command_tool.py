@@ -20,6 +20,7 @@ from typing import Any
 from safecode.agent.native_dispatcher import NativeToolDispatcher
 from safecode.agent.native_tools import NativeToolResult, NativeToolSpec
 from safecode.config import SafeCodeConfig
+from safecode.hooks.runner import HookRunner, is_test_command
 from safecode.shell.runner import ShellRunner
 
 
@@ -89,7 +90,12 @@ def _run_command_handler(call_id: str, inp: dict[str, Any]) -> NativeToolResult:
                 )
 
     start = time.monotonic()
+    hook_runner = HookRunner(project_root, config)
+    if runner.propose(command, approved=True).decision.allowed:
+        hook_runner.run_before_command()
     result = runner.run(command, approved=True, timeout_seconds=timeout)
+    if is_test_command(command):
+        hook_runner.run_after_test()
     elapsed_ms = int((time.monotonic() - start) * 1000)
 
     if not result.executed:

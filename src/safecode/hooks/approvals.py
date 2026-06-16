@@ -136,6 +136,9 @@ class HookApprovalStore:
         ).hexdigest()
         payload = {
             "allow_medium_after_apply": self.config.hooks.allow_medium_after_apply,
+            "before_command": self.config.hooks.before_command,
+            "after_edit": self.config.hooks.after_edit,
+            "after_test": self.config.hooks.after_test,
             "after_apply": self.config.hooks.after_apply,
             "allowed_commands": self.config.shell.allowed_commands,
             "require_confirm_for_medium": self.config.shell.require_confirm_for_medium,

@@ -1,8 +1,14 @@
 # SafeCode Agent Final Status and Roadmap
 
-**Status:** current project baseline after `v6.0.0`.
+**Status:** current project baseline after `v6.1.0`.
 **Last updated:** 2026-06-16.
 
+> **Update (2026-06-16, v6.1.0):** Portfolio maturity cut complete. The
+> project now has a redacted real DeepSeek `deepseek-v4-flash` live eval result,
+> a more realistic multi-file demo, project hook stages (`before_command`,
+> `after_edit`, `after_test`, `after_apply`), and diagnostics-aware context
+> collection for bounded pytest/tsc/go feedback before patch proposal.
+>
 > **Update (2026-06-16, v6.0.0):** v6.0.0 is the second major contract cut
 > after v5.0.0. Trust mode schema and session rollback are now stable contracts
 > (sections 18-19 of public-contracts.md). Zero v5.0 breaking changes. Cost
@@ -16,19 +22,32 @@
 > See [docs/v6-contract-candidates.md](v6-contract-candidates.md) for the v6.0
 > candidate assessment. See [version-plans/v5.6-to-v5.8-product-roadmap.md](version-plans/v5.6-to-v5.8-product-roadmap.md) for the complete train plan.
 >
-> **v6.0.0 is the current stable-contract baseline.** Terminal-only tool by
+> **v6.1.0 is the current product baseline; v6.0.0 remains the current stable-contract cut.** Terminal-only tool by
 > design. 19 stable contracts (sections 1-19 of public-contracts.md). Cost
 > guardrails, live eval, and golden demo were added in v5.6-v5.8; trust modes
-> and session rollback were promoted in v6.0.0.
+> and session rollback were promoted in v6.0.0. v6.1.0 adds portfolio-grade
+> evidence and developer workflow depth without adding new stable contracts.
 
 ---
 
-## v6.0.0 Stable Contract Baseline (2026-06-16)
+## v6.1.0 Product Baseline (2026-06-16)
 
-SafeCode Agent v6.0.0 is the stable-contract baseline. PyPI (pipx) is the
+SafeCode Agent v6.1.0 is the current product baseline. PyPI (pipx) is the
 production install path. MCP tool bridge, trust modes, session rollback, cost
-guardrails, and 19 stable contracts are complete. Cost guardrails remain
+guardrails, diagnostics-aware context, project hooks, and 19 stable contracts
+are complete. Cost guardrails, diagnostics context, and project hooks remain
 experimental; trust modes and session rollback are stable.
+
+### Portfolio Evidence
+
+| Evidence | Status |
+|---|---|
+| Golden demo: bug report -> diff preview -> tests pass | ✅ `examples/golden-demo/` |
+| Realistic multi-file service demo | ✅ `examples/realistic-demo/` |
+| Real provider live eval | ✅ DeepSeek `deepseek-v4-flash`, 2/2 fixtures passed |
+| Redacted live eval artifact | ✅ `docs/demo/live-eval-summary.md`, `tests/snapshots/live_eval/latest.json` |
+| Hooks MVP | ✅ `before_command`, `after_edit`, `after_test`, `after_apply` |
+| Diagnostics-aware context | ✅ bounded pytest/tsc/go collection before edit proposals |
 
 ### Distribution
 
@@ -123,7 +142,7 @@ Codex CLI across all major dimensions:
 
 The v4.14–v4.18 usability trains are historical and complete. Both the post-v4.14
 usability roadmap (8 versions) and the post-v4.16 shell UX roadmap (6 versions)
-shipped fully. The current product baseline is v6.0.0; older v4.x freeze notes
+shipped fully. The current product baseline is v6.1.0; older v4.x freeze notes
 below are retained only for release archaeology.
 
 ## Current Product Shape
@@ -278,6 +297,6 @@ All surfaces remain EXPERIMENTAL. No stable contract promoted.
 `main` is frozen at `v4.18.2` as a learning baseline and portfolio reference.
 The `dev/v4.19` branch baseline is now `v4.19.2`.
 
-This section is historical. The current documented baseline is v6.0.0. Remaining
+This section is historical. The current documented baseline is v6.1.0. Remaining
 out-of-scope work (RAG, embeddings, LangGraph, IDE surface, remote push/PR, and
 agent hooks expansion) remains deferred unless a new roadmap explicitly adopts it.

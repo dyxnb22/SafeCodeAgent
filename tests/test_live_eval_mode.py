@@ -12,14 +12,42 @@ import pytest
 from safecode.eval.live import (
     LiveEvalFixture,
     LiveEvalResult,
+    LiveEvalRunner,
     check_ratchet,
     default_live_fixtures,
     load_results_json,
     render_live_summary,
     save_latest,
 )
+from safecode.agent.schemas import AgentAnswer, AgentPatchResponse, AgentPlanResponse
 
 _SNAPSHOT_DIR = Path(__file__).parent / "snapshots" / "live_eval"
+
+
+class _PatchOnlyLLM:
+    def ask(self, question: str, context: dict) -> AgentAnswer:
+        return AgentAnswer(content="")
+
+    def plan(self, goal: str, context: dict) -> AgentPlanResponse:
+        return AgentPlanResponse(goal=goal, steps=["edit"])
+
+    def choose_tool(self, goal: str, context: dict):
+        raise NotImplementedError
+
+    def propose_patch(self, task: str, context: dict) -> AgentPatchResponse:
+        return AgentPatchResponse(
+            patch_text=(
+                "*** Begin Patch\n"
+                "*** Update File: src/hello.py\n"
+                "SEARCH:\n"
+                "def greet():\n"
+                "    return 'hi'\n"
+                "REPLACE:\n"
+                "def greet():\n"
+                "    return 'hello'\n"
+                "*** End Patch"
+            )
+        )
 
 
 class TestLiveEvalFixtureFormat:
@@ -66,6 +94,46 @@ class TestLiveEvalFixtureFormat:
                 # Fresh project: success_condition should return False (not yet solved)
                 result = f.success_condition(root)
                 assert isinstance(result, bool)
+
+
+class TestLiveEvalRunner:
+    def test_runner_applies_generated_patch(self, monkeypatch):
+        fixture = LiveEvalFixture(
+            name="apply-generated-patch",
+            setup_files={"src/hello.py": "def greet():\n    return 'hi'\n"},
+            goal="Change greet() to return hello.",
+            success_condition=lambda root: "return 'hello'" in (root / "src/hello.py").read_text(),
+        )
+
+        monkeypatch.setattr("safecode.llm.factory.create_llm_client", lambda cfg: _PatchOnlyLLM())
+        result = LiveEvalRunner(provider="mock").run_fixture(fixture)
+
+        assert result.success is True
+        assert result.tool_calls == 1
+        assert result.error is None
+
+    def test_runner_enables_provider_network_allowlist(self, monkeypatch):
+        captured = {}
+        fixture = LiveEvalFixture(
+            name="provider-network",
+            setup_files={"src/hello.py": "def greet():\n    return 'hi'\n"},
+            goal="Change greet() to return hello.",
+            success_condition=lambda root: True,
+        )
+
+        def fake_create_client(cfg):
+            captured["network_enabled"] = cfg.sandbox.network_enabled
+            captured["network_allowlist"] = list(cfg.sandbox.network_allowlist)
+            return _PatchOnlyLLM()
+
+        monkeypatch.setattr("safecode.llm.factory.create_llm_client", fake_create_client)
+        result = LiveEvalRunner(provider="deepseek").run_fixture(fixture)
+
+        assert result.success is True
+        assert captured == {
+            "network_enabled": True,
+            "network_allowlist": ["api.deepseek.com"],
+        }
 
 
 class TestLiveEvalResultSchema:

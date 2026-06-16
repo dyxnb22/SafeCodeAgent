@@ -41,6 +41,7 @@ class ContextCollector:
         *,
         seed_files: list[str] | None = None,
         include_git_context: bool = False,
+        include_diagnostics: bool = False,
     ) -> dict:
         """Return bounded project context with optional task-focused sources.
 
@@ -68,6 +69,10 @@ class ContextCollector:
             git_block = self._git_context_block()
             if git_block:
                 context["git_context"] = git_block
+        if include_diagnostics:
+            diag_block = self._diagnostics_context_block()
+            if diag_block:
+                context["diagnostics"] = diag_block
         return self._cap_context(context)
 
     def _import_graph_context(self, seed_files: list[str]) -> dict:
@@ -105,6 +110,15 @@ class ContextCollector:
             return ctx.to_context_block()
         except Exception:
             return ""
+
+    def _diagnostics_context_block(self) -> dict:
+        """Return bounded local diagnostics for model context."""
+        try:
+            from safecode.context.diagnostics import diagnostics_context_block
+
+            return diagnostics_context_block(self.project_root, self.config)
+        except Exception:
+            return {}
 
     def _list_files(self) -> tuple[list[str], bool]:
         """Return (file_list, truncated) relative to project_root.

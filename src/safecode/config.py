@@ -33,6 +33,9 @@ class SandboxPolicy(BaseModel):
 class HookConfig(BaseModel):
     """Project hooks run by SafeCode after controlled operations."""
 
+    before_command: list[str] = Field(default_factory=list)
+    after_edit: list[str] = Field(default_factory=list)
+    after_test: list[str] = Field(default_factory=list)
     after_apply: list[str] = Field(default_factory=list)
     allow_medium_after_apply: bool = False
 
@@ -150,6 +153,9 @@ class SafeCodeConfig(BaseModel):
 
     def to_toml(self) -> str:
         """Render a small TOML config without adding a TOML dependency."""
+        before_command = ", ".join(f'"{command}"' for command in self.hooks.before_command)
+        after_edit = ", ".join(f'"{command}"' for command in self.hooks.after_edit)
+        after_test = ", ".join(f'"{command}"' for command in self.hooks.after_test)
         after_apply = ", ".join(f'"{command}"' for command in self.hooks.after_apply)
         allowlist = ", ".join(f'"{host}"' for host in self.sandbox.network_allowlist)
         sensitive = ", ".join(f'"{name}"' for name in self.sandbox.sensitive_names)
@@ -173,6 +179,9 @@ class SafeCodeConfig(BaseModel):
             f"network_allowlist = [{allowlist}]\n"
             f"sensitive_names = [{sensitive}]\n\n"
             "[hooks]\n"
+            f"before_command = [{before_command}]\n"
+            f"after_edit = [{after_edit}]\n"
+            f"after_test = [{after_test}]\n"
             f"after_apply = [{after_apply}]\n\n"
             f"allow_medium_after_apply = {str(self.hooks.allow_medium_after_apply).lower()}\n\n"
             "[llm]\n"
@@ -321,6 +330,9 @@ def merge_trusted_config(user_config: SafeCodeConfig, project_config: SafeCodeCo
         set(user_config.sandbox.sensitive_names) | set(project_config.sandbox.sensitive_names)
     )
 
+    merged.hooks.before_command = list(project_config.hooks.before_command)
+    merged.hooks.after_edit = list(project_config.hooks.after_edit)
+    merged.hooks.after_test = list(project_config.hooks.after_test)
     merged.hooks.after_apply = list(project_config.hooks.after_apply)
     merged.hooks.allow_medium_after_apply = (
         user_config.hooks.allow_medium_after_apply and project_config.hooks.allow_medium_after_apply

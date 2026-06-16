@@ -13,6 +13,41 @@ from safecode.config import SafeCodeConfig
 context_app = typer.Typer(help="Inspect context selection for a task (read-only, no LLM).")
 
 
+@context_app.command("diagnostics")
+def context_diagnostics(
+    root: Path = typer.Option(None, "--root", help="Project root (defaults to cwd)."),
+    timeout_seconds: int = typer.Option(8, "--timeout-seconds", min=1, help="Per-command timeout."),
+) -> None:
+    """Run bounded local diagnostics that can be injected into agent context."""
+    project_root = (root or Path.cwd()).resolve()
+    try:
+        config = SafeCodeConfig.load(project_root)
+        from safecode.context.diagnostics import collect_diagnostics
+
+        results = collect_diagnostics(project_root, config, timeout_seconds=timeout_seconds)
+    except Exception as exc:
+        log_cli_error("cli.context.diagnostics", "diagnostics failed", exc)
+        raise typer.Exit(1)
+
+    table = Table(title="SafeCode Diagnostics Context")
+    table.add_column("Name")
+    table.add_column("Exit", justify="right")
+    table.add_column("Executed")
+    table.add_column("Command")
+    table.add_column("Reason")
+    for result in results:
+        table.add_row(
+            result.name,
+            str(result.exit_code),
+            "yes" if result.executed else "no",
+            " ".join(result.command),
+            result.reason,
+        )
+    console.print(table)
+    if not results:
+        console.print("[yellow]No applicable diagnostics detected.[/yellow]")
+
+
 @context_app.command("explain")
 def context_explain(
     task: str = typer.Argument(..., help="Task description to explain context selection for."),

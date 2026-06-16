@@ -5,16 +5,17 @@ the full [version implementation matrix](../version_implementation_matrix.md).
 
 ## Current Baseline
 
-- Current documented baseline: `v6.0.0` — major contract cut complete.
-- Package/runtime metadata is `6.0.0`.
+- Current documented baseline: `v6.1.0` — portfolio maturity cut complete.
+- Package/runtime metadata is `6.1.0`.
 - Current product truth: [../project-final-status-and-roadmap.md](../project-final-status-and-roadmap.md).
-- Current forward state: v6.0.0 is stable-contract baseline; future work should
-  remain additive or experimental unless another major contract cut is planned.
+- Current forward state: v6.0.0 remains the stable-contract cut; v6.1.0 adds
+  evidence and workflow depth without new stable contracts.
 
 ## Major Trains
 
 | Train | Status | What It Established | Primary References |
 | --- | --- | --- | --- |
+| v6.1.0 | complete | real DeepSeek live eval, realistic demo, hooks MVP, diagnostics-aware context | [status](../project-final-status-and-roadmap.md), [live eval](../demo/live-eval-summary.md), [v6.1.0 note](../version-notes/v6.1.0-portfolio-maturity.md) |
 | v6.0.0 | complete | second major contract cut; trust mode schema and session rollback promoted; zero v5.0 breaking changes | [public contracts](../public-contracts.md), [v6.0.0 note](../version-notes/v6.0.0-major-contract-cut.md) |
 | v5.6.x-v5.8.x | complete | prompt engineering, live eval harness, golden demo, threat model review, subagent activation, sandbox promotion, cost guardrails, v6 prep | [v5.6-v5.8 roadmap](../version-plans/v5.6-to-v5.8-product-roadmap.md), [v5.8.2 note](../version-notes/v5.8.2-v6-prep-baseline.md) |
 | v5.0.x-v5.5.x | complete | first stable native-tool contract cut, trust modes, context intelligence, MCP bridge, PyPI release path | [v5.0.0 note](../version-notes/v5.0.0-first-stable-contract.md), [status](../project-final-status-and-roadmap.md) |

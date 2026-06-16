@@ -26,6 +26,13 @@ _SNAPSHOT_DIR = (
 _LATEST_JSON = _SNAPSHOT_DIR / "latest.json"
 _BASELINE_JSON = _SNAPSHOT_DIR / "baseline.json"
 
+_PROVIDER_ALLOWLIST = {
+    "anthropic": "api.anthropic.com",
+    "openai": "api.openai.com",
+    "openai-compatible": "api.openai.com",
+    "deepseek": "api.deepseek.com",
+}
+
 
 # ---------------------------------------------------------------------------
 # Fixture format
@@ -264,12 +271,16 @@ class LiveEvalRunner:
             from safecode.config import SafeCodeConfig
             from safecode.llm.factory import create_llm_client
 
-            cfg = SafeCodeConfig.load()
+            cfg = SafeCodeConfig.load(root)
             cfg.llm.provider = self.provider
             if self.model:
                 cfg.llm.model = self.model
+            cfg.sandbox.network_enabled = True
+            host = _PROVIDER_ALLOWLIST.get(self.provider)
+            if host:
+                cfg.sandbox.network_allowlist = [host]
 
-            llm = create_llm_client(cfg.llm)
+            llm = create_llm_client(cfg)
 
             read_paths: list[str] = []
 
@@ -292,7 +303,8 @@ class LiveEvalRunner:
                 llm_client=llm,
                 on_step=on_step,
             )
-            orch.edit(fixture.goal)
+            edit_result = orch.edit(fixture.goal)
+            orch.apply(edit_result.proposal)
             success = fixture.success_condition(root)
         except Exception as exc:
             success = False

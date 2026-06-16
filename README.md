@@ -2,7 +2,8 @@
 
 **A safety-first Python terminal coding agent** — policy-gated command execution,
 checkpointed file edits, rollback, audit logs, MCP tool integration, multi-provider
-LLM support, context compaction, and a live evaluation harness.
+LLM support, diagnostics-aware context, project hooks, context compaction, and
+a live evaluation harness.
 
 ```mermaid
 flowchart LR
@@ -43,6 +44,12 @@ Read the recorded transcript: [examples/golden-demo/demo/expected-transcript.md]
 
 See [docs/demo/portfolio-demo.md](docs/demo/portfolio-demo.md) for the full scenario,
 commands, expected output, safety gates, and how to re-run.
+
+For a more realistic multi-file service example, run:
+
+```bash
+examples/realistic-demo/demo/run-demo.sh
+```
 
 ## Install
 
@@ -101,7 +108,9 @@ Building a coding agent that gives useful answers is easy. Building one where
 | **Audit hash chain** | Tamper-evident log the user can verify without trusting the agent | Append-only JSONL where each event hashes the previous; `AuditAnchorStore` outside the project root |
 | **MCP write approval** | MCP servers return arbitrary content that could be prompt-injected into writes | Classification gate (static, not server-supplied); single-use `ApprovalGrant` stored outside project root; write proposal never auto-executes |
 | **Trust mode safety** | `--full-auto` sounds like "no approval" but must still protect the user | 10-file guard + session rollback + command preview delay; cannot be persisted to config |
-| **Live evaluation** | Prompt changes are faith without measurement | `LiveEvalRunner` with 5 real coding fixtures; ratchet baseline prevents regression |
+| **Live evaluation** | Prompt changes are faith without measurement | `LiveEvalRunner` with real provider runs, 5 coding fixtures, and ratchet baseline |
+| **Diagnostics context** | The model needs the current failure, not stale file snippets | Context collector can include bounded pytest/tsc/go diagnostics before proposing a patch |
+| **Project hooks** | Teams expect pre-command, post-edit, and post-test automation | `before_command`, `after_edit`, `after_test`, and `after_apply` hooks share command policy and audit events |
 | **Cost guardrails** | Users can accidentally spend $10 in one session | Token budget cap with 90%/100%/+10% logic; provider cost fallback; project config can only lower, never raise cap |
 | **Context compaction** | Long sessions lose earlier context without the user noticing | Automatic summarisation at 60% budget; archives raw observations to `.sac/sessions/` |
 
@@ -691,6 +700,7 @@ See `docs/install-update.md` for signing and TestPyPI details.
 | v5.7.x | 3 | Security depth: threat model review + subagent activation + sandbox promotion | **Shipped** |
 | v5.8.x | 3 | Cost guardrails + v6.0 contract preparation | **Shipped** |
 | **v6.0.0** | 1 | **Major contract cut** — trust modes and session rollback promoted to stable. Zero v5.0 breaking changes. | **Shipped** |
+| **v6.1.0** | 1 | **Portfolio maturity cut** — real DeepSeek live eval, realistic demo, hooks MVP, diagnostics-aware context. | **Current** |
 
 See [docs/version-plans/v5.6-to-v5.8-product-roadmap.md](docs/version-plans/v5.6-to-v5.8-product-roadmap.md)
 for the completed v5.6-v5.8 plan. See [docs/v6-contract-candidates.md](docs/v6-contract-candidates.md)

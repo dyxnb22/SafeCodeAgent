@@ -19,6 +19,7 @@ from safecode.config import grant_ephemeral_trust, revoke_ephemeral_trust
 from safecode.core.failure_category import FailureCategory
 from safecode.patch.parser import PatchParseError
 from safecode.patch.validator import PatchValidationError
+from safecode.hooks.runner import HookRunner, is_test_command
 from safecode.shell.risk import RiskLevel
 from safecode.shell.runner import ShellRunner
 from safecode.tools.gate import GateError, ToolCallGate
@@ -714,6 +715,9 @@ def run_command(
         current_task_for_run = None
     run_task_id = current_task_for_run.task_id if current_task_for_run else None
 
+    hook_runner = HookRunner(project_root, runner.config)
+    if runner.propose(command, approved=approved).decision.allowed:
+        hook_runner.run_before_command()
     try:
         result = runner.run(command, approved=approved)
     except KeyboardInterrupt:
@@ -731,6 +735,8 @@ def run_command(
         else:
             console.print("[yellow]Interrupted. resume with: sac resume[/yellow]")
         raise typer.Exit(code=130)
+    if is_test_command(command):
+        hook_runner.run_after_test()
     runtime_logger().info(
         "cli.run",
         "shell command evaluated",

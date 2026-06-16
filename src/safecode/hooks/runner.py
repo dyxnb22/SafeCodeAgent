@@ -11,6 +11,24 @@ from safecode.shell.runner import ShellRunResult, ShellRunner
 from safecode.utils.time import utc_now_iso
 
 
+def is_test_command(command: str) -> bool:
+    """Return true when a shell command looks like a test command."""
+    lowered = command.lower()
+    markers = (
+        "pytest",
+        "python -m pytest",
+        "npm test",
+        "pnpm test",
+        "yarn test",
+        "go test",
+        "cargo test",
+        "mvn test",
+        "gradle test",
+        "ctest",
+    )
+    return any(marker in lowered for marker in markers)
+
+
 @dataclass(frozen=True)
 class HookRunSummary:
     """Hook execution summary."""
@@ -30,16 +48,35 @@ class HookRunner:
 
     def run_after_apply(self) -> HookRunSummary:
         """Run after_apply commands."""
+        return self.run_stage("after_apply")
+
+    def run_before_command(self) -> HookRunSummary:
+        """Run before_command commands."""
+        return self.run_stage("before_command")
+
+    def run_after_edit(self) -> HookRunSummary:
+        """Run after_edit commands."""
+        return self.run_stage("after_edit")
+
+    def run_after_test(self) -> HookRunSummary:
+        """Run after_test commands."""
+        return self.run_stage("after_test")
+
+    def run_stage(self, hook_name: str) -> HookRunSummary:
+        """Run configured commands for one hook stage."""
+        if hook_name not in {"before_command", "after_edit", "after_test", "after_apply"}:
+            raise ValueError(f"unknown hook stage: {hook_name}")
+        commands = list(getattr(self.config.hooks, hook_name))
         runner = ShellRunner(self.project_root, self.config)
         results: list[ShellRunResult] = []
-        for command in self.config.hooks.after_apply:
-            self._audit("hook_proposed", command, "pending", "after_apply hook proposed")
+        for command in commands:
+            self._audit("hook_proposed", command, "pending", f"{hook_name} hook proposed", hook_name)
             skipped_by_policy = not self.config.hooks.allow_medium_after_apply
-            approved = (not skipped_by_policy) and self.approvals.is_approved("after_apply", command)
+            approved = (not skipped_by_policy) and self.approvals.is_approved(hook_name, command)
             if approved:
-                self._audit("hook_approval_used", command, "success", "stored hook approval matched")
+                self._audit("hook_approval_used", command, "success", "stored hook approval matched", hook_name)
             elif skipped_by_policy:
-                self._audit("hook_skipped_by_policy", command, "blocked", "hook execution disabled by config")
+                self._audit("hook_skipped_by_policy", command, "blocked", "hook execution disabled by config", hook_name)
             result = runner.run(command, approved=approved)
             results.append(result)
             if skipped_by_policy:
@@ -47,16 +84,17 @@ class HookRunner:
                 pass
             elif not result.executed and result.exit_code == 125:
                 # Policy allows hooks but this specific command lacked approval.
-                self._audit("hook_approval_required", command, "blocked", result.stderr)
+                self._audit("hook_approval_required", command, "blocked", result.stderr, hook_name)
             else:
                 self._audit(
                     "hook_completed",
                     command,
                     "success" if result.exit_code == 0 else "failed",
-                    result.stderr or result.stdout or "after_apply hook finished",
+                    result.stderr or result.stdout or f"{hook_name} hook finished",
+                    hook_name,
                     result.exit_code,
                 )
-        return HookRunSummary("after_apply", results)
+        return HookRunSummary(hook_name, results)
 
     def _audit(
         self,
@@ -64,6 +102,7 @@ class HookRunner:
         command: str,
         status: str,
         message: str,
+        hook_name: str,
         exit_code: int | None = None,
     ) -> None:
         """Write one hook audit event."""
@@ -75,6 +114,6 @@ class HookRunner:
                 command=command,
                 exit_code=exit_code,
                 message=message,
-                metadata={"hook": "after_apply"},
+                metadata={"hook": hook_name},
             )
         )

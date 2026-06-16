@@ -4,7 +4,10 @@
   "defaults": {
     "hooks": {
       "after_apply": [],
-      "allow_medium_after_apply": false
+      "after_edit": [],
+      "after_test": [],
+      "allow_medium_after_apply": false,
+      "before_command": []
     },
     "llm": {
       "base_url": "https://api.openai.com/v1/chat/completions",

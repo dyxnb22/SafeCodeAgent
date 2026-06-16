@@ -7,6 +7,7 @@ import re
 from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any, Callable
 
 
 def _extract_seed_files(task: str, project_root: Path) -> list[str]:
@@ -94,9 +95,16 @@ class RollbackResult:
 class AgentOrchestrator:
     """High-level workflow entrypoint for v0.1 commands."""
 
-    def __init__(self, project_root: Path, llm_client: object | None = None) -> None:
+    def __init__(
+        self,
+        project_root: Path,
+        llm_client: object | None = None,
+        config: SafeCodeConfig | None = None,
+        on_step: Callable[[dict[str, Any]], None] | None = None,
+    ) -> None:
         self.project_root = project_root
-        self.config = SafeCodeConfig.load(project_root)
+        self.config = config or SafeCodeConfig.load(project_root)
+        self.on_step = on_step
         self.context_collector = ContextCollector(project_root, self.config)
         self.llm_client = llm_client if llm_client is not None else create_llm_client(self.config)
         self.audit_logger = AuditLogger(project_root, self.config)
@@ -175,6 +183,7 @@ class AgentOrchestrator:
             query=task,
             seed_files=seed_files if seed_files else None,
             include_git_context=True,
+            include_diagnostics=True,
         )
         try:
             patch_response = self.llm_client.propose_patch(task, context)
@@ -233,6 +242,15 @@ class AgentOrchestrator:
         )
         self._metrics.record_pending_patch(0, patch_response.patch_text)
         self._metrics.record_step_end(0, tool_intent="edit")
+        if self.on_step:
+            self.on_step(
+                {
+                    "tool_intent": "edit",
+                    "tool_calls": 1,
+                    "input_tokens": getattr(patch_response, "input_tokens", 0),
+                    "output_tokens": getattr(patch_response, "output_tokens", 0),
+                }
+            )
         return EditResult(
             proposal=proposal,
             diff_text=diff_text,
@@ -280,7 +298,9 @@ class AgentOrchestrator:
                 failure_category=FailureCategory.PATCH_APPLY_CONFLICT.value,
             )
             raise
-        hooks = HookRunner(self.project_root, self.config).run_after_apply()
+        hook_runner = HookRunner(self.project_root, self.config)
+        hook_runner.run_after_edit()
+        hooks = hook_runner.run_after_apply()
         self._pending_patch_path().unlink(missing_ok=True)
         self.trace_logger.write(trace_id, "apply.completed", proposal.id)
 

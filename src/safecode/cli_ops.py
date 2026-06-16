@@ -93,6 +93,7 @@ def eval_demo(
     mode: str = typer.Option("default", "--mode", help="Eval mode: default, loop, bench, or live."),
     update_baseline: bool = typer.Option(False, "--update-baseline", help="Overwrite bench baseline snapshots."),
     provider: str = typer.Option("anthropic", "--provider", help="LLM provider for --mode live."),
+    model: str = typer.Option("", "--model", help="Model override for --mode live."),
     fixture: str = typer.Option("", "--fixture", help="Run one named fixture (live mode only)."),
 ) -> None:
     """Run lightweight local eval cases.
@@ -149,8 +150,11 @@ def eval_demo(
         else:
             selected = all_fixtures
 
-        live_runner = LiveEvalRunner(provider=provider)
-        console.print(f"Running {len(selected)} live fixture(s) with provider={provider!r} …")
+        live_runner = LiveEvalRunner(provider=provider, model=model or None)
+        model_label = model or "default"
+        console.print(
+            f"Running {len(selected)} live fixture(s) with provider={provider!r}, model={model_label!r} …"
+        )
         live_results = live_runner.run_all(selected)
         save_latest(live_results)
         console.print(render_live_summary(live_results))

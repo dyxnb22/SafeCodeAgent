@@ -231,6 +231,35 @@ class TestOpenAIClientStructuredOutputValidation:
             result = client.choose_tool("goal", {})
         assert isinstance(result, AgentToolIntentResponse)
 
+    def test_propose_patch_accepts_json_patch_contract(self) -> None:
+        client = _make_client()
+        patch_text = (
+            "*** Begin Patch\n"
+            "*** Update File: src/app.py\n"
+            "SEARCH:\nold\n"
+            "REPLACE:\nnew\n"
+            "*** End Patch"
+        )
+        data = json.dumps({"type": "patch", "patch_text": patch_text, "explanation": "fix"})
+        with patch.object(client, "_chat", return_value=data):
+            result = client.propose_patch("fix", {})
+        assert isinstance(result, AgentPatchResponse)
+        assert result.patch_text == patch_text
+
+    def test_propose_patch_extracts_patch_envelope_from_raw_output(self) -> None:
+        client = _make_client()
+        patch_text = (
+            "*** Begin Patch\n"
+            "*** Update File: src/app.py\n"
+            "SEARCH:\nold\n"
+            "REPLACE:\nnew\n"
+            "*** End Patch"
+        )
+        raw = f"Here is the patch:\n```text\n{patch_text}\n```\nDone."
+        with patch.object(client, "_chat", return_value=raw):
+            result = client.propose_patch("fix", {})
+        assert result.patch_text == patch_text
+
     def test_invalid_json_plan_raises_value_error(self) -> None:
         client = _make_client()
         with patch.object(client, "_chat", return_value="{bad}"):

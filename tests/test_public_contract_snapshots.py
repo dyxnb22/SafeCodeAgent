@@ -120,6 +120,9 @@ class TestConfigContract:
         cfg = SafeCodeConfig()
         snap = self._snapshot()["defaults"]["hooks"]
 
+        assert cfg.hooks.before_command == snap["before_command"]
+        assert cfg.hooks.after_edit == snap["after_edit"]
+        assert cfg.hooks.after_test == snap["after_test"]
         assert cfg.hooks.after_apply == snap["after_apply"]
         assert cfg.hooks.allow_medium_after_apply == snap["allow_medium_after_apply"]
 

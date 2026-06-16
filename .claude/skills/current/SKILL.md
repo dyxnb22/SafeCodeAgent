@@ -5,14 +5,13 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v5.8.2
+# Current Baseline - v6.1.0
 
 ## Status
-Implemented. Git baseline: tag `v5.8.2`. Local working version: `v5.8.2`.
-v5.6.x agent quality (prompt, eval, demo). v5.7.x security depth (threat
-review, subagent activation, sandbox promotion). v5.8.x cost guardrails
-(CostConfig, /budget, budget cap) + v6.0 contract preparation (candidates,
-v6 budget, docs). Pre-v6.0 baseline.
+Implemented. Git baseline: tag `v6.1.0`. Local working version: `v6.1.0`.
+v6.0.0 is the latest stable-contract cut. v6.1.0 is the portfolio maturity
+baseline: real DeepSeek live eval evidence, realistic multi-file demo, hooks
+MVP, and diagnostics-aware context.
 
 ## Stage
 The v4.14–v4.18 usability trains are complete (14 versions shipped):

@@ -778,3 +778,9 @@ Completed. Plan: `docs/version-plans/v4.20-to-v5.0-product-roadmap.md` (v4.25.x 
 | 版本 | 分支 | 主要入口 | 验收命令 / 结果 |
 |---|---|---|---|
 | `v6.0.0` ✅ | `dev/v4.19` | `pyproject.toml`, `src/safecode/__init__.py`, `README.md`, `docs/public-contracts.md`, `docs/versioning-policy.md`, `docs/v6-contract-candidates.md`, `docs/project-final-status-and-roadmap.md`, `docs/version-notes/v6.0.0-major-contract-cut.md` | Major contract cut: trust mode schema promoted to Section 18, session rollback promoted to Section 19, cost cap deferred, zero v5.0 breaking changes. |
+
+## v6.1.0: Portfolio Maturity Cut
+
+| 版本 | 分支 | 主要入口 | 验收命令 / 结果 |
+|---|---|---|---|
+| `v6.1.0` ✅ | `dev/v4.19` | `src/safecode/eval/live.py`, `src/safecode/llm/openai_client.py`, `src/safecode/context/diagnostics.py`, `src/safecode/hooks/runner.py`, `examples/realistic-demo/`, `docs/demo/live-eval-summary.md`, `tests/test_live_eval_mode.py`, `tests/test_hooks_mvp.py`, `tests/test_context_diagnostics.py`, `tests/test_realistic_demo.py` | Portfolio maturity: real DeepSeek `deepseek-v4-flash` live eval 2/2 pass, realistic multi-file demo, hooks MVP, diagnostics-aware context, structured provider patch contract. |

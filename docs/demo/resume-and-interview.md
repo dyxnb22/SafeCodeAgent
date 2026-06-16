@@ -7,14 +7,15 @@ Choose 3–4 that match the role:
 **Concise (1 line):**
 > Built SafeCode Agent — a safety-first local AI coding agent in Python with
 > policy-gated writes, checkpointed edits, rollback, audit logs, MCP tool
-> integration, multi-provider LLM support, and a live evaluation harness.
+> integration, multi-provider LLM support, diagnostics-aware context, project
+> hooks, and a live evaluation harness.
 
 **Engineering depth emphasis:**
 > Designed and implemented a terminal AI coding agent in Python (~6,000 LOC,
 > 5,500+ tests) with a structural approval gate that prevents prompt-injected
-> writes, a SHA-256 hash-chain audit log, per-write checkpoint/rollback, 17
-> stable public contracts with snapshot tests, and a live eval harness across
-> 5 real coding tasks.
+> writes, a SHA-256 hash-chain audit log, per-write checkpoint/rollback, 19
+> stable public contracts with snapshot tests, and a DeepSeek-backed live eval
+> harness across real coding tasks.
 
 **Safety/security emphasis:**
 > Built the safety layer for a local AI coding agent: policy-gated command
@@ -24,11 +25,10 @@ Choose 3–4 that match the role:
 > injection, path traversal, and sandbox escape.
 
 **Evaluation emphasis:**
-> Built a live evaluation harness for an AI coding agent: 5 real coding
-> fixtures (Python add function, fix failing test, rename refactor, Go HTTP
-> handler, TypeScript type error), ratchet baseline that prevents regression,
-> advisory CI job, and a golden demo with a reproducible bug-to-tested-commit
-> transcript.
+> Built a live evaluation harness for an AI coding agent: 5 coding fixtures,
+> redacted real-provider DeepSeek runs, ratchet baseline that prevents
+> regression, advisory CI job, and reproducible golden/realistic demos with
+> bug-to-tested-fix transcripts.
 
 ---
 
@@ -49,8 +49,10 @@ nothing was tampered with.
 
 The agent supports Anthropic, OpenAI-compatible providers, and a mock mode
 that makes all tests pass without any API key. I also built a live eval
-harness with 5 real coding tasks that measures success rate, tool calls,
+harness with real provider runs that measures success rate, tool calls,
 and redundant reads — so prompt changes are measurable, not just faith.
+The edit path can also include bounded test/type diagnostics in context before
+the model proposes a patch.
 
 ### "What was the hardest part?"
 
@@ -83,14 +85,15 @@ Where SafeCode is different:
 - There's a structural approval gate — not just a trust mode — that
   cannot be bypassed by prompt injection.
 - The mock provider lets all 5,500+ tests pass without a network connection.
-- I built a live eval harness that actually measures quality.
+- I built a live eval harness that actually measures quality, with redacted
+  DeepSeek `deepseek-v4-flash` results checked into the demo docs.
 
 The trade-off is it's terminal-only and more opinionated about the approval
 flow. That's a feature for codebases where accidental writes are costly.
 
 ### "What are the stable contracts?"
 
-I defined 17 public contracts in `docs/public-contracts.md` with snapshot
+I defined 19 public contracts in `docs/public-contracts.md` with snapshot
 tests. A stable contract means: the CLI flag, JSON schema, and invariants
 will not change without a major version bump. Examples:
 - The CLI JSON envelope (every `sac --json` command uses the same `CLIJSONResponse` shape).
@@ -99,6 +102,8 @@ will not change without a major version bump. Examples:
 - The 7 native tool schemas (read_file, list_files, search_files, grep_files, edit_file, write_file, run_command).
 
 At v6.0.0 I'm promoting trust mode schema and session rollback to stable contracts.
+At v6.1.0 I added portfolio-grade evidence: real provider eval results, a
+multi-file realistic demo, project hooks, and diagnostics-aware context.
 
 ### "How do you test it?"
 
@@ -107,8 +112,11 @@ At v6.0.0 I'm promoting trust mode schema and session rollback to stable contrac
 - **Security eval tests**: `tests/test_sandbox_execution_security_evals.py` — 82 tests
   verifying that Docker never gets `--privileged`, env values never leak into argv, etc.
 - **Policy tests**: 75 tests verifying that project config can only tighten policy, never loosen.
-- **Live eval harness**: 5 real coding tasks run against a live provider (gated by env var).
+- **Live eval harness**: coding fixtures run against a live provider (gated by env var);
+  v6.1.0 includes a redacted DeepSeek `deepseek-v4-flash` 2/2 pass artifact.
 - **Golden demo test**: `test_golden_demo.py` verifies the fixture starts broken and can be fixed.
+- **Realistic demo test**: `test_realistic_demo.py` verifies a multi-file todo service starts broken and reaches green.
+- **Hooks/diagnostics tests**: focused coverage for project hook stages and bounded diagnostics context.
 
 All tests pass without an API key. The live eval is advisory CI gated by `ENABLE_LIVE_LLM_TESTS`.
 
@@ -134,9 +142,9 @@ proposes a diff, the user reviews it, and only after explicit approval does
 the agent write any file — with a sha256 checkpoint and an append-only
 hash-chain audit log. The tool supports Anthropic, OpenAI-compatible
 providers, and DeepSeek, with a mock provider for keyless testing (all
-5,500+ tests pass without a network connection). I defined 17 stable public
+5,500+ tests pass without a network connection). I defined 19 stable public
 contracts with snapshot tests, built an MCP tool integration with per-server
 scope control and single-use write approval grants, added context compaction
-for long sessions, and a live evaluation harness with 5 real coding fixtures
-and a ratchet baseline. The project has no auto-apply and no auto-commit —
+for long sessions, diagnostics-aware context, project hook stages, and a live
+evaluation harness with real provider results and a ratchet baseline. The project has no auto-apply and no auto-commit —
 every mutation is gated, checkpointed, and rollback-able.

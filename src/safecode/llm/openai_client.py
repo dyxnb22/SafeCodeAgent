@@ -76,6 +76,16 @@ def _normalize_endpoint(base_url: str) -> str:
     return url + _CHAT_COMPLETIONS_PATH
 
 
+def _extract_patch_envelope(text: str) -> str:
+    """Return the SafeCode patch envelope from provider output when present."""
+    start = text.find("*** Begin Patch")
+    end_marker = "*** End Patch"
+    end = text.find(end_marker, start if start >= 0 else 0)
+    if start >= 0 and end >= 0:
+        return text[start : end + len(end_marker)].strip()
+    return text.strip()
+
+
 class OpenAICompatibleLLMClient:
     """Call an OpenAI-compatible chat completions endpoint."""
 
@@ -167,14 +177,32 @@ class OpenAICompatibleLLMClient:
                 {
                     "role": "system",
                     "content": (
-                        f"{SYSTEM_PROMPT}\nReturn only a SafeCode patch proposal using *** Begin Patch, "
-                        "*** Update File, SEARCH, REPLACE, and *** End Patch. Do not explain."
+                        f"{SYSTEM_PROMPT}\nReturn exactly one JSON object and no prose. "
+                        'The JSON shape must be {"type":"patch","patch_text":"...","explanation":"..."}. '
+                        "The patch_text value must be one SafeCode SEARCH/REPLACE patch using this exact format:\n"
+                        "*** Begin Patch\n"
+                        "*** Update File: path/to/file.py\n"
+                        "SEARCH:\n"
+                        "old text exactly as it appears in the file\n"
+                        "REPLACE:\n"
+                        "new text\n"
+                        "*** End Patch\n"
+                        "Do not use unified diff hunks, @@ markers, Markdown fences, or prose inside patch_text."
                     ),
                 },
                 {"role": "user", "content": f"Task: {task}\nContext: {json.dumps(context)[:12000]}"},
             ]
         )
-        return AgentPatchResponse(patch_text=content, explanation="OpenAI-compatible patch response.")
+        parsed = validate_provider_json(content, method="propose_patch")
+        if isinstance(parsed, AgentPatchResponse):
+            return AgentPatchResponse(
+                patch_text=_extract_patch_envelope(parsed.patch_text),
+                explanation=parsed.explanation or "OpenAI-compatible patch response.",
+            )
+        return AgentPatchResponse(
+            patch_text=_extract_patch_envelope(content),
+            explanation="OpenAI-compatible patch response.",
+        )
 
     def choose_tool_native(
         self,
