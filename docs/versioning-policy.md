@@ -136,3 +136,4 @@ of the sixteen stable contracts (sections 1–16).
 | v4.8.2 | v4.x shell-first train closed. Zero new stable contracts added in v4.1–v4.8. No v5.0 currently scheduled. |
 | v4.9.3 | v4.9 AI shell train closed. Zero new stable contracts added in v4.9.0–v4.9.3. No v5.0 scheduled. |
 | v5.0.0 | First major bump since v4.0.0. Four new stable contracts (native tool schemas, audit event types, write-tool rollback, sac shell loop). Zero v4.x breaking changes. |
+| **v5.7.1** | **Sandbox execution promoted to stable (Section 17). OTel/HTML report frozen experimental. Zero breaking changes to earlier stable contracts.** |

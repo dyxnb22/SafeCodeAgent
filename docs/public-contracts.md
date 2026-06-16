@@ -145,6 +145,46 @@ behavior, session state file layout under `.sac/shell/`.
 
 ---
 
+### 17. Sandbox Execution Contract (v5.7.1)
+
+**Promoted surfaces:** `SandboxExecutionProposal`, `SandboxApproval`,
+`SandboxResultRecord`, `SandboxExecutionRequest`, and the `SandboxExecutionGate`
+claim-execute lifecycle.
+
+**Contract:** The sandbox execution lifecycle — propose → approve → claim →
+execute → result record — is now stable for the Docker, macOS Seatbelt, and
+Linux Bubblewrap backends. The Noop backend remains the default and must be
+explicitly overridden.
+
+**Stable invariants:**
+- Execution is always preceded by a proposal (`SandboxExecutionProposal`) and
+  user approval (`SandboxApproval`).
+- `claim_for_execution()` is atomic — once claimed, the approval cannot be
+  replayed or re-granted.
+- Execution requires a passing preflight record (`SandboxExecutionPreflight`)
+  AND an explicit env gate (`SAFECODE_SANDBOX_DOCKER=1`,
+  `SAFECODE_SANDBOX_SEATBELT=1`, `SAFECODE_SANDBOX_BUBBLEWRAP=1`).
+- `--privileged` is never passed to Docker; `--network none` is the default.
+- All subprocess execution uses `shell=False`.
+- Preview hash verification (sha256 of the rebuilt argv/profile) blocks
+  execution on mismatch.
+- All failures return `executed=False` — the gate never raises.
+
+**Related experimental surfaces (not promoted):**
+- `SandboxExecutionPreflight` interaction modes: the preflight schema is stable
+  but custom preflight hooks are experimental.
+- Environment variable names for opt-in (`SAFECODE_SANDBOX_*`): stable for
+  the three promoted backends; new backends may add new vars.
+
+**Sources:**
+- `src/safecode/sandbox/execution.py` (proposal, approval, result)
+- `src/safecode/sandbox/gate.py` (claim-execute lifecycle)
+- `src/safecode/sandbox/docker.py` (DockerExecutor)
+- `src/safecode/sandbox/seatbelt.py` (MacOSSeatbeltExecutor)
+- `src/safecode/sandbox/bubblewrap.py` (LinuxBubblewrapExecutor)
+
+---
+
 ### What is NOT promoted at v5.0.0
 
 The following surfaces remain EXPERIMENTAL and may change without a major bump:
@@ -457,6 +497,21 @@ Default for unknown server: `denied`.
 
 ## Experimental Surfaces
 
+### v5.7.1 Contract Decisions
+
+Two long-deferred promotion decisions were resolved at v5.7.1:
+
+**Decision 1 — Sandbox real-execution: PROMOTE to stable contract.**
+`SandboxExecutionProposal` / `SandboxApproval` / `SandboxResultRecord` are
+promoted to stable (Section 17). The preflight + env gate combination has
+sufficient safety evidence. The no-default-docker invariant ensures no
+accidental real execution.
+
+**Decision 2 — OTel exporter and HTML session report: FREEZE experimental.**
+Both surfaces remain EXPERIMENTAL and are marked frozen. The OTel event schema
+has changed without versioning; a versioned schema is required before v6.0
+promotion. The HTML report is generated output, not a stable API contract.
+
 ### v4.0 Promotion Decision Pass
 
 The v3.99.1 promotion pass reviewed candidate surfaces for the v4.0 contract
@@ -490,6 +545,8 @@ promoted to stable contracts in a future release.
 | Subagent payload evolution beyond v2 fields | v2 payload (synthesis + cancellation fields) promoted to supported at v3.4.3; v3+ fields remain experimental |
 | TUI (`sac tui interactive`, `sac tui dashboard`) | **Frozen experimental at v3.9.2.** Rich-based; no Textual upgrade. Surface behavior is stable at v3.5.2 baseline but not promoted to a stable contract. Do not rely on output format for automation. |
 | IDE bridge (`sac ide ...`, `vscode-extension/`) | VSIX build deferred pending Node/tsc environment; manifest parity enforced by `tests/test_ide_extension_manifest_contract.py`; no marketplace publish in v3.9.x |
+| `OtelExporter` (`SAFECODE_OTEL_EXPORTER` env) | **Frozen experimental at v5.7.1.** Event schema has changed without versioning. Disabled by default. Will not be promoted before v6.0 without a versioned schema. |
+| `sac report html` | **Frozen experimental at v5.7.1.** Generated HTML output is not a stable API. Will not be promoted before v6.0 without a stable output contract. |
 
 ## Contract Test Coverage
 

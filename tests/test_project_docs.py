@@ -1,5 +1,6 @@
 """Tests for root-level project hygiene files (v5.6.0)."""
 
+import os
 from pathlib import Path
 
 import pytest
@@ -108,3 +109,66 @@ class TestReadmeHomebrewLanguage:
     def test_readme_shows_safety_loop(self):
         text = self._readme()
         assert "checkpoint" in text.lower() and "rollback" in text.lower()
+
+
+# ---------------------------------------------------------------------------
+# v5.7.2: docs and contract polish
+# ---------------------------------------------------------------------------
+
+
+class TestChangelogContent:
+    def _text(self):
+        return (_ROOT / "CHANGELOG.md").read_text()
+
+    def test_changelog_has_unreleased_section(self):
+        assert "Unreleased" in self._text()
+
+    def test_changelog_has_v5x_section(self):
+        assert "v5." in self._text()
+
+    def test_changelog_has_v57_entry(self):
+        assert "v5.7" in self._text() or "v5.7.1" in self._text() or "v5.7.2" in self._text()
+
+    def test_changelog_is_non_empty(self):
+        assert len(self._text()) > 100
+
+    def test_changelog_format_has_markers(self):
+        text = self._text()
+        assert "## [" in text  # version heading format
+
+
+class TestContributingContent:
+    def _text(self):
+        return (_ROOT / "CONTRIBUTING.md").read_text()
+
+    def test_contributing_mentions_native_tool_howto(self):
+        text = self._text()
+        assert "native tool" in text.lower()
+        assert "NativeToolSpec" in text
+
+    def test_contributing_mentions_llm_provider_howto(self):
+        text = self._text()
+        assert "LLM provider" in text or "provider" in text.lower()
+
+    def test_contributing_mentions_test_conventions(self):
+        text = self._text()
+        assert "test" in text.lower()
+        assert "pytest" in text.lower()
+
+    def test_contributing_mentions_mock_by_default(self):
+        text = self._text()
+        assert "mock" in text.lower()
+
+    def test_contributing_has_dev_setup(self):
+        assert "setup" in self._text().lower()
+
+    def test_contributing_has_commit_message_style(self):
+        assert "commit message" in self._text().lower() or "type(scope)" in self._text()
+
+
+class TestGenerateChangelogScript:
+    def test_script_not_required(self):
+        """The generate-changelog.sh script is optional."""
+        script = _ROOT / "scripts" / "generate-changelog.sh"
+        if script.exists():
+            assert os.access(str(script), os.X_OK), "generate-changelog.sh must be executable"

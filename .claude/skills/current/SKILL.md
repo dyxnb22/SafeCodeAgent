@@ -5,16 +5,15 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v5.7.0
+# Current Baseline - v5.7.2
 
 ## Status
-Implemented. Git baseline: tag `v5.7.0`. Local working version: `v5.7.0`.
-v5.6.0 prompt engineering and portfolio hygiene (8-section SYSTEM_PROMPT,
-LICENSE, SECURITY.md, CONTRIBUTING.md, CHANGELOG.md). v5.6.1 live eval harness
-(5 real-provider fixtures, --mode live ratchet, CI job). v5.6.2 golden demo
-project (broken-fixable calculator, script, transcript, portfolio doc).
-v5.7.0 semi-annual threat model review (6 surfaces, 2027-06-01 next review)
-and subagent activation (dispatch_parallel in MultiToolTurnRunner).
+Implemented. Git baseline: tag `v5.7.2`. Local working version: `v5.7.2`.
+v5.6.0 prompt engineering and portfolio hygiene. v5.6.1 live eval harness.
+v5.6.2 golden demo project. v5.7.0 semi-annual threat model review and
+subagent activation (dispatch_parallel). v5.7.1 sandbox execution promoted
+to stable contract (Section 17), OTel/HTML frozen experimental. v5.7.2
+docs/contract polish (CHANGELOG, CONTRIBUTING, test coverage).
 
 ## Stage
 The v4.14–v4.18 usability trains are complete (14 versions shipped):

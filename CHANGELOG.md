@@ -8,6 +8,26 @@ Format: `[vX.Y.Z] — YYYY-MM-DD — short-description`
 
 ## Unreleased
 
+## [v5.7.2] — 2026-06-16 — docs-and-contract-polish
+
+- Extended test_project_docs.py with CHANGELOG content checks (v5.x section,
+  v5.7 entry, Unreleased format) and CONTRIBUTING content checks (native tool
+  howto, LLM provider howto, test conventions, mock default, commit style).
+
+## [v5.7.1] — 2026-06-16 — sandbox-and-observability-decisions
+
+- **Sandbox real-execution promoted to stable contract** (Section 17).
+  SandboxExecutionProposal / SandboxApproval / SandboxResultRecord and the
+  Docker, macOS Seatbelt, and Linux Bubblewrap backends are now covered by the
+  versioning policy. Preflight + env gate requirement unchanged. Noop remains
+  default.
+- **OTel exporter and HTML session report frozen experimental.** Marked as
+  "will not be promoted before v6.0 without versioned schema/output contract."
+- Updated docs/public-contracts.md with Section 17 and v5.7.1 decision section.
+- Updated docs/versioning-policy.md policy changelog with v5.7.1 entry.
+- Extended test_public_contract_snapshots.py: sandbox section, invariants,
+  env gates, OTel freeze, HTML freeze, decision section (10 new tests).
+
 ## [v5.7.0] — 2026-06-16 — threat-model-review-and-subagents
 
 - Completed semi-annual threat model review covering 6 surfaces: trust modes

@@ -1,7 +1,7 @@
 {
   "project": "SafeCode Agent",
-  "current_implemented_tag": "v5.7.0",
-  "current_local_version": "v5.7.0",
+  "current_implemented_tag": "v5.7.2",
+  "current_local_version": "v5.7.2",
   "current_baseline": ".claude/skills/current/SKILL.md",
   "runtime_summary": ".claude/skills/shared/core-runtime.md",
   "version_index": "docs/version_implementation_matrix.md",
@@ -9,7 +9,7 @@
   "active_planning_roadmap": "docs/version-plans/v5.6-to-v5.8-product-roadmap.md",
   "extended_planning_roadmap": "docs/version-plans/v5.6-to-v5.8-product-roadmap.md",
   "scope_decision": "terminal-only tool; VS Code/JetBrains extension deliberately out of scope",
-  "freeze_note": "v5.7.0 semi-annual threat model review completed; dispatch_parallel for read-only subagents. Next: v5.7.1 sandbox+observability decisions.",
+  "freeze_note": "v5.7.2 completes security-and-depth train: threat model review, subagent activation, sandbox promotion, OTel/HTML freeze, docs polish. Next: v5.8.x cost guardrails + v6.0 prep.",
   "previous_planning_roadmap": "docs/version-plans/v4.20-to-v5.0-product-roadmap.md",
   "readiness_audit": "docs/commercial-v1-readiness-audit-v3.11.x.md",
   "architecture_reference": "docs/product-commercialization-roadmap.md",
@@ -631,7 +631,9 @@
     "v5.6.0",
     "v5.6.1",
     "v5.6.2",
-    "v5.7.0"
+    "v5.7.0",
+    "v5.7.1",
+    "v5.7.2"
   ],
   "local_versions": [
     "v2.8.0",

@@ -638,3 +638,71 @@ class TestV400ContractCut:
         assert "stable since v3.7.2" in doc
         assert "MCP read execution" in doc
         assert "stable since v3.8.2" in doc
+
+
+# ---------------------------------------------------------------------------
+# v5.7.1: sandbox promotion + OTel/HTML freeze
+# ---------------------------------------------------------------------------
+
+
+class TestV571SandboxContractPromotion:
+    """Section 17 — Sandbox Execution Contract (v5.7.1)."""
+
+    def _doc(self) -> str:
+        return (Path(__file__).parent.parent / "docs" / "public-contracts.md").read_text(encoding="utf-8")
+
+    def test_sandbox_section_17_exists(self) -> None:
+        doc = self._doc()
+        assert "### 17. Sandbox Execution Contract" in doc
+
+    def test_sandbox_promoted_surfaces_listed(self) -> None:
+        doc = self._doc()
+        assert "SandboxExecutionProposal" in doc
+        assert "SandboxApproval" in doc
+        assert "SandboxResultRecord" in doc
+
+    def test_sandbox_invariants_documented(self) -> None:
+        doc = self._doc()
+        assert "claim_for_execution" in doc
+        assert "shell=False" in doc
+        assert "--network none" in doc
+        assert "--privileged" in doc
+
+    def test_sandbox_promoted_at_v571(self) -> None:
+        doc = self._doc()
+        assert "v5.7.1" in doc
+
+    def test_sandbox_env_gates_documented(self) -> None:
+        doc = self._doc()
+        assert "SAFECODE_SANDBOX_DOCKER=1" in doc
+        assert "SAFECODE_SANDBOX_SEATBELT=1" in doc
+        assert "SAFECODE_SANDBOX_BUBBLEWRAP=1" in doc
+
+
+class TestV571OTelHtmlFreeze:
+    """OTel exporter and HTML report frozen experimental at v5.7.1."""
+
+    def _doc(self) -> str:
+        return (Path(__file__).parent.parent / "docs" / "public-contracts.md").read_text(encoding="utf-8")
+
+    def test_otel_frozen_experimental_noted(self) -> None:
+        doc = self._doc()
+        assert "Frozen experimental at v5.7.1" in doc
+        assert "OtelExporter" in doc or "OTEL" in doc.upper()
+
+    def test_html_report_frozen_experimental_noted(self) -> None:
+        doc = self._doc()
+        assert "sac report html" in doc
+        assert "Frozen experimental at v5.7.1" in doc
+
+    def test_v571_decision_section_exists(self) -> None:
+        doc = self._doc()
+        assert "v5.7.1 Contract Decisions" in doc
+
+    def test_sandbox_promote_stated(self) -> None:
+        doc = self._doc()
+        assert "PROMOTE to stable contract" in doc
+
+    def test_otel_freeze_stated(self) -> None:
+        doc = self._doc()
+        assert "FREEZE experimental" in doc
