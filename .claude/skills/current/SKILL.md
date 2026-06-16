@@ -5,13 +5,12 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v5.3.2
+# Current Baseline - v5.4.2
 
 ## Status
-Implemented. Git baseline: tag `v5.3.2`. Local working version: `v5.3.2`.
-v5.3.2 is the complete product baseline: terminal experience comparable to
-Claude Code / Codex CLI with import-graph context, git-aware context, compaction,
-trust modes (auto-edit/full-auto), and all B-series reliability bugs closed.
+Implemented. Git baseline: tag `v5.4.2`. Local working version: `v5.4.2`.
+v5.4.2 completes the MCP depth train: native tool bridge, write execution flow,
+full docs. v5.3.2 remains the terminal-experience parity baseline.
 
 ## Stage
 The v4.14–v4.18 usability trains are complete (14 versions shipped):
@@ -76,10 +75,13 @@ v5.0.0 First Stable Contract (1 version):
 All v4 surfaces remain EXPERIMENTAL and carry no stable contract.
 
 ## Current Forward Plan
-The v4.19.x local observability train is complete. Status lives in
-`docs/project-final-status-and-roadmap.md`. Active plan:
-`docs/version-plans/v4.19.x-local-observability-polish-roadmap.md` (COMPLETED).
-No active forward plan at this time.
+v5.4.x MCP depth train complete. Active forward plan:
+`docs/version-plans/v5.4-to-v5.6-product-roadmap.md` (v5.5.x: PyPI + Homebrew production readiness next).
+
+v5.4.x train (3 versions):
+- `v5.4.0`: MCPNativeToolBridge — MCP read tools as NativeToolSpecs; register_mcp_tools in _build_dispatcher; sac mcp list-native
+- `v5.4.1`: MCP write execution — write_proposal_required scope; _handle_mcp_write_proposal; sac mcp execute --grant-id
+- `v5.4.2`: MCP docs cut — README, providers.md, mvp-user-guide, troubleshooting; matrix rows
 
 Previous: `v4.8.2` final-v4-shell-first-docs-cut — T-4.8.2-A v4.8-final-docs-cut: README adds Python tutorial link and task-first daily loop summary (17-command surface, v4.x train complete, no v5.0 promise); `docs/mvp-user-guide.md` updated to v4.8.x with new Task-First Daily Loop section; `docs/public-contracts.md` adds v4.x series contract summary (zero new stable contracts v4.0–v4.8, all new surfaces EXPERIMENTAL); `docs/versioning-policy.md` adds v4.x train closure section and policy changelog entry; `docs/security/threat-model-v3.6.md` adds v4.x shell-first addendum table (task/profile/resume/commit/memory/debug/smoke surfaces). All existing tests pass; no stable public contract promoted; v4.x train is complete.
 

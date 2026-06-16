@@ -233,3 +233,62 @@ The following are not part of the supported contract and may change:
 
 See `tests/snapshots/contracts/provider_contract_schema.json` for the machine-readable
 contract snapshot used by `tests/test_provider_contract_snapshot.py`.
+
+---
+
+## MCP Server Configuration (v5.4, EXPERIMENTAL)
+
+MCP (Model Context Protocol) servers are configured in `.sac/mcp.toml`.
+
+### TOML Structure
+
+```toml
+[servers.<name>]
+command = "<shell command>"          # required: command for the MCP subprocess shim
+enabled = true                       # optional: false to disable without removing config
+scope   = "read_only"                # required: "denied" | "read_only" | "write_proposal_required"
+argv    = ["npx", "-y", "@name/server"]  # optional: stdio transport argv (v3.3.1+)
+```
+
+### Scope Values
+
+| Scope | Behaviour |
+|---|---|
+| `denied` | Server never contacted; tools not registered as native tools. |
+| `read_only` | Read-class tools registered as native tools; write tools blocked. |
+| `write_proposal_required` | Read tools auto-approved; write tools registered with `requires_approval=True` and create a pending proposal before any execution. |
+
+Unknown or invalid scope values default to `denied` (fail-closed).
+
+### Native Tool Bridge (v5.4.0)
+
+When the agent loop starts, `register_mcp_tools()` iterates all non-denied enabled
+servers and registers their read-class tools as `NativeToolSpec` instances with the
+dispatcher.  Tool names are prefixed `mcp_<server>_<tool>`.
+
+Requirements for a tool to appear in the native tool list:
+1. Server `scope != "denied"` and `enabled = true`.
+2. The tool has schema metadata in `MCPSchemaStore` with `classification = "read"`.
+
+Use `sac mcp list-native` to see which tools are registered for the current session.
+
+### Write Approval Flow (v5.4.1)
+
+For scope="write_proposal_required" servers, write-class tools are registered with
+`requires_approval=True`.  When the agent calls one:
+
+1. `runner.propose_write()` creates a pending proposal at `.sac/pending_mcp_call.json`.
+2. The tool result has `status="blocked"` and `metadata["mcp_write_proposal_id"]`.
+3. The shell surfaces an approval prompt.
+4. After approval, `runner.execute_granted_write()` consumes the grant and executes.
+5. Audited as `mcp_granted_write_*` events.
+
+One-shot CLI: `sac mcp execute <server> <tool> --grant-id <id>` (never executes without a valid grant).
+
+### Safety Invariants
+
+- All MCP outputs pass through `redact_secrets()` before entering model context.
+- Classification gate (`classify_mcp_tool`) runs before every call.
+- Per-server failures during registration emit `RuntimeWarning` and do not crash the agent.
+- Write tool proposals are stored outside project root in `~/.sac/mcp/approvals/`
+  (override: `SAFECODE_MCP_APPROVAL_DIR`).

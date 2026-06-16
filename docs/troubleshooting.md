@@ -850,6 +850,38 @@ not checkpointed. Use full-auto only for commands you would trust in a script.
 High-risk commands (`rm -rf /`, commands outside the project root, etc.) are
 **always blocked** regardless of trust mode.
 
+## MCP Integration Issues (v5.4, EXPERIMENTAL)
+
+**MCP tool not showing in `sac mcp list-native`:**
+
+1. Check `sac mcp doctor <server>` — server may be disabled or scope=denied.
+2. Schema metadata must exist in `MCPSchemaStore` with `classification="read"`.
+   Without schema metadata the bridge finds no tools to register.
+3. Run `sac mcp stdio-discover <server>` to see what the server actually reports
+   (requires `argv` configured in `.sac/mcp.toml`).
+
+**MCP write tool blocked:**
+
+- Server scope must be `write_proposal_required` in `.sac/mcp.toml`.
+  Servers with `scope = "read_only"` (the default) block write tool proposals.
+- Write tools must have schema metadata with `classification = "write"`.
+
+**MCP tool name collision:**
+
+All MCP tools are prefixed `mcp_<server>_<tool>`.  If two servers expose the
+same raw tool name they get distinct native names (`mcp_srvA_list` vs `mcp_srvB_list`).
+
+**`sac mcp execute` fails without grant:**
+
+`sac mcp execute` requires a valid approval grant in `~/.sac/mcp/approvals/`
+(override: `SAFECODE_MCP_APPROVAL_DIR`).  Grants are single-use.  Create a
+grant via the shell approval flow or `MCPApprovalStore.grant(proposal_id)`.
+
+**MCP stdio discovery times out:**
+
+Increase the timeout: `sac mcp stdio-discover <server> --timeout 30`.
+Ensure the server binary is reachable (`sac mcp doctor <server>` shows binary path).
+
 ## Getting More Help
 
 - Run `sac --help` for command reference.

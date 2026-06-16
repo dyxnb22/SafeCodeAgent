@@ -180,6 +180,7 @@ class AgentLoop:
         from safecode.agent.read_tools import register_read_tools
         from safecode.agent.write_tools import register_write_tools
         from safecode.agent.command_tool import register_command_tool
+        from safecode.mcp.native_bridge import register_mcp_tools
 
         dispatcher = NativeToolDispatcher()
         register_read_tools(dispatcher, self.project_root)
@@ -187,6 +188,7 @@ class AgentLoop:
         register_write_tools(dispatcher, self.project_root, approved=write_approved)
         cmd_delay = self.command_delay_ms if self.full_auto else -1
         register_command_tool(dispatcher, self.project_root, full_auto_delay_ms=cmd_delay)
+        register_mcp_tools(dispatcher, self.project_root)  # v5.4.0: MCP native tool bridge
         return dispatcher
 
     def native_step(self, goal: str | None = None) -> "AgentStepResult":

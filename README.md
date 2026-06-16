@@ -124,6 +124,34 @@ SafeCode Agent now automatically pre-loads context relevant to your task:
 [Context compacted: ~3200 → ~600 tokens (12 observations archived)]
 ```
 
+**MCP Integration (v5.4, EXPERIMENTAL):**
+
+Add third-party MCP servers (e.g., `sqlite`, `brave-search`) in `.sac/mcp.toml`:
+
+```toml
+[servers.sqlite]
+command = "uvx mcp-server-sqlite --db-path ./data.db"
+scope = "read_only"       # or "write_proposal_required" to allow write tools
+enabled = true
+```
+
+MCP read tools are bridged into the agent's native tool list automatically.
+Tool names are prefixed `mcp_<server>_<tool>` to avoid collisions with built-ins.
+Write tools (scope="write_proposal_required") require approval before execution.
+
+```bash
+sac mcp tools                         # list configured MCP tools from config
+sac mcp list-native                   # list MCP tools registered with the agent [EXPERIMENTAL]
+sac mcp call-readonly <srv> <tool>    # invoke a read-only MCP tool directly
+sac mcp execute <srv> <tool> --grant-id <id>  # one-shot approved write (requires grant) [EXPERIMENTAL]
+sac mcp doctor [server]               # check binary path, scope, lifecycle PID [EXPERIMENTAL]
+sac mcp start <server>                # start a stdio MCP server process [EXPERIMENTAL]
+sac mcp stop <server>                 # stop a stdio MCP server process [EXPERIMENTAL]
+```
+
+All MCP tool outputs pass through `redact_secrets()` before model context.
+Write operations require an explicit approval grant — never auto-executed.
+
 **Shell Display (v5.2, EXPERIMENTAL):**
 
 The shell prompt shows turn count, task status, and cost estimate:

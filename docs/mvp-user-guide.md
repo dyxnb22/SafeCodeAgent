@@ -760,3 +760,67 @@ sac status --json
 Since v4.11.1 the journal also records `typed_step` and `typed_result` events
 alongside existing legacy events. All surfaces in this section are EXPERIMENTAL
 and carry no stable contract.
+
+## Extending the Agent with MCP Servers (v5.4, EXPERIMENTAL)
+
+MCP (Model Context Protocol) servers let you add third-party read and write
+capabilities to the agent.  When the agentic shell starts it automatically
+registers all eligible MCP tools so they appear in the model's tool list.
+
+### Setup — sqlite example
+
+1. Install the server:
+   ```bash
+   pip install mcp-server-sqlite
+   # or: uvx mcp-server-sqlite --help
+   ```
+
+2. Create `.sac/mcp.toml`:
+   ```toml
+   [servers.sqlite]
+   command = "uvx mcp-server-sqlite --db-path ./data.db"
+   scope   = "read_only"
+   enabled = true
+   ```
+
+3. Add schema metadata so the bridge knows which tools are read-class
+   (without this, tools are not registered in the native dispatcher):
+   ```python
+   # .sac/mcp_schemas.py  — loaded by your project setup
+   from safecode.mcp.schema import MCPToolSchema, MCPSchemaStore
+   MCPSchemaStore().register(MCPToolSchema(
+       server="sqlite", tool="list_tables", classification="read",
+       description="List tables in the SQLite database.", args=("db_path",)
+   ))
+   ```
+
+4. Check what was registered:
+   ```bash
+   sac mcp list-native        # shows: mcp_sqlite_list_tables
+   ```
+
+5. Start the agentic shell — the agent calls `mcp_sqlite_list_tables` naturally:
+   ```bash
+   sac shell --agentic
+   ```
+
+### Write Tool Approval Flow
+
+For write operations, set `scope = "write_proposal_required"` in `.sac/mcp.toml`.
+When the agent calls a write MCP tool:
+- A pending proposal is created at `.sac/pending_mcp_call.json`.
+- The shell pauses and shows an approval prompt.
+- After you approve, the tool executes and the grant is consumed (single-use).
+
+One-shot execute (scripting):
+```bash
+sac mcp execute sqlite insert_row --input '{"table":"users","row":{"name":"alice"}}' \
+    --grant-id <grant-id>
+```
+
+### Tool Name Convention
+
+All MCP tools are prefixed `mcp_<server>_<tool>` (dashes and dots replaced with `_`).
+This guarantees they never shadow built-in tools (`read_file`, `edit_file`, etc.).
+
+All surfaces in this section are EXPERIMENTAL and carry no stable contract.

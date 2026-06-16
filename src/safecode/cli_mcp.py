@@ -552,3 +552,165 @@ def mcp_doctor(
             console.print("  Lifecycle PID:     [dim](not tracked)[/dim]")
 
     console.print("\n[dim][EXPERIMENTAL] MCP doctor is experimental. No subprocess was launched.[/dim]")
+
+
+# ── Native tool bridge commands (v5.4.0, experimental) ────────────────────────
+
+
+@mcp_app.command("list-native")
+def mcp_list_native(
+    json_output: bool = typer.Option(False, "--json", help="Output result as JSON."),
+) -> None:
+    """List MCP tools currently registered with the native tool dispatcher. [EXPERIMENTAL]
+
+    Shows which MCP tools would appear to the model as native tool calls.
+    Tools are only registered for non-denied, enabled servers that have
+    schema metadata (classification="read").
+
+    Does not launch any subprocess.  Requires schemas to be pre-loaded via
+    the MCPSchemaStore or mcp.toml configuration.
+    """
+    from safecode.agent.native_dispatcher import NativeToolDispatcher
+    from safecode.mcp.native_bridge import register_mcp_tools
+
+    project_root = Path.cwd()
+    dispatcher = NativeToolDispatcher()
+    try:
+        count = register_mcp_tools(dispatcher, project_root)
+    except Exception as exc:
+        if json_output:
+            print(render_json(CLIJSONResponse(
+                command="mcp list-native",
+                status="error",
+                error=str(exc),
+            )))
+        else:
+            console.print(f"[red]Error discovering MCP native tools:[/red] {exc}")
+        raise typer.Exit(code=1) from exc
+
+    specs = dispatcher.specs()
+    mcp_specs = [s for s in specs if s.name.startswith("mcp_")]
+
+    if json_output:
+        tools_data = [
+            {
+                "name": s.name,
+                "description": s.description,
+                "requires_approval": s.requires_approval,
+                "audit_event_type": s.audit_event_type,
+                "experimental": s.experimental,
+            }
+            for s in mcp_specs
+        ]
+        print(render_json(CLIJSONResponse(
+            command="mcp list-native",
+            status="success",
+            data={"tools": tools_data, "count": len(mcp_specs), "experimental": True},
+        )))
+        return
+
+    if not mcp_specs:
+        console.print("[yellow]No MCP tools registered as native tools.[/yellow]")
+        console.print("[dim]Tip: ensure .sac/mcp.toml has servers with scope != 'denied' and schema metadata.[/dim]")
+        return
+
+    table = Table(title="MCP Native Tools [EXPERIMENTAL]")
+    table.add_column("Tool name (native)")
+    table.add_column("Approval")
+    table.add_column("Description")
+    for spec in mcp_specs:
+        approval = "[yellow]required[/yellow]" if spec.requires_approval else "auto"
+        table.add_row(spec.name, approval, spec.description[:60])
+    console.print(table)
+    console.print(f"[dim]{len(mcp_specs)} MCP tool(s) registered. [EXPERIMENTAL][/dim]")
+
+
+@mcp_app.command("execute")
+def mcp_execute(
+    server: str = typer.Argument(..., help="MCP server name from .sac/mcp.toml"),
+    tool: str = typer.Argument(..., help="MCP tool name to execute."),
+    input_json: str = typer.Option("{}", "--input", help="JSON input for the MCP write tool."),
+    grant_id: str = typer.Option(..., "--grant-id", help="Approval grant ID from MCPApprovalStore."),
+    json_output: bool = typer.Option(False, "--json", help="Output result as JSON."),
+) -> None:
+    """Execute an approved MCP write tool using an existing approval grant. [EXPERIMENTAL]
+
+    Never executes without a valid grant ID stored in the approval store
+    (default: ~/.sac/mcp/approvals/).  Single-use: the grant is consumed on
+    execution.
+
+    Requires SAFECODE_MCP_STDIO_RUNNER=1 and server argv configured in
+    .sac/mcp.toml.
+
+    Audited as mcp_granted_write_* events.
+    """
+    from safecode.mcp.approval_grant import MCPApprovalStore
+    from safecode.mcp.runner import MCPReadOnlyRunner
+
+    project_root = Path.cwd()
+    try:
+        payload = json.loads(input_json) if input_json else {}
+    except json.JSONDecodeError as exc:
+        if json_output:
+            print(render_json(CLIJSONResponse(
+                command="mcp execute",
+                status="error",
+                error=f"Invalid JSON input: {exc}",
+            )))
+        else:
+            console.print(f"[red]Invalid JSON input:[/red] {exc}")
+        raise typer.Exit(code=1) from exc
+    if payload is None:
+        payload = {}
+    if not isinstance(payload, dict):
+        if json_output:
+            print(render_json(CLIJSONResponse(
+                command="mcp execute",
+                status="error",
+                error="MCP input must be a JSON object.",
+            )))
+        else:
+            console.print("[red]MCP input must be a JSON object.[/red]")
+        raise typer.Exit(code=1)
+
+    approval_store = MCPApprovalStore()
+    runner = MCPReadOnlyRunner(project_root, stdio_runner=True)
+    result = runner.execute_granted_write(
+        proposal_id=grant_id,
+        server=server,
+        tool=tool,
+        input_data=payload,
+        approval_store=approval_store,
+    )
+
+    if json_output:
+        status = "success" if result.exit_code == 0 and not result.blocked else "error"
+        print(render_json(CLIJSONResponse(
+            command="mcp execute",
+            status=status,
+            data={
+                "server": result.server,
+                "tool": result.tool,
+                "classification": result.classification,
+                "exit_code": result.exit_code,
+                "output": result.output or "",
+                "blocked": result.blocked,
+                "executed": result.executed,
+                "duration_ms": result.duration_ms,
+                "experimental": True,
+            },
+            error=result.error if (result.blocked or result.exit_code != 0) else None,
+        )))
+        raise typer.Exit(code=0 if result.exit_code == 0 and not result.blocked else 1)
+
+    if result.blocked:
+        console.print(f"[red]Execution blocked:[/red] {result.error}")
+        raise typer.Exit(code=1)
+    if result.exit_code != 0:
+        console.print(f"[red]Execution failed (exit {result.exit_code}):[/red] {result.error}")
+        raise typer.Exit(code=result.exit_code)
+
+    console.print(f"[green]MCP write executed:[/green] {server}.{tool}")
+    if result.output:
+        console.print(result.output)
+    console.print(f"[dim]duration: {result.duration_ms}ms [EXPERIMENTAL][/dim]")
