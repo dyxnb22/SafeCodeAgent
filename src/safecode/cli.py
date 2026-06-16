@@ -357,6 +357,57 @@ def why(
     console.print(f"[bold]Next:[/bold] {suggested}")
 
 
+@app.command("search")
+def search(
+    query: str = typer.Argument(..., help="Natural-language search query."),
+    limit: int = typer.Option(10, "--limit", "-n", help="Max results to show."),
+    json_output: bool = typer.Option(False, "--json", help="Output result as JSON."),
+) -> None:
+    """[EXPERIMENTAL] Semantic + keyword hybrid search across project files.
+
+    Combines path-token matching, git recency, and semantic embeddings (when
+    the embedding index is built via 'sac index build').
+    """
+    from safecode.context.hybrid_retrieval import HybridRetriever
+    from safecode.cli_shared_json import CLIJSONResponse, render_json
+
+    project_root = Path.cwd()
+    retriever = HybridRetriever(project_root)
+    results = retriever.retrieve(query, limit=limit)
+
+    if json_output:
+        data = {
+            "query": query,
+            "results": [
+                {
+                    "path": r.path,
+                    "combined_score": r.combined_score,
+                    "keyword_score": r.keyword_score,
+                    "semantic_score": r.semantic_score,
+                    "selection_reason": r.selection_reason,
+                }
+                for r in results
+            ],
+        }
+        print(render_json(CLIJSONResponse(command="search", status="success", data=data)))
+        return
+
+    if not results:
+        console.print(f"[yellow]No results for: {query}[/yellow]")
+        console.print("[dim]Tip: run 'sac index build' to enable semantic search.[/dim]")
+        return
+
+    from rich.table import Table
+    table = Table(title=f"Search: {query}")
+    table.add_column("Score", justify="right", style="cyan", no_wrap=True)
+    table.add_column("File")
+    table.add_column("Reason", style="dim")
+    for r in results:
+        table.add_row(f"{r.combined_score:.2f}", r.path, r.selection_reason)
+    console.print(table)
+    console.print(f"\n[dim]Tip: run 'sac index build' to enable semantic search.[/dim]")
+
+
 def main() -> None:
     """Console script entrypoint."""
     app()

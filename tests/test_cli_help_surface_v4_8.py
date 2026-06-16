@@ -77,10 +77,10 @@ def _command_names_in_root_help() -> set[str]:
 
 
 class TestV48VisibleSurface:
-    def test_visible_count_at_most_7(self):
-        """sac provider adds one daily-use command group to the root surface (v4.14.0)."""
+    def test_visible_count_at_most_10(self):
+        """Root help surface stays small; sac search added in v6.3.1."""
         names = _command_names_in_root_help()
-        assert len(names) <= 7, f"Expected <=20 visible commands, got {len(names)}: {sorted(names)}"
+        assert len(names) <= 10, f"Expected <=10 visible commands, got {len(names)}: {sorted(names)}"
 
     def test_all_target_commands_visible(self):
         names = _command_names_in_root_help()
