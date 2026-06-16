@@ -3,6 +3,8 @@ name: SafeCode CI
 on:
   push:
     branches: [main]
+    tags:
+      - "v[0-9]+.[0-9]+.0"   # release job fires on vX.Y.0 tags only (v5.5.0)
   pull_request:
     branches: [main]
 
@@ -106,3 +108,39 @@ jobs:
 
       - name: Run live provider smoke tests
         run: PYTHONPATH=src python3 -m pytest tests/live/ -v --tb=short
+
+  release:
+    name: Release publish (PyPI, tag-triggered)
+    runs-on: ubuntu-latest
+    # Only fires on vX.Y.0 tag pushes (patch-only releases skip this job).
+    # Requires repo secret SAFECODE_PUBLISH=1 and PYPI_TOKEN for uv publish.
+    if: ${{ startsWith(github.ref, 'refs/tags/v') && endsWith(github.ref_name, '.0') }}
+    needs: [test]
+    permissions:
+      contents: read
+      id-token: write   # needed for OIDC-based Trusted Publishing on PyPI
+    env:
+      SAFECODE_PUBLISH: "1"
+      UV_PUBLISH_TOKEN: ${{ secrets.PYPI_TOKEN }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history needed for tag consistency check
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Install package and dev deps
+        run: python -m pip install -e ".[dev]"
+
+      - name: Run release preflight
+        run: PYTHONPATH=src python3 -m safecode.cli release preflight
+
+      - name: Build and publish to PyPI
+        run: PYTHONPATH=src python3 -m safecode.cli release publish --no-dry-run

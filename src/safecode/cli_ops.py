@@ -275,31 +275,83 @@ def release_publish(
     dry_run: bool = typer.Option(True, "--dry-run/--no-dry-run", help="Show planned steps without executing (default: dry-run)."),
     sign: bool = typer.Option(False, "--sign", help="Sign artifacts with detached cosign or gpg signature (fails closed if tooling is missing)."),
     repository: str = typer.Option("pypi", "--repository", help="Target repository: 'pypi' (default) or 'test-pypi' for rehearsal."),
+    update_brew: bool = typer.Option(False, "--update-brew", help="After a real publish, regenerate Formula/safecode-agent.rb via scripts/update-brew-formula.sh (v5.5.1)."),
     json_output: bool = typer.Option(False, "--json", help="Emit JSON output."),
 ) -> None:
     """Build, sign (optional), and upload a release to PyPI or TestPyPI.
 
     Dry-run is the safe default. Real publish requires a clean matching git tag and SAFECODE_PUBLISH=1.
     Use --repository test-pypi for a TestPyPI rehearsal (still requires SAFECODE_PUBLISH=1).
+    Use --update-brew to regenerate the Homebrew formula after a successful real publish.
     """
     result = run_release_publish(Path.cwd(), dry_run=dry_run, sign=sign, repository=repository)
+
+    # v5.5.1: regenerate Homebrew formula after a successful real publish to PyPI.
+    brew_message: str | None = None
+    if result.ok and not dry_run and update_brew and repository == "pypi":
+        brew_message = _run_update_brew_formula(Path.cwd())
+
     if json_output:
         from safecode.cli_shared_json import CLIJSONResponse, render_json
+        data: dict = {
+            "dry_run": result.dry_run,
+            "repository": result.repository,
+            "steps": list(result.steps),
+            "errors": list(result.errors),
+        }
+        if brew_message is not None:
+            data["brew_formula_update"] = brew_message
         resp = CLIJSONResponse(
             command="release publish",
             status="ok" if result.ok else "error",
-            data={
-                "dry_run": result.dry_run,
-                "repository": result.repository,
-                "steps": list(result.steps),
-                "errors": list(result.errors),
-            },
+            data=data,
         )
         console.print(render_json(resp))
     else:
         console.print(render_publish_result(result))
+        if brew_message is not None:
+            console.print(f"[green]Homebrew formula:[/green] {brew_message}")
     if not result.ok:
         raise typer.Exit(code=exit_code(result.ok))
+
+
+def _run_update_brew_formula(project_root: Path) -> str:
+    """Run scripts/update-brew-formula.sh with the current version; return status message."""
+    import subprocess
+    import re
+
+    try:
+        from safecode import __version__
+        version = __version__
+    except Exception:
+        return "could not determine version; skipping Homebrew formula update"
+
+    script = project_root / "scripts" / "update-brew-formula.sh"
+    if not script.exists():
+        return "scripts/update-brew-formula.sh not found; skipping"
+
+    # Try to find the wheel sha256 from dist/.
+    dist_dir = project_root / "dist"
+    sha256 = ""
+    if dist_dir.exists():
+        import hashlib
+        for artifact in sorted(dist_dir.glob("*.whl")):
+            sha256 = hashlib.sha256(artifact.read_bytes()).hexdigest()
+            break
+
+    try:
+        proc = subprocess.run(
+            ["bash", str(script), version, sha256 or "UNKNOWN"],
+            capture_output=True,
+            text=True,
+            cwd=project_root,
+            timeout=30,
+        )
+        if proc.returncode == 0:
+            return f"Formula/safecode-agent.rb updated for v{version}"
+        return f"formula update script failed (exit {proc.returncode})"
+    except Exception as exc:
+        return f"formula update failed: {type(exc).__name__}"
 
 
 @release_app.command("changelog")

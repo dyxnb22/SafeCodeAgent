@@ -136,12 +136,20 @@ Production publish to PyPI (still requires `SAFECODE_PUBLISH=1` and a matching g
 SAFECODE_PUBLISH=1 sac release publish --no-dry-run
 ```
 
-## pipx Install
+## Install Matrix (v5.5+)
 
-Once a wheel is on PyPI, install with pipx:
+| Method | Command | Notes |
+|---|---|---|
+| **PyPI (recommended)** | `pipx install safecode-agent` | Requires pipx ≥ 1.0; Python 3.11+ |
+| **macOS Homebrew** | `brew install safecode/tap/safecode-agent` | Requires the homebrew-safecode tap |
+| **Offline wheel** | `uv build && pipx install dist/<wheel>` | From source checkout |
+| **Source dev** | `git clone … && uv sync` | Full dev environment with tests |
+
+### PyPI Install
 
 ```bash
 pipx install safecode-agent
+sac doctor
 ```
 
 To upgrade an existing install:
@@ -150,11 +158,31 @@ To upgrade an existing install:
 pipx upgrade safecode-agent
 ```
 
-Offline install from a locally-built wheel:
+### macOS Homebrew Install
 
 ```bash
+brew tap safecode/tap
+brew install safecode/tap/safecode-agent
+sac doctor
+```
+
+### Offline Wheel Install
+
+```bash
+git clone <repo>
+cd safecode-agent
 uv build             # produces dist/safecode_agent-X.Y.Z-py3-none-any.whl
 pipx install dist/safecode_agent-X.Y.Z-py3-none-any.whl
+```
+
+### Source Dev Install
+
+```bash
+git clone <repo>
+cd safecode-agent
+uv sync
+PYTHONPATH=src python3 -m pytest -q
+uv run sac doctor
 ```
 
 ## Current Enforcement Boundaries

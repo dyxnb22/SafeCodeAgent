@@ -25,11 +25,16 @@ def test_ci_runs_release_smoke_and_meta() -> None:
     assert "release meta" in text
 
 
-def test_ci_does_not_require_exact_tag_release_check_or_preflight() -> None:
-    text = _workflow_text()
-    assert "release check" not in text
-    assert "release preflight" not in text
-    assert "git describe --exact-match" not in text
+def test_main_test_job_does_not_run_preflight() -> None:
+    """The main 'test' CI job must not run release preflight or git tag checks.
+    Preflight lives in the dedicated 'release' job (v5.5.0) which only fires on tags.
+    """
+    import yaml
+    data = yaml.safe_load(_workflow_text())
+    test_job = data["jobs"]["test"]
+    steps_text = str(test_job["steps"])
+    assert "release preflight" not in steps_text
+    assert "git describe --exact-match" not in steps_text
 
 
 def test_ci_generates_changelog_preview() -> None:

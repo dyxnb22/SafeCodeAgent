@@ -198,3 +198,68 @@ class TestMainJobShape:
         job = _job("test")
         steps_text = str(job["steps"])
         assert "release changelog" in steps_text
+
+
+# ── Release job (v5.5.0) ─────────────────────────────────────────────────────
+
+
+class TestReleaseJob:
+    def test_release_job_exists(self):
+        jobs = _load_workflow()["jobs"]
+        assert "release" in jobs
+
+    def test_release_job_needs_test(self):
+        job = _job("release")
+        needs = job.get("needs", [])
+        needs_list = [needs] if isinstance(needs, str) else list(needs)
+        assert "test" in needs_list
+
+    def test_release_job_triggered_on_tag(self):
+        job = _job("release")
+        condition = str(job.get("if", ""))
+        assert "refs/tags/v" in condition
+
+    def test_release_job_restricted_to_major_minor_zero(self):
+        job = _job("release")
+        condition = str(job.get("if", ""))
+        assert ".0" in condition
+
+    def test_release_job_requires_publish_env(self):
+        job = _job("release")
+        env = job.get("env", {})
+        assert env.get("SAFECODE_PUBLISH") == "1"
+
+    def test_release_job_uses_pypi_token_secret(self):
+        job = _job("release")
+        env = job.get("env", {})
+        token_val = env.get("UV_PUBLISH_TOKEN", "")
+        assert "PYPI_TOKEN" in token_val
+
+    def test_release_job_runs_preflight(self):
+        job = _job("release")
+        steps_text = str(job["steps"])
+        assert "release preflight" in steps_text
+
+    def test_release_job_runs_publish_no_dry_run(self):
+        job = _job("release")
+        steps_text = str(job["steps"])
+        assert "release publish" in steps_text
+        assert "--no-dry-run" in steps_text
+
+    def test_release_job_no_plain_secrets(self):
+        import re
+        text = WORKFLOW.read_text(encoding="utf-8")
+        assert not re.search(r'sk-[A-Za-z0-9\-]{20,}', text)
+
+    def test_release_job_has_id_token_permission(self):
+        job = _job("release")
+        perms = job.get("permissions", {})
+        assert perms.get("id-token") == "write"
+
+    def test_workflow_tag_trigger_configured(self):
+        data = _load_workflow()
+        # PyYAML parses the 'on' key as boolean True
+        trigger = data.get(True, data.get("on", {}))
+        push = trigger.get("push", {})
+        tags = push.get("tags", [])
+        assert any("v" in t for t in tags)

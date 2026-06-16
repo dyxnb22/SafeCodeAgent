@@ -1,5 +1,7 @@
 # SafeCode Agent
 
+**Status: Production (v5.5)**
+
 SafeCode Agent is a safety-first Python terminal coding agent and local agent runtime.
 
 ## Demo: from task to tested commit
@@ -30,7 +32,22 @@ collect context
 
 ## Install
 
-**Local development (primary):**
+**PyPI (recommended):**
+
+```bash
+pipx install safecode-agent
+sac doctor
+```
+
+**macOS Homebrew:**
+
+```bash
+brew tap safecode/tap
+brew install safecode/tap/safecode-agent
+sac doctor
+```
+
+**Source dev:**
 
 ```bash
 git clone <repo>
@@ -39,26 +56,14 @@ uv run sac --help
 sac doctor
 ```
 
-**pipx (once available on PyPI):**
-
-```bash
-pipx install safecode-agent
-```
-
-**TestPyPI rehearsal install:**
-
-```bash
-pipx install --index-url https://test.pypi.org/simple/ \
-  --extra-index-url https://pypi.org/simple/ \
-  safecode-agent
-```
-
 **Offline wheel (build locally):**
 
 ```bash
 uv build
 pipx install dist/safecode_agent-*.whl
 ```
+
+See [docs/install-update.md](docs/install-update.md) for the complete install matrix and release signing docs.
 
 See [docs/README.md](docs/README.md) for the full documentation index.
 

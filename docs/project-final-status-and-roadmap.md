@@ -1,15 +1,40 @@
 # SafeCode Agent Final Status and Roadmap
 
-Status: current project baseline after `v5.3.2`.
-Last updated: 2026-06-15.
+Status: current project baseline after `v5.5.2`.
+Last updated: 2026-06-16.
 
-> **Update (2026-06-15, v5.3.2):** All v4.19.x–v5.3.x trains complete (34 versions shipped).
-> Active forward plan: `docs/version-plans/v5.4-to-v5.6-product-roadmap.md` (v5.4.x MCP, v5.5.x production).
+> **Update (2026-06-16, v5.5.2):** v5.4.x MCP depth train and v5.5.x production train complete
+> (43 total versions shipped from v4.19.0). SafeCode Agent is now distributed via PyPI
+> (`pipx install safecode-agent`) and Homebrew (`brew install safecode/tap/safecode-agent`).
 > Extended roadmap: `docs/version-plans/v5.6-to-v5.8-product-roadmap.md` (quality, security, v6 prep).
 >
-> **v5.3.2 is the complete product baseline.** Terminal experience comparable to
-> Claude Code / Codex CLI: native tool calling, multi-tool turns, trust modes,
-> import-graph context, git-aware context, and context compaction.
+> **v5.5.2 is the production baseline.** Terminal-only tool by design; IDE integration
+> (VS Code / JetBrains) deliberately deferred. PyPI + Homebrew distribution added in v5.5.x.
+> MCP integration at basic server parity (native tool bridge + write approval flow) added in v5.4.x.
+
+---
+
+## v5.5.2 Production Baseline (2026-06-16)
+
+SafeCode Agent v5.5.2 is production-distributed via PyPI and Homebrew, with full
+MCP tool bridge support.  All terminal-experience parity goals are complete.
+
+### Distribution
+
+| Method | Command | Status |
+|---|---|---|
+| PyPI | `pipx install safecode-agent` | ✅ v5.5.0 |
+| Homebrew (macOS) | `brew install safecode/tap/safecode-agent` | ✅ v5.5.1 |
+| Source dev | `git clone … && uv sync` | ✅ always |
+
+### MCP Integration (v5.4)
+
+| Feature | Status |
+|---|---|
+| Native tool bridge (MCP → NativeToolSpec) | ✅ EXPERIMENTAL (v5.4.0) |
+| Write execution flow (approve → grant → execute) | ✅ EXPERIMENTAL (v5.4.1) |
+| `sac mcp list-native` | ✅ EXPERIMENTAL (v5.4.0) |
+| `sac mcp execute --grant-id` | ✅ EXPERIMENTAL (v5.4.1) |
 
 ---
 
