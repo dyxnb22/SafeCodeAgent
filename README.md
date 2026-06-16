@@ -619,9 +619,17 @@ keyword path-matching, git recency, and semantic embedding similarity.
 Every result carries a `selection_reason` explaining why it was selected.
 
 ```bash
+# Enable semantic search (optional dependency)
+pip install 'safecode-agent[semantic]'
+
+# or with uv:
+uv pip install 'safecode-agent[semantic]'
+
+# Then build the index
+sac index build
+
 # Build the local embedding index (requires sentence-transformers; falls
 # back to keyword-only if not installed)
-sac index build
 sac index build --force          # re-embed all chunks
 sac index status                 # show index stats
 
@@ -638,7 +646,7 @@ sac search "token expiry" --json
   `semantic (0.81)`, `recently modified`, or `pinned file`.
 - Without `sentence-transformers` installed, the system gracefully falls back
   to keyword-only mode. Install it to unlock semantic search:
-  `pip install sentence-transformers`
+  `pip install 'safecode-agent[semantic]'` or `pip install sentence-transformers`
 
 **Storage:** embedding index at `.sac/index/embeddings.db` (SQLite, WAL mode).
 Incremental builds skip unchanged file chunks.

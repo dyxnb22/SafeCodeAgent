@@ -9,10 +9,12 @@ schema-compatible regardless of which backend is active.
 
 from __future__ import annotations
 
+import warnings
 from abc import ABC, abstractmethod
 
 _NULL_DIM = 384    # matches all-MiniLM-L6-v2; chosen so null vectors are same size
 _DEFAULT_MODEL = "all-MiniLM-L6-v2"
+_fallback_warning_emitted = False
 
 
 class EmbeddingBackend(ABC):
@@ -43,6 +45,8 @@ class NullEmbeddingBackend(EmbeddingBackend):
     The system degrades gracefully to keyword-only retrieval.
     """
 
+    install_hint = "pip install 'safecode-agent[semantic]' or pip install sentence-transformers"
+
     def embed(self, texts: list[str]) -> list[list[float]]:
         return [[0.0] * _NULL_DIM for _ in texts]
 
@@ -72,9 +76,13 @@ class SentenceTransformerBackend(EmbeddingBackend):
 
 def create_embedding_backend(model_name: str = _DEFAULT_MODEL) -> EmbeddingBackend:
     """Return a SentenceTransformerBackend if available, else NullEmbeddingBackend."""
+    global _fallback_warning_emitted
     try:
         return SentenceTransformerBackend(model_name)
     except Exception:
+        if not _fallback_warning_emitted:
+            warnings.warn(NullEmbeddingBackend.install_hint, UserWarning, stacklevel=2)
+            _fallback_warning_emitted = True
         return NullEmbeddingBackend()
 
 

@@ -900,8 +900,13 @@ path-matching, git recency, and semantic embedding similarity.
 # Search without a semantic index (keyword + recency only — always works)
 sac search "authentication flow"
 
+# Enable semantic search (optional dependency)
+pip install 'safecode-agent[semantic]'
+
+# or with uv:
+uv pip install 'safecode-agent[semantic]'
+
 # Build a local embedding index for semantic search
-# (requires: pip install sentence-transformers)
 sac index build
 
 # Now search uses embedding similarity too
@@ -934,7 +939,7 @@ sac index files          # list all indexed files
 
 If `sentence-transformers` is not installed, the system uses `NullEmbeddingBackend`
 and `semantic_score = 0` for all files. `sac search` still works using keyword
-and recency signals only. Install `sentence-transformers` to unlock semantic search.
+and recency signals only. Install `safecode-agent[semantic]` to unlock semantic search.
 
 All surfaces in this section are EXPERIMENTAL and carry no stable contract.
 

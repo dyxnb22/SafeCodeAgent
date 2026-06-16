@@ -814,3 +814,9 @@ Completed. Plan: `docs/version-plans/v4.20-to-v5.0-product-roadmap.md` (v4.25.x 
 |---|---|---|---|
 | `v6.5.0` ✅ | `dev/v4.19` | `src/safecode/eval/swebench_adapter.py`, `src/safecode/cli_ops.py`, `tests/eval_fixtures/swebench_lite/`, `tests/test_eval_swebench_adapter.py` | SWEBenchTask/Runner/Report; task_to_fixture() adapter; sac eval --mode swebench-lite --suite <dir>; 3 synthetic fixture files; 46 tests. |
 | `v6.5.1` ✅ | `dev/v4.19` | `tests/snapshots/swebench_lite/latest.json`, `docs/demo/swebench-eval-summary.md`, `README.md`, `docs/version_implementation_matrix.md`, `.claude/skills/current/SKILL.md`, `.claude/versions.json` | Mock-provider snapshot 0/3 (honest baseline); summary doc; README eval section. |
+
+## v6.6.x: Eval Evidence, Optional Semantic Install, Real-World Demo, Docs Cleanup
+
+| 版本 | 分支 | 主要入口 | 验收命令 / 结果 |
+|---|---|---|---|
+| `v6.6.0` ✅ | `dev/v4.19` | `pyproject.toml`, `src/safecode/index/embedding_backend.py`, `src/safecode/cli_project.py`, `README.md`, `docs/mvp-user-guide.md`, `tests/test_index_embedding.py` | Semantic retrieval optional extra `safecode-agent[semantic]`; null backend emits one install-hint warning; `sac index build/status` prints semantic-inactive guidance; targeted embedding tests pass. |

@@ -13,6 +13,7 @@ from safecode.index.chunker import TextChunk, chunk_file, chunk_files
 from safecode.index.embedding_backend import (
     NullEmbeddingBackend,
     cosine_similarity,
+    create_embedding_backend,
 )
 from safecode.index.embedding_store import EmbeddingStore, IndexStatus
 from safecode.context.hybrid_retrieval import HybridRetriever
@@ -120,6 +121,28 @@ class TestNullEmbeddingBackend:
     def test_embed_empty_list(self) -> None:
         backend = NullEmbeddingBackend()
         assert backend.embed([]) == []
+
+    def test_create_backend_warns_once_on_fallback(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        import safecode.index.embedding_backend as embedding_backend
+
+        class BrokenSentenceTransformerBackend:
+            def __init__(self, model_name: str) -> None:
+                raise ImportError("sentence-transformers unavailable")
+
+        monkeypatch.setattr(embedding_backend, "SentenceTransformerBackend", BrokenSentenceTransformerBackend)
+        monkeypatch.setattr(embedding_backend, "_fallback_warning_emitted", False)
+
+        with pytest.warns(UserWarning, match="safecode-agent\\[semantic\\]"):
+            backend = create_embedding_backend()
+
+        assert isinstance(backend, NullEmbeddingBackend)
+        import warnings
+
+        with warnings.catch_warnings(record=True) as recorded:
+            warnings.simplefilter("always")
+            backend = create_embedding_backend()
+        assert isinstance(backend, NullEmbeddingBackend)
+        assert recorded == []
 
 
 # ---------------------------------------------------------------------------

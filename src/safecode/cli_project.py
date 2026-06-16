@@ -267,6 +267,9 @@ def index_build(
         return
     backend_label = f"[green]{status.model_id}[/green]" if status.is_semantic else "[yellow]null (keyword-only fallback)[/yellow]"
     console.print(f"[bold]Embedding backend:[/bold] {backend_label}")
+    if not status.is_semantic:
+        console.print("[yellow]Semantic search inactive (null backend).[/yellow]")
+        console.print("[dim]To enable: pip install 'safecode-agent[semantic]'[/dim]")
     console.print(f"Files indexed : {result['files_indexed']}")
     console.print(f"Chunks added  : {result['chunks_added']}")
     console.print(f"Chunks skipped: {result['chunks_skipped']} (unchanged)")
@@ -290,6 +293,9 @@ def index_status(
         return
     backend_label = f"[green]{status.model_id}[/green]" if status.is_semantic else "[yellow]null (keyword-only fallback)[/yellow]"
     console.print(f"[bold]Backend :[/bold] {backend_label}")
+    if not status.is_semantic:
+        console.print("[yellow]Semantic search inactive (null backend).[/yellow]")
+        console.print("[dim]To enable: pip install 'safecode-agent[semantic]'[/dim]")
     console.print(f"Files   : {status.total_files}")
     console.print(f"Chunks  : {status.total_chunks}")
     console.print(f"Built   : {status.last_built or 'unknown'}")
