@@ -299,7 +299,7 @@ class TestDiscoverStdioToolsSuccess:
 class TestDiscoverStdioToolsTransportFailure:
     def test_timeout_returns_failure(self, tmp_path):
         argv = _write_server(tmp_path, "srv.py", _SLEEP_SERVER)
-        result = discover_stdio_tools("srv", argv, timeout_seconds=0.3)
+        result = discover_stdio_tools("srv", argv, timeout_seconds=0.15)
         assert result.success is False
         assert result.error != ""
 
@@ -327,17 +327,17 @@ print("not json at all")
 
     def test_transport_failure_has_error_message(self, tmp_path):
         argv = _write_server(tmp_path, "srv.py", _SLEEP_SERVER)
-        result = discover_stdio_tools("srv", argv, timeout_seconds=0.3)
+        result = discover_stdio_tools("srv", argv, timeout_seconds=0.15)
         assert "transport" in result.error.lower() or "timed out" in result.error.lower() or result.error != ""
 
     def test_transport_failure_schemas_empty(self, tmp_path):
         argv = _write_server(tmp_path, "srv.py", _SLEEP_SERVER)
-        result = discover_stdio_tools("srv", argv, timeout_seconds=0.3)
+        result = discover_stdio_tools("srv", argv, timeout_seconds=0.15)
         assert result.schemas == ()
 
     def test_transport_failure_skipped_count_zero(self, tmp_path):
         argv = _write_server(tmp_path, "srv.py", _SLEEP_SERVER)
-        result = discover_stdio_tools("srv", argv, timeout_seconds=0.3)
+        result = discover_stdio_tools("srv", argv, timeout_seconds=0.15)
         assert result.skipped_count == 0
 
 
@@ -475,7 +475,7 @@ class TestDiscoverStdioToolsSecurity:
     def test_timeout_error_does_not_contain_argv(self, tmp_path):
         argv = _write_server(tmp_path, "srv.py", _SLEEP_SERVER)
         secret_in_argv = argv + ["--secret-arg=sk-abc123-secret"]
-        result = discover_stdio_tools("srv", secret_in_argv, timeout_seconds=0.3)
+        result = discover_stdio_tools("srv", secret_in_argv, timeout_seconds=0.15)
         assert result.success is False
         assert "sk-abc123-secret" not in result.error
 

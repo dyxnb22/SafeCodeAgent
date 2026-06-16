@@ -493,6 +493,8 @@ class TestRunnerForbiddenFileWriteE2E:
 # ── P. Runner integration — timeout classified end-to-end ─────────────────
 
 
+@pytest.mark.slow
+@pytest.mark.timeout
 class TestRunnerTimeoutE2E:
     def test_validation_timeout_classified_as_timeout(self):
         fix = _fixture(

@@ -5,6 +5,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[1]
 EXAMPLE = ROOT / "examples" / "fastapi-todo"
 
@@ -51,6 +53,8 @@ def test_top_level_examples_extra_declares_runtime_test_dependencies() -> None:
         assert dependency in text
 
 
+@pytest.mark.slow
+@pytest.mark.subprocess
 def test_baseline_endpoint_tests_pass_with_examples_dependencies() -> None:
     result = subprocess.run(
         [sys.executable, "-m", "pytest", "-q"],

@@ -75,6 +75,8 @@ class TestFixtureLoading:
 # ── Execution count ───────────────────────────────────────────────────────
 
 
+@pytest.mark.slow
+@pytest.mark.eval
 class TestFixtureExecutionCount:
     def test_run_all_returns_six_results(self):
         fixtures = default_loop_fixtures()
@@ -259,6 +261,8 @@ class TestRecoverableContractFailureType:
 # ── CLI shows all six fixture names ──────────────────────────────────────
 
 
+@pytest.mark.slow
+@pytest.mark.eval
 class TestEvalLoopModeCLISixFixtures:
     def test_eval_loop_mode_shows_all_six_names(self, monkeypatch, tmp_path):
         monkeypatch.chdir(tmp_path)

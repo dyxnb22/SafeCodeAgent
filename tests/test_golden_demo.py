@@ -8,6 +8,8 @@ from pathlib import Path
 
 import pytest
 
+pytestmark = [pytest.mark.slow, pytest.mark.integration]
+
 _ROOT = Path(__file__).parent.parent
 _DEMO_DIR = _ROOT / "examples" / "golden-demo"
 _DEMO_FIXTURE_SRC = _DEMO_DIR / "src" / "calculator.py"

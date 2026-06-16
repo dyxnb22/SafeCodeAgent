@@ -207,6 +207,7 @@ print("not-json")
 # ── Timeout ───────────────────────────────────────────────────────────────────
 
 
+@pytest.mark.timeout
 class TestTimeout:
     def test_timeout_returns_failure(self, tmp_path):
         argv = _write_server(tmp_path, "server.py", """\
@@ -214,7 +215,7 @@ import sys, time
 sys.stdin.readline()
 time.sleep(60)
 """)
-        result = call_stdio(argv, "method", timeout_seconds=0.3)
+        result = call_stdio(argv, "method", timeout_seconds=0.15)
         assert result.success is False
 
     def test_timeout_exit_code_124(self, tmp_path):
@@ -223,7 +224,7 @@ import sys, time
 sys.stdin.readline()
 time.sleep(60)
 """)
-        result = call_stdio(argv, "method", timeout_seconds=0.3)
+        result = call_stdio(argv, "method", timeout_seconds=0.15)
         assert result.exit_code == 124
 
     def test_timeout_error_message(self, tmp_path):
@@ -232,7 +233,7 @@ import sys, time
 sys.stdin.readline()
 time.sleep(60)
 """)
-        result = call_stdio(argv, "method", timeout_seconds=0.3)
+        result = call_stdio(argv, "method", timeout_seconds=0.15)
         assert "timed out" in result.error.lower()
 
     def test_timeout_process_cleaned_up(self, tmp_path):
@@ -242,8 +243,8 @@ import sys, time
 sys.stdin.readline()
 time.sleep(60)
 """)
-        r1 = call_stdio(argv, "method", timeout_seconds=0.3)
-        r2 = call_stdio(argv, "method", timeout_seconds=0.3)
+        r1 = call_stdio(argv, "method", timeout_seconds=0.15)
+        r2 = call_stdio(argv, "method", timeout_seconds=0.15)
         assert r1.success is False
         assert r2.success is False
 
@@ -253,7 +254,7 @@ import sys, time
 sys.stdin.readline()
 time.sleep(60)
 """)
-        result = call_stdio(argv, "method", {"api_key": "sk-secret-token-12345"}, timeout_seconds=0.3)
+        result = call_stdio(argv, "method", {"api_key": "sk-secret-token-12345"}, timeout_seconds=0.15)
         assert "sk-secret-token-12345" not in result.error
 
 
@@ -459,7 +460,7 @@ sys.stdin.readline()
 time.sleep(60)
 """)
         result = call_stdio(
-            argv, "method", {"api_key": "sk-secret-token-12345"}, timeout_seconds=0.3
+            argv, "method", {"api_key": "sk-secret-token-12345"}, timeout_seconds=0.15
         )
         assert "sk-secret-token-12345" not in result.error
 

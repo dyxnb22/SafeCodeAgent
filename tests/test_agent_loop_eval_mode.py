@@ -106,6 +106,8 @@ class TestScriptedLLMClientSequence:
 # ── LoopModeEvalRunner integration tests ─────────────────────────────────
 
 
+@pytest.mark.slow
+@pytest.mark.eval
 class TestLoopModeEvalRunnerFixtures:
     def test_docs_edit_fixture_passes(self):
         fixtures = default_loop_fixtures()
@@ -152,6 +154,8 @@ class TestLoopModeEvalRunnerFixtures:
 # ── CLI integration ───────────────────────────────────────────────────────
 
 
+@pytest.mark.slow
+@pytest.mark.eval
 class TestEvalLoopModeCLI:
     def test_eval_loop_mode_exits_zero(self, monkeypatch, tmp_path):
         monkeypatch.chdir(tmp_path)

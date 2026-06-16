@@ -791,7 +791,14 @@ docker run --rm -it -v "$PWD:/workspace" -w /workspace safecode-agent sac doctor
 ## Test
 
 ```bash
+# Fast local feedback loop: skips slower eval/demo/subprocess timeout checks.
+scripts/test-fast.sh
+
+# Full release gate.
 PYTHONPATH=src python3 -m pytest -q
+
+# Optional, after installing dev extras, for parallel full runs.
+PYTHONPATH=src python3 -m pytest -q -n auto
 ```
 
 ## Release Flow

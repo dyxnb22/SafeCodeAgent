@@ -333,6 +333,8 @@ class TestSaveReport:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.slow
+@pytest.mark.eval
 class TestSWEBenchRunner:
     def test_runner_runs_task(self, tmp_path: Path) -> None:
         task = load_task_from_dict(_MINIMAL_TASK)
@@ -421,6 +423,8 @@ class TestBuiltinFixtures:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.slow
+@pytest.mark.eval
 class TestSWEBenchCLI:
     def test_swebench_mode_missing_dir_exits_1(self, tmp_path: Path) -> None:
         from typer.testing import CliRunner

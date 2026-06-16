@@ -173,6 +173,8 @@ class TestRegressionDetection:
 # ── EvalBenchRunner ───────────────────────────────────────────────────────
 
 
+@pytest.mark.slow
+@pytest.mark.eval
 class TestEvalBenchRunner:
     def _make_clock(self, times: list[float]):
         """Return a callable that returns successive values from times."""
@@ -258,6 +260,8 @@ class TestEvalBenchRunner:
 # ── Render ────────────────────────────────────────────────────────────────
 
 
+@pytest.mark.slow
+@pytest.mark.eval
 class TestRenderBenchSummary:
     def test_render_contains_fixture_names(self, tmp_path):
         fixtures = default_loop_fixtures()[:2]
@@ -279,6 +283,8 @@ class TestRenderBenchSummary:
 # ── CLI integration ───────────────────────────────────────────────────────
 
 
+@pytest.mark.slow
+@pytest.mark.eval
 class TestEvalBenchCLI:
     def test_bench_mode_exits_zero(self, monkeypatch, tmp_path):
         monkeypatch.chdir(tmp_path)

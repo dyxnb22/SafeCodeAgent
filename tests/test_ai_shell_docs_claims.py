@@ -195,6 +195,8 @@ class TestShellCommandExists:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.slow
+@pytest.mark.subprocess
 class TestPublicContractSnapshotsUnchanged:
     def test_contract_snapshots_still_pass(self):
         """Public contract snapshot tests must still pass after v4.9 changes."""

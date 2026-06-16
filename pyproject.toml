@@ -16,6 +16,7 @@ sac = "safecode.cli:main"
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0.0",
+    "pytest-xdist>=3.6.0",
     "pyyaml>=6.0.0",
 ]
 examples = [
@@ -30,6 +31,7 @@ semantic = [
 [dependency-groups]
 dev = [
     "pytest>=8.0.0",
+    "pytest-xdist>=3.6.0",
     "pyyaml>=6.0.0",
 ]
 
@@ -42,3 +44,10 @@ packages = ["src/safecode"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    "slow: slower integration, subprocess, timeout, or eval tests skipped by the fast local suite",
+    "integration: tests that exercise multiple subsystems or end-to-end workflows",
+    "subprocess: tests that spawn Python, pytest, git, shell, or demo subprocesses",
+    "eval: tests that exercise eval harnesses or replay fixtures",
+    "timeout: tests that intentionally wait for timeout handling",
+]

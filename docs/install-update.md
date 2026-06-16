@@ -4,7 +4,9 @@
 
 ```bash
 git pull --ff-only
-PYTHONPATH=src python3 -m pytest -q
+scripts/test-fast.sh                         # fast local feedback
+PYTHONPATH=src python3 -m pytest -q          # full release gate
+PYTHONPATH=src python3 -m pytest -q -n auto  # optional parallel full run
 ```
 
 ## First Setup
@@ -53,6 +55,7 @@ Recommended main path for each release:
 
 ```bash
 sac release bump X.Y.Z         # update canonical version files; does not commit or tag
+scripts/test-fast.sh
 PYTHONPATH=src python3 -m pytest -q
 git add -p                      # stage only version + version-note changes
 git commit -m "Implement vX.Y.Z <summary>"

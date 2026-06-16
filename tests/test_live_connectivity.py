@@ -46,7 +46,16 @@ def test_live_provider_ping_failure():
 def test_doctor_run_diagnostics_includes_live_when_requested():
     """Doctor.run_diagnostics includes connectivity ping when live=True."""
     doc = Doctor(Path("/tmp"))
-    diagnostics = doc.run_diagnostics(live=True)
+    with patch.object(
+        Doctor,
+        "_live_provider_ping",
+        return_value=Diagnostic(
+            name="provider_connectivity",
+            status=DiagnosticStatus.SKIP,
+            message="mocked",
+        ),
+    ):
+        diagnostics = doc.run_diagnostics(live=True)
     names = [d.name for d in diagnostics]
     assert "provider_connectivity" in names
 

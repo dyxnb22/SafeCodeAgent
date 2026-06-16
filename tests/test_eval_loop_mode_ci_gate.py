@@ -98,6 +98,8 @@ class TestCIWorkflowLoopEvalJob:
 # ── sac eval --mode loop behaves correctly ────────────────────────────────
 
 
+@pytest.mark.slow
+@pytest.mark.eval
 class TestEvalLoopModeBehavior:
     EXPECTED_NAMES = {
         "docs-edit",
@@ -130,6 +132,7 @@ class TestEvalLoopModeBehavior:
 # ── v3.10.1 loop-eval blocking promotion gate ─────────────────────────────
 
 
+@pytest.mark.eval
 class TestLoopEvalBlockingPromotion:
     """T-3.10.1-A: Encode current truthful state of loop-eval blocking.
 
@@ -169,6 +172,7 @@ class TestLoopEvalBlockingPromotion:
         assert "OPENAI_API_KEY" not in job_str
         assert "ANTHROPIC_API_KEY" not in job_str
 
+    @pytest.mark.slow
     def test_loop_eval_clean_run_exits_zero_locally(self, monkeypatch, tmp_path):
         """Scripted loop mode exits 0 locally — confirming readiness for future promotion."""
         monkeypatch.chdir(tmp_path)

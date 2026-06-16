@@ -422,7 +422,7 @@ class TestDiscoveryFailsClosedOnMalformedResponse:
             print("never reached")
             """,
         )
-        result = discover_stdio_tools("srv", srv, timeout_seconds=0.5)
+        result = discover_stdio_tools("srv", srv, timeout_seconds=0.15)
         assert result.success is False
         assert result.error
 

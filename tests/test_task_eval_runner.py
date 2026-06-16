@@ -538,6 +538,8 @@ class TestInvalidLocalRepoPath:
 # ── M. Timeout behaviour ──────────────────────────────────────────────────
 
 
+@pytest.mark.slow
+@pytest.mark.timeout
 class TestTimeoutBehaviour:
     def test_validation_command_timeout_recorded(self):
         # Use a very short per-command timeout via fixture timeout_seconds

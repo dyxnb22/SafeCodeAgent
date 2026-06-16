@@ -2,6 +2,7 @@
 
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
 
 from safecode.agent.orchestrator import AgentOrchestrator
@@ -52,6 +53,8 @@ def test_test_detector_finds_pytest_for_runnable_demo_workflows(tmp_path: Path) 
         assert "pytest -q" in commands
 
 
+@pytest.mark.slow
+@pytest.mark.integration
 def test_mock_patch_responses_cover_all_editable_demo_workflows(tmp_path: Path) -> None:
     suite = DemoWorkflowSuite()
     expectations = {

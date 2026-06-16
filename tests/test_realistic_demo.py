@@ -6,6 +6,10 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+import pytest
+
+pytestmark = [pytest.mark.slow, pytest.mark.integration]
+
 _ROOT = Path(__file__).parent.parent
 _DEMO = _ROOT / "examples" / "realistic-demo"
 _SCRIPT = _DEMO / "demo" / "run-demo.sh"
