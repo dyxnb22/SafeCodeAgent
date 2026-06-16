@@ -18,6 +18,12 @@ def test_candidates_doc_non_empty():
     assert len(_text()) > 200
 
 
+def test_candidates_doc_is_final_v600_assessment():
+    text = _text()
+    assert "Final v6.0.0 assessment" in text
+    assert "not a commitment" not in text
+
+
 def test_candidates_covers_trust_modes():
     text = _text()
     assert "Trust mode" in text or "auto_edit" in text or "full_auto" in text
@@ -80,3 +86,15 @@ def test_summary_table_exists():
 def test_contracts_doc_v60_candidate_section():
     text = _CONTRACTS_DOC.read_text(encoding="utf-8")
     assert "v6.0" in text
+
+
+def test_contracts_doc_has_trust_mode_section_18():
+    text = _CONTRACTS_DOC.read_text(encoding="utf-8")
+    assert "### 18. Trust Mode Schema" in text
+    assert "suggest" in text and "auto-edit" in text and "full-auto" in text
+
+
+def test_contracts_doc_has_session_rollback_section_19():
+    text = _CONTRACTS_DOC.read_text(encoding="utf-8")
+    assert "### 19. Session Rollback Contract" in text
+    assert "sac rollback --session" in text

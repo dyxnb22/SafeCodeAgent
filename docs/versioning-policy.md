@@ -124,9 +124,10 @@ The v5.0.0 contract churn budget:
 
 For v5.1.x and beyond, the same policy applies: minor releases may add
 experimental surfaces; major releases required for any breaking change to any
-of the sixteen stable contracts (sections 1–16). As of v5.7.1, sandbox execution
-is promoted as the seventeenth stable contract (Section 17). As of v5.8.0, cost
-guardrails are added as experimental surfaces under a new ``cost`` config key.
+stable contract. As of v5.7.1, sandbox execution is the seventeenth stable
+contract (Section 17). As of v6.0.0, trust mode schema (Section 18) and
+session rollback (Section 19) are promoted. There are now **19 stable contracts
+in total**.
 
 ## v6.0 Contract Churn Budget
 
@@ -140,7 +141,6 @@ The v6.0.0 contract churn budget:
 Candidates approved for promotion at v6.0.0:
 - Trust mode schema (``auto_edit``, ``full_auto``).
 - ``sac rollback --session <id>``.
-- ``cost.max_tokens_per_session`` (conditional on release-cycle evidence).
 
 All other experimental surfaces remain experimental through v6.0.0 unless
 the candidate assessment is updated with new evidence.
@@ -159,3 +159,4 @@ the candidate assessment is updated with new evidence.
 | **v5.8.0** | **Cost guardrails added: ``CostConfig`` model, ``/budget`` shell command, merge rules. Experimental.** |
 | **v5.8.1** | **v6.0 contract candidate assessment published at ``docs/v6-contract-candidates.md``.** |
 | **v5.8.2** | **Final v6.0 pre-docs pass: roadmap table, v6.0 budget stated, candidates documented.** |
+| **v6.0.0** | **Major contract cut: trust mode schema (Section 18) and session rollback (Section 19) promoted. 19 total stable contracts. Zero v5.0 breaking changes.** |

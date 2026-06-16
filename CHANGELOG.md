@@ -8,6 +8,19 @@ Format: `[vX.Y.Z] — YYYY-MM-DD — short-description`
 
 ## Unreleased
 
+## [v6.0.0] — 2026-06-16 — major-contract-cut
+
+- Promoted trust mode schema (`suggest`, `auto-edit`, `full-auto`) to stable
+  contract Section 18.
+- Promoted `sac rollback --session <id>` to stable contract Section 19.
+- Confirmed cost cap config remains experimental until it has release-cycle
+  evidence.
+- README portfolio polish: architecture diagram, "Why this is hard" section,
+  and comparison table with Claude Code and opencode.
+- Added `docs/demo/resume-and-interview.md` with resume bullets and interview
+  notes.
+- Zero v5.0 breaking changes; 19 total stable contracts.
+
 ## [v5.8.2] — 2026-06-16 — v6-prep-docs
 
 - README: "Roadmap" section added showing v5.6–v5.8 trains shipped and v6.0
@@ -22,8 +35,8 @@ Format: `[vX.Y.Z] — YYYY-MM-DD — short-description`
 ## [v5.8.1] — 2026-06-16 — v6-contract-preparation
 
 - docs/v6-contract-candidates.md: one-page assessment of 8 candidate surfaces
-  for v6.0.0 stable contract promotion. 2 promote, 1 conditional, 4 defer,
-  1 already stable. Budget: ≤5 new contracts, zero v5 breaking changes.
+  for v6.0.0 stable contract promotion. 2 promote, 5 defer, 1 already
+  stable. Budget: ≤5 new contracts, zero v5 breaking changes.
 - tests/test_v6_contract_candidates.py: 21 tests verifying coverage.
 
 ## [v5.8.0] — 2026-06-16 — cost-guardrails
@@ -114,8 +127,8 @@ Format: `[vX.Y.Z] — YYYY-MM-DD — short-description`
   `PATCH_FORMAT_PROMPT_SECTION` (injected for legacy patch path).
 - Added root portfolio hygiene files: `LICENSE`, `SECURITY.md`,
   `CONTRIBUTING.md`, `CHANGELOG.md`.
-- Updated README first screen to be portfolio-ready; demoted Homebrew to
-  "coming soon" rather than a required production install channel.
+- Updated README first screen to be portfolio-ready; PyPI/pipx remains the
+  primary install channel.
 - New `tests/test_system_prompt.py` (13 cases) and `tests/test_project_docs.py`.
 
 ## [v5.5.2] — 2025-11-XX — production-docs-cut

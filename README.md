@@ -4,12 +4,30 @@
 checkpointed file edits, rollback, audit logs, MCP tool integration, multi-provider
 LLM support, context compaction, and a live evaluation harness.
 
-The core loop never changes without your approval:
+```mermaid
+flowchart LR
+    U([User]) -->|natural language goal| CTX[Context Collector\nimport graph · git recency\ntoken budget]
+    CTX --> LOOP[Agent Loop\nchoose_tool · plan · step]
+    LOOP -->|patch proposal| DIFF[Diff Preview\nrich terminal]
+    DIFF -->|human approves| GATE[ToolCallGate\npolicy · approval]
+    GATE -->|write allowed| CHK[Checkpoint\nsha256 backup]
+    CHK --> APPLY[Apply Patch\nPatchApplier]
+    APPLY --> AUD[Audit Log\nhash-chain JSONL]
+    AUD -->|test command| RUN[run_command\nShellRunner · policy]
+    RUN --> LOOP
+    AUD -.->|any time| ROLL[Rollback\nRollbackManager]
+    GATE -->|read tool| LOOP
+    GATE -->|MCP write| MCPA[MCP Approval\nsingle-use grant]
+    MCPA --> LOOP
 
-```text
-collect context → propose patch → preview diff → human approval
-    → checkpoint → apply patch → audit log → rollback
+    style GATE fill:#d32f2f,color:#fff
+    style CHK  fill:#1565c0,color:#fff
+    style AUD  fill:#2e7d32,color:#fff
+    style ROLL fill:#e65100,color:#fff
 ```
+
+The approval gate (`ToolCallGate`) is structural — **no amount of prompt injection
+can bypass it**. Every write is checkpointed and audit-logged before execution.
 
 ## Reproducible demo: from bug report to tested commit
 
@@ -51,8 +69,6 @@ uv build
 pipx install dist/safecode_agent-*.whl
 ```
 
-Homebrew tap: coming soon. See [docs/install-update.md](docs/install-update.md) for the full install matrix.
-
 See [docs/install-update.md](docs/install-update.md) for the complete install matrix and release signing docs.
 
 See [docs/README.md](docs/README.md) for the full documentation index.
@@ -72,6 +88,47 @@ Historical release plans, audits, and version notes are indexed from [docs/READM
 - [Go: First Hour](docs/tutorials/go-first-hour.md)
 - [AI Shell: First Hour](docs/tutorials/ai-shell-first-hour.md) — `sac shell` [EXPERIMENTAL v4.9]
 - [Agent Run: First Hour](docs/tutorials/agent-run-first-hour.md) — `sac agent run` [EXPERIMENTAL v4.11-v4.12]
+
+## Why this is hard
+
+Building a coding agent that gives useful answers is easy. Building one where
+**nothing irreversible happens without the user's knowledge** is the hard part.
+
+| Challenge | What makes it hard | SafeCode's answer |
+|---|---|---|
+| **Policy gate** | Blocking the model from writing files without adding latency or false positives | `ToolCallGate` — structural check in Python, not a prompt instruction |
+| **Checkpoint + rollback** | Every write must be undoable, including mid-session and cross-session | `CheckpointManager` with sha256 pre-flight; `sac rollback --session <id>` undoes all session writes atomically |
+| **Audit hash chain** | Tamper-evident log the user can verify without trusting the agent | Append-only JSONL where each event hashes the previous; `AuditAnchorStore` outside the project root |
+| **MCP write approval** | MCP servers return arbitrary content that could be prompt-injected into writes | Classification gate (static, not server-supplied); single-use `ApprovalGrant` stored outside project root; write proposal never auto-executes |
+| **Trust mode safety** | `--full-auto` sounds like "no approval" but must still protect the user | 10-file guard + session rollback + command preview delay; cannot be persisted to config |
+| **Live evaluation** | Prompt changes are faith without measurement | `LiveEvalRunner` with 5 real coding fixtures; ratchet baseline prevents regression |
+| **Cost guardrails** | Users can accidentally spend $10 in one session | Token budget cap with 90%/100%/+10% logic; provider cost fallback; project config can only lower, never raise cap |
+| **Context compaction** | Long sessions lose earlier context without the user noticing | Automatic summarisation at 60% budget; archives raw observations to `.sac/sessions/` |
+
+## Comparison with Claude Code and opencode
+
+SafeCode Agent is a **safety-first local terminal agent**. Its design priority
+is correctness and reversibility, not speed or ecosystem breadth.
+
+| Feature | SafeCode Agent | Claude Code | opencode |
+|---|---|---|---|
+| **Primary focus** | Safety-first local runtime | Anthropic-hosted agent | Open-source multi-model agent |
+| **File writes** | Approval gate + checkpoint + audit (always) | Trust mode (auto or prompted) | Auto or prompted |
+| **Rollback** | Per-write checkpoint; session rollback atomic | `/undo` (last change) | Not documented |
+| **Audit trail** | SHA-256 hash-chain JSONL; tamper-evident | Not documented | Not documented |
+| **Policy** | 3 presets; project config can only tighten | Not exposed to users | Not exposed |
+| **MCP** | Read bridge + single-use write approval | Full MCP client | Plugin system |
+| **LLM providers** | Anthropic, OpenAI-compat, DeepSeek, mock | Anthropic (Claude) | Multi-model |
+| **Live eval** | 5 coding fixtures; ratchet baseline | Internal evals | Not documented |
+| **Cost guardrails** | Token cap + cost fallback + /budget | Usage shown | Not documented |
+| **Offline / no key** | Full mock mode; all tests pass with no key | Requires Anthropic key | Requires provider key |
+| **Install** | `pipx install safecode-agent` | `npm i -g @anthropic-ai/claude-code` | Various |
+| **IDE** | Terminal only (by design) | Terminal + VS Code + JetBrains | Terminal + IDE |
+
+**SafeCode Agent is the right tool when:** you want to understand and control
+exactly what the agent is doing to your files at every step — especially in
+codebases where accidental writes, secret leaks, or unreviewed changes are
+costly.
 
 ## Core Commands
 
@@ -633,11 +690,11 @@ See `docs/install-update.md` for signing and TestPyPI details.
 | v5.6.x | 3 | Agent quality: prompt engineering + live eval + golden demo | **Shipped** |
 | v5.7.x | 3 | Security depth: threat model review + subagent activation + sandbox promotion | **Shipped** |
 | v5.8.x | 3 | Cost guardrails + v6.0 contract preparation | **Shipped** |
-| **v6.0.0** | 1 | **Major contract cut** — trust modes, session rollback, cost cap promoted to stable. Zero v5.0 breaking changes. | **Next** |
+| **v6.0.0** | 1 | **Major contract cut** — trust modes and session rollback promoted to stable. Zero v5.0 breaking changes. | **Shipped** |
 
 See [docs/version-plans/v5.6-to-v5.8-product-roadmap.md](docs/version-plans/v5.6-to-v5.8-product-roadmap.md)
-for the full plan. See [docs/v6-contract-candidates.md](docs/v6-contract-candidates.md)
-for v6.0 candidate surfaces.
+for the completed v5.6-v5.8 plan. See [docs/v6-contract-candidates.md](docs/v6-contract-candidates.md)
+for the v6.0 promotion assessment.
 
 ## IDE and TUI Status (v3.9.x)
 

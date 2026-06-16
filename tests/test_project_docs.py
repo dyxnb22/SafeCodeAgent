@@ -86,7 +86,7 @@ class TestReadmeHomebrewLanguage:
     def test_homebrew_not_presented_as_primary_channel(self):
         text = self._readme()
         # Homebrew should not appear as a recommended install path in the first screen.
-        # "coming soon" or absence is acceptable; a brew install code block is not.
+        # Absence is preferred; a brew install code block is not.
         lines = text.splitlines()
         brew_block_active = False
         for line in lines:
@@ -97,6 +97,10 @@ class TestReadmeHomebrewLanguage:
                 assert "recommended" not in context, (
                     "Homebrew presented as recommended install path in README"
                 )
+
+    def test_readme_does_not_advertise_homebrew_soon(self):
+        text = self._readme().lower()
+        assert "homebrew tap: coming soon" not in text
 
     def test_readme_mentions_pipx(self):
         assert "pipx" in self._readme()

@@ -1,27 +1,34 @@
 # SafeCode Agent Final Status and Roadmap
 
-**Status:** current project baseline after `v5.8.2` (pre-v6.0.0 baseline).
+**Status:** current project baseline after `v6.0.0`.
 **Last updated:** 2026-06-16.
 
+> **Update (2026-06-16, v6.0.0):** v6.0.0 is the second major contract cut
+> after v5.0.0. Trust mode schema and session rollback are now stable contracts
+> (sections 18-19 of public-contracts.md). Zero v5.0 breaking changes. Cost
+> guardrails remain experimental until they have release-cycle evidence.
+>
 > **Update (2026-06-16, v5.8.2):** The v5.6.x agent quality train (prompt engineering,
 > live eval, golden demo) and v5.7.x security depth train (threat model review,
 > subagent activation, sandbox contract promotion) and v5.8.x cost/v6-prep train
-> are complete. Next: **v6.0.0 major contract cut**.
+> are complete.
 >
 > See [docs/v6-contract-candidates.md](v6-contract-candidates.md) for the v6.0
 > candidate assessment. See [version-plans/v5.6-to-v5.8-product-roadmap.md](version-plans/v5.6-to-v5.8-product-roadmap.md) for the complete train plan.
 >
-> **v5.8.2 is the pre-v6.0 baseline.** Terminal-only tool by design. 17 stable
-> contracts (sections 1-17 of public-contracts.md). Cost guardrails, live eval,
-> and golden demo added in v5.6-v5.8.
+> **v6.0.0 is the current stable-contract baseline.** Terminal-only tool by
+> design. 19 stable contracts (sections 1-19 of public-contracts.md). Cost
+> guardrails, live eval, and golden demo were added in v5.6-v5.8; trust modes
+> and session rollback were promoted in v6.0.0.
 
 ---
 
-## v5.8.2 Pre-v6.0 Baseline (2026-06-16)
+## v6.0.0 Stable Contract Baseline (2026-06-16)
 
-SafeCode Agent v5.8.2 is the pre-v6.0 baseline. PyPI (pipx) is the production
-install path. MCP tool bridge, trust modes, cost guardrails, and 17 stable
-contracts are complete.
+SafeCode Agent v6.0.0 is the stable-contract baseline. PyPI (pipx) is the
+production install path. MCP tool bridge, trust modes, session rollback, cost
+guardrails, and 19 stable contracts are complete. Cost guardrails remain
+experimental; trust modes and session rollback are stable.
 
 ### Distribution
 
@@ -30,6 +37,15 @@ contracts are complete.
 | PyPI (recommended) | `pipx install safecode-agent` | ✅ v5.5.0+ |
 | Source dev | `git clone … && uv sync` | ✅ always |
 | Offline wheel | `uv build && pipx install dist/<wheel>` | ✅ always |
+
+### v6.0.0 Promotions
+
+| Surface | Status |
+|---|---|
+| Trust mode schema (`suggest`, `auto-edit`, `full-auto`) | ✅ Stable (Section 18) |
+| `sac rollback --session <id>` | ✅ Stable (Section 19) |
+| `cost.max_tokens_per_session` | Deferred; remains experimental |
+| MCP native tool bridge schema | Deferred; remains experimental |
 
 ### MCP Integration (v5.4)
 
@@ -105,11 +121,10 @@ Codex CLI across all major dimensions:
 | **Remote / background agents** | Requires server infrastructure |
 | **Anthropic MCP server** | Reverses client direction; separate product |
 
-This document is the consolidated product description for SafeCode Agent through
-the v4.14–v4.18 usability trains. Both the post-v4.14 usability roadmap (8 versions)
-and the post-v4.16 shell UX roadmap (6 versions) are COMPLETED. 14 versions shipped
-across both trains. The v4.10-v4.12 roadmap and post-v4.12 consolidation plan are
-historical. No active forward plan at this time.
+The v4.14–v4.18 usability trains are historical and complete. Both the post-v4.14
+usability roadmap (8 versions) and the post-v4.16 shell UX roadmap (6 versions)
+shipped fully. The current product baseline is v6.0.0; older v4.x freeze notes
+below are retained only for release archaeology.
 
 ## Current Product Shape
 
@@ -258,11 +273,11 @@ branch. All 3 versions shipped:
 Both commands are pure read-only: no model, network, or shell; no mutation.
 All surfaces remain EXPERIMENTAL. No stable contract promoted.
 
-## Current Freeze Goal
+## Historical Freeze Note
 
 `main` is frozen at `v4.18.2` as a learning baseline and portfolio reference.
 The `dev/v4.19` branch baseline is now `v4.19.2`.
 
-No active forward plan at this time. Remaining work (RAG, embeddings, LangGraph,
-IDE surface, remote push/PR, agent hooks expansion) is deferred to a future
-branch and is NOT part of the current baseline.
+This section is historical. The current documented baseline is v6.0.0. Remaining
+out-of-scope work (RAG, embeddings, LangGraph, IDE surface, remote push/PR, and
+agent hooks expansion) remains deferred unless a new roadmap explicitly adopts it.

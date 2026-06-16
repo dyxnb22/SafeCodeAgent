@@ -772,3 +772,9 @@ Completed. Plan: `docs/version-plans/v4.20-to-v5.0-product-roadmap.md` (v4.25.x 
 | `v5.8.0` ✅ | `dev/v4.19` | `src/safecode/config.py`, `src/safecode/llm/cost.py`, `src/safecode/cli_shell.py`, `tests/test_cost_guardrails.py` | CostConfig model, budget cap (90% warning, 100% stop, 10% extension), cost fallback, /budget shell command. 27 tests pass. |
 | `v5.8.1` ✅ | `dev/v4.19` | `docs/v6-contract-candidates.md`, `tests/test_v6_contract_candidates.py` | v6.0 contract candidate assessment (8 surfaces, ≤5 budget, zero v5 breaking changes). 21 tests pass. |
 | `v5.8.2` ✅ | `dev/v4.19` | `README.md`, `docs/versioning-policy.md`, `docs/public-contracts.md`, `docs/project-final-status-and-roadmap.md` | v6.0 roadmap table, v6 budget in versioning policy, v6 candidate surfaces in public-contracts. Pre-v6 baseline. |
+
+## v6.0.0: Major Contract Cut
+
+| 版本 | 分支 | 主要入口 | 验收命令 / 结果 |
+|---|---|---|---|
+| `v6.0.0` ✅ | `dev/v4.19` | `pyproject.toml`, `src/safecode/__init__.py`, `README.md`, `docs/public-contracts.md`, `docs/versioning-policy.md`, `docs/v6-contract-candidates.md`, `docs/project-final-status-and-roadmap.md`, `docs/version-notes/v6.0.0-major-contract-cut.md` | Major contract cut: trust mode schema promoted to Section 18, session rollback promoted to Section 19, cost cap deferred, zero v5.0 breaking changes. |

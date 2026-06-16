@@ -1,7 +1,8 @@
-# v6.0.0 Stable Contract Candidates
+# v6.0.0 Stable Contract Candidate Assessment
 
-**Status:** Assessment document — not a commitment. Each candidate must meet
-evidence criteria before promotion.
+**Status:** Final v6.0.0 assessment. Trust mode schema and session rollback
+were promoted at v6.0.0; all other candidates were deferred or were already
+stable.
 
 ## Budget
 
@@ -72,13 +73,13 @@ v6.0.0 churn budget: **≤ 5 new stable contracts, zero v5.0 breaking changes**.
 | Field | Detail |
 |---|---|
 | First appeared | v5.8.0 |
-| Stage | **Tentative promote** |
+| Stage | **Defer** |
 | Current state | Config key added in v5.8.0. `CostConfig` model with default `None` (unlimited). Project config can lower but not raise. |
 | Rationale | The config key is simple, lowering-only, and has a clear safety role. However it has zero release-cycle evidence (same release as v5.8). |
 | Blocker | Needs at least one release cycle of evidence. |
 
-**Decision:** Conditonal promote — approve at v6.0.0 only if the key has been
-stable through v5.9.x (or sufficient real-world use). If no evidence, defer.
+**Decision:** Defer. Re-evaluate after at least one release cycle with real
+usage evidence.
 
 ---
 
@@ -131,11 +132,11 @@ stable through v5.9.x (or sufficient real-world use). If no evidence, defer.
 | 2 | `sac rollback --session <id>` | v5.1.0 | **Promote** |
 | 3 | MCP native tool bridge schema | v5.4.0 | **Defer** |
 | 4 | Git context API | v5.3.0 | **Defer** |
-| 5 | Cost cap config key | v5.8.0 | **Conditional promote** |
+| 5 | Cost cap config key | v5.8.0 | **Defer** |
 | 6 | Sandbox execution | v5.7.1 | Already stable |
 | 7 | Live eval harness | v5.6.1 | **Defer** |
 | 8 | Golden demo project | v5.6.2 | **Defer** (not a contract) |
 
-**Approved for v6.0 promote:** #1, #2, #5 (conditional), plus #6 already stable.
-**Total new stable contracts at v6.0:** 2–3 (within the ≤5 budget).
+**Approved for v6.0 promote:** #1 and #2, plus #6 already stable.
+**Total new stable contracts at v6.0:** 2 (within the ≤5 budget).
 **Zero v5.0 breaking changes:** confirmed — all candidates are additive.

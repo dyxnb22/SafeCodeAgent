@@ -185,6 +185,80 @@ explicitly overridden.
 
 ---
 
+### 18. Trust Mode Schema (v6.0.0)
+
+**Promoted surfaces:** `sac shell --auto-edit` and `sac shell --full-auto`
+CLI flags, plus the invariant table describing what auto-approves vs. what
+always requires approval.
+
+**Contract:** The trust mode session-scoped CLI surface is stable. The three
+modes (`suggest`, `auto-edit`, `full-auto`) and their approval behaviour
+will not change without a v7 major bump.
+
+**Stable invariants:**
+- `suggest` (default): every `edit_file`, `write_file`, and `run_command`
+  prompts the user. No auto-approval.
+- `auto-edit`: `edit_file` and `write_file` are auto-approved per call.
+  `run_command`, GitHub writes, and high-risk commands always prompt.
+- `full-auto`: `edit_file`, `write_file`, and policy-allowed `run_command`
+  are auto-approved. A 500 ms preview delay fires before each command;
+  Ctrl-C aborts. High-risk commands are always blocked.
+- **All modes:** checkpoints are created before every write. Audit events
+  are always recorded. `sac rollback --last` always undoes the most recent
+  write. `--full-auto` cannot be persisted to config.
+- The 10-file-per-session guard is active in `auto-edit` and `full-auto`:
+  after 10 file writes the session pauses for confirmation.
+
+**Not stable:** the `--command-delay-ms` flag value; trust root config
+(user-level only); ephemeral trust grants.
+
+**Source:** `src/safecode/cli_shell.py`, `src/safecode/agent/orchestrator.py`
+
+---
+
+### 19. Session Rollback Contract (v6.0.0)
+
+**Promoted surface:** `sac rollback --session <id>` — atomic undo of all
+file writes from one shell session in reverse checkpoint order.
+
+**Contract:** The session rollback command, its JSON output schema, and its
+invariants are stable.
+
+**Stable invariants:**
+- Rollback restores files in reverse checkpoint order (last write first).
+- Each file is restored from the pre-write sha256 backup stored by
+  `CheckpointManager`.
+- Rollback is atomic per file: if restoration of any file fails, the
+  command exits non-zero and reports which file failed; earlier restored
+  files are not re-modified.
+- Rollback after a `git commit` is refused by default without `--force-uncommit`.
+- An audit event (`rollback_completed` or `rollback_failed`) is written
+  for every rollback, whether or not `--session` is used.
+- `sac rollback --last` (single-checkpoint rollback) is unchanged.
+
+**JSON output** (`sac rollback --session <id> --json`):
+
+```json
+{
+  "command": "rollback",
+  "status": "ok",
+  "data": {
+    "session_id": "<id>",
+    "checkpoints_rolled_back": 3,
+    "files_restored": ["src/a.py", "src/b.py", "tests/test_a.py"],
+    "audit_event": "rollback_completed"
+  },
+  "error": null
+}
+```
+
+**Not stable:** the internal checkpoint file layout under `.sac/checkpoints/`;
+the `--force-uncommit` flag behaviour beyond refusal of post-commit rollback.
+
+**Source:** `src/safecode/checkpoint/rollback.py`, `src/safecode/cli_core.py`
+
+---
+
 ### What is NOT promoted at v5.0.0
 
 The following surfaces remain EXPERIMENTAL and may change without a major bump:
@@ -495,27 +569,26 @@ Default for unknown server: `denied`.
 
 ---
 
-## v6.0 Candidate Surfaces (v5.8.2)
+## v6.0.0 Contract Promotions
 
-The following surfaces are candidates for stable contract promotion at v6.0.0.
-They are NOT YET STABLE. They are documented here to mark intent and allow
-consumers to prepare.
+v6.0.0 is the second major contract cut after v5.0.0. Two new stable contracts
+are promoted. Zero v5.0 breaking changes.
 
-The v6.0.0 churn budget is **≤ 5 new stable contracts, zero v5.0 breaking
-changes**.
-
-| # | Surface | v5.x debut | v6.0 decision | Requirements |
-|---|---|---|---|---|
-| 1 | Trust mode schema (`auto_edit`, `full_auto`) | v5.1.0 | **Promote** | Snapshot, one release cycle evidence |
-| 2 | `sac rollback --session <id>` | v5.1.0 | **Promote** | Snapshot of result schema, invariants |
-| 3 | MCP native tool bridge schema | v5.4.0 | **Defer** | Naming convention needs ecosystem validation |
-| 4 | Git context API | v5.3.0 | **Defer** | Internal heuristic, not external API |
-| 5 | `cost.max_tokens_per_session` | v5.8.0 | **Conditional** | At least one release cycle of evidence |
-| 6 | Sandbox execution | v5.7.1 | Already stable | No action needed |
-| 7 | Live eval harness | v5.6.1 | **Defer** | Not a user-facing API |
-| 8 | Golden demo | v5.6.2 | **Defer** | Not a public contract |
+| # | Surface | v5.x debut | v6.0 decision |
+|---|---|---|---|
+| 1 | Trust mode schema (`auto_edit`, `full_auto`) | v5.1.0 | **Promoted → Section 18** |
+| 2 | `sac rollback --session <id>` | v5.1.0 | **Promoted → Section 19** |
+| 3 | MCP native tool bridge schema | v5.4.0 | Deferred |
+| 4 | Git context API | v5.3.0 | Deferred |
+| 5 | `cost.max_tokens_per_session` | v5.8.0 | Deferred (needs release cycle) |
+| 6 | Sandbox execution | v5.7.1 | Already stable (Section 17) |
+| 7 | Live eval harness | v5.6.1 | Deferred (not user-facing API) |
+| 8 | Golden demo | v5.6.2 | Deferred (not a contract) |
 
 Full assessment: `docs/v6-contract-candidates.md`
+
+**v6.0.0 churn budget result:** 2 new stable contracts (within ≤ 5 budget).
+Zero breaking changes to v5.0 or earlier stable contracts (sections 1–17).
 
 ---
 
