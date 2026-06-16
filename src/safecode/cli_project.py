@@ -248,6 +248,53 @@ def tools_inspect(name: str = typer.Argument(..., help="Tool name to inspect."))
     console.print(_Panel("\n".join(lines), title=f"[bold cyan]{tool.name}[/bold cyan]", expand=False))
 
 
+@index_app.command("build")
+def index_build(
+    force: bool = typer.Option(False, "--force", help="Re-embed all chunks even if unchanged."),
+    json_output: bool = typer.Option(False, "--json", help="Output result as JSON."),
+) -> None:
+    """[EXPERIMENTAL] Build or update the local embedding index."""
+    from safecode.index.embedding_store import EmbeddingStore
+    from safecode.cli_shared_json import CLIJSONResponse, render_json
+    project_root = Path.cwd()
+    sac_dir = project_root / ".sac"
+    store = EmbeddingStore(sac_dir)
+    files = [item.path for item in FileIndexer(project_root).index()]
+    result = store.build(files, project_root, force=force)
+    status = store.status()
+    if json_output:
+        print(render_json(CLIJSONResponse(command="index build", status="success", data={**result, **status.to_dict()})))
+        return
+    backend_label = f"[green]{status.model_id}[/green]" if status.is_semantic else "[yellow]null (keyword-only fallback)[/yellow]"
+    console.print(f"[bold]Embedding backend:[/bold] {backend_label}")
+    console.print(f"Files indexed : {result['files_indexed']}")
+    console.print(f"Chunks added  : {result['chunks_added']}")
+    console.print(f"Chunks skipped: {result['chunks_skipped']} (unchanged)")
+    console.print(f"Total chunks  : {status.total_chunks}")
+
+
+@index_app.command("status")
+def index_status(
+    json_output: bool = typer.Option(False, "--json", help="Output result as JSON."),
+) -> None:
+    """[EXPERIMENTAL] Show embedding index status."""
+    from safecode.index.embedding_store import EmbeddingStore
+    from safecode.cli_shared_json import CLIJSONResponse, render_json
+    sac_dir = Path.cwd() / ".sac"
+    status = EmbeddingStore(sac_dir).status()
+    if json_output:
+        print(render_json(CLIJSONResponse(command="index status", status="success", data=status.to_dict())))
+        return
+    if not status.exists:
+        console.print("[yellow]No embedding index found. Run: sac index build[/yellow]")
+        return
+    backend_label = f"[green]{status.model_id}[/green]" if status.is_semantic else "[yellow]null (keyword-only fallback)[/yellow]"
+    console.print(f"[bold]Backend :[/bold] {backend_label}")
+    console.print(f"Files   : {status.total_files}")
+    console.print(f"Chunks  : {status.total_chunks}")
+    console.print(f"Built   : {status.last_built or 'unknown'}")
+
+
 @index_app.command("files")
 def index_files() -> None:
     """List indexed files."""
