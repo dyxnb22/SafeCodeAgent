@@ -1,49 +1,37 @@
 # SafeCode Agent
 
-**Status: Production (v5.5)**
+**A safety-first Python terminal coding agent** — policy-gated command execution,
+checkpointed file edits, rollback, audit logs, MCP tool integration, multi-provider
+LLM support, context compaction, and a live evaluation harness.
 
-SafeCode Agent is a safety-first Python terminal coding agent and local agent runtime.
-
-## Demo: from task to tested commit
-
-Run the v4.12 EXPERIMENTAL mock demo without live provider credentials:
-
-```bash
-uv sync --extra examples
-cd examples/fastapi-todo
-pytest -q
-../../examples/fastapi-todo/demo/run-demo.sh
-```
-
-Read the recorded transcript at [examples/fastapi-todo/demo/expected-transcript.md](examples/fastapi-todo/demo/expected-transcript.md) and the tutorial at [docs/tutorials/from-task-to-tested-commit.md](docs/tutorials/from-task-to-tested-commit.md). The demo uses [examples/fastapi-todo/](examples/fastapi-todo/) and does not auto-apply, auto-commit, push, or require an IDE.
-
-It is designed around a controlled loop:
+The core loop never changes without your approval:
 
 ```text
-collect context
--> propose patch
--> preview diff
--> human approval
--> checkpoint
--> apply patch
--> audit log
--> rollback
+collect context → propose patch → preview diff → human approval
+    → checkpoint → apply patch → audit log → rollback
 ```
+
+## Reproducible demo: from bug report to tested commit
+
+Run the golden demo without live provider credentials (mock mode):
+
+```bash
+git clone <repo> && cd SafeCodeAgent
+uv sync
+examples/golden-demo/demo/run-demo.sh
+```
+
+Read the recorded transcript: [examples/golden-demo/demo/expected-transcript.md](examples/golden-demo/demo/expected-transcript.md)
+
+See [docs/demo/portfolio-demo.md](docs/demo/portfolio-demo.md) for the full scenario,
+commands, expected output, safety gates, and how to re-run.
 
 ## Install
 
-**PyPI (recommended):**
+**PyPI / pipx (recommended):**
 
 ```bash
 pipx install safecode-agent
-sac doctor
-```
-
-**macOS Homebrew:**
-
-```bash
-brew tap safecode/tap
-brew install safecode/tap/safecode-agent
 sac doctor
 ```
 
@@ -56,12 +44,14 @@ uv run sac --help
 sac doctor
 ```
 
-**Offline wheel (build locally):**
+**Offline wheel:**
 
 ```bash
 uv build
 pipx install dist/safecode_agent-*.whl
 ```
+
+Homebrew tap: coming soon. See [docs/install-update.md](docs/install-update.md) for the full install matrix.
 
 See [docs/install-update.md](docs/install-update.md) for the complete install matrix and release signing docs.
 

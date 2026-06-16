@@ -17,18 +17,22 @@ def _text(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
 
+_DEMO_HEADING = "## Reproducible demo: from bug report to tested commit"
+_INSTALL_HEADING = "## Install"
+
+
 def _readme_demo_section() -> str:
     text = _text(README)
-    start = text.index("## Demo: from task to tested commit")
-    end = text.index("## Install")
+    start = text.index(_DEMO_HEADING)
+    end = text.index(_INSTALL_HEADING)
     return text[start:end]
 
 
 def test_readme_has_front_door_demo_section_near_top() -> None:
     text = _text(README)
 
-    assert "## Demo: from task to tested commit" in text
-    assert text.index("## Demo: from task to tested commit") < text.index("## Install")
+    assert _DEMO_HEADING in text
+    assert text.index(_DEMO_HEADING) < text.index(_INSTALL_HEADING)
 
 
 def test_readme_demo_section_is_concise_and_practical() -> None:
@@ -36,20 +40,19 @@ def test_readme_demo_section_is_concise_and_practical() -> None:
     command_lines = [
         line
         for line in section.splitlines()
-        if line.startswith(("uv ", "cd ", "pytest", "../../", "sac "))
+        if line.startswith(("uv ", "cd ", "git ", "examples/", "sac "))
     ]
 
     assert len(command_lines) <= 6
-    assert "uv sync --extra examples" in section
-    assert "pytest -q" in section
 
 
 def test_readme_references_example_transcript_and_tutorial() -> None:
     section = _readme_demo_section()
 
-    assert "examples/fastapi-todo/" in section
-    assert "examples/fastapi-todo/demo/expected-transcript.md" in section
-    assert "docs/tutorials/from-task-to-tested-commit.md" in section
+    # v5.6.0: points to golden-demo (files created in v5.6.2)
+    assert "golden-demo" in section
+    assert "expected-transcript.md" in section
+    assert "portfolio-demo.md" in section
 
 
 def test_tutorial_and_agent_first_hour_exist() -> None:

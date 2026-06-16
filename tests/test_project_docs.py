@@ -1,0 +1,110 @@
+"""Tests for root-level project hygiene files (v5.6.0)."""
+
+from pathlib import Path
+
+import pytest
+
+_ROOT = Path(__file__).parent.parent
+
+
+class TestHygieneFilesExist:
+    def test_license_exists(self):
+        assert (_ROOT / "LICENSE").exists(), "LICENSE file missing"
+
+    def test_security_md_exists(self):
+        assert (_ROOT / "SECURITY.md").exists(), "SECURITY.md missing"
+
+    def test_contributing_md_exists(self):
+        assert (_ROOT / "CONTRIBUTING.md").exists(), "CONTRIBUTING.md missing"
+
+    def test_changelog_md_exists(self):
+        assert (_ROOT / "CHANGELOG.md").exists(), "CHANGELOG.md missing"
+
+
+class TestLicenseContent:
+    def test_license_is_non_empty(self):
+        text = (_ROOT / "LICENSE").read_text()
+        assert len(text) > 50
+
+    def test_license_contains_mit_or_copyright(self):
+        text = (_ROOT / "LICENSE").read_text().lower()
+        assert "mit" in text or "copyright" in text
+
+
+class TestSecurityMd:
+    def test_contains_security_model_section(self):
+        text = (_ROOT / "SECURITY.md").read_text()
+        assert "Security Model" in text or "security model" in text.lower()
+
+    def test_mentions_threat_model(self):
+        text = (_ROOT / "SECURITY.md").read_text()
+        assert "threat-model" in text or "threat model" in text.lower()
+
+    def test_mentions_approval(self):
+        text = (_ROOT / "SECURITY.md").read_text().lower()
+        assert "approval" in text
+
+
+class TestContributingMd:
+    def _text(self):
+        return (_ROOT / "CONTRIBUTING.md").read_text()
+
+    def test_has_dev_setup_section(self):
+        assert "setup" in self._text().lower()
+
+    def test_has_test_section(self):
+        assert "test" in self._text().lower()
+
+    def test_mentions_native_tool(self):
+        text = self._text().lower()
+        assert "native tool" in text or "nativetool" in text
+
+    def test_mentions_mock(self):
+        assert "mock" in self._text().lower()
+
+
+class TestChangelogMd:
+    def _text(self):
+        return (_ROOT / "CHANGELOG.md").read_text()
+
+    def test_has_unreleased_section(self):
+        assert "Unreleased" in self._text()
+
+    def test_has_v5_entry(self):
+        text = self._text()
+        assert "v5." in text
+
+    def test_changelog_is_non_empty(self):
+        assert len(self._text()) > 100
+
+
+class TestReadmeHomebrewLanguage:
+    def _readme(self):
+        return (_ROOT / "README.md").read_text()
+
+    def test_homebrew_not_presented_as_primary_channel(self):
+        text = self._readme()
+        # Homebrew should not appear as a recommended install path in the first screen.
+        # "coming soon" or absence is acceptable; a brew install code block is not.
+        lines = text.splitlines()
+        brew_block_active = False
+        for line in lines:
+            if "brew tap" in line or "brew install" in line:
+                # If it's in a code block, check surrounding context
+                context_start = max(0, lines.index(line) - 5)
+                context = "\n".join(lines[context_start : lines.index(line) + 3]).lower()
+                assert "recommended" not in context, (
+                    "Homebrew presented as recommended install path in README"
+                )
+
+    def test_readme_mentions_pipx(self):
+        assert "pipx" in self._readme()
+
+    def test_readme_links_demo(self):
+        # v5.6.0: README references golden-demo (directory created in v5.6.2)
+        text = self._readme()
+        assert "golden-demo" in text or "portfolio-demo" in text or "fastapi-todo" in text
+
+    def test_readme_shows_safety_loop(self):
+        text = self._readme()
+        assert "checkpoint" in text.lower() and "rollback" in text.lower()
