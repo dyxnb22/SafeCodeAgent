@@ -70,11 +70,11 @@ class TestLiveEvalFixtureFormat:
     def test_fixture_names_match_spec(self):
         names = {f.name for f in default_live_fixtures()}
         expected = {
-            "python-add-function",
-            "python-fix-failing-test",
-            "python-refactor-rename",
-            "go-add-handler",
-            "ts-fix-type-error",
+            "calculator-fix",
+            "docs-edit",
+            "multi-file-refactor",
+            "test-failure-repair",
+            "config-schema-migration",
         }
         assert names == expected
 
@@ -139,7 +139,7 @@ class TestLiveEvalRunner:
 class TestLiveEvalResultSchema:
     def _make_result(self, *, success: bool = True, error: str | None = None) -> LiveEvalResult:
         return LiveEvalResult(
-            fixture_name="python-add-function",
+            fixture_name="calculator-fix",
             success=success,
             turns_used=3,
             tool_calls=5,
@@ -175,7 +175,7 @@ class TestSnapshotIO:
     def test_save_and_load_roundtrip(self):
         results = [
             LiveEvalResult(
-                fixture_name="python-add-function",
+                fixture_name="calculator-fix",
                 success=True, turns_used=2, tool_calls=4,
                 redundant_reads=0, input_tokens=800, output_tokens=200,
                 wall_seconds=2.0,
@@ -186,7 +186,7 @@ class TestSnapshotIO:
             save_latest(results, path)
             loaded = load_results_json(path)
             assert len(loaded) == 1
-            assert loaded[0]["fixture_name"] == "python-add-function"
+            assert loaded[0]["fixture_name"] == "calculator-fix"
             assert loaded[0]["success"] is True
 
     def test_save_includes_schema_version(self):
@@ -212,10 +212,10 @@ class TestRatchetLogic:
 
     def test_ratchet_no_failure_when_still_passing(self):
         with tempfile.TemporaryDirectory() as tmp:
-            baseline = self._baseline(Path(tmp), "python-add-function", success=True)
+            baseline = self._baseline(Path(tmp), "calculator-fix", success=True)
             results = [
                 LiveEvalResult(
-                    fixture_name="python-add-function",
+                    fixture_name="calculator-fix",
                     success=True, turns_used=1, tool_calls=1,
                     redundant_reads=0, input_tokens=0, output_tokens=0,
                     wall_seconds=1.0,
@@ -225,10 +225,10 @@ class TestRatchetLogic:
 
     def test_ratchet_fails_when_passing_fixture_regresses(self):
         with tempfile.TemporaryDirectory() as tmp:
-            baseline = self._baseline(Path(tmp), "python-add-function", success=True)
+            baseline = self._baseline(Path(tmp), "calculator-fix", success=True)
             results = [
                 LiveEvalResult(
-                    fixture_name="python-add-function",
+                    fixture_name="calculator-fix",
                     success=False, turns_used=1, tool_calls=1,
                     redundant_reads=0, input_tokens=0, output_tokens=0,
                     wall_seconds=1.0,
@@ -237,14 +237,14 @@ class TestRatchetLogic:
             ]
             failures = check_ratchet(results, baseline)
             assert len(failures) == 1
-            assert "python-add-function" in failures[0]
+            assert "calculator-fix" in failures[0]
 
     def test_ratchet_no_failure_when_baseline_was_failing(self):
         with tempfile.TemporaryDirectory() as tmp:
-            baseline = self._baseline(Path(tmp), "python-add-function", success=False)
+            baseline = self._baseline(Path(tmp), "calculator-fix", success=False)
             results = [
                 LiveEvalResult(
-                    fixture_name="python-add-function",
+                    fixture_name="calculator-fix",
                     success=False, turns_used=1, tool_calls=1,
                     redundant_reads=0, input_tokens=0, output_tokens=0,
                     wall_seconds=1.0,
@@ -257,7 +257,7 @@ class TestRatchetLogic:
             baseline = Path(tmp) / "baseline.json"
             results = [
                 LiveEvalResult(
-                    fixture_name="python-add-function",
+                    fixture_name="calculator-fix",
                     success=False, turns_used=1, tool_calls=1,
                     redundant_reads=0, input_tokens=0, output_tokens=0,
                     wall_seconds=1.0,
@@ -270,13 +270,13 @@ class TestRenderLiveSummary:
     def test_render_shows_pass_count(self):
         results = [
             LiveEvalResult(
-                fixture_name="python-add-function",
+                fixture_name="calculator-fix",
                 success=True, turns_used=3, tool_calls=5,
                 redundant_reads=0, input_tokens=1000, output_tokens=200,
                 wall_seconds=3.0,
             ),
             LiveEvalResult(
-                fixture_name="go-add-handler",
+                fixture_name="test-failure-repair",
                 success=False, turns_used=6, tool_calls=8,
                 redundant_reads=1, input_tokens=2000, output_tokens=400,
                 wall_seconds=10.0,
@@ -304,3 +304,9 @@ class TestBaselineSnapshotExists:
     def test_baseline_has_schema_version(self):
         data = json.loads((_SNAPSHOT_DIR / "baseline.json").read_text())
         assert "schema_version" in data
+
+    def test_baseline_tracks_default_fixture_count(self):
+        data = json.loads((_SNAPSHOT_DIR / "baseline.json").read_text())
+        baseline_names = {item["fixture_name"] for item in data["results"]}
+        fixture_names = {fixture.name for fixture in default_live_fixtures()}
+        assert baseline_names == fixture_names

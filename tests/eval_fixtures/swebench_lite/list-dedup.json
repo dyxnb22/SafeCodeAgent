@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "instance_id": "safecode__list-dedup",
+  "problem_statement": "The dedup function removes duplicates but does not preserve the original order. Fix it so the first occurrence order is kept.",
+  "repo": {
+    "kind": "inline",
+    "files": {
+      "lists.py": "def dedup(values):\n    return list(set(values))\n",
+      "tests/test_lists.py": "from lists import dedup\n\n\ndef test_dedup_preserves_order():\n    assert dedup(['b', 'a', 'b', 'c', 'a']) == ['b', 'a', 'c']\n\n\ndef test_dedup_empty():\n    assert dedup([]) == []\n"
+    },
+    "setup_commands": []
+  },
+  "test_command": "python -m pytest tests/ -q",
+  "pass_condition": "exit_code_0",
+  "hints": "Track seen values while appending only the first occurrence."
+}

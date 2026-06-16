@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "instance_id": "safecode__date-format",
+  "problem_statement": "format_date returns None for invalid dates. Fix it to raise ValueError for invalid input while keeping valid formatting behavior.",
+  "repo": {
+    "kind": "inline",
+    "files": {
+      "dates.py": "from datetime import date\n\n\ndef format_date(value):\n    if not isinstance(value, date):\n        return None\n    return value.strftime('%Y-%m-%d')\n",
+      "tests/test_dates.py": "from datetime import date\n\nimport pytest\n\nfrom dates import format_date\n\n\ndef test_format_valid_date():\n    assert format_date(date(2026, 6, 16)) == '2026-06-16'\n\n\ndef test_invalid_input_raises_value_error():\n    with pytest.raises(ValueError):\n        format_date('2026-06-16')\n"
+    },
+    "setup_commands": []
+  },
+  "test_command": "python -m pytest tests/ -q",
+  "pass_condition": "exit_code_0",
+  "hints": "Raise ValueError when the input is not a datetime.date instance."
+}

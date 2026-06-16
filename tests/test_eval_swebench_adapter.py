@@ -390,7 +390,19 @@ class TestBuiltinFixtures:
 
     def test_fixture_files_are_valid(self) -> None:
         tasks = load_tasks_from_dir(self._FIXTURE_DIR)
-        assert len(tasks) >= 2
+        assert len(tasks) == 7
+
+    def test_fixture_ids_match_builtin_suite(self) -> None:
+        tasks = load_tasks_from_dir(self._FIXTURE_DIR)
+        assert {task.instance_id for task in tasks} == {
+            "safecode__calc-zero-div",
+            "safecode__config-missing-key",
+            "safecode__string-reverse",
+            "safecode__list-dedup",
+            "safecode__parse-int-edge",
+            "safecode__retry-logic",
+            "safecode__date-format",
+        }
 
     def test_all_fixtures_have_inline_repos(self) -> None:
         tasks = load_tasks_from_dir(self._FIXTURE_DIR)
@@ -431,9 +443,13 @@ class TestSWEBenchCLI:
         )
         assert result.exit_code == 0
 
-    def test_swebench_mode_with_valid_suite(self, tmp_path: Path) -> None:
+    def test_swebench_mode_with_valid_suite(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         # Write one valid task
         (tmp_path / "t1.json").write_text(json.dumps(_MINIMAL_TASK), encoding="utf-8")
+        monkeypatch.setattr(
+            "safecode.eval.swebench_adapter.save_report",
+            lambda report: tmp_path / "latest.json",
+        )
         from typer.testing import CliRunner
         from safecode.cli_ops import ops_app
         runner = CliRunner()

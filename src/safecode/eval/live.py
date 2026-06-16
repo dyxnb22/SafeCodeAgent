@@ -16,6 +16,7 @@ import os
 import shutil
 import tempfile
 import time
+import ast
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable
@@ -94,138 +95,163 @@ class LiveEvalResult:
 # ---------------------------------------------------------------------------
 
 
-def _python_add_function_fixture() -> LiveEvalFixture:
+def _calculator_fix_fixture() -> LiveEvalFixture:
     setup = {
-        "src/calc.py": "def add(a: int, b: int) -> int:\n    return a + b\n",
+        "src/calculator.py": "def add(a: int, b: int) -> int:\n    return a - b\n",
         "tests/test_calc.py": (
-            "from calc import add, multiply\n\n"
+            "from calculator import add\n\n"
             "def test_add():\n    assert add(2, 3) == 5\n\n"
-            "def test_multiply():\n    assert multiply(3, 4) == 12\n"
         ),
     }
 
     def success(root: Path) -> bool:
-        impl = root / "src" / "calc.py"
-        return impl.exists() and "multiply" in impl.read_text()
+        impl = root / "src" / "calculator.py"
+        if not impl.exists():
+            return False
+        tree = ast.parse(impl.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if (
+                isinstance(node, ast.FunctionDef)
+                and node.name == "add"
+                and any(isinstance(child, ast.Add) for child in ast.walk(node))
+            ):
+                return True
+        return False
 
     return LiveEvalFixture(
-        name="python-add-function",
+        name="calculator-fix",
         setup_files=setup,
-        goal="Add a multiply(a, b) function to src/calc.py so tests/test_calc.py passes.",
+        goal="Fix src/calculator.py so add(2, 3) returns 5 and tests/test_calc.py passes.",
         success_condition=success,
         max_turns=6,
     )
 
 
-def _python_fix_failing_test_fixture() -> LiveEvalFixture:
+def _docs_edit_fixture() -> LiveEvalFixture:
     setup = {
-        "src/greet.py": "def greet(name: str) -> str:\n    return f'Hello {name}'\n",
-        "tests/test_greet.py": (
-            "from greet import greet\n\n"
-            "def test_greet():\n    assert greet('Alice') == 'Hello, Alice!'\n"
-        ),
+        "README.md": "# Widget Service\n\nRun tests with pytest.\n",
+        "docs/usage.md": "## Usage\n\nStart the service with `python -m widget`.\n",
     }
 
     def success(root: Path) -> bool:
-        impl = root / "src" / "greet.py"
-        return impl.exists() and "Hello," in impl.read_text()
+        readme = root / "README.md"
+        usage = root / "docs" / "usage.md"
+        text = readme.read_text(encoding="utf-8") + "\n" + usage.read_text(encoding="utf-8")
+        return "SAFECODE_CONFIG" in text and "configuration" in text.lower()
 
     return LiveEvalFixture(
-        name="python-fix-failing-test",
+        name="docs-edit",
         setup_files=setup,
-        goal=(
-            "The test in tests/test_greet.py is failing. "
-            "Fix greet() in src/greet.py so the test passes."
-        ),
+        goal="Document the SAFECODE_CONFIG environment variable in the project docs.",
         success_condition=success,
         max_turns=6,
     )
 
 
-def _python_refactor_rename_fixture() -> LiveEvalFixture:
-    body = "def compute_total(items):\n    return sum(items)\n"
-    user_a = "from calc import compute_total\n\ndef report():\n    return compute_total([1,2,3])\n"
-    user_b = "from calc import compute_total\n\nresult = compute_total(range(5))\n"
+def _multi_file_refactor_fixture() -> LiveEvalFixture:
+    body = "def load_user(user_id):\n    return {'id': user_id}\n"
+    user_a = "from users import load_user\n\ndef render(user_id):\n    return load_user(user_id)['id']\n"
+    user_b = "from users import load_user\n\ndef audit(user_id):\n    return {'user': load_user(user_id)}\n"
     setup = {
-        "src/calc.py": body,
-        "src/report.py": user_a,
-        "src/batch.py": user_b,
+        "src/users.py": body,
+        "src/views.py": user_a,
+        "src/audit.py": user_b,
     }
 
     def success(root: Path) -> bool:
-        calc = (root / "src" / "calc.py").read_text()
-        report = (root / "src" / "report.py").read_text()
-        batch = (root / "src" / "batch.py").read_text()
-        return "sum_items" in calc and "sum_items" in report and "sum_items" in batch
+        files = [root / "src" / name for name in ("users.py", "views.py", "audit.py")]
+        texts = [p.read_text(encoding="utf-8") for p in files]
+        return all("fetch_user" in text for text in texts) and not any("load_user" in text for text in texts)
 
     return LiveEvalFixture(
-        name="python-refactor-rename",
+        name="multi-file-refactor",
         setup_files=setup,
         goal=(
-            "Rename compute_total to sum_items everywhere: "
-            "src/calc.py, src/report.py, and src/batch.py."
+            "Rename load_user to fetch_user everywhere, including imports and all call sites "
+            "in src/users.py, src/views.py, and src/audit.py."
         ),
         success_condition=success,
         max_turns=8,
     )
 
 
-def _go_add_handler_fixture() -> LiveEvalFixture:
-    main_go = (
-        'package main\n\nimport (\n\t"fmt"\n\t"net/http"\n)\n\n'
-        'func healthHandler(w http.ResponseWriter, r *http.Request) {\n'
-        '\tfmt.Fprintln(w, "ok")\n}\n\n'
-        'func main() {\n'
-        '\thttp.HandleFunc("/health", healthHandler)\n'
-        '\thttp.ListenAndServe(":8080", nil)\n}\n'
-    )
-    setup = {"main.go": main_go}
+def _test_failure_repair_fixture() -> LiveEvalFixture:
+    setup = {
+        "src/strings.py": "def title_case(value: str) -> str:\n    return value.upper()\n",
+        "tests/test_strings.py": (
+            "from strings import title_case\n\n"
+            "def test_title_case_words():\n"
+            "    assert title_case('hello world') == 'Hello World'\n"
+        ),
+    }
 
     def success(root: Path) -> bool:
-        text = (root / "main.go").read_text()
-        return "/ping" in text or "pingHandler" in text
+        impl = root / "src" / "strings.py"
+        text = impl.read_text(encoding="utf-8")
+        return ".title()" in text or "capitalize" in text
 
     return LiveEvalFixture(
-        name="go-add-handler",
+        name="test-failure-repair",
         setup_files=setup,
-        goal='Add a GET /ping handler to main.go that writes "pong" to the response.',
+        goal=(
+            "tests/test_strings.py has a clear assertion failure. "
+            "Fix title_case() in src/strings.py so the test passes."
+        ),
         success_condition=success,
         max_turns=6,
     )
 
 
-def _ts_fix_type_error_fixture() -> LiveEvalFixture:
-    ts_src = (
-        "interface User {\n  name: string;\n  age: number;\n}\n\n"
-        "function greetUser(user: User): string {\n"
-        "  return `Hello ${user.name}, you are ${user.years} years old`;\n"
-        "}\n"
-    )
-    setup = {"src/user.ts": ts_src}
+def _config_schema_migration_fixture() -> LiveEvalFixture:
+    setup = {
+        "src/settings.py": (
+            "DEFAULT_CONFIG = {'retries': 3, 'timeout': 10}\n\n"
+            "def load_config(overrides=None):\n"
+            "    data = dict(DEFAULT_CONFIG)\n"
+            "    if overrides:\n"
+            "        data.update(overrides)\n"
+            "    return data\n\n"
+            "def timeout_seconds(config):\n"
+            "    return config['timeout']\n"
+        ),
+        "tests/test_settings.py": (
+            "from settings import load_config, timeout_seconds\n\n"
+            "def test_load_config_mapping_compatibility():\n"
+            "    cfg = load_config({'timeout': 5})\n"
+            "    assert cfg['timeout'] == 5\n"
+            "    assert timeout_seconds(cfg) == 5\n"
+        ),
+    }
 
     def success(root: Path) -> bool:
-        text = (root / "src" / "user.ts").read_text()
-        return "user.age" in text and "user.years" not in text
+        impl = root / "src" / "settings.py"
+        text = impl.read_text(encoding="utf-8")
+        if "dataclass" not in text or "class" not in text:
+            return False
+        tree = ast.parse(text)
+        has_config_class = any(isinstance(node, ast.ClassDef) and "Config" in node.name for node in ast.walk(tree))
+        keeps_mapping_compat = "__getitem__" in text or "Mapping" in text or "asdict" in text
+        return has_config_class and keeps_mapping_compat
 
     return LiveEvalFixture(
-        name="ts-fix-type-error",
+        name="config-schema-migration",
         setup_files=setup,
         goal=(
-            "Fix the TypeScript type error in src/user.ts: "
-            "the User interface has 'age' but greetUser accesses 'user.years'."
+            "Migrate the dict-based config in src/settings.py to a dataclass while keeping "
+            "existing callers compatible with cfg['timeout'] and timeout_seconds(cfg)."
         ),
         success_condition=success,
-        max_turns=5,
+        max_turns=8,
     )
 
 
 def default_live_fixtures() -> list[LiveEvalFixture]:
     return [
-        _python_add_function_fixture(),
-        _python_fix_failing_test_fixture(),
-        _python_refactor_rename_fixture(),
-        _go_add_handler_fixture(),
-        _ts_fix_type_error_fixture(),
+        _calculator_fix_fixture(),
+        _docs_edit_fixture(),
+        _multi_file_refactor_fixture(),
+        _test_failure_repair_fixture(),
+        _config_schema_migration_fixture(),
     ]
 
 

@@ -1,5 +1,11 @@
 {
   "schema_version": 1,
-  "note": "Initial baseline — no fixtures have run yet. Ratchet will not fail until a passing run updates this file.",
-  "results": []
+  "note": "v6.6.1 fixture-count ratchet. Results are false until a live provider run promotes passing fixtures.",
+  "results": [
+    {"fixture_name": "calculator-fix", "success": false},
+    {"fixture_name": "docs-edit", "success": false},
+    {"fixture_name": "multi-file-refactor", "success": false},
+    {"fixture_name": "test-failure-repair", "success": false},
+    {"fixture_name": "config-schema-migration", "success": false}
+  ]
 }

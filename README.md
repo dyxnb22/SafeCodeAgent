@@ -583,10 +583,12 @@ SAFECODE_LIVE_TESTS=1 sac eval --mode swebench-lite \
 }
 ```
 
-**Honest baseline:** Mock provider passes 0/3 synthetic tasks (expected — mock
+**Honest baseline:** Mock provider passes 0/7 synthetic tasks (expected — mock
 generates no real patches). Real provider results: see
 [`docs/demo/swebench-eval-summary.md`](docs/demo/swebench-eval-summary.md) and
 [`tests/snapshots/swebench_lite/latest.json`](tests/snapshots/swebench_lite/latest.json).
+Methodology and benchmark caveats are documented in
+[`docs/demo/eval-methodology.md`](docs/demo/eval-methodology.md).
 
 ## GitHub PR Workflow (v6.4, Stable Contract #20)
 
