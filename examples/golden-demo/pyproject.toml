@@ -1,0 +1,8 @@
+[project]
+name = "golden-demo"
+version = "0.1.0"
+description = "SafeCode Agent golden demo — a broken calculator fixed by the agent."
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

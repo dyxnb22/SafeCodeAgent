@@ -5,6 +5,8 @@ Start here when you are unsure which document owns a topic.
 
 ## Start Here
 
+- [Golden Demo](../../examples/golden-demo/demo/expected-transcript.md): complete bug-to-tested-commit loop (read-only transcript).
+- [Portfolio Demo Overview](demo/portfolio-demo.md): the scenario, safety gates, and architecture notes.
 - [MVP User Guide](mvp-user-guide.md): first-run setup and common daily workflows.
 - [Command Reference](reference/commands.md): detailed command reference after the first run.
 - [Troubleshooting](troubleshooting.md): diagnostics, blocked commands, rollback, and recovery.

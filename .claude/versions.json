@@ -1,7 +1,7 @@
 {
   "project": "SafeCode Agent",
-  "current_implemented_tag": "v5.6.0",
-  "current_local_version": "v5.6.0",
+  "current_implemented_tag": "v5.6.2",
+  "current_local_version": "v5.6.2",
   "current_baseline": ".claude/skills/current/SKILL.md",
   "runtime_summary": ".claude/skills/shared/core-runtime.md",
   "version_index": "docs/version_implementation_matrix.md",
@@ -9,7 +9,7 @@
   "active_planning_roadmap": "docs/version-plans/v5.6-to-v5.8-product-roadmap.md",
   "extended_planning_roadmap": "docs/version-plans/v5.6-to-v5.8-product-roadmap.md",
   "scope_decision": "terminal-only tool; VS Code/JetBrains extension deliberately out of scope",
-  "freeze_note": "v5.5.2 is the first production release; PyPI + Homebrew distribution complete; next train is v5.6.x",
+  "freeze_note": "v5.6.2 completes the agent quality train: system prompt, live eval, golden demo. Next: v5.7.x security depth.",
   "previous_planning_roadmap": "docs/version-plans/v4.20-to-v5.0-product-roadmap.md",
   "readiness_audit": "docs/commercial-v1-readiness-audit-v3.11.x.md",
   "architecture_reference": "docs/product-commercialization-roadmap.md",
@@ -628,7 +628,9 @@
     "v5.5.0",
     "v5.5.1",
     "v5.5.2",
-    "v5.6.0"
+    "v5.6.0",
+    "v5.6.1",
+    "v5.6.2"
   ],
   "local_versions": [
     "v2.8.0",

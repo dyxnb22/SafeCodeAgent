@@ -5,12 +5,14 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v5.5.2
+# Current Baseline - v5.6.2
 
 ## Status
-Implemented. Git baseline: tag `v5.5.2`. Local working version: `v5.5.2`.
-v5.5.2 completes the production train: PyPI + Homebrew distribution, CI release
-job, production docs. First production release.
+Implemented. Git baseline: tag `v5.6.2`. Local working version: `v5.6.2`.
+v5.6.0 prompt engineering and portfolio hygiene (8-section SYSTEM_PROMPT,
+LICENSE, SECURITY.md, CONTRIBUTING.md, CHANGELOG.md). v5.6.1 live eval harness
+(5 real-provider fixtures, --mode live ratchet, CI job). v5.6.2 golden demo
+project (broken-fixable calculator, script, transcript, portfolio doc).
 
 ## Stage
 The v4.14–v4.18 usability trains are complete (14 versions shipped):
