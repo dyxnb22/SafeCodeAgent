@@ -124,7 +124,26 @@ The v5.0.0 contract churn budget:
 
 For v5.1.x and beyond, the same policy applies: minor releases may add
 experimental surfaces; major releases required for any breaking change to any
-of the sixteen stable contracts (sections 1–16).
+of the sixteen stable contracts (sections 1–16). As of v5.7.1, sandbox execution
+is promoted as the seventeenth stable contract (Section 17). As of v5.8.0, cost
+guardrails are added as experimental surfaces under a new ``cost`` config key.
+
+## v6.0 Contract Churn Budget
+
+The v6.0.0 contract churn budget:
+
+- **At most 5 new stable contracts** promoted from experimental (candidates
+  assessed in ``docs/v6-contract-candidates.md``).
+- **Zero breaking changes** to v5.0.0 stable contracts (sections 1–17 plus
+  the CLI JSON envelope and MCP read execution contracts).
+
+Candidates approved for promotion at v6.0.0:
+- Trust mode schema (``auto_edit``, ``full_auto``).
+- ``sac rollback --session <id>``.
+- ``cost.max_tokens_per_session`` (conditional on release-cycle evidence).
+
+All other experimental surfaces remain experimental through v6.0.0 unless
+the candidate assessment is updated with new evidence.
 
 ## Policy Changelog
 
@@ -137,3 +156,6 @@ of the sixteen stable contracts (sections 1–16).
 | v4.9.3 | v4.9 AI shell train closed. Zero new stable contracts added in v4.9.0–v4.9.3. No v5.0 scheduled. |
 | v5.0.0 | First major bump since v4.0.0. Four new stable contracts (native tool schemas, audit event types, write-tool rollback, sac shell loop). Zero v4.x breaking changes. |
 | **v5.7.1** | **Sandbox execution promoted to stable (Section 17). OTel/HTML report frozen experimental. Zero breaking changes to earlier stable contracts.** |
+| **v5.8.0** | **Cost guardrails added: ``CostConfig`` model, ``/budget`` shell command, merge rules. Experimental.** |
+| **v5.8.1** | **v6.0 contract candidate assessment published at ``docs/v6-contract-candidates.md``.** |
+| **v5.8.2** | **Final v6.0 pre-docs pass: roadmap table, v6.0 budget stated, candidates documented.** |

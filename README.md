@@ -626,6 +626,19 @@ Never tag a release while `pyproject.toml` or `safecode.__version__` still
 reports an older version. `sac release preflight` is the final local gate.
 See `docs/install-update.md` for signing and TestPyPI details.
 
+## Roadmap
+
+| Train | Versions | Theme | Status |
+|---|---|---|---|
+| v5.6.x | 3 | Agent quality: prompt engineering + live eval + golden demo | **Shipped** |
+| v5.7.x | 3 | Security depth: threat model review + subagent activation + sandbox promotion | **Shipped** |
+| v5.8.x | 3 | Cost guardrails + v6.0 contract preparation | **Shipped** |
+| **v6.0.0** | 1 | **Major contract cut** — trust modes, session rollback, cost cap promoted to stable. Zero v5.0 breaking changes. | **Next** |
+
+See [docs/version-plans/v5.6-to-v5.8-product-roadmap.md](docs/version-plans/v5.6-to-v5.8-product-roadmap.md)
+for the full plan. See [docs/v6-contract-candidates.md](docs/v6-contract-candidates.md)
+for v6.0 candidate surfaces.
+
 ## IDE and TUI Status (v3.9.x)
 
 **VS Code Extension (experimental):**

@@ -1,20 +1,24 @@
 # SafeCode Agent Final Status and Roadmap
 
-Status: current project baseline after `v5.5.2`.
-Last updated: 2026-06-16.
+**Status:** current project baseline after `v5.8.2` (pre-v6.0.0 baseline).
+**Last updated:** 2026-06-16.
 
-> **Update (2026-06-16, v5.5.2):** v5.4.x MCP depth train and v5.5.x production train complete
-> (43 total versions shipped from v4.19.0). SafeCode Agent is now distributed via PyPI
-> (`pipx install safecode-agent`) and Homebrew (`brew install safecode/tap/safecode-agent`).
-> Extended roadmap: `docs/version-plans/v5.6-to-v5.8-product-roadmap.md` (quality, security, v6 prep).
+> **Update (2026-06-16, v5.8.2):** The v5.6.x agent quality train (prompt engineering,
+> live eval, golden demo) and v5.7.x security depth train (threat model review,
+> subagent activation, sandbox contract promotion) and v5.8.x cost/v6-prep train
+> are complete. Next: **v6.0.0 major contract cut**.
 >
-> **v5.5.2 is the production baseline.** Terminal-only tool by design; IDE integration
-> (VS Code / JetBrains) deliberately deferred. PyPI + Homebrew distribution added in v5.5.x.
-> MCP integration at basic server parity (native tool bridge + write approval flow) added in v5.4.x.
+> See [docs/v6-contract-candidates.md](v6-contract-candidates.md) for the v6.0
+> candidate assessment. See [docs/version-plans/v5.6-to-v5.8-product-roadmap.md](
+> version-plans/v5.6-to-v5.8-product-roadmap.md) for the complete train plan.
+>
+> **v5.8.2 is the pre-v6.0 baseline.** Terminal-only tool by design. 17 stable
+> contracts (sections 1-17 of public-contracts.md). Cost guardrails, live eval,
+> and golden demo added in v5.6-v5.8.
 
 ---
 
-## v5.5.2 Production Baseline (2026-06-16)
+## v5.8.2 Pre-v6.0 Baseline (2026-06-16)
 
 SafeCode Agent v5.5.2 is production-distributed via PyPI and Homebrew, with full
 MCP tool bridge support.  All terminal-experience parity goals are complete.

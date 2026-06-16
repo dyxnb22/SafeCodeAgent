@@ -5,15 +5,14 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v5.7.2
+# Current Baseline - v5.8.2
 
 ## Status
-Implemented. Git baseline: tag `v5.7.2`. Local working version: `v5.7.2`.
-v5.6.0 prompt engineering and portfolio hygiene. v5.6.1 live eval harness.
-v5.6.2 golden demo project. v5.7.0 semi-annual threat model review and
-subagent activation (dispatch_parallel). v5.7.1 sandbox execution promoted
-to stable contract (Section 17), OTel/HTML frozen experimental. v5.7.2
-docs/contract polish (CHANGELOG, CONTRIBUTING, test coverage).
+Implemented. Git baseline: tag `v5.8.2`. Local working version: `v5.8.2`.
+v5.6.x agent quality (prompt, eval, demo). v5.7.x security depth (threat
+review, subagent activation, sandbox promotion). v5.8.x cost guardrails
+(CostConfig, /budget, budget cap) + v6.0 contract preparation (candidates,
+v6 budget, docs). Pre-v6.0 baseline.
 
 ## Stage
 The v4.14–v4.18 usability trains are complete (14 versions shipped):

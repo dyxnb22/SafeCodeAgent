@@ -8,6 +8,34 @@ Format: `[vX.Y.Z] — YYYY-MM-DD — short-description`
 
 ## Unreleased
 
+## [v5.8.2] — 2026-06-16 — v6-prep-docs
+
+- README: "Roadmap" section added showing v5.6–v5.8 trains shipped and v6.0
+  as next major contract cut. Links to docs/v6-contract-candidates.md.
+- docs/versioning-policy.md: v6.0 contract churn budget stated (≤5 new
+  contracts, zero v5.0 breaking changes). v5.8 changelog entries.
+- docs/public-contracts.md: "v6.0 Candidate Surfaces" section with 8
+  candidates and decisions.
+- docs/project-final-status-and-roadmap.md: updated to v5.8.2 pre-v6 baseline.
+- docs/version_implementation_matrix.md: 9 new v5.6–v5.8 rows.
+
+## [v5.8.1] — 2026-06-16 — v6-contract-preparation
+
+- docs/v6-contract-candidates.md: one-page assessment of 8 candidate surfaces
+  for v6.0.0 stable contract promotion. 2 promote, 1 conditional, 4 defer,
+  1 already stable. Budget: ≤5 new contracts, zero v5 breaking changes.
+- tests/test_v6_contract_candidates.py: 21 tests verifying coverage.
+
+## [v5.8.0] — 2026-06-16 — cost-guardrails
+
+- CostConfig model: max_tokens_per_session (None=unlimited, project can only
+  lower), fallback_on_usd (None=disabled).
+- Budget checking in cost.py: 90% warning, 100% stop, 10% extension.
+- /budget shell command showing token usage, cap, and estimated cost.
+- Config merge rule: project config cannot raise the token cap above user cap.
+- tests/test_cost_guardrails.py: 27 tests (budget, fallback, config merge,
+  rendering).
+
 ## [v5.7.2] — 2026-06-16 — docs-and-contract-polish
 
 - Extended test_project_docs.py with CHANGELOG content checks (v5.x section,

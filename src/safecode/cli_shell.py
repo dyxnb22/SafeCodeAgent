@@ -220,6 +220,39 @@ def _slash_cost(project_root: Path) -> str:
         return f"Cost estimate unavailable: {exc}"
 
 
+def _slash_budget(project_root: Path) -> str:
+    """Show session token usage, estimated cost, and cap (v5.8.0)."""
+    try:
+        from safecode.config import SafeCodeConfig
+        from safecode.llm.cost import SessionCostAccumulator, render_budget_summary
+
+        config = SafeCodeConfig.load(project_root)
+        sac_dir = project_root / config.sac_dir
+        cap = config.cost.max_tokens_per_session
+
+        # Sum all known session cost files
+        sessions_dir = sac_dir / "sessions"
+        from safecode.llm.cost import TokenUsage
+        total = TokenUsage()
+        if sessions_dir.exists():
+            for cost_file in sessions_dir.glob("*/cost.json"):
+                try:
+                    usage = SessionCostAccumulator(sac_dir, cost_file.parent.name).load()
+                    if usage:
+                        total = total + usage
+                except Exception:
+                    pass
+
+        summary = render_budget_summary(total, cap)
+        if cap is not None:
+            pct = total.total_tokens / cap * 100 if cap > 0 else 0
+            if pct >= 90:
+                summary += "\n⚠  Budget warning: 90%+ used."
+        return summary
+    except Exception as exc:
+        return f"Budget info unavailable: {exc}"
+
+
 def _session_edit_summary(project_root: Path, session_id: str) -> str:
     """Render a file-tree-style summary of edits from the session journal (v5.2.1)."""
     try:
@@ -605,6 +638,9 @@ def _handle_slash_command(
 
     if name == "/cost":
         return _slash_cost(project_root), "cost", False
+
+    if name == "/budget":
+        return _slash_budget(project_root), "budget", False
 
     if name == "/task":
         return _slash_task(project_root), "task", False

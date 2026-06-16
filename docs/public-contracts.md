@@ -495,6 +495,30 @@ Default for unknown server: `denied`.
 
 ---
 
+## v6.0 Candidate Surfaces (v5.8.2)
+
+The following surfaces are candidates for stable contract promotion at v6.0.0.
+They are NOT YET STABLE. They are documented here to mark intent and allow
+consumers to prepare.
+
+The v6.0.0 churn budget is **≤ 5 new stable contracts, zero v5.0 breaking
+changes**.
+
+| # | Surface | v5.x debut | v6.0 decision | Requirements |
+|---|---|---|---|---|
+| 1 | Trust mode schema (`auto_edit`, `full_auto`) | v5.1.0 | **Promote** | Snapshot, one release cycle evidence |
+| 2 | `sac rollback --session <id>` | v5.1.0 | **Promote** | Snapshot of result schema, invariants |
+| 3 | MCP native tool bridge schema | v5.4.0 | **Defer** | Naming convention needs ecosystem validation |
+| 4 | Git context API | v5.3.0 | **Defer** | Internal heuristic, not external API |
+| 5 | `cost.max_tokens_per_session` | v5.8.0 | **Conditional** | At least one release cycle of evidence |
+| 6 | Sandbox execution | v5.7.1 | Already stable | No action needed |
+| 7 | Live eval harness | v5.6.1 | **Defer** | Not a user-facing API |
+| 8 | Golden demo | v5.6.2 | **Defer** | Not a public contract |
+
+Full assessment: `docs/v6-contract-candidates.md`
+
+---
+
 ## Experimental Surfaces
 
 ### v5.7.1 Contract Decisions

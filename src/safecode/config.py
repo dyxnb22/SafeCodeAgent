@@ -77,6 +77,13 @@ class TrustConfig(BaseModel):
     roots: list[TrustRoot] = Field(default_factory=list)
 
 
+class CostConfig(BaseModel):
+    """Per-session cost guardrails (v5.8.0)."""
+
+    max_tokens_per_session: int | None = None  # None = unlimited
+    fallback_on_usd: float | None = None  # None = disabled
+
+
 class SafeCodeConfig(BaseModel):
     """Runtime configuration with safe defaults."""
 
@@ -91,6 +98,7 @@ class SafeCodeConfig(BaseModel):
     hooks: HookConfig = Field(default_factory=HookConfig)
     llm: LLMConfig = Field(default_factory=LLMConfig)
     trust: TrustConfig = Field(default_factory=TrustConfig)
+    cost: CostConfig = Field(default_factory=CostConfig)
 
     @classmethod
     def load(cls, project_root: Path) -> "SafeCodeConfig":
@@ -171,7 +179,12 @@ class SafeCodeConfig(BaseModel):
             f'provider = "{self.llm.provider}"\n'
             f'model = "{self.llm.model}"\n'
             f'base_url = "{self.llm.base_url}"\n'
-            f'api_key = "{self.llm.api_key or ""}"\n'
+            f'api_key = "{self.llm.api_key or ""}"\n\n'
+            "[cost]\n"
+            "# Max tokens per session (unset = unlimited). Project config can only lower.\n"
+            + (f"max_tokens_per_session = {self.cost.max_tokens_per_session}\n" if self.cost.max_tokens_per_session is not None else "# max_tokens_per_session =\n")
+            + "# Cost in USD at which to switch to fallback provider (unset = disabled).\n"
+            + (f"fallback_on_usd = {self.cost.fallback_on_usd}\n" if self.cost.fallback_on_usd is not None else "# fallback_on_usd =\n")
         )
 
 
@@ -314,6 +327,26 @@ def merge_trusted_config(user_config: SafeCodeConfig, project_config: SafeCodeCo
     )
     merged.llm = user_config.llm.model_copy(deep=True)
     merged.trust = user_config.trust.model_copy(deep=True)
+
+    # Cost: project config can only lower (more restrictive) the cap.
+    user_cap = user_config.cost.max_tokens_per_session
+    project_cap = project_config.cost.max_tokens_per_session
+    if user_cap is None:
+        merged.cost.max_tokens_per_session = project_cap  # project can set cap
+    elif project_cap is None:
+        merged.cost.max_tokens_per_session = user_cap  # project cap unlimited = keep user cap
+    else:
+        merged.cost.max_tokens_per_session = min(user_cap, project_cap)
+
+    user_fallback = user_config.cost.fallback_on_usd
+    project_fallback = project_config.cost.fallback_on_usd
+    if user_fallback is None:
+        merged.cost.fallback_on_usd = project_fallback
+    elif project_fallback is None:
+        merged.cost.fallback_on_usd = user_fallback
+    else:
+        merged.cost.fallback_on_usd = min(user_fallback, project_fallback)
+
     return merged
 
 
