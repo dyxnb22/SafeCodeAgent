@@ -1,13 +1,17 @@
 """Deterministic mock LLM client for local development and tests."""
 
-from typing import Iterator
+from typing import Any, Iterator
 
 from safecode.agent.schemas import (
     AgentAnswer,
+    AgentNativeToolCallResponse,
     AgentPatchResponse,
     AgentPlanResponse,
+    AgentStopForUserResponse,
     AgentToolIntentResponse,
+    RecoverableContractFailure,
 )
+from safecode.agent.native_tools import NativeToolCall, NativeToolSpec
 from safecode.agent.tools import ToolIntent
 from safecode.llm.stream import StreamChunk
 
@@ -196,3 +200,94 @@ REPLACE:
 *** End Patch""",
             explanation="Mock patch response for the failing-test repair demo.",
         )
+
+
+# ---------------------------------------------------------------------------
+# ScriptedNativeToolLLMClient — v6.34 native-tool mock coverage
+# ---------------------------------------------------------------------------
+
+#: Type for one scripted response from the mock model.
+#: - list[NativeToolCall]: model wants to invoke these tools next.
+#: - AgentStopForUserResponse: model is done / needs approval.
+#: - RecoverableContractFailure: transient failure (loop may retry once).
+ScriptedResponse = (
+    list[NativeToolCall]
+    | AgentStopForUserResponse
+    | RecoverableContractFailure
+)
+
+
+class ScriptedNativeToolLLMClient(MockLLMClient):
+    """Mock LLM client that drives the native-tool path via a scripted call sequence.
+
+    ``choose_tool_native`` is called once per model "turn" (initial call + each
+    follow-up after tool results are fed back).  The ``script`` list maps 1:1
+    to those calls in order.
+
+    When the script is exhausted, subsequent calls return a default
+    ``AgentStopForUserResponse`` so the loop always terminates cleanly.
+
+    Usage::
+
+        from safecode.agent.native_tools import NativeToolCall
+        from safecode.agent.schemas import AgentStopForUserResponse
+
+        script = [
+            # Turn 0: model reads a file
+            [NativeToolCall(tool_name="read_file", input={"path": "src/foo.py"}, call_id="c1")],
+            # Turn 1: after seeing the file, model stops for approval
+            AgentStopForUserResponse(reason="patch_ready", message="I will now propose a patch."),
+        ]
+        client = ScriptedNativeToolLLMClient(script)
+        loop = AgentLoop(project_root=tmp_path, llm_client=client)
+        result = loop.native_step("fix the bug")
+    """
+
+    def __init__(self, script: list[ScriptedResponse]) -> None:
+        self._script = list(script)
+        self._call_count = 0
+        self.recorded_calls: list[dict[str, Any]] = []  # introspection in tests
+
+    def choose_tool_native(
+        self,
+        goal: str,
+        context: dict[str, Any],
+        tool_specs: list[NativeToolSpec],
+        *,
+        step: int = 0,
+        conversation_history: list[dict] | None = None,
+    ) -> list[AgentNativeToolCallResponse] | AgentStopForUserResponse | RecoverableContractFailure:
+        self.recorded_calls.append({
+            "goal": goal,
+            "step": step,
+            "call_index": self._call_count,
+            "context_keys": list(context.keys()),
+        })
+
+        if self._call_count >= len(self._script):
+            # Script exhausted — return a clean stop so the loop always terminates.
+            return AgentStopForUserResponse(
+                reason="script_exhausted",
+                message="ScriptedNativeToolLLMClient: no more scripted responses.",
+            )
+
+        response = self._script[self._call_count]
+        self._call_count += 1
+
+        if isinstance(response, (AgentStopForUserResponse, RecoverableContractFailure)):
+            return response
+
+        # Convert list[NativeToolCall] → list[AgentNativeToolCallResponse]
+        return [
+            AgentNativeToolCallResponse(
+                tool_name=call.tool_name,
+                input=call.input,
+                call_id=call.call_id or f"scripted_{self._call_count}_{i}",
+            )
+            for i, call in enumerate(response)
+        ]
+
+    @property
+    def native_call_count(self) -> int:
+        """How many times choose_tool_native was called."""
+        return self._call_count
