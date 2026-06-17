@@ -249,6 +249,15 @@ class AgentLoop:
             )
             return AgentStepResult(state=saved, observation=saved.last_observation)
 
+        # v6.24: LLM-backed conversation compaction when buffer is long.
+        if conversation is not None:
+            _COMPACT_THRESHOLD = 12  # turns before attempting LLM summary
+            if conversation.turn_count() > _COMPACT_THRESHOLD:
+                try:
+                    conversation.compact_with_llm(self.llm_client)
+                except Exception:
+                    pass  # fail-soft: keep existing buffer
+
         # v6.7.1: pass conversation-mentioned files for context bonus
         conv_files = conversation.mentioned_files() if conversation else None
         context = self.context_collector.collect(query=state.goal, conversation_files=conv_files)
@@ -1270,13 +1279,21 @@ class AgentLoop:
         from safecode.agent.approval_tier import ApprovalTier, classify_proposal
         tier = classify_proposal(edit_result.proposal, self.config)
 
-        if tier == ApprovalTier.AUTO and self.auto_edit:
+        # v6.26: full_auto also auto-applies CONFIRM tier (not just AUTO).
+        # GATE tier always stops for approval regardless of mode.
+        auto_apply_condition = (
+            (tier == ApprovalTier.AUTO and (self.auto_edit or self.full_auto))
+            or (tier == ApprovalTier.CONFIRM and self.full_auto)
+        )
+        if auto_apply_condition:
             # Apply immediately — checkpoint + audit still happen inside apply().
             try:
                 orch = AgentOrchestrator(self.project_root, llm_client=self.llm_client)
                 apply_result = orch.apply(edit_result.proposal)
+                tier_label = tier.value
                 observation = (
-                    f"Auto-applied patch (tier=auto): {', '.join(patch_files)}. "
+                    f"Auto-applied patch (tier={tier_label}, full_auto={self.full_auto}): "
+                    f"{', '.join(patch_files)}. "
                     f"Checkpoint {apply_result.checkpoint.checkpoint_id} created. "
                     "Run 'sac rollback --last' to undo."
                 )

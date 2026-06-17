@@ -1,4 +1,4 @@
-"""ConversationBuffer — persistent, bounded multi-turn conversation history (v6.7.0).
+"""ConversationBuffer — persistent, bounded multi-turn conversation history (v6.7.0+).
 
 Stores user/assistant/tool messages across shell turns so that
 ``choose_tool_native()`` receives full conversation history instead of
@@ -8,8 +8,12 @@ Safety:
 - All content is passed through ``redact_secrets()`` before writing to disk.
 - Buffer is capped at ``_MAX_TURNS`` round-trip pairs (user + assistant).
   When the cap is exceeded the oldest ``_COMPRESS_BATCH`` turns are replaced
-  with a single compact summary so the context window stays manageable.
+  with an LLM-generated summary (v6.24) or a string-based fallback.
 - Never raises on read/write failures — all I/O errors return empty state.
+
+v6.24: ``compact_with_llm(llm_client)`` generates a structured summary that
+preserves goals, file paths, key decisions, and rejected approaches instead
+of a verbatim text dump.
 """
 
 from __future__ import annotations
@@ -116,6 +120,71 @@ class ConversationBuffer:
             return
         self._compress_oldest_turns(force=True)
         self._persist()
+
+    def compact_with_llm(self, llm_client: object) -> bool:
+        """Compact the oldest ``_COMPRESS_BATCH`` turns using an LLM summary.
+
+        Returns True if compaction happened, False if skipped (too few turns or
+        LLM call failed — string-based fallback fires in that case).
+        """
+        user_count = sum(1 for m in self._messages if m.get("role") == "user")
+        if user_count <= _COMPRESS_BATCH:
+            return False
+
+        # Find the boundary covering the first _COMPRESS_BATCH user turns.
+        boundary = 0
+        users_seen = 0
+        for i, msg in enumerate(self._messages):
+            if msg.get("role") == "user":
+                users_seen += 1
+                if users_seen >= _COMPRESS_BATCH:
+                    boundary = i + 1
+                    break
+        if boundary <= 0:
+            return False
+
+        old_block = self._messages[:boundary]
+
+        # Build a compact transcript for the LLM prompt.
+        transcript_lines: list[str] = []
+        for msg in old_block:
+            role = msg.get("role", "?")
+            snippet = str(msg.get("content", ""))[:600]
+            transcript_lines.append(f"{role.upper()}: {snippet}")
+        transcript = "\n".join(transcript_lines)
+
+        prompt = (
+            "You are summarising an earlier part of a coding assistant conversation so it "
+            "can be compressed without losing important context.\n\n"
+            "Produce a concise structured summary covering:\n"
+            "1. The user's stated goals and constraints\n"
+            "2. Files read, modified, or discussed (include exact paths)\n"
+            "3. Decisions made and approaches tried\n"
+            "4. Approaches rejected and why\n"
+            "5. Open questions or unresolved issues\n\n"
+            "Be specific. Include file paths and symbol names. No filler text.\n\n"
+            f"<earlier_conversation>\n{transcript}\n</earlier_conversation>"
+        )
+
+        try:
+            from safecode.agent.schemas import AgentAnswer
+            result = llm_client.ask(prompt, {})  # type: ignore[union-attr]
+            if not isinstance(result, AgentAnswer) or not result.content:
+                raise ValueError("empty summary")
+            summary_text = redact_secrets(result.content)
+        except Exception:
+            # Fall back to string-based compression.
+            self._compress_oldest_turns(force=True)
+            self._persist()
+            return True  # compaction still happened
+
+        self._messages = self._messages[boundary:]
+        self._messages.insert(0, {
+            "role": "assistant",
+            "content": f"[LLM-compressed summary of earlier conversation]\n{summary_text}",
+        })
+        self._persist()
+        return True
 
     # ------------------------------------------------------------------
     # Compression
