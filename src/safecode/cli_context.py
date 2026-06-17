@@ -89,9 +89,9 @@ def context_explain(
 
     # --- Budget metadata ---
     try:
-        from safecode.context.budget import ContextBudget
+        from safecode.context.budget import effective_context_budget
 
-        budget = ContextBudget.from_max_chars(config.max_context_chars)
+        budget = effective_context_budget(config)
         console.rule("[bold blue]Budget Metadata[/bold blue]")
         console.print(f"  Max bytes:   {budget.max_bytes:,}")
         console.print(f"  Max tokens:  {budget.max_tokens:,}" if budget.max_tokens else "  Max tokens:  n/a")

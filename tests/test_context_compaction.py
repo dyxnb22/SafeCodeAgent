@@ -200,3 +200,19 @@ class TestAgentLoopCompaction:
         loop.native_step("test goal")
         # No tool calls were dispatched, so observations = []
         assert loop._session_observations == []
+
+    def test_compactor_uses_model_context_profile(self, tmp_path):
+        from safecode.agent.loop import AgentLoop
+        from safecode.agent.schemas import AgentAnswer
+
+        class _LLM:
+            def ask(self, question: str, context: dict):
+                return AgentAnswer(content="summary")
+
+        loop = AgentLoop(tmp_path, llm_client=_LLM())
+        loop.config.llm.provider = "deepseek"
+        loop.config.llm.model = "deepseek-v4-flash"
+        compactor = loop._get_compactor("sess-model")
+
+        assert compactor.max_context_tokens == 64_000
+        assert compactor.threshold_ratio == 0.60

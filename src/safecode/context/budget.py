@@ -6,6 +6,9 @@ import math
 from dataclasses import dataclass, field
 from typing import Any
 
+if False:  # pragma: no cover - typing only without runtime import cycle
+    from safecode.config import SafeCodeConfig
+
 # B4 fix: prose ratio was 4 (optimistic); corrected to 3.5 for mixed content.
 # Code content is denser, so a separate constant provides a tighter estimate.
 TOKEN_CHAR_RATIO = 3.5
@@ -22,6 +25,58 @@ class ContextBudget:
     @classmethod
     def from_max_chars(cls, max_chars: int) -> "ContextBudget":
         return cls(max_bytes=max_chars, max_tokens=math.ceil(max_chars / TOKEN_CHAR_RATIO))
+
+    @classmethod
+    def from_model_profile(cls, profile: "ModelContextProfile") -> "ContextBudget":
+        max_tokens = profile.safe_input_tokens
+        return cls(max_bytes=math.floor(max_tokens * TOKEN_CHAR_RATIO), max_tokens=max_tokens)
+
+
+@dataclass(frozen=True)
+class ModelContextProfile:
+    """Approximate context-window profile for model-aware context budgets."""
+
+    model_id: str
+    context_window_tokens: int
+    safe_input_ratio: float = 0.70
+    compact_threshold_ratio: float = 0.60
+
+    @property
+    def safe_input_tokens(self) -> int:
+        return int(self.context_window_tokens * self.safe_input_ratio)
+
+    @classmethod
+    def infer(cls, provider: str, model_id: str) -> "ModelContextProfile | None":
+        provider_l = provider.lower()
+        model_l = model_id.lower()
+        if provider_l == "mock":
+            return None
+        if "deepseek" in provider_l or "deepseek" in model_l:
+            return cls(model_id=model_id, context_window_tokens=64_000)
+        if "claude" in model_l or provider_l == "anthropic":
+            return cls(model_id=model_id, context_window_tokens=200_000)
+        if "gpt-4.1" in model_l:
+            return cls(model_id=model_id, context_window_tokens=128_000)
+        if "gpt-4o" in model_l or provider_l in {"openai", "openai-compatible"}:
+            return cls(model_id=model_id, context_window_tokens=128_000)
+        return None
+
+
+def effective_context_budget(config: "SafeCodeConfig") -> ContextBudget:
+    """Return explicit or model-aware context budget.
+
+    ``max_context_chars`` remains an override for tests and small local configs.
+    The built-in default of 40k chars is treated as a compatibility fallback;
+    when a known non-mock model is configured, the model profile can choose a
+    larger safe input budget.
+    """
+    explicit_default = 40_000
+    if config.max_context_chars != explicit_default:
+        return ContextBudget.from_max_chars(config.max_context_chars)
+    profile = ModelContextProfile.infer(config.llm.provider, config.llm.model)
+    if profile is None:
+        return ContextBudget.from_max_chars(config.max_context_chars)
+    return ContextBudget.from_model_profile(profile)
 
 
 @dataclass(frozen=True)

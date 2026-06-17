@@ -5,7 +5,13 @@ from __future__ import annotations
 from pathlib import Path
 
 from safecode.config import SafeCodeConfig
-from safecode.context.budget import ContextBudget, ContextBudgetPacker, estimate_tokens_from_bytes
+from safecode.context.budget import (
+    ContextBudget,
+    ContextBudgetPacker,
+    ModelContextProfile,
+    effective_context_budget,
+    estimate_tokens_from_bytes,
+)
 from safecode.context.collector import ContextCollector
 from safecode.context.selector import ContextSelector, SelectedContextSource
 
@@ -55,6 +61,59 @@ def test_context_collector_adds_budget_metadata(tmp_path: Path) -> None:
     assert context["context_budget"]["bytes_used"] <= 35
     assert context["context_budget"]["sources"]
     assert context["context_budget"]["truncation_notes"]
+
+
+def test_model_context_profile_infers_known_windows() -> None:
+    deepseek = ModelContextProfile.infer("deepseek", "deepseek-v4-flash")
+    claude = ModelContextProfile.infer("anthropic", "claude-sonnet-4")
+
+    assert deepseek is not None
+    assert deepseek.context_window_tokens == 64_000
+    assert deepseek.safe_input_tokens == 44_800
+    assert claude is not None
+    assert claude.context_window_tokens == 200_000
+
+
+def test_effective_context_budget_respects_explicit_override() -> None:
+    config = SafeCodeConfig(max_context_chars=35)
+    config.llm.provider = "deepseek"
+    config.llm.model = "deepseek-v4-flash"
+
+    budget = effective_context_budget(config)
+
+    assert budget.max_bytes == 35
+    assert budget.max_tokens == 10
+
+
+def test_effective_context_budget_uses_model_profile_for_default_budget() -> None:
+    config = SafeCodeConfig()
+    config.llm.provider = "deepseek"
+    config.llm.model = "deepseek-v4-flash"
+
+    budget = effective_context_budget(config)
+
+    assert budget.max_tokens == 44_800
+    assert budget.max_bytes > config.max_context_chars
+
+
+def test_effective_context_budget_keeps_mock_default() -> None:
+    config = SafeCodeConfig()
+
+    budget = effective_context_budget(config)
+
+    assert budget.max_bytes == 40_000
+
+
+def test_context_collector_uses_model_aware_default_budget(tmp_path: Path) -> None:
+    config = SafeCodeConfig()
+    config.llm.provider = "deepseek"
+    config.llm.model = "deepseek-v4-flash"
+    (tmp_path / "README.md").write_text("public text\n", encoding="utf-8")
+
+    context = ContextCollector(tmp_path, config).collect()
+
+    assert context["context_budget"]["max_tokens"] == 44_800
+    assert context["context_budget"]["max_bytes"] > 40_000
 
 
 def test_context_selector_returns_ranked_sources_with_reasons(tmp_path: Path) -> None:

@@ -37,11 +37,21 @@ class _BudgetMixin:
         """Return or lazily create the ContextCompactor for this session."""
         if self._compactor is None:
             from safecode.context.compaction import ContextCompactor
+            from safecode.context.budget import ModelContextProfile
+
+            profile = ModelContextProfile.infer(self.config.llm.provider, self.config.llm.model)
+            max_context_tokens = (
+                profile.context_window_tokens
+                if profile is not None
+                else self.config.max_context_chars // 4
+            )
+            threshold_ratio = profile.compact_threshold_ratio if profile is not None else 0.60
             self._compactor = ContextCompactor(
                 self.llm_client,
                 self.project_root,
                 session_id,
-                max_context_tokens=self.config.max_context_chars // 4,
+                threshold_ratio=threshold_ratio,
+                max_context_tokens=max_context_tokens,
             )
         return self._compactor
 
