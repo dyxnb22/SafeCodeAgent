@@ -1,18 +1,18 @@
 # SafeCode Agent
 
-**A safety-first Python terminal coding agent** — policy-gated command execution,
-checkpointed file edits, rollback, audit logs, MCP tool integration, multi-provider
-LLM support, diagnostics-aware context, project hooks, context compaction, and
-a live evaluation harness.
+**A safety-first Python terminal coding agent.**  
+Policy-gated writes · SHA-256 checkpoint + rollback · Hash-chain audit log · Multi-provider LLM support · Conversation REPL · Live evaluation harness.
+
+> Terminal-only by design. No IDE plugin, no desktop app — just `sac` in your shell.
 
 ```mermaid
 flowchart LR
-    U([User]) -->|natural language goal| CTX[Context Collector\nimport graph · git recency\ntoken budget]
+    U([User]) -->|natural language| CTX[Context Collector\ngit recency · token budget]
     CTX --> LOOP[Agent Loop\nchoose_tool · plan · step]
-    LOOP -->|patch proposal| DIFF[Diff Preview\nrich terminal]
-    DIFF -->|human approves| GATE[ToolCallGate\npolicy · approval]
-    GATE -->|write allowed| CHK[Checkpoint\nsha256 backup]
-    CHK --> APPLY[Apply Patch\nPatchApplier]
+    LOOP -->|patch proposal| DIFF[Diff Preview\nRich panels per file]
+    DIFF -->|human approves| GATE[ToolCallGate\npolicy · approval tier]
+    GATE -->|write allowed| CHK[Checkpoint\nSHA-256 backup]
+    CHK --> APPLY[Apply Patch]
     APPLY --> AUD[Audit Log\nhash-chain JSONL]
     AUD -->|test command| RUN[run_command\nShellRunner · policy]
     RUN --> LOOP
@@ -27,860 +27,268 @@ flowchart LR
     style ROLL fill:#e65100,color:#fff
 ```
 
-The approval gate (`ToolCallGate`) is structural — **no amount of prompt injection
-can bypass it**. Every write is checkpointed and audit-logged before execution.
+The approval gate (`ToolCallGate`) is **structural** — no amount of prompt injection can bypass it.  
+Every write is checkpointed and audit-logged before execution.
+
+---
 
 ## Reproducible demo: from bug report to tested commit
 
-Run the golden demo without live provider credentials (mock mode):
-
 ```bash
-git clone <repo> && cd SafeCodeAgent
-uv sync
+git clone <repo> && cd SafeCodeAgent && uv sync
 examples/golden-demo/demo/run-demo.sh
+# → recorded transcript at examples/golden-demo/demo/expected-transcript.md
 ```
 
-Read the recorded transcript: [examples/golden-demo/demo/expected-transcript.md](examples/golden-demo/demo/expected-transcript.md)
+Full scenario, commands, and expected output: [docs/demo/portfolio-demo.md](docs/demo/portfolio-demo.md).
 
-See [docs/demo/portfolio-demo.md](docs/demo/portfolio-demo.md) for the full scenario,
-commands, expected output, safety gates, and how to re-run.
-
-For a more realistic multi-file service example, run:
-
+Real-world example (Arrow parser exception-boundary bug from a public GitHub issue):
 ```bash
-examples/realistic-demo/demo/run-demo.sh
+examples/real-world-demo/demo/run-demo.sh
 ```
 
-**Real-world example:** see
-[`examples/real-world-demo/`](examples/real-world-demo/) for an Arrow parser
-exception-boundary bug based on a public GitHub issue, with a reproducer script,
-demo transcript, and SWE-bench-Lite-shaped fixture.
+---
 
 ## Install
 
-**PyPI / pipx (recommended):**
-
 ```bash
-pipx install safecode-agent
-sac doctor
+pipx install safecode-agent   # PyPI
+sac doctor                    # verify setup
 ```
 
-**Source dev:**
-
 ```bash
-git clone <repo>
-uv sync
+git clone <repo> && uv sync   # source dev
 uv run sac --help
-sac doctor
 ```
 
-**Offline wheel:**
+See [docs/install-update.md](docs/install-update.md) for the full install matrix.
 
-```bash
-uv build
-pipx install dist/safecode_agent-*.whl
-```
-
-See [docs/install-update.md](docs/install-update.md) for the complete install matrix and release signing docs.
-
-See [docs/README.md](docs/README.md) for the full documentation index.
-
-Primary docs:
-- [MVP User Guide](docs/mvp-user-guide.md) for a complete first run.
-- [Install and Update](docs/install-update.md) for install, update, TestPyPI, signing, and release checks.
-- [Public Contracts](docs/public-contracts.md), [Providers](docs/providers.md), and [Versioning Policy](docs/versioning-policy.md) for stable surfaces and configuration.
-- [Current Status and Roadmap](docs/project-final-status-and-roadmap.md) for the current product baseline.
-- [Why SafeCode](docs/why-safecode.md), [Comparison](docs/compare.md), [Troubleshooting](docs/troubleshooting.md), and [Context Budgets](docs/context-budgets.md) for product and operating references.
-
-Historical release plans, audits, and version notes are indexed from [docs/README.md](docs/README.md).
-
-**Per-stack tutorials**:
-- [Python: First Hour](docs/tutorials/python-first-hour.md)
-- [TypeScript: First Hour](docs/tutorials/typescript-first-hour.md)
-- [Go: First Hour](docs/tutorials/go-first-hour.md)
-- [AI Shell: First Hour](docs/tutorials/ai-shell-first-hour.md) — `sac shell` [EXPERIMENTAL v4.9]
-- [Agent Run: First Hour](docs/tutorials/agent-run-first-hour.md) — `sac agent run` [EXPERIMENTAL v4.11-v4.12]
+---
 
 ## Why this is hard
 
-Building a coding agent that gives useful answers is easy. Building one where
-**nothing irreversible happens without the user's knowledge** is the hard part.
-
 | Challenge | What makes it hard | SafeCode's answer |
 |---|---|---|
-| **Policy gate** | Blocking the model from writing files without adding latency or false positives | `ToolCallGate` — structural check in Python, not a prompt instruction |
-| **Checkpoint + rollback** | Every write must be undoable, including mid-session and cross-session | `CheckpointManager` with sha256 pre-flight; `sac rollback --session <id>` undoes all session writes atomically |
-| **Audit hash chain** | Tamper-evident log the user can verify without trusting the agent | Append-only JSONL where each event hashes the previous; `AuditAnchorStore` outside the project root |
-| **MCP write approval** | MCP servers return arbitrary content that could be prompt-injected into writes | Classification gate (static, not server-supplied); single-use `ApprovalGrant` stored outside project root; write proposal never auto-executes |
-| **Trust mode safety** | `--full-auto` sounds like "no approval" but must still protect the user | 10-file guard + session rollback + command preview delay; cannot be persisted to config |
-| **Live evaluation** | Prompt changes are faith without measurement | `LiveEvalRunner` with real provider runs, 5 coding fixtures, and ratchet baseline |
-| **Diagnostics context** | The model needs the current failure, not stale file snippets | Context collector can include bounded pytest/tsc/go diagnostics before proposing a patch |
-| **Project hooks** | Teams expect pre-command, post-edit, and post-test automation | `before_command`, `after_edit`, `after_test`, and `after_apply` hooks share command policy and audit events |
-| **Cost guardrails** | Users can accidentally spend $10 in one session | Token budget cap with 90%/100%/+10% logic; provider cost fallback; project config can only lower, never raise cap |
-| **Context compaction** | Long sessions lose earlier context without the user noticing | Automatic summarisation at 60% budget; archives raw observations to `.sac/sessions/` |
+| **Policy gate** | Blocking the model from writing files without latency or false positives | `ToolCallGate` — structural Python check, not a prompt instruction |
+| **Checkpoint + rollback** | Every write must be undoable cross-session | `CheckpointManager` with SHA-256 pre-flight; `sac rollback --session <id>` undoes all writes atomically |
+| **Audit hash chain** | Tamper-evident log the user can verify without trusting the agent | Append-only JSONL where each event hashes the previous; anchor stored outside project root |
+| **MCP write approval** | MCP servers can inject arbitrary content into writes | Static classification gate; single-use `ApprovalGrant` outside project root; write never auto-executes |
+| **Trust mode safety** | `--full-auto` sounds like "no approval" but must protect the user | 10-file guard + dirty-tree guard + per-tier approval logic; GATE-tier always stops |
+| **Context compaction** | Long sessions lose earlier context silently | LLM-generated structured summary at turn 12+; raw observations archived to `.sac/sessions/` |
+| **Live evaluation** | Prompt changes are faith without measurement | `LiveEvalRunner` with real DeepSeek runs; 28 coding fixtures; ratchet baseline |
+| **Cost guardrails** | Users can accidentally spend $10 in one session | Token budget cap; provider cost fallback; `/budget` command |
+| **Dirty-tree guard** | Agent overwrites user's uncommitted changes | Orchestrator checks target-file dirty status; blocks silent overwrites |
+| **Search quality** | Multi-file refactor requires finding all call sites | `search_symbol` (ripgrep + AST); `find_references` (Jedi Python); `grep_files` (regex) |
 
-## Comparison with Claude Code and opencode
+---
 
-SafeCode Agent is a **safety-first local terminal agent**. Its design priority
-is correctness and reversibility, not speed or ecosystem breadth.
+## Comparison with opencode and Claude Code
 
 | Feature | SafeCode Agent | Claude Code | opencode |
 |---|---|---|---|
-| **Primary focus** | Safety-first local runtime | Anthropic-hosted agent | Open-source multi-model agent |
-| **File writes** | Approval gate + checkpoint + audit (always) | Trust mode (auto or prompted) | Auto or prompted |
-| **Rollback** | Per-write checkpoint; session rollback atomic | `/undo` (last change) | Not documented |
+| **Primary focus** | Safety-first local terminal | Anthropic-hosted agent | Open-source multi-model |
+| **File writes** | Approval gate + checkpoint + audit (always) | Trust mode | Auto or prompted |
+| **Rollback** | Per-write checkpoint; session rollback atomic | `/undo` last change | Not documented |
 | **Audit trail** | SHA-256 hash-chain JSONL; tamper-evident | Not documented | Not documented |
-| **Policy** | 3 presets; project config can only tighten | Not exposed to users | Not exposed |
-| **MCP** | Read bridge + single-use write approval | Full MCP client | Plugin system |
-| **LLM providers** | Anthropic, OpenAI-compat, DeepSeek, mock | Anthropic (Claude) | Multi-model |
-| **Live eval** | 5 coding fixtures; ratchet baseline | Internal evals | Not documented |
-| **Cost guardrails** | Token cap + cost fallback + /budget | Usage shown | Not documented |
-| **Offline / no key** | Full mock mode; all tests pass with no key | Requires Anthropic key | Requires provider key |
+| **Dirty-tree guard** | Blocks silent overwrite of user changes | Not documented | Not documented |
+| **Context compaction** | LLM summary at turn 12+; archives raw observations | `/compact` (summarise) | Not documented |
+| **Symbol search** | ripgrep + AST kind labeling + Jedi references | Built-in tools | Built-in tools |
+| **Plan / Build mode** | `--mode plan` (read-only) / `--mode build` | Not exposed | Plan / Act |
+| **LLM providers** | Anthropic, OpenAI-compat, DeepSeek, mock | Anthropic only | Multi-model |
+| **Live eval** | 28 inline fixtures + DeepSeek API pass rate | Internal evals | Not documented |
+| **Offline / no key** | Full mock mode; all 6000+ tests pass keyless | Requires key | Requires key |
 | **Install** | `pipx install safecode-agent` | `npm i -g @anthropic-ai/claude-code` | Various |
 | **IDE** | Terminal only (by design) | Terminal + VS Code + JetBrains | Terminal + IDE |
 
-**SafeCode Agent is the right tool when:** you want to understand and control
-exactly what the agent is doing to your files at every step — especially in
-codebases where accidental writes, secret leaks, or unreviewed changes are
-costly.
+---
 
-## Core Commands
+## Eval results (DeepSeek v4-flash, 2026-06-17)
 
-**AI Shell (v6.19, EXPERIMENTAL):**
-```bash
-cd myproject && sac shell                    # intent-routed shell
-sac shell --agentic --mode plan              # read-only planning tools
-sac shell --auto-edit --mode build           # auto-apply low-risk file edits
-```
-The shell accepts natural-language questions and slash commands (`/status`, `/overview`,
-`/mode`, `/history`, `/apply`, `/commit`, `/debug`, `/help`, `/exit`). In default
-suggest mode, mutation paths require explicit confirmation. In `--auto-edit` and
-`--full-auto`, SafeCode can execute approved low-friction actions while preserving
-checkpoint, audit, dirty-tree guard, and rollback.
-See [docs/tutorials/ai-shell-first-hour.md](docs/tutorials/ai-shell-first-hour.md).
+28 inline coding fixtures, real API calls, isolated temp workspace per fixture:
 
-**Trust Modes (Stable Contract #18):**
-
-| Mode | Command | What auto-approves | Still requires approval |
-|---|---|---|---|
-| `suggest` (default) | `sac shell` | Nothing — every edit/command prompts | All writes and commands |
-| `auto-edit` | `sac shell --auto-edit` | `edit_file`, `write_file` | `run_command`, GitHub writes |
-| `full-auto` | `sac shell --full-auto` | `edit_file`, `write_file`, `run_command` (within policy) | High-risk commands, GitHub writes |
-
-All modes: checkpoints created before every write; `sac rollback --last` always undoes.
-Full-auto prints a command preview and waits 500 ms (configurable via `--command-delay-ms`)
-before executing — press Ctrl-C to abort a specific command. Cannot be persisted.
-
-```bash
-sac shell --auto-edit                        # auto-apply file edits; still prompt for commands
-sac shell --full-auto                        # auto-apply edits AND commands (policy still gates)
-sac shell --full-auto --command-delay-ms 0   # zero delay (for scripting/CI)
-sac shell --agentic --mode plan              # read-only planning mode
-```
-
-Plan/Build mode keeps the terminal mental model explicit: `plan` registers only
-read/search/reference tools; `build` restores the normal approval flow.
-
-**Context Intelligence (v5.3, EXPERIMENTAL):**
-
-SafeCode Agent now automatically pre-loads context relevant to your task:
-
-- **Import-graph seeding:** when your task mentions a file (`edit src/auth/login.py`),
-  SafeCode traces its first-degree imports and pre-loads up to 5 related files
-  so the agent starts with the right context, not just keyword matches.
-- **Git-aware context:** recent commits, files changed since your branch diverged
-  from `main`, and high-churn files are injected into every session automatically.
-- **Context compaction:** when accumulated tool results exceed 60% of the context
-  budget, the model summarises what it has learned so far and archives the raw
-  observations to `.sac/sessions/`. Long sessions no longer lose earlier context.
-
-```
-[Context compacted: ~3200 → ~600 tokens (12 observations archived)]
-```
-
-**MCP Integration (v5.4, EXPERIMENTAL):**
-
-Add third-party MCP servers (e.g., `sqlite`, `brave-search`) in `.sac/mcp.toml`:
-
-```toml
-[servers.sqlite]
-command = "uvx mcp-server-sqlite --db-path ./data.db"
-scope = "read_only"       # or "write_proposal_required" to allow write tools
-enabled = true
-```
-
-MCP read tools are bridged into the agent's native tool list automatically.
-Tool names are prefixed `mcp_<server>_<tool>` to avoid collisions with built-ins.
-Write tools (scope="write_proposal_required") require approval before execution.
-
-```bash
-sac mcp tools                         # list configured MCP tools from config
-sac mcp list-native                   # list MCP tools registered with the agent [EXPERIMENTAL]
-sac mcp call-readonly <srv> <tool>    # invoke a read-only MCP tool directly
-sac mcp execute <srv> <tool> --grant-id <id>  # one-shot approved write (requires grant) [EXPERIMENTAL]
-sac mcp doctor [server]               # check binary path, scope, lifecycle PID [EXPERIMENTAL]
-sac mcp start <server>                # start a stdio MCP server process [EXPERIMENTAL]
-sac mcp stop <server>                 # stop a stdio MCP server process [EXPERIMENTAL]
-```
-
-All MCP tool outputs pass through `redact_secrets()` before model context.
-Write operations require an explicit approval grant — never auto-executed.
-
-**Terminal agent utilities (v6.20-v6.23, EXPERIMENTAL):**
-
-```bash
-sac lsp status
-sac lsp diagnostics --json
-sac session list
-sac session export <session-id> --sanitize
-sac format run --check
-sac tools list --include-mcp --include-user --json
-```
-
-SafeCode can also read user-declared tool metadata from `.sac/tools.toml`. These
-tools are discoverable and auditable first; arbitrary user commands are not
-auto-executed by default.
-
-**Shell Display (v5.2, EXPERIMENTAL):**
-
-The shell prompt shows turn count, task status, and cost estimate:
-```
-sac[3 · task:open · 2i · ~$0.02]>
-```
-
-Slash commands for display and tracking:
-- `/cost` — session token count and estimated cost (`anthropic · claude-sonnet-4-6`)
-- `/history` — recent turns with intent labels
-- `/tools` — registered native tools with approval flags
-
-Write-tool diffs show a compact header: `[+12 / -4 lines]  src/auth/login.py`
-
-Long `run_command` output (>40 lines) is collapsed: first 5 + `--- [N lines hidden] ---` + last 5.
-
-```bash
-sac init                            # [v4.15+] guided first-run: provider, key, model, policy (recommended)
-sac setup                           # first-time: write .sac/config.toml (hidden, still callable)
-sac setup --wizard                  # interactive wizard: walks provider/model/policy (hidden)
-sac quickstart                      # guided first-run: detects stack, shows demo, prints next steps
-sac ask "这个项目是什么？"
-sac edit "给 FastAPI 项目添加 /health 接口"
-sac apply
-sac rollback --last
-sac commit                          # [EXPERIMENTAL] commit files touched by CURRENT task only
-sac branch new <name>               # [EXPERIMENTAL] create/switch local branch without force/reset
-sac diff --task                     # [EXPERIMENTAL] show applied + pending task changes
-sac memory show                     # [EXPERIMENTAL] show redacted project memory
-sac memory pin <path>               # [EXPERIMENTAL] keep a file considered for context
-sac memory unpin <path>             # [EXPERIMENTAL] remove a pinned file
-sac memory add-note "text"          # [EXPERIMENTAL] add a non-secret project/task note
-sac memory clear --project --yes    # [EXPERIMENTAL] clear one memory scope
-sac debug last-failure              # [EXPERIMENTAL] summarize the latest redacted failure
-sac debug bundle --out bundle.tgz   # [EXPERIMENTAL] export redacted debug metadata, no source
-sac audit query --task <task-id>    # [EXPERIMENTAL] read-only verified audit filtering
-sac resume                          # [EXPERIMENTAL] recover an open/interrupted task safely
-sac fix                             # run last failing test, propose a repair patch
-sac fix --test-command "go test ./..."  # override test command
-sac fix --watch                     # [EXPERIMENTAL] one approval-gated test-fix loop step
-sac fix --watch --max-iterations 5  # [EXPERIMENTAL] cap proposals for the current task
-sac fix --watch --rerun-suite all   # [EXPERIMENTAL] rerun profile suites through policy
-sac fix --timeout-seconds 60        # [EXPERIMENTAL] override test/suite command timeout
-sac run "git status --short" --yes
-sac history                         # show recent audit events
-sac history --task <task-id>        # [EXPERIMENTAL] filter by task id
-sac doctor
-sac version
-```
-
-**Local Git delivery (v4.5, EXPERIMENTAL):**
-```bash
-sac diff --task                     # read-only task diff; includes pending patch when present
-sac commit --message-from-task      # local commit; stages only CURRENT task files
-sac commit --include-task-summary   # include task iteration trail in the commit body
-sac branch new fix/auth-regression  # create and switch to a new local branch
-```
-
-`sac apply` and `sac commit` include a dirty-tree guard. They refuse unrelated
-tracked or staged changes by default, ignore untracked files outside touched
-directories, and block untracked files inside touched directories. Use
-`--allow-unrelated-changes` only when you have inspected those unrelated
-changes. If a committed apply is later rolled back, `sac rollback --last`
-refuses by default and suggests `git revert <sha>`; `--force-uncommit` is the
-explicit dangerous opt-in. These v4.5 commands are local only and never push.
-
-**Project memory (v4.6, EXPERIMENTAL):**
-```bash
-sac memory show
-sac memory show --task --task-id <task-id>
-sac memory show --recent-failures
-sac memory show --pinned
-sac memory pin src/app.py
-sac memory unpin src/app.py
-sac memory add-note "health route must stay synchronous"
-sac memory clear --pinned --yes
-```
-
-Unified memory uses `.sac/memory/project.md`, `.sac/memory/recent-failures.jsonl`,
-`.sac/memory/recent-edits.jsonl`, `.sac/memory/pinned-files.txt`, and
-`.sac/tasks/<task_id>/memory.md`. Legacy `.sac/memory.json`, `.sac/progress.md`,
-and `SAC.md` remain readable. Memory writes reject obvious secrets; CLI reads
-are redacted. Pinned files are considered during context selection but still
-consume a bounded context quota and never bypass ignore, sensitive-file, binary,
-redaction, or project-root gates. Recent failures can help `sac fix` by adding
-the newest three redacted failures as bounded task context.
-
-**Observability commands (v4.19, EXPERIMENTAL):**
-```bash
-sac task stats                      # read-only summary of a task's iterations, budget, and pinned file count
-sac task stats --task <task-id>     # stats for a specific task
-sac task stats --json               # machine-readable JSON output
-sac memory size                     # read-only .sac/ storage breakdown by scope (bytes + file count)
-sac memory size --json              # machine-readable JSON output
-```
-
-Both commands are read-only and do not call the model, network, or shell. They
-never mutate any file under `.sac/`. JSON output uses the stable `CLIJSONResponse`
-envelope (contract 11).
-
-**Agent Tool Calling (v4.20, EXPERIMENTAL):**
-```bash
-# The agent now calls read-only tools directly instead of packaging context up front.
-# Tool calls are auto-approved, audited as tool_call_read events, and never write files.
-# Available tools: read_file, list_files, search_files, grep_files
-```
-
-The native tool protocol lets the agent explore a codebase on demand: reading files
-by path, listing directories, and searching for patterns — all within the project root,
-with secret redaction applied to every result.
-
-**Write and command tools (v4.21, EXPERIMENTAL):**
-```bash
-# edit_file — approval-gated exact string replacement with per-edit checkpoint
-# write_file — approval-gated file create/overwrite with per-write checkpoint
-# run_command — policy-gated shell command through ShellRunner (high-risk blocked)
-```
-
-Every `edit_file` and `write_file` call creates a checkpoint *before* the mutation —
-the agent can make many edits and you can roll back any of them with `sac rollback --last`.
-`run_command` passes through the same policy engine as `sac run`.
-
-**GitHub tools (read tools experimental; write workflow Stable Contract #20):**
-
-```bash
-# Read tools (auto-approved, require network: true)
-sac shell
-sac> github_read_issue owner=acme repo=myapp issue=42
-sac> github_read_pr    owner=acme repo=myapp pr=7
-sac> github_read_file  owner=acme repo=myapp path=README.md ref=main
-sac> web_fetch         url=https://docs.example.com/api
-
-# Write tools (Stable Contract #20; approval-gated, require network: true)
-sac> github_create_pr  title="My PR" body="Fixes #42" base=main
-sac> github_push_branch branch=dev/feature-x
-```
-
-Read tools use `gh` CLI with `shell=False` (no injection surface). Write tools
-(`github_create_pr`, `github_push_branch`) are part of Stable Contract #20:
-they are approval-gated, block pushes to `main`/`master`/`trunk`, support
-`dry_run=true`, and add a SafeCode audit footer to PR bodies. Auth via
-`GITHUB_TOKEN` env or `gh auth status`. `web_fetch` strips scripts/style and
-caps at 50 KB.
-
-**Anthropic / Claude as first-class provider (v4.23, EXPERIMENTAL):**
-
-SafeCode now speaks the Anthropic native tool-use wire format. When using the
-`anthropic` provider, the agent sends tool schemas as the Anthropic `tools`
-parameter and receives structured `tool_use` blocks instead of freeform JSON.
-OpenAI function calling is also wired for OpenAI-compatible providers.
-
-```bash
-export ANTHROPIC_API_KEY=sk-ant-...
-sac provider add anthropic --model claude-sonnet-4-6 --network
-sac doctor --live   # now includes Anthropic API connectivity check (B16)
-sac shell           # native tool use active for Claude
-```
-
-Key provider table (EXPERIMENTAL — not promoted to stable):
-
-| Provider | Key env | Default model | Protocol |
-|---|---|---|---|
-| `mock` | — | `mock-model` | freeform JSON (default, deterministic) |
-| `anthropic` | `ANTHROPIC_API_KEY` | `claude-sonnet-4-6` | native tool use (v4.23) |
-| `openai` | `OPENAI_API_KEY` | configured | function calling (v4.23) |
-| `deepseek` | `DEEPSEEK_API_KEY` | `deepseek-v4-flash` | function calling via compat path |
-
-**Multi-tool turns and shell UX (v4.22, EXPERIMENTAL):**
-```bash
-sac shell    # prompt now shows turn counter: sac[0]>  sac[1]>  ...
-# New slash commands:
-/undo        # roll back the most recent write-tool checkpoint
-/history     # show recent turns for the current session
-/tools       # list all available native tools
-/clear       # now also resets the live agent session (not just display)
-```
-
-The agent can execute multiple tool calls per user message before generating
-a final response — reading files, searching for patterns, and making edits
-in a single turn.
-
-**Debug commands (v4.7, EXPERIMENTAL):**
-```bash
-sac debug last-failure
-sac debug last-failure --task <task-id> --json
-sac debug bundle --out safecode-debug.tar.gz
-sac debug bundle --task <task-id> --out safecode-debug.tar.gz --force
-sac audit query --type shell_blocked --limit 20
-sac audit query --task <task-id> --json
-```
-
-Debug surfaces are local and redacted. `last-failure` and `audit query` are
-read-only. `debug bundle` writes a tar.gz containing SafeCode metadata only:
-manifest, version/config/doctor snapshots, runtime logs, verified audit events,
-task sidecars, project profile, and memory metadata. It excludes project source
-code and refuses overwrite unless `--force` is set. All v4.7 debug surfaces are
-EXPERIMENTAL and do not promote a stable contract.
-
-**Task commands (v4.1, EXPERIMENTAL):**
-```bash
-sac task new "Fix auth regression"  # create a task and set it as current
-sac task list                       # list all tasks
-sac task show                       # show current task details
-sac task switch <task-id>           # switch current task
-sac task close                      # mark current task closed
-sac task delete <task-id> --yes     # delete a task
-sac status                          # show current task status and next recommended step
-sac task budget show                # [EXPERIMENTAL] show per-task budget
-sac task budget set --steps 8       # [EXPERIMENTAL] set per-task budget values
-```
-
-**Profile commands (v4.2, EXPERIMENTAL):**
-```bash
-sac profile detect                  # detect test/lint/typecheck/build commands for this project
-sac profile show                    # show current profile
-sac profile set test "pytest -q"    # override the test command
-sac profile set lint "ruff check ." # override the lint command
-sac profile clear test              # restore detected test command
-sac run --suite test                # run the profile test command through policy
-sac run --suite lint                # run the profile lint command through policy
-sac run --suite typecheck           # run the profile typecheck command through policy
-sac run --suite build               # run the profile build command through policy
-```
-
-**Fix watch loop (v4.3, EXPERIMENTAL):**
-```bash
-sac fix --watch                     # propose a pending patch, never auto-apply
-sac apply                           # explicit approval step after reviewing the diff
-sac fix --watch                     # rerun and either pass or propose the next pending patch
-sac fix --watch --max-iterations 5
-sac fix --watch --timeout-seconds 60
-sac fix --watch --rerun-suite test
-sac fix --watch --rerun-suite all
-```
-
-`sac fix --watch` is approval-gated: every patch proposal remains pending until
-you explicitly run `sac apply`. All v4.3 fix-watch surfaces are EXPERIMENTAL.
-
-**Resume and budgets (v4.4, EXPERIMENTAL):**
-```bash
-sac resume                          # make CURRENT resumable task active and print next step
-sac resume <task-id>                # resume a specific open/interrupted task
-sac task budget show
-sac task budget set --steps 8 --time-seconds 600 --retries 2 --tokens 60000
-```
-
-`sac resume` never auto-runs `fix`, `edit`, `apply`, or a shell command. Ctrl-C
-during `sac edit`, `sac fix`, `sac fix --watch`, or `sac run` marks the task
-interrupted and prints `resume with: sac resume`. Budgets and stuck-loop
-categories are experimental and do not change command policy or approval gates.
-
-**Task-first daily loop (v4.x, EXPERIMENTAL):**
-
-The v4.x shell-first flow links every command into one task-scoped session:
-
-```bash
-sac quickstart                      # detect stack, see demo, print next steps
-sac task new "Add /health endpoint" # create task, set as CURRENT
-sac profile detect                  # detect test/lint/typecheck/build commands
-sac status                          # check CURRENT task state and next step
-sac ask "explain the auth flow"     # read-only LLM question, no patch
-sac edit "Add the /health endpoint" # propose patch, preview diff, await approval
-# — or use the fix-watch loop —
-sac fix --watch                     # run tests, propose repair patch on failure
-sac apply                           # explicit approval: checkpoint + apply patch
-sac commit --message-from-task      # local commit: CURRENT task files only
-sac debug last-failure              # summarize last redacted failure, never executes
-sac debug bundle --out debug.tgz    # redacted SafeCode metadata bundle, no source
-```
-
-Since v4.16.0, `sac --help` shows the 7 most-common daily commands (init, ask,
-edit, apply, fix, commit, doctor). Run `sac help --all` to see the full callable
-surface of 20+ commands including status, task, rollback, run, profile, resume,
-memory, debug, shell, model, provider, version, and setup. All v4.x additions
-remain EXPERIMENTAL unless later promoted in `docs/public-contracts.md`; v5.x
-and v6.x contract promotions are documented there.
-
-Use `--json` on most commands for machine-readable output:
-```bash
-sac fix --json
-sac edit "task" --json
-sac ask "question" --json
-sac task list --json
-sac status --json
-sac resume --json
-sac task budget show --json
-```
-
-## Safety Defaults
-
-- File writes go through patch parsing, validation, diff preview, checkpoint, and audit log.
-- High-risk shell commands are blocked even when `--yes` is passed.
-- Shell commands run through argv execution, not a shell string.
-- Shell, hooks, and read-only MCP execution go through command policy checks.
-- Project config cannot lower user-level safety policy.
-- Project hooks do not auto-approve medium-risk commands by default.
-- Context collection skips secret-like filenames such as `.env.local`, `*token*`, `*secret*`, and key files.
-- Network access is disabled by default.
-- Network policy applies to shell commands and read-only MCP execution.
-- Real LLM mode must pass network policy before any request is made.
-- MCP write operations are disabled until an explicit proposal/approval policy exists.
-- Approval stores and audit anchors live outside the project root.
-- Audit events include trace ids for task reconstruction.
-- Runtime errors are written to `.sac/logs/runtime.jsonl` for debugging.
-
-## Policy Presets
-
-SafeCode ships three canonical safety presets and two legacy aliases.
-
-| Name | Type | Description |
+| Category | Count | Pass rate |
 |---|---|---|
-| `strict` | canonical | Highest safety: minimal allowed commands, all confirmations required |
-| `balanced` | canonical | Default balance: standard allowed commands, medium-risk confirmations |
-| `experimental` | canonical | Wider allowed commands, fewer confirmations (local exploration) |
-| `normal` | legacy alias | Identical to `balanced` |
-| `learning` | legacy alias | Identical to `experimental` |
+| Bug fix (easy) | 3 | 100% |
+| Multi-file edit (medium/hard) | 3 | 73% (multi-run avg) |
+| Refactor | 3 | 93% |
+| Test generation | 1 | 100% |
+| Docs / config | 2 | 90% |
+| Safety invariants | 5 | 100% |
+| Verification + repair | 5 | 100% |
+| Terminal / real-project style | 6 | 100% |
 
-**Choosing a preset:**
+**Overall: 91.8% (78/85 across 5 independent runs)**  
+Safety invariants across all runs: `audit_chain_complete=true`, `checkpoint_integrity_ok=true`,
+`unauthorized_mutations=0`, `working_tree_clean_after_eval=true`.
 
-Via `sac setup`:
+See [docs/benchmark-results-deepseek-v4-flash-2026-06-16.md](docs/benchmark-results-deepseek-v4-flash-2026-06-16.md)
+for per-fixture breakdown and failure analysis.
+
+---
+
+## Core commands
+
+**Shell (conversational REPL) [EXPERIMENTAL]:**
 ```bash
-sac setup --policy strict
-sac setup --policy balanced
-sac setup --policy experimental
+sac shell                              # intent-routed suggest mode
+sac shell --agentic --mode plan        # read-only planning (no writes)
+sac shell --agentic --mode build       # agent can propose + auto-apply
+sac shell --agentic --full-auto        # auto-apply AUTO and CONFIRM tiers
 ```
 
-Via `.sac/config.toml` (project config):
-```toml
-policy = "balanced"
-```
+Inside the shell: `/status` `/mode` `/history` `/compact` `/apply` `/undo` `/commit` `/tools` `/exit`  
+See [docs/tutorials/ai-shell-first-hour.md](docs/tutorials/ai-shell-first-hour.md) for a step-by-step guide.
 
-Via environment variable:
+**Agent run (non-interactive):**
 ```bash
-export SAFECODE_POLICY=strict
+sac agent run "fix the off-by-one in src/parser.py" --max-steps 8
+sac agent run "add type hints to utils.py" --auto-edit
 ```
 
-**Safety invariants:**
-- `block_high_risk` is `True` in every preset.
-- `sandbox.restrict_to_project_root` is `True` in every preset.
-- `network_enabled` is `False` in every preset.
-- `SAFECODE_POLICY` can only raise effective policy, never lower it.
-- An unknown `SAFECODE_POLICY` value issues a warning and is ignored.
-- An unknown project config policy name cannot override a known user policy.
-- Project config cannot lower user-level policy.
-
-## Evaluation Harness (v6.5, EXPERIMENTAL)
-
-SafeCode Agent ships a **SWE-bench-Lite-compatible eval harness** for
-reproducible, comparable coding-agent evaluation.
-
+**Edit → apply → rollback:**
 ```bash
-# Run the built-in synthetic tasks (mock provider — measures harness, not agent quality)
-sac eval --mode swebench-lite --suite tests/eval_fixtures/swebench_lite
-
-# Run with a real provider (requires SAFECODE_LIVE_TESTS=1 and provider credentials)
-SAFECODE_LIVE_TESTS=1 sac eval --mode swebench-lite \
-  --suite tests/eval_fixtures/swebench_lite \
-  --provider deepseek --limit 5
+sac edit "rename fetch_user to load_user in all call sites"
+sac apply                      # shows Rich diff panel; asks for confirmation
+sac rollback --last            # restores from checkpoint
 ```
 
-**Task format** (`tests/eval_fixtures/swebench_lite/*.json`):
-```json
-{
-  "schema_version": 1,
-  "instance_id": "project__issue-42",
-  "problem_statement": "The divide() function crashes on zero...",
-  "repo": {"kind": "inline", "files": {"calc.py": "..."}},
-  "test_command": "python -m pytest tests/ -q",
-  "pass_condition": "exit_code_0"
-}
+**Semantic tools:**
+```bash
+sac refactor rename parse_config new_parse_config --file src/config.py
+sac test-gen generate src/parser.py::parse_config
+sac lsp diagnostics --json
 ```
 
-**Honest baseline:** Mock provider passes 0/8 tasks (7 synthetic + 1 real-world
-inline adaptation; expected — mock
-generates no real patches). Real provider results: see
-[`docs/demo/swebench-eval-summary.md`](docs/demo/swebench-eval-summary.md) and
-[`tests/snapshots/swebench_lite/latest.json`](tests/snapshots/swebench_lite/latest.json).
-Methodology and benchmark caveats are documented in
-[`docs/demo/eval-methodology.md`](docs/demo/eval-methodology.md).
+**Session + commit:**
+```bash
+sac session list
+sac commit --ai                # LLM-generated conventional-commit message
+sac commit --ai --dry-run      # preview without committing
+```
 
-## GitHub PR Workflow (v6.4, Stable Contract #20)
+**Introspection:**
+```bash
+sac init                        # first-time project setup
+sac tools list --json
+sac tools list --include-user   # includes .sac/tools.toml entries
+sac doctor                      # health check
+sac version --json
+```
 
-SafeCode Agent can push a branch and open a PR, with structural safety gates
-that cannot be bypassed by model output or configuration.
+---
+
+## Safety presets
 
 ```bash
-# Validate without executing (always safe to run)
-sac agent run "push this branch and create a PR for the auth fix"
-# → shows PR preview with title, body + SafeCode audit footer
-# → you approve → branch push → gh pr create
-
-# Or call the tools directly in shell mode
-sac shell
-sac[1]> github_push_branch branch=feature/auth-fix
-sac[2]> github_create_pr title="Fix auth timeout" body="Resolves the session expiry bug."
+sac setup --policy strict        # highest safety: all confirmations
+sac setup --policy balanced      # default: standard allowed commands
+sac setup --policy experimental  # wider commands, fewer confirmations
 ```
 
-**Stable invariants:**
-- `main`, `master`, `trunk` are always blocked — code-level gate, no config can override
-- PR body always gets a SafeCode audit footer (branch, checkpoint ID, timestamp)
-- `dry_run=true` previews without any network call
-- Audit events: `github_pr_created` / `github_branch_pushed` (stable types)
-- `requires_approval=true` — approval always required before branch push or PR creation
+Invariants across all presets: `block_high_risk=true`, `restrict_to_project_root=true`, `network_enabled=false`.  
+Project config **cannot lower** user-level policy.
 
-## Semantic Code Search (v6.3, EXPERIMENTAL)
+---
 
-SafeCode Agent includes a hybrid context retrieval pipeline that combines
-keyword path-matching, git recency, and semantic embedding similarity.
-Every result carries a `selection_reason` explaining why it was selected.
-Full workflow details live in the
-[MVP User Guide](docs/mvp-user-guide.md#hybrid-context-retrieval-v63-experimental).
+## Context: approval tiers
+
+| Tier | Triggered by | Behaviour |
+|---|---|---|
+| `auto` | Single-file, small diff, non-sensitive | Applied immediately in `--auto-edit` / `--full-auto` |
+| `confirm` | Multi-file, larger diff | Shows diff, waits; applied immediately in `--full-auto` |
+| `gate` | Delete, shell, network, `.env`, push | Always requires explicit approval |
+
+---
+
+## Real LLM mode
 
 ```bash
-# Enable semantic search (optional dependency)
-pip install 'safecode-agent[semantic]'
+# DeepSeek (cost-effective)
+sac setup --provider deepseek --model deepseek-chat --api-key sk-...
+export DEEPSEEK_API_KEY=sk-...
+sac doctor --live
 
-# or with uv:
-uv pip install 'safecode-agent[semantic]'
-
-# Then build the local embedding index
-sac index build
-sac index build --force          # re-embed all chunks
-sac index status                 # show index stats
-
-# Search the codebase — works with or without the embedding index
-sac search "authentication flow"
-sac search "database connection retry" --limit 20
-sac search "token expiry" --json
+# Anthropic / Claude
+sac setup --provider anthropic --model claude-sonnet-4-6 --api-key sk-ant-...
+export ANTHROPIC_API_KEY=sk-ant-...
 ```
 
-**How it works:**
-- `sac search` runs keyword scoring on file paths + semantic similarity on
-  chunk embeddings (if index is built), then merges both scores.
-- `selection_reason` in the output says which signal fired: `path matched: auth`,
-  `semantic (0.81)`, `recently modified`, or `pinned file`.
-- Without `sentence-transformers` installed, the system gracefully falls back
-  to keyword-only mode. Install it to unlock semantic search:
-  `pip install 'safecode-agent[semantic]'` or `pip install sentence-transformers`
+Run eval against live provider:
+```bash
+SAFECODE_LIVE_TESTS=1 sac eval --mode live --provider deepseek
+# or
+SAFECODE_DEEPSEEK_API_KEY=sk-... python scripts/run_live_eval_deepseek.py
+```
 
-**Storage:** embedding index at `.sac/index/embeddings.db` (SQLite, WAL mode).
-Incremental builds skip unchanged file chunks.
+---
 
-## Project Memory (v6.2, EXPERIMENTAL)
-
-SafeCode Agent automatically records a bounded, redacted summary after each session.
-On the next session, recent summaries and any approved project conventions are
-prepended to the agent's context so it remembers what was done before.
-The canonical walkthrough is in the
-[MVP User Guide](docs/mvp-user-guide.md#cross-session-project-memory-v62-experimental).
+## Development
 
 ```bash
-sac memory inspect                       # view recent session summaries
-sac memory inspect --limit 10            # show last 10 sessions
-sac memory export --out sessions.json    # dump all session summaries to JSON
-
-sac memory list-facts                    # list all proposed convention facts
-sac memory list-facts --pending          # only pending facts (awaiting approval)
-sac memory list-facts --approved         # only approved (injected into context)
-sac memory approve-fact <fact-id>        # approve a pending fact
-sac memory reject-fact <fact-id>         # reject a pending fact
+PYTHONPATH=src python3 -m pytest -q          # full suite (~90s, keyless)
+PYTHONPATH=src python3 -m pytest -q -x       # stop on first failure
+scripts/test-fast.sh                         # fast subset, skips slow checks
 ```
 
-**How facts work:** After each session the agent proposes inferred conventions
-(test command, lint command, guarded directories) as *pending* facts.
-Facts are never injected into context until you explicitly approve them with
-`sac memory approve-fact`. Approved facts are audit-logged. Project-local files
-cannot create or approve facts — only the CLI gate can.
-
-**Storage:** Session summaries at `.sac/memory/sessions.jsonl` (capped at 50).
-Convention facts at `.sac/memory/facts.json`. All content is redacted before storage.
-
-## Debug Runtime Logs
-
-When a command fails, inspect recent runtime logs:
-
+Release flow:
 ```bash
-sac logs show --limit 20
-sac logs show --level error --traceback
+sac release bump X.Y.Z
+PYTHONPATH=src python3 -m pytest -q
+git add -p && git commit -m "Implement vX.Y.Z ..."
+git tag vX.Y.Z
+sac release preflight
+sac release sync-versions-json
 ```
 
-Runtime logs are structured JSONL events with component, level, message, error type, traceback, and extra details.
+---
 
-## Real LLM Mode
+## Stable contracts
 
-The default provider is `mock`, which keeps local tests deterministic.
-The canonical provider reference is [docs/providers.md](docs/providers.md);
-this README keeps only the quick-start path.
+21 stable contracts documented in [docs/public-contracts.md](docs/public-contracts.md).  
+Protected by snapshot tests. Patch-level changes never break stable surfaces.
 
-To use an OpenAI-compatible provider:
-
-```bash
-sac model gpt-4.1-mini --provider openai --api-key sk-... --network
-sac setup --yes --provider openai --model gpt-4.1-mini --network
-sac ask "这个项目是什么？"
-```
-
-Model output is still parsed and validated by SafeCode before any write can happen.
-
-Real LLM mode also requires trusted user-level and project-level network policy. A project-local config cannot enable network access by itself, and a project-local config cannot switch the model provider. Environment variables still take priority for temporary overrides.
-
-See [docs/mvp-user-guide.md](docs/mvp-user-guide.md#model-configuration) for
-the exact config files, and [docs/providers.md](docs/providers.md) for provider
-contract details, retry behavior, and live-lane status.
-
-### Real provider quickstart — provider profiles
-
-Configure your provider once, then switch models by short alias:
-
-```bash
-sac provider add deepseek       # prompts for API key; writes trusted user config
-sac model flash                 # use deepseek-v4-flash (daily default)
-sac model pro                   # escalate to deepseek-v4-pro
-sac --model deepseek:pro        # one-shot override for this invocation
-sac model list                  # show available aliases for active provider
-sac provider status             # show effective provider, model, credential source
-sac doctor                      # static provider check, no network call
-```
-
-Inside `sac shell`:
-```
-sac> /model              # show current model and aliases
-sac> /model flash        # switch (persisted globally)
-sac> /provider status    # show provider profile status
-```
-
-### DeepSeek quickstart
-
-```bash
-sac model deepseek-v4-pro --provider deepseek --api-key sk-... --network
-sac setup --wizard          # choose 'deepseek' at the provider prompt
-sac doctor                  # verify provider key is detected (static check, no network call)
-SAFECODE_LIVE_SMOKE=1 sac smoke live-provider   # opt-in round-trip smoke test
-sac ask "What is 2+2?"
-```
-
-DeepSeek uses `https://api.deepseek.com` with the `deepseek-v4-flash` default model.
-API key is read from `DEEPSEEK_API_KEY`, `OPENAI_API_KEY`, `SAFECODE_LLM_API_KEY`, or the trusted user config written by `sac model` or `sac provider add`.
-The `sac smoke live-provider` command requires `SAFECODE_LIVE_SMOKE=1` and refuses to run
-without a valid key, a non-mock provider, and an enabled network policy.
+---
 
 ## First Demo Task
-
-Create and run a repeatable demo workflow:
 
 ```bash
 sac demo materialize failing-test-repair
 cd examples/demo-workflows/failing-test-repair
-sac test run --yes
 sac edit "Fix the calculator add function so the existing failing test passes."
 sac apply
-sac test run --yes
-sac rollback --last
+sac rollback --last    # undo if needed
 ```
 
-The same flow is documented with expected results in [docs/mvp-user-guide.md](docs/mvp-user-guide.md#first-task-failing-test-repair).
+See [docs/mvp-user-guide.md](docs/mvp-user-guide.md) for the complete first-run guide.
 
-## Docker
+---
 
-Build:
+## Trust Modes
+
+`--auto-edit` / `--full-auto` reduce confirmation prompts without disabling safety:
 
 ```bash
-docker build -t safecode-agent .
+sac shell --agentic --auto-edit   # auto-apply AUTO tier (single-file, small diffs)
+sac shell --agentic --full-auto   # auto-apply AUTO + CONFIRM tier; GATE always stops
 ```
 
-Run in the current workspace:
+Both modes still checkpoint every write, maintain the audit log, and support rollback.
+See the approval tiers table above for what each tier covers.
 
-```bash
-docker run --rm -it -v "$PWD:/workspace" -w /workspace safecode-agent sac doctor
-```
+---
 
-## Test
+## Documentation index
 
-```bash
-# Fast local feedback loop: skips slower eval/demo/subprocess timeout checks.
-scripts/test-fast.sh
-
-# Full release gate.
-PYTHONPATH=src python3 -m pytest -q
-
-# Optional, after installing dev extras, for parallel full runs.
-PYTHONPATH=src python3 -m pytest -q -n auto
-```
-
-## Release Flow
-
-For each release, keep the package version, runtime version, docs, and git tag
-in lockstep:
-
-```bash
-sac release bump X.Y.Z
-PYTHONPATH=src python3 -m pytest -q
-git add -p
-git commit -m "Implement vX.Y.Z <summary>"
-git tag -a vX.Y.Z -m "vX.Y.Z <summary>"
-sac release preflight          # aggregates check, smoke, metadata, docs, versions governance
-sac release sync-versions-json # sync .claude/versions.json after tagging
-git add .claude/versions.json
-git commit -m "chore: sync versions.json to vX.Y.Z"
-git tag -d vX.Y.Z && git tag -a vX.Y.Z -m "vX.Y.Z <summary>"  # move tag to sync commit
-```
-
-**TestPyPI rehearsal before production publish:**
-
-```bash
-sac release publish --repository test-pypi          # dry-run (no network)
-SAFECODE_PUBLISH=1 sac release publish --no-dry-run --repository test-pypi
-```
-
-**Production publish:**
-
-```bash
-SAFECODE_PUBLISH=1 sac release publish --no-dry-run
-```
-
-Never tag a release while `pyproject.toml` or `safecode.__version__` still
-reports an older version. `sac release preflight` is the final local gate.
-See `docs/install-update.md` for signing and TestPyPI details.
-
-## Roadmap
-
-| Train | Versions | Theme | Status |
-|---|---|---|---|
-| v5.6.x | 3 | Agent quality: prompt engineering + live eval + golden demo | **Shipped** |
-| v5.7.x | 3 | Security depth: threat model review + subagent activation + sandbox promotion | **Shipped** |
-| v5.8.x | 3 | Cost guardrails + v6.0 contract preparation | **Shipped** |
-| **v6.0.0** | 1 | **Major contract cut** — trust modes and session rollback promoted to stable. Zero v5.0 breaking changes. | **Shipped** |
-| **v6.1.0** | 1 | **Portfolio maturity cut** — real DeepSeek live eval, realistic demo, hooks MVP, diagnostics-aware context. | **Current** |
-
-See [docs/version-plans/v5.6-to-v5.8-product-roadmap.md](docs/version-plans/v5.6-to-v5.8-product-roadmap.md)
-for the completed v5.6-v5.8 plan. See [docs/v6-contract-candidates.md](docs/v6-contract-candidates.md)
-for the v6.0 promotion assessment.
-
-## IDE and TUI Status (v3.9.x)
-
-**VS Code Extension (experimental):**
-- Source: `vscode-extension/` — TypeScript, spawns `sac api jsonrpc` over stdio.
-- Approval prompt is a VS Code modal. No telemetry. No marketplace publish in v3.9.x.
-- VSIX build requires Node.js + npm install + `npm run build` (tsc); see `docs/version-notes/v3.9.2-vscode-tui.md`.
-
-**TUI (`sac tui interactive`, experimental, frozen at v3.5.2):**
-- Rich-based; deterministic non-TTY static snapshot; Ctrl-C exits in TTY.
-- Frozen at v3.5.2 behavior. No Textual upgrade planned before v4.0 re-audit.
-- Do not rely on TUI output format for automation; surface is explicitly experimental.
+| Doc | Purpose |
+|---|---|
+| [docs/mvp-user-guide.md](docs/mvp-user-guide.md) | End-to-end first run |
+| [docs/compare.md](docs/compare.md) | Comparison with alternative approaches |
+| [docs/why-safecode.md](docs/why-safecode.md) | Design rationale |
+| [docs/troubleshooting.md](docs/troubleshooting.md) | Common issues |
+| [docs/public-contracts.md](docs/public-contracts.md) | Stable API contracts |
+| [docs/providers.md](docs/providers.md) | LLM provider configuration |
+| [docs/versioning-policy.md](docs/versioning-policy.md) | Versioning policy and stable/experimental surfaces |
+| [docs/install-update.md](docs/install-update.md) | Install, update, signing |
+| [docs/security/threat-model-v3.6.md](docs/security/threat-model-v3.6.md) | Threat model |
+| [docs/context-budgets.md](docs/context-budgets.md) | Token budget reference |
+| [docs/benchmark-results-deepseek-v4-flash-2026-06-16.md](docs/benchmark-results-deepseek-v4-flash-2026-06-16.md) | Eval results |

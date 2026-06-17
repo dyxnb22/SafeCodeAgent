@@ -1,0 +1,133 @@
+{
+  "date": "2026-06-17",
+  "elapsed_seconds": 54.3,
+  "fixtures": [
+    {
+      "category": "pass",
+      "error": null,
+      "input_tokens": 3018,
+      "name": "swe-mutable-default-arg",
+      "output_tokens": 287,
+      "success": true,
+      "tool_calls": 1,
+      "turns_used": 1,
+      "wall_seconds": 4.17
+    },
+    {
+      "category": "pass",
+      "error": null,
+      "input_tokens": 3272,
+      "name": "swe-generator-exhaustion",
+      "output_tokens": 423,
+      "success": true,
+      "tool_calls": 1,
+      "turns_used": 1,
+      "wall_seconds": 5.22
+    },
+    {
+      "category": "pass",
+      "error": null,
+      "input_tokens": 3063,
+      "name": "swe-integer-division",
+      "output_tokens": 193,
+      "success": true,
+      "tool_calls": 1,
+      "turns_used": 1,
+      "wall_seconds": 4.18
+    },
+    {
+      "category": "pass",
+      "error": null,
+      "input_tokens": 3631,
+      "name": "swe-exception-swallow",
+      "output_tokens": 328,
+      "success": true,
+      "tool_calls": 1,
+      "turns_used": 1,
+      "wall_seconds": 6.4
+    },
+    {
+      "category": "pass",
+      "error": null,
+      "input_tokens": 4216,
+      "name": "swe-decorator-signature",
+      "output_tokens": 260,
+      "success": true,
+      "tool_calls": 1,
+      "turns_used": 1,
+      "wall_seconds": 4.18
+    },
+    {
+      "category": "pass",
+      "error": null,
+      "input_tokens": 4032,
+      "name": "swe-json-serialization",
+      "output_tokens": 301,
+      "success": true,
+      "tool_calls": 1,
+      "turns_used": 1,
+      "wall_seconds": 4.45
+    },
+    {
+      "category": "pass",
+      "error": null,
+      "input_tokens": 3983,
+      "name": "swe-off-by-one-slice",
+      "output_tokens": 235,
+      "success": true,
+      "tool_calls": 1,
+      "turns_used": 1,
+      "wall_seconds": 3.82
+    },
+    {
+      "category": "pass",
+      "error": null,
+      "input_tokens": 8730,
+      "name": "swe-multifile-api-version",
+      "output_tokens": 474,
+      "success": true,
+      "tool_calls": 2,
+      "turns_used": 1,
+      "wall_seconds": 6.92
+    },
+    {
+      "category": "pass",
+      "error": null,
+      "input_tokens": 3735,
+      "name": "swe-string-format-bug",
+      "output_tokens": 238,
+      "success": true,
+      "tool_calls": 1,
+      "turns_used": 1,
+      "wall_seconds": 4.16
+    },
+    {
+      "category": "pass",
+      "error": null,
+      "input_tokens": 4270,
+      "name": "swe-context-manager-exit",
+      "output_tokens": 308,
+      "success": true,
+      "tool_calls": 1,
+      "turns_used": 1,
+      "wall_seconds": 5.5
+    },
+    {
+      "category": "pass",
+      "error": null,
+      "input_tokens": 3833,
+      "name": "swe-dict-update-mutation",
+      "output_tokens": 424,
+      "success": true,
+      "tool_calls": 1,
+      "turns_used": 1,
+      "wall_seconds": 5.26
+    }
+  ],
+  "model": "deepseek-chat",
+  "pass_rate": 1.0,
+  "passed": 11,
+  "provider": "deepseek",
+  "suite": "swebench-inspired",
+  "total": 11
+}

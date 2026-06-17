@@ -1,4 +1,14 @@
 {
+  "meta": {
+    "swebench_inspired": {
+      "date": "2026-06-17",
+      "model": "deepseek-chat",
+      "pass_rate": 1.0,
+      "passed": 11,
+      "provider": "deepseek",
+      "total": 11
+    }
+  },
   "results": [
     {
       "approval_gates_triggered": 1,
