@@ -3,6 +3,7 @@
 from fnmatch import fnmatch
 from dataclasses import asdict
 import os
+import re
 from pathlib import Path
 
 from safecode.config import SafeCodeConfig
@@ -58,6 +59,7 @@ class ContextCollector:
             "readme": self._read_limited("README.md", self.config.max_file_lines),
             "pyproject": self._read_limited("pyproject.toml", self.config.max_file_lines),
             "repo_map": self._repo_map_summary(),
+            "tool_guidance": self._tool_guidance(query),
         }
         # B5: expose truncation flag so the model and display layers can see it.
         if file_tree_truncated:
@@ -254,6 +256,20 @@ class ContextCollector:
             "commands": [asdict(item) for item in repo_map.commands[:20]],
             "entrypoints": [asdict(item) for item in repo_map.entrypoints[:20]],
         }
+
+    def _tool_guidance(self, query: str | None) -> str:
+        """Return concise native-tool discovery hints for planning."""
+        base = (
+            "Use search_symbol(name, kind?, file?) when the task mentions a function, "
+            "class, method, variable, constant, type, traceback name, or failing test "
+            "symbol. Prefer it before broad file reads for symbol localization."
+        )
+        if not query:
+            return base
+        candidates = sorted(set(re.findall(r"\b[A-Za-z_][A-Za-z0-9_]{2,}\b", query)))[:8]
+        if not candidates:
+            return base
+        return base + " Candidate names from the current goal: " + ", ".join(candidates) + "."
 
     def _selected_context(self, query: str, *, conversation_files: list[str] | None = None) -> dict:
         """Select and include small snippets for files related to the query."""

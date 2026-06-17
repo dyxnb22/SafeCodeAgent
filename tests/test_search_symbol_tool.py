@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from safecode.agent.read_tools import _search_symbol_handler, _search_symbol_via_walk
+from safecode.agent.read_tools import SEARCH_SYMBOL_SPEC, _search_symbol_handler, _search_symbol_via_walk
 
 
 # ---------------------------------------------------------------------------
@@ -99,6 +99,13 @@ class TestSearchSymbolBasic:
         hits = json.loads(r.output)
         assert hits == []
 
+    def test_snake_case_query_finds_camel_case_definition(self, tmp_path):
+        _make_project(tmp_path)
+        r = _call(tmp_path, name="parse_config", file="src/utils.go")
+        hits = json.loads(r.output)
+        assert any(h["file"] == "src/utils.go" and h["kind"] == "function" for h in hits)
+        assert r.metadata["backend"] in {"walk", "ripgrep+walk"}
+
     def test_snippet_present(self, tmp_path):
         _make_project(tmp_path)
         r = _call(tmp_path, name="parse_config")
@@ -157,3 +164,14 @@ class TestSearchSymbolWalkFallback:
         _make_project(tmp_path)
         results, _ = _search_symbol_via_walk(tmp_path, "no_such_symbol_xyz", None, None)
         assert results == []
+
+    def test_walk_normalizes_snake_and_camel_case(self, tmp_path):
+        _make_project(tmp_path)
+        results, _ = _search_symbol_via_walk(tmp_path, "parse_config", "function", "src/utils.go")
+        assert any(r["file"] == "src/utils.go" for r in results)
+
+
+class TestSearchSymbolDiscovery:
+    def test_spec_description_guides_symbol_first_usage(self):
+        assert "before reading broad files" in SEARCH_SYMBOL_SPEC.description
+        assert "snake_case and camelCase" in SEARCH_SYMBOL_SPEC.description

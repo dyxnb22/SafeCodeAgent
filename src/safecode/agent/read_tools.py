@@ -290,6 +290,14 @@ _PY_KIND_PATTERNS = {
     "function": re.compile(r"^\s*(?:async\s+)?def\s+\w"),
     "import": re.compile(r"^\s*(?:import|from)\s+\w"),
 }
+_SYMBOL_DEF_PATTERNS = [
+    (re.compile(r"^\s*(?:async\s+)?def\s+(?P<name>[A-Za-z_][\w]*)\b"), "function"),
+    (re.compile(r"^\s*class\s+(?P<name>[A-Za-z_][\w]*)\b"), "class"),
+    (re.compile(r"\b(?:fn|func|function)\s+(?P<name>[A-Za-z_][\w]*)\b"), "function"),
+    (re.compile(r"\btype\s+(?P<name>[A-Za-z_][\w]*)\b"), "class"),
+    (re.compile(r"\b(?:const|var|let)\s+(?P<name>[A-Za-z_][\w]*)\b"), "variable"),
+    (re.compile(r"^\s*(?P<name>[A-Za-z_][\w]*)\s*(?:=|:=|:)"), "variable"),
+]
 
 
 def _kind_from_line(line: str) -> str:
@@ -299,18 +307,27 @@ def _kind_from_line(line: str) -> str:
     return "variable"
 
 
+def _normalize_symbol_name(name: str) -> str:
+    return re.sub(r"[^a-z0-9]", "", name.lower())
+
+
+def _definition_match_from_line(line: str, requested: str, *, is_python: bool) -> tuple[str, str] | None:
+    requested_norm = _normalize_symbol_name(requested)
+    for pattern, fallback_kind in _SYMBOL_DEF_PATTERNS:
+        match = pattern.search(line)
+        if not match:
+            continue
+        candidate = match.group("name")
+        if candidate == requested or _normalize_symbol_name(candidate) == requested_norm:
+            kind = _kind_from_line(line) if is_python else fallback_kind
+            return candidate, kind
+    return None
+
+
 def _search_symbol_via_walk(project_root: Path, name: str, kind_filter: str | None,
                              file_filter: str | None) -> tuple[list[dict], bool]:
     """Pure-Python fallback symbol search using regex walk."""
     import os, json as _json  # noqa: F401
-
-    # Build a pattern that matches common definition forms across languages.
-    # Order: def/fn name, class name, type alias, const, variable.
-    patterns = [
-        re.compile(rf"\b(?:def|fn|func|function|class|type|const|var|let)\s+{re.escape(name)}\b"),
-        re.compile(rf"\b{re.escape(name)}\s*(?:=|:=)\s"),  # assignment definition
-        re.compile(rf"^{re.escape(name)}\s*(?:=|:)"),       # top-level name
-    ]
 
     results: list[dict] = []
     truncated = False
@@ -344,11 +361,10 @@ def _search_symbol_via_walk(project_root: Path, name: str, kind_filter: str | No
                 continue
             is_python = full.suffix == ".py"
             for lineno, line in enumerate(text.splitlines(), 1):
-                if name not in line:
+                matched = _definition_match_from_line(line, name, is_python=is_python)
+                if matched is None:
                     continue
-                if not any(p.search(line) for p in patterns):
-                    continue
-                k = _kind_from_line(line) if is_python else "symbol"
+                _matched_name, k = matched
                 if kind_filter and k != kind_filter:
                     continue
                 results.append({
@@ -438,10 +454,13 @@ def _search_symbol_handler(call_id: str, inp: dict[str, Any]) -> NativeToolResul
         return NativeToolResult(call_id=call_id, tool_name="search_symbol", status="error",
                                 error="'name' must be at least 2 characters.")
 
+    backend = "ripgrep"
     # Try ripgrep first (faster, multi-language).
     results, truncated = _search_symbol_via_ripgrep(project_root, name, kind_filter, file_filter)
-    if results is None:
-        # Fallback to pure-Python walk.
+    if results is None or not results:
+        # Fallback to pure-Python walk. Also run it when ripgrep returns zero
+        # results so snake_case queries can find camelCase/PascalCase symbols.
+        backend = "walk" if results is None else "ripgrep+walk"
         results, truncated = _search_symbol_via_walk(project_root, name, kind_filter, file_filter)
 
     output = json.dumps(results, indent=None)
@@ -449,7 +468,7 @@ def _search_symbol_handler(call_id: str, inp: dict[str, Any]) -> NativeToolResul
         call_id=call_id,
         tool_name="search_symbol",
         output=output,
-        metadata={"count": len(results), "truncated": truncated, "backend": "ripgrep" if results is not None else "walk"},
+        metadata={"count": len(results), "truncated": truncated, "backend": backend},
     )
 
 
@@ -527,8 +546,9 @@ GREP_FILES_SPEC = NativeToolSpec(
 SEARCH_SYMBOL_SPEC = NativeToolSpec(
     name="search_symbol",
     description=(
-        "Find where a symbol (function, class, variable) is defined across the project. "
-        "Uses ripgrep if available, falls back to built-in walk. "
+        "Find where a symbol is defined before reading broad files. Use this for function, "
+        "class, method, variable, constant, or type names mentioned in the task or errors. "
+        "Matches snake_case and camelCase variants; uses ripgrep plus a built-in walk fallback. "
         "Returns [{file, line, kind, snippet}] capped at 50 results."
     ),
     input_schema={

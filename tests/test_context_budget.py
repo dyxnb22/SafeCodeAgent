@@ -116,6 +116,16 @@ def test_context_collector_uses_model_aware_default_budget(tmp_path: Path) -> No
     assert context["context_budget"]["max_bytes"] > 40_000
 
 
+def test_context_collector_includes_search_symbol_guidance(tmp_path: Path) -> None:
+    config = SafeCodeConfig(max_context_chars=4_000)
+    (tmp_path / "README.md").write_text("demo\n", encoding="utf-8")
+
+    context = ContextCollector(tmp_path, config).collect(query="Fix parse_config ImportError")
+
+    assert "search_symbol" in context["tool_guidance"]
+    assert "parse_config" in context["tool_guidance"]
+
+
 def test_context_selector_returns_ranked_sources_with_reasons(tmp_path: Path) -> None:
     (tmp_path / "src").mkdir()
     (tmp_path / "tests").mkdir()
