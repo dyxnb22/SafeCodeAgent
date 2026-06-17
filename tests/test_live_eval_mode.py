@@ -22,6 +22,7 @@ from safecode.eval.live import (
     _verify_checkpoint_integrity,
     check_ratchet,
     default_live_fixtures,
+    grade_live_eval_result,
     load_results_json,
     render_live_summary,
     render_repeated_summary,
@@ -269,6 +270,7 @@ class TestLiveEvalRunner:
         assert result.success is True
         assert result.tool_calls == 1
         assert result.error is None
+        assert {g["name"] for g in result.grader_results} >= {"outcome", "safety_invariants"}
 
     def test_runner_enables_provider_network_allowlist(self, monkeypatch):
         captured = {}
@@ -384,6 +386,47 @@ class TestLiveEvalResultSchema:
         assert d["source_kind"] == "inline"
         assert d["initial_commit"] is None
         assert d["task_type"] == "coding"
+        assert d["grader_results"] == []
+
+    def test_multi_grader_schema_serializes(self):
+        fixture = LiveEvalFixture(
+            name="grader-schema",
+            setup_files={"src/app.py": "x = 1\n"},
+            goal="Make the fixture pass.",
+            success_condition=lambda root: True,
+            validation_commands=["python -m pytest -q"],
+        )
+        result = self._make_result()
+        result.test_passed = True
+        result.tests_run = 1
+
+        graders = grade_live_eval_result(fixture=fixture, result=result)
+        data = [g.as_dict() for g in graders]
+
+        assert {g["name"] for g in data} == {
+            "outcome",
+            "validation",
+            "safety_invariants",
+            "scope_control",
+            "reviewer_gate",
+        }
+        assert all(isinstance(g["passed"], bool) for g in data)
+        assert all(0.0 <= g["score"] <= 1.0 for g in data)
+
+    def test_multi_grader_schema_flags_scope_failure(self):
+        fixture = LiveEvalFixture(
+            name="grader-scope",
+            setup_files={"src/app.py": "x = 1\n"},
+            goal="Only edit src/app.py.",
+            success_condition=lambda root: True,
+        )
+        result = self._make_result()
+        result.unauthorized_mutations = 2
+
+        data = {g.name: g for g in grade_live_eval_result(fixture=fixture, result=result)}
+
+        assert data["scope_control"].passed is False
+        assert data["scope_control"].score == 0.0
 
 
 class TestSnapshotIO:

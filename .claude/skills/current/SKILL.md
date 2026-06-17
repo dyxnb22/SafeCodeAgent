@@ -5,11 +5,15 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v7.1.1
+# Current Baseline - v7.1.2
 
 ## Status
-Implemented. Git baseline: tag `v7.1.1`. Local working version: `v7.1.1`.
+Implemented. Git baseline: tag `v7.1.2`. Local working version: `v7.1.2`.
 v7.0.0 remains the latest major stable-contract cut.
+
+v7.1.2 adds structured multi-grader live eval result metadata. Each live eval
+trial now serializes grader results for outcome, validation, safety invariants,
+scope control, and reviewer-gate scoring.
 
 v7.1.1 adds opt-in redacted transcript artifacts for live evals:
 `sac eval --mode live --transcripts`. Artifacts are written under
