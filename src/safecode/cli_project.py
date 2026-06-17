@@ -179,6 +179,9 @@ def skills_show(name: str) -> None:
 def tools_list(
     risk: Optional[str] = typer.Option(None, "--risk", help="Filter by risk level (low, medium, high)."),
     permission: Optional[str] = typer.Option(None, "--permission", help="Filter by permission category."),
+    include_mcp: bool = typer.Option(False, "--include-mcp", help="Include configured MCP native tools."),
+    include_user: bool = typer.Option(False, "--include-user", help="Include user-declared tools from .sac/tools.toml."),
+    json_output: bool = typer.Option(False, "--json", help="Output result as JSON."),
 ) -> None:
     """List built-in tool schemas with risk and permission metadata."""
     registry = ToolRegistry()
@@ -201,6 +204,68 @@ def tools_list(
             raise typer.Exit(1)
         tools = [t for t in tools if t.permission_category == perm_cat]
 
+    mcp_tools: list[dict] = []
+    if include_mcp:
+        try:
+            from safecode.agent.native_dispatcher import NativeToolDispatcher
+            from safecode.mcp.native_bridge import register_mcp_tools
+
+            dispatcher = NativeToolDispatcher()
+            register_mcp_tools(dispatcher, Path.cwd())
+            mcp_tools = [
+                {
+                    "name": spec.name,
+                    "description": spec.description,
+                    "requires_approval": spec.requires_approval,
+                    "experimental": spec.experimental,
+                    "source": "mcp",
+                }
+                for spec in dispatcher.specs()
+            ]
+        except Exception:
+            mcp_tools = []
+
+    user_tools: list[dict] = []
+    user_tool_errors: list[str] = []
+    if include_user:
+        from safecode.tools.user_config import load_user_tool_specs
+
+        specs, user_tool_errors = load_user_tool_specs(Path.cwd())
+        user_tools = [
+            {
+                "name": tool.name,
+                "risk": tool.risk.value,
+                "permission": tool.permission_category.value,
+                "requires_approval": tool.requires_human_approval,
+                "description": tool.description,
+                "source": "user",
+            }
+            for tool in specs
+        ]
+
+    if json_output:
+        print(render_json(CLIJSONResponse(
+            command="tools list",
+            status="success",
+            data={
+                "tools": [
+                    {
+                        "name": tool.name,
+                        "risk": tool.risk.value,
+                        "permission": tool.permission_category.value,
+                        "requires_approval": tool.requires_human_approval,
+                        "description": tool.description,
+                        "source": "builtin",
+                    }
+                    for tool in tools
+                ],
+                "mcp_tools": mcp_tools,
+                "user_tools": user_tools,
+                "user_tool_errors": user_tool_errors,
+            },
+        )))
+        return
+
     table = Table(title="SafeCode Internal Tools")
     table.add_column("Name", style="cyan", no_wrap=True)
     table.add_column("Risk")
@@ -211,6 +276,28 @@ def tools_list(
         approval_marker = "[yellow]yes[/yellow]" if tool.requires_human_approval else "[green]no[/green]"
         table.add_row(tool.name, tool.risk, tool.permission_category, approval_marker, tool.description)
     console.print(table if tools else "[yellow]No tools match the given filters.[/yellow]")
+    if include_mcp:
+        mcp_table = Table(title="Configured MCP Native Tools")
+        mcp_table.add_column("Name", style="cyan", no_wrap=True)
+        mcp_table.add_column("Approval", justify="center")
+        mcp_table.add_column("Description")
+        for tool in mcp_tools:
+            approval_marker = "[yellow]yes[/yellow]" if tool["requires_approval"] else "[green]no[/green]"
+            mcp_table.add_row(tool["name"], approval_marker, tool["description"])
+        console.print(mcp_table if mcp_tools else "[yellow]No MCP native tools discovered.[/yellow]")
+    if include_user:
+        user_table = Table(title="User-declared Tools")
+        user_table.add_column("Name", style="cyan", no_wrap=True)
+        user_table.add_column("Risk")
+        user_table.add_column("Permission")
+        user_table.add_column("Approval", justify="center")
+        user_table.add_column("Description")
+        for tool in user_tools:
+            approval_marker = "[yellow]yes[/yellow]" if tool["requires_approval"] else "[green]no[/green]"
+            user_table.add_row(tool["name"], tool["risk"], tool["permission"], approval_marker, tool["description"])
+        console.print(user_table if user_tools else "[yellow]No user tools discovered.[/yellow]")
+        for error in user_tool_errors:
+            console.print(f"[yellow]User tool config warning: {error}[/yellow]")
 
 
 @tools_app.command("inspect")
@@ -299,6 +386,30 @@ def index_status(
     console.print(f"Files   : {status.total_files}")
     console.print(f"Chunks  : {status.total_chunks}")
     console.print(f"Built   : {status.last_built or 'unknown'}")
+
+
+@index_app.command("rebuild")
+def index_rebuild(
+    json_output: bool = typer.Option(False, "--json", help="Output result as JSON."),
+) -> None:
+    """[EXPERIMENTAL] Force-rebuild the embedding index, re-embedding all chunks."""
+    from safecode.index.embedding_store import EmbeddingStore
+    from safecode.cli_shared_json import CLIJSONResponse, render_json
+    project_root = Path.cwd()
+    sac_dir = project_root / ".sac"
+    store = EmbeddingStore(sac_dir)
+    files = [item.path for item in FileIndexer(project_root).index()]
+    result = store.build(files, project_root, force=True)
+    status = store.status()
+    if json_output:
+        print(render_json(CLIJSONResponse(command="index rebuild", status="success", data={**result, **status.to_dict()})))
+        return
+    backend_label = f"[green]{status.model_id}[/green]" if status.is_semantic else "[yellow]null (keyword-only fallback)[/yellow]"
+    console.print(f"[bold]Embedding backend:[/bold] {backend_label}")
+    console.print(f"Files indexed : {result['files_indexed']}")
+    console.print(f"Chunks added  : {result['chunks_added']}")
+    console.print(f"Chunks skipped: {result['chunks_skipped']}")
+    console.print(f"Total chunks  : {status.total_chunks}")
 
 
 @index_app.command("files")

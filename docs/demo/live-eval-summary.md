@@ -1,6 +1,6 @@
 # Live Eval Results — DeepSeek v4 Flash
 
-**Status:** Real provider run completed on 2026-06-16.
+**Status:** Real provider run completed on 2026-06-17.
 **Provider/model:** `deepseek` / `deepseek-v4-flash`.
 **Credential handling:** API key was supplied only through the process
 environment and is not stored in this artifact.
@@ -13,35 +13,27 @@ SAFECODE_LLM_MODEL=deepseek-v4-flash \
 sac eval --mode live --provider deepseek --model deepseek-v4-flash --fixture <fixture>
 ```
 
-Recorded redacted snapshot:
+Recorded redacted snapshot summary:
 
 ```json
 {
-  "schema_version": 1,
-  "results": [
-    {
-      "fixture_name": "python-add-function",
-      "success": true,
-      "turns_used": 1,
-      "tool_calls": 1,
-      "redundant_reads": 0,
-      "input_tokens": 0,
-      "output_tokens": 0,
-      "wall_seconds": 9.706,
-      "error": null
-    },
-    {
-      "fixture_name": "python-fix-failing-test",
-      "success": true,
-      "turns_used": 1,
-      "tool_calls": 1,
-      "redundant_reads": 0,
-      "input_tokens": 0,
-      "output_tokens": 0,
-      "wall_seconds": 3.871,
-      "error": null
-    }
-  ]
+  "schema_version": 2,
+  "provider": "deepseek",
+  "model": "deepseek-v4-flash",
+  "passed": "28/28",
+  "current_default_fixture_count": 28,
+  "total_wall_seconds": 205.6,
+  "avg_wall_seconds": 7.3,
+  "avg_tokens_per_fixture": 3045.1,
+  "validation_commands_run": 8,
+  "validation_commands_passed": true,
+  "fixed_commit_inline_fixtures": 2,
+  "terminal_style_fixtures": 2,
+  "patch_retry_needed": false,
+  "audit_chain_complete": true,
+  "checkpoint_integrity_ok": true,
+  "unauthorized_mutations": 0,
+  "working_tree_clean_after_eval": true
 }
 ```
 
@@ -57,5 +49,16 @@ The machine-readable copy lives at
 - Provider patch generation uses the same JSON contract validator as other
   structured agent responses, then extracts the SafeCode SEARCH/REPLACE patch
   envelope before parser validation.
-- The ratchet baseline remains in `tests/snapshots/live_eval/baseline.json`;
-  live provider runs are opt-in and advisory.
+- `AgentOrchestrator.edit()` now retries once after a patch validation failure,
+  passing the validation error and exact current file contents back to the
+  provider. This run did not need that path because all fixtures passed on the
+  first proposal.
+- The default live suite now includes 28 fixtures. Coverage now includes
+  validation commands, success-condition repair, relevant-file recall/precision,
+  symbol localization, terminal-style tasks, and fixed-commit-inline real-project
+  tasks.
+- The ratchet baseline in `tests/snapshots/live_eval/baseline.json` has been
+  promoted to the 28/28 DeepSeek run, so future stable-fixture failures are
+  treated as regressions. Live provider runs remain opt-in and advisory.
+- Targeted 2-run stability samples for the six newest fixtures all passed with
+  `pass@1=1.000`, `pass@N=1.000`, and safety invariants OK.

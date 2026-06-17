@@ -11,50 +11,34 @@ class PatchParseError(ValueError):
     """Raised when patch text does not match the SafeCode patch format."""
 
 
+def _strip_to_envelope(text: str) -> str:
+    """Extract from *** Begin Patch to *** End Patch, discarding surrounding prose."""
+    start = text.find("*** Begin Patch")
+    end_marker = "*** End Patch"
+    end = text.find(end_marker, start if start >= 0 else 0)
+    if start >= 0 and end >= 0:
+        return text[start : end + len(end_marker)].strip()
+    return text.strip()
+
+
 class PatchParser:
     """Convert raw patch text into PatchProposal models."""
 
     def parse(self, patch_text: str, task: str) -> PatchProposal:
-        """Parse patch text.
-
-        v0.1.1 intentionally supports one Update File block only.
-        """
-        lines = patch_text.strip().splitlines()
+        """Parse patch text supporting multiple Update File blocks and leading prose."""
+        clean = _strip_to_envelope(patch_text)
+        lines = clean.splitlines()
         self._validate_envelope(lines)
-
-        update_index = self._find_single_update_line(lines)
-        file_path = self._parse_update_file(lines[update_index])
-
-        search_index = self._find_marker(lines, "SEARCH:")
-        replace_index = self._find_marker(lines, "REPLACE:")
-
-        if search_index <= update_index:
-            raise PatchParseError("SEARCH marker must appear after Update File.")
-        if replace_index <= search_index:
-            raise PatchParseError("REPLACE marker must appear after SEARCH.")
-
-        search = "\n".join(lines[search_index + 1 : replace_index]).strip("\n")
-        replace = "\n".join(lines[replace_index + 1 : -1]).strip("\n")
-
-        if not search.strip():
-            raise PatchParseError("SEARCH content cannot be empty.")
-
-        block = PatchBlock(
-            operation="update",
-            file_path=file_path,
-            search=search,
-            replace=replace,
-        )
+        blocks = self._parse_all_blocks(lines)
         return PatchProposal(
             id=f"patch_{uuid4().hex[:8]}",
             task=task,
-            blocks=[block],
+            blocks=blocks,
             created_at=utc_now_iso(),
             model="mock",
         )
 
     def _validate_envelope(self, lines: list[str]) -> None:
-        """Ensure the patch has the required Begin/End markers."""
         if len(lines) < 5:
             raise PatchParseError("Patch is too short.")
         if lines[0] != "*** Begin Patch":
@@ -62,38 +46,71 @@ class PatchParser:
         if lines[-1] != "*** End Patch":
             raise PatchParseError("Patch must end with '*** End Patch'.")
 
-    def _find_single_update_line(self, lines: list[str]) -> int:
-        """Find the one supported Update File operation."""
-        operation_indexes = [
-            index
-            for index, line in enumerate(lines)
-            if line.startswith("*** Update File:")
+    def _is_operation_line(self, line: str) -> bool:
+        return (
+            line.startswith("*** Update File:")
             or line.startswith("*** Add File:")
             or line.startswith("*** Delete File:")
-        ]
-        if not operation_indexes:
-            raise PatchParseError("Patch must contain one Update File operation.")
-        if len(operation_indexes) > 1:
-            raise PatchParseError("v0.1.1 supports only one file operation per patch.")
+        )
 
-        operation_line = lines[operation_indexes[0]]
-        if not operation_line.startswith("*** Update File:"):
-            raise PatchParseError("v0.1.1 supports Update File only.")
+    def _parse_all_blocks(self, lines: list[str]) -> list[PatchBlock]:
+        """Split on operation markers and parse each file block."""
+        # lines[0] = "*** Begin Patch", lines[-1] = "*** End Patch"
+        inner = lines[1:-1]
+        op_indices = [i for i, line in enumerate(inner) if self._is_operation_line(line)]
+        if not op_indices:
+            raise PatchParseError("Patch must contain at least one file operation.")
+        blocks = []
+        for idx, op_idx in enumerate(op_indices):
+            end_idx = op_indices[idx + 1] if idx + 1 < len(op_indices) else len(inner)
+            block_lines = inner[op_idx:end_idx]
+            result = self._parse_single_block(block_lines)
+            if result is not None:
+                blocks.append(result)
+        if not blocks:
+            raise PatchParseError("Patch contained no actionable file operations.")
+        return blocks
 
-        return operation_indexes[0]
+    def _parse_single_block(self, block_lines: list[str]) -> "PatchBlock | None":
+        """Parse one file operation block (from its operation line to the next)."""
+        op_line = block_lines[0]
+        if not op_line.startswith("*** Update File:"):
+            raise PatchParseError(
+                f"Unsupported operation '{op_line}'; supports Update File only."
+            )
+        file_path = self._parse_update_file(op_line)
+
+        search_index = next(
+            (i for i, line in enumerate(block_lines) if line == "SEARCH:"), None
+        )
+        replace_index = next(
+            (i for i, line in enumerate(block_lines) if line == "REPLACE:"), None
+        )
+        if search_index is None:
+            raise PatchParseError(f"SEARCH marker must appear in block for {file_path}.")
+        if replace_index is None:
+            raise PatchParseError(f"REPLACE marker must appear in block for {file_path}.")
+        if replace_index <= search_index:
+            raise PatchParseError("REPLACE marker must appear after SEARCH.")
+
+        search = "\n".join(block_lines[search_index + 1 : replace_index]).strip("\n")
+        replace = "\n".join(block_lines[replace_index + 1 :]).strip("\n")
+
+        if not search.strip():
+            if not replace.strip():
+                # Both empty: model is touching/creating an empty file. Skip silently.
+                return None
+            raise PatchParseError(f"SEARCH content cannot be empty in block for {file_path}.")
+
+        return PatchBlock(
+            operation="update",
+            file_path=file_path,
+            search=search,
+            replace=replace,
+        )
 
     def _parse_update_file(self, line: str) -> Path:
-        """Extract the target file path from an Update File line."""
         raw_path = line.removeprefix("*** Update File:").strip()
         if not raw_path:
             raise PatchParseError("Update File path cannot be empty.")
         return Path(raw_path)
-
-    def _find_marker(self, lines: list[str], marker: str) -> int:
-        """Find a required marker line exactly once."""
-        indexes = [index for index, line in enumerate(lines) if line == marker]
-        if not indexes:
-            raise PatchParseError(f"Patch must contain {marker}")
-        if len(indexes) > 1:
-            raise PatchParseError(f"Patch must contain {marker} only once.")
-        return indexes[0]

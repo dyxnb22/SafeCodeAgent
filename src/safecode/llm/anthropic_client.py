@@ -204,18 +204,22 @@ class AnthropicLLMClient:
         tool_specs: list["NativeToolSpec"],
         *,
         step: int = 0,
+        conversation_history: "list[dict] | None" = None,
     ) -> list[AgentNativeToolCallResponse] | AgentStopForUserResponse | RecoverableContractFailure:
         """Call Anthropic with native tool use; return tool calls or stop (v4.23.0, EXPERIMENTAL).
 
         Sends ``tool_specs`` as the Anthropic ``tools`` parameter. When the model
         responds with ``tool_use`` blocks, maps them to ``AgentNativeToolCallResponse``.
         When the model responds with text, parses it as a stop_for_user fallback.
+
+        ``conversation_history`` (v6.7.0): optional prior messages from ConversationBuffer.
         """
         tools = [_native_spec_to_anthropic(spec) for spec in tool_specs]
         data = self._messages_with_tools(
             system=SYSTEM_PROMPT,
             user=f"Goal: {goal}\nContext: {json.dumps(context)[:12000]}",
             tools=tools,
+            conversation_history=conversation_history,
         )
         result = _extract_native_result(data, step=step, method="choose_tool_native")
         if isinstance(result, RecoverableContractFailure):
@@ -232,14 +236,21 @@ class AnthropicLLMClient:
 
     def propose_patch(self, task: str, context: dict) -> AgentPatchResponse:
         """Return patch text, leaving parsing and validation to SafeCode."""
+        from safecode.llm.openai_client import _extract_patch_envelope
+
         content = self._messages(
             system=(
-                f"{SYSTEM_PROMPT}\nReturn only a SafeCode patch proposal using *** Begin Patch, "
-                "*** Update File, SEARCH, REPLACE, and *** End Patch. Do not explain."
+                f"{SYSTEM_PROMPT}\nReturn only a SafeCode patch proposal. "
+                "If the task touches multiple files, include ALL of them using multiple "
+                "*** Update File: sections inside one *** Begin Patch / *** End Patch envelope. "
+                "SEARCH must not be empty. Do not explain."
             ),
             user=f"Task: {task}\nContext: {json.dumps(context)[:12000]}",
         )
-        return AgentPatchResponse(patch_text=content, explanation="Anthropic patch response.")
+        return AgentPatchResponse(
+            patch_text=_extract_patch_envelope(content),
+            explanation="Anthropic patch response.",
+        )
 
     # ------------------------------------------------------------------
     # Streaming (SupportsStreaming)
@@ -345,16 +356,33 @@ class AnthropicLLMClient:
         self._record_usage(data)
         return _extract_text(data)
 
-    def _messages_with_tools(self, *, system: str, user: str, tools: list[dict]) -> dict:
+    def _messages_with_tools(
+        self,
+        *,
+        system: str,
+        user: str,
+        tools: list[dict],
+        conversation_history: "list[dict] | None" = None,
+    ) -> dict:
         """Call Anthropic Messages API with native tool definitions; return raw response dict."""
+        # Build messages: [history...] + current user turn
+        messages: list[dict] = []
+        for msg in (conversation_history or []):
+            role = msg.get("role", "user")
+            content = str(msg.get("content", ""))
+            # Anthropic only accepts "user" and "assistant" roles in messages
+            if role not in ("user", "assistant"):
+                role = "user"
+            messages.append({"role": role, "content": [{"type": "text", "text": content}]})
+        messages.append({"role": "user", "content": [
+            {"type": "text", "text": user, "cache_control": {"type": "ephemeral"}}
+        ]})
         payload = json.dumps({
             "model": self.model,
             "max_tokens": _DEFAULT_MAX_TOKENS,
             "system": [{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}],
             "tools": tools,
-            "messages": [{"role": "user", "content": [
-                {"type": "text", "text": user, "cache_control": {"type": "ephemeral"}}
-            ]}],
+            "messages": messages,
         }).encode("utf-8")
         request = urllib.request.Request(
             self.base_url,

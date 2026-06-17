@@ -87,6 +87,27 @@ class CostConfig(BaseModel):
     fallback_on_usd: float | None = None  # None = disabled
 
 
+class ApprovalConfig(BaseModel):
+    """Tiered approval policy for low-friction terminal edits."""
+
+    mode: str = "suggest"
+    auto_max_files: int = Field(default=1, ge=0)
+    auto_max_changed_lines: int = Field(default=30, ge=0)
+    never_auto_paths: list[str] = Field(default_factory=lambda: [
+        ".env",
+        ".sac/",
+        "pyproject.toml",
+        "uv.lock",
+    ])
+
+
+class FormatterConfig(BaseModel):
+    """Formatter workflow configuration."""
+
+    enabled: bool = False
+    commands: list[str] = Field(default_factory=list)
+
+
 class SafeCodeConfig(BaseModel):
     """Runtime configuration with safe defaults."""
 
@@ -96,12 +117,16 @@ class SafeCodeConfig(BaseModel):
     max_file_bytes: int = 200_000
     max_context_chars: int = 40_000
     policy: str = "balanced"
+    # v6.8.1: inject per-file git log + diff into context. Default off.
+    context_git_per_file: bool = False
     shell: ShellPolicy = Field(default_factory=ShellPolicy)
     sandbox: SandboxPolicy = Field(default_factory=SandboxPolicy)
     hooks: HookConfig = Field(default_factory=HookConfig)
     llm: LLMConfig = Field(default_factory=LLMConfig)
     trust: TrustConfig = Field(default_factory=TrustConfig)
     cost: CostConfig = Field(default_factory=CostConfig)
+    approval: ApprovalConfig = Field(default_factory=ApprovalConfig)
+    formatter: FormatterConfig = Field(default_factory=FormatterConfig)
 
     @classmethod
     def load(cls, project_root: Path) -> "SafeCodeConfig":
@@ -194,6 +219,18 @@ class SafeCodeConfig(BaseModel):
             + (f"max_tokens_per_session = {self.cost.max_tokens_per_session}\n" if self.cost.max_tokens_per_session is not None else "# max_tokens_per_session =\n")
             + "# Cost in USD at which to switch to fallback provider (unset = disabled).\n"
             + (f"fallback_on_usd = {self.cost.fallback_on_usd}\n" if self.cost.fallback_on_usd is not None else "# fallback_on_usd =\n")
+            + "\n[approval]\n"
+            + f'mode = "{self.approval.mode}"\n'
+            + f"auto_max_files = {self.approval.auto_max_files}\n"
+            + f"auto_max_changed_lines = {self.approval.auto_max_changed_lines}\n"
+            + "never_auto_paths = ["
+            + ", ".join(f'"{path}"' for path in self.approval.never_auto_paths)
+            + "]\n\n"
+            + "[formatter]\n"
+            + f"enabled = {str(self.formatter.enabled).lower()}\n"
+            + "commands = ["
+            + ", ".join(f'"{command}"' for command in self.formatter.commands)
+            + "]\n"
         )
 
 
@@ -359,6 +396,21 @@ def merge_trusted_config(user_config: SafeCodeConfig, project_config: SafeCodeCo
     else:
         merged.cost.fallback_on_usd = min(user_fallback, project_fallback)
 
+    merged.approval.mode = _stricter_approval_mode(user_config.approval.mode, project_config.approval.mode)
+    merged.approval.auto_max_files = min(
+        user_config.approval.auto_max_files,
+        project_config.approval.auto_max_files,
+    )
+    merged.approval.auto_max_changed_lines = min(
+        user_config.approval.auto_max_changed_lines,
+        project_config.approval.auto_max_changed_lines,
+    )
+    merged.approval.never_auto_paths = sorted(
+        set(user_config.approval.never_auto_paths) | set(project_config.approval.never_auto_paths)
+    )
+    merged.formatter.enabled = user_config.formatter.enabled and project_config.formatter.enabled
+    merged.formatter.commands = list(project_config.formatter.commands or user_config.formatter.commands)
+
     return merged
 
 
@@ -470,6 +522,13 @@ def _stricter_policy(left: str, right: str) -> str:
         # Unknown left: compare conservatively as balanced (1)
         return left if 1 >= POLICY_ORDER[right] else right
     return left if POLICY_ORDER[left] >= POLICY_ORDER[right] else right
+
+
+def _stricter_approval_mode(left: str, right: str) -> str:
+    order = {"full-auto": 0, "auto-edit": 1, "suggest": 2}
+    left_order = order.get(left, order["suggest"])
+    right_order = order.get(right, order["suggest"])
+    return left if left_order >= right_order else right
 
 
 def _user_config_path() -> Path:

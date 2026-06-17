@@ -357,6 +357,118 @@ def export(
         print(text)
 
 
+@memory_app.command("explain")
+def explain(
+    json_output: bool = typer.Option(False, "--json", help="Output result as JSON."),
+) -> None:
+    """[EXPERIMENTAL] Show what memory will be injected into the next agent context.
+
+    Separates memory that enters the model context from memory that is only stored
+    locally (for inspection, auditing, or future approval).
+    """
+    from safecode.memory.facts import ProjectFactStore
+    from safecode.memory.session_store import SessionSummaryStore
+    from safecode.memory.facade import MemoryFacade
+    from safecode.index.embedding_store import EmbeddingStore
+
+    project_root = Path.cwd()
+    sac_dir = project_root / ".sac"
+
+    fact_store = ProjectFactStore(sac_dir)
+    approved_facts = fact_store.list_facts(status="approved")
+    pending_facts = fact_store.list_facts(status="pending")
+    rejected_facts = fact_store.list_facts(status="rejected")
+
+    mem = MemoryFacade(project_root)
+    project_notes = mem.read_project_notes()
+    pinned = mem.read_pinned_files()
+
+    session_store = SessionSummaryStore(sac_dir)
+    recent_sessions = session_store.load_recent(limit=3)
+
+    index_status = EmbeddingStore(sac_dir).status()
+
+    if json_output:
+        _print_json("memory explain", "success", data={
+            "injected_into_context": {
+                "approved_facts": [f.to_dict() for f in approved_facts],
+                "project_notes_chars": len(project_notes.strip()) if project_notes.strip() else 0,
+                "recent_sessions": len(recent_sessions),
+            },
+            "stored_not_injected": {
+                "pending_facts": len(pending_facts),
+                "rejected_facts": len(rejected_facts),
+                "pinned_files": pinned,
+                "recent_failures": len(mem.read_recent_failures()),
+                "recent_edits": len(mem.read_recent_edits()),
+            },
+            "index": index_status.to_dict(),
+        })
+        return
+
+    from rich.panel import Panel
+
+    # --- Injected into context ---
+    console.print(Panel.fit(
+        "[bold green]Injected into agent context on next run[/bold green]",
+        border_style="green",
+    ))
+
+    if approved_facts:
+        table = Table(title="Approved Facts", show_header=True)
+        table.add_column("Key")
+        table.add_column("Value")
+        for f in approved_facts:
+            table.add_row(f.key, f.value[:70])
+        console.print(table)
+    else:
+        console.print("  [dim]Approved facts: none[/dim]")
+
+    if project_notes.strip():
+        preview = repr(project_notes.strip()[:80])
+        console.print(f"  [bold]Project notes:[/bold] {len(project_notes.strip())} chars  "
+                      f"[dim](preview: {preview}...)[/dim]")
+    else:
+        console.print("  [dim]Project notes: none[/dim]")
+
+    if recent_sessions:
+        console.print(f"  [bold]Recent sessions:[/bold] {len(recent_sessions)} (last: {recent_sessions[0].ended_at[:19]})")
+    else:
+        console.print("  [dim]Recent sessions: none[/dim]")
+
+    # --- Stored but not injected ---
+    console.print()
+    console.print(Panel.fit(
+        "[bold yellow]Stored locally — NOT injected automatically[/bold yellow]",
+        border_style="yellow",
+    ))
+    console.print(f"  Pending facts (awaiting approval): [yellow]{len(pending_facts)}[/yellow]")
+    if pending_facts:
+        for f in pending_facts[:5]:
+            console.print(f"    [dim][{f.fact_id[:8]}] {f.key}: {f.value[:60]}[/dim]")
+        if len(pending_facts) > 5:
+            console.print(f"    [dim]... and {len(pending_facts) - 5} more[/dim]")
+    console.print(f"  Rejected facts:                    [dim]{len(rejected_facts)}[/dim]")
+    console.print(f"  Pinned files (via context selector): {len(pinned)}")
+    for p in pinned[:5]:
+        console.print(f"    [dim]{p}[/dim]")
+    console.print(f"  Recent failures logged:            {len(mem.read_recent_failures())}")
+    console.print(f"  Recent edits logged:               {len(mem.read_recent_edits())}")
+
+    # --- Index ---
+    console.print()
+    if index_status.exists:
+        backend = index_status.model_id or "null (keyword-only)"
+        console.print(f"  [bold]Embedding index:[/bold] {index_status.total_chunks} chunks, "
+                      f"backend={backend}, built={index_status.last_built or 'unknown'}")
+    else:
+        console.print("  [dim]Embedding index: not built (run: sac index build)[/dim]")
+
+    if pending_facts:
+        console.print()
+        console.print("[dim]Tip: run 'sac memory approve-fact <id>' to promote pending facts into context.[/dim]")
+
+
 @memory_app.command("size")
 def size(
     json_output: bool = typer.Option(False, "--json", help="Output result as JSON."),

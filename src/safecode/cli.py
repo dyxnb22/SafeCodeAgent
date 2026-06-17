@@ -15,6 +15,7 @@ from safecode.cli_project import config_app, index_app, progress_app, skills_app
 from safecode.cli_sandbox import sandbox_app
 from safecode.cli_subagent import subagent_app
 from safecode.cli_test_demo import demo_app, test_app
+from safecode.cli_testgen import testgen_app
 from safecode.cli_api import api_app
 from safecode.cli_tui import tui_app
 from safecode.cli_shared import console
@@ -27,8 +28,12 @@ from safecode.cli_commit import register as _register_commit
 from safecode.cli_profile import profile_app
 from safecode.cli_memory import memory_app
 from safecode.cli_debug import debug_app
+from safecode.cli_refactor import refactor_app
 from safecode.cli_smoke import smoke_app
 from safecode.cli_shell import register as _register_shell
+from safecode.cli_lsp import lsp_app
+from safecode.cli_session import session_app
+from safecode.cli_format import format_app
 from safecode.cli_shell import run_shell
 from safecode.cli_model import register as _register_model
 from safecode.cli_init import register as _register_init
@@ -212,12 +217,19 @@ def help_all_cmd(
         console.print("  shell       Interactive AI shell session")
         console.print("  model       Show or switch the model configuration")
         console.print("  provider    Manage provider profiles")
+        console.print("  tools       List built-in, MCP, and user-declared tools")
+        console.print("  mcp         Manage MCP servers and read/write proposals")
+        console.print("  refactor    Semantic refactor commands such as rename")
+        console.print("  test-gen    Generate test patches for files or symbols")
+        console.print("  lsp         Inspect terminal language-service diagnostics")
+        console.print("  session     List, export, import, and summarize sessions")
+        console.print("  format      Detect and run project formatters")
         console.print("  version     Show package version")
         console.print("  setup       Write .sac/config.toml")
         console.print("")
         console.print("[bold]Shell Slash Commands (sac shell):[/bold]")
         console.print("  /status  /task  /model  /provider status  /apply")
-        console.print("  /commit  /debug  /help  /exit")
+        console.print("  /mode  /history  /compact  /undo  /commit  /debug  /help  /exit")
         console.print("")
         console.print("[dim]All commands remain callable. Run --help on any command for details.[/dim]")
     else:
@@ -327,6 +339,11 @@ app.add_typer(tui_app, name="tui", hidden=True)
 app.add_typer(api_app, name="api", hidden=True)
 app.add_typer(report_app, name="report", hidden=True)
 app.add_typer(smoke_app, name="smoke", hidden=True)
+app.add_typer(refactor_app, name="refactor", hidden=True)  # v6.9.1
+app.add_typer(testgen_app, name="test-gen", hidden=True)
+app.add_typer(lsp_app, name="lsp", hidden=True)
+app.add_typer(session_app, name="session", hidden=True)
+app.add_typer(format_app, name="format", hidden=True)
 
 
 @app.command("why", hidden=True)

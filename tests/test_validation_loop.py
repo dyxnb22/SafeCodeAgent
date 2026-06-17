@@ -115,6 +115,29 @@ class TestValidationLoop:
         assert "failed" in orchestrator.edit_calls[0]
         assert "SECRET=123" not in (result.failure_tail or "")
 
+    def test_validation_repair_prompt_includes_pyright_diagnostics(self, tmp_path: Path) -> None:
+        _save_profile(tmp_path)
+        shell = FakeShellRunner([_shell_result("pytest -q", 1, stderr="TypeError: bad")])
+        orchestrator = FakeOrchestrator()
+        with patch("safecode.index.lsp_bridge.PyrightBridge.get_diagnostics", return_value=[
+            {
+                "file": "src/foo.py",
+                "line": 4,
+                "column": 2,
+                "severity": "error",
+                "rule": "reportArgumentType",
+                "message": "Argument type mismatch",
+            }
+        ]):
+            ValidationLoop(tmp_path, shell_runner=shell, orchestrator=orchestrator).run_after_apply(
+                session_id="session-diag-repair",
+                step_index=2,
+                goal="fix types",
+            )
+        assert orchestrator.edit_calls
+        assert "Type diagnostics" in orchestrator.edit_calls[0]
+        assert "src/foo.py:4:2" in orchestrator.edit_calls[0]
+
     def test_loop_no_progress_stop_on_unchanged_failure_tail_hash(self, tmp_path: Path) -> None:
         _save_profile(tmp_path)
         shell = FakeShellRunner([_shell_result("pytest -q", 1, stderr="same failure")])
@@ -265,6 +288,6 @@ class TestAgentLoopValidationIntegration:
                 return None
 
         with patch("safecode.cli_agent.AgentLoop", FakeLoop):
-            result = CliRunner(mix_stderr=False).invoke(app, ["agent", "run", "--no-validate", "goal"])
+            result = CliRunner().invoke(app, ["agent", "run", "--no-validate", "goal"])
         assert result.exit_code == 0
         assert captured["no_validate"] is True

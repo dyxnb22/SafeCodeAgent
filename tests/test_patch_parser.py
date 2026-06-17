@@ -2,7 +2,7 @@
 
 import pytest
 
-from safecode.patch.parser import PatchParseError, PatchParser
+from safecode.patch.parser import PatchParseError, PatchParser, _strip_to_envelope
 
 
 def test_parse_update_file_patch() -> None:
@@ -62,7 +62,7 @@ new
         PatchParser().parse(patch_text, task="empty search")
 
 
-def test_rejects_add_file_for_v0_1_1() -> None:
+def test_rejects_add_file() -> None:
     patch_text = """*** Begin Patch
 *** Add File: app/main.py
 SEARCH:
@@ -75,19 +75,72 @@ new
         PatchParser().parse(patch_text, task="add file")
 
 
-def test_rejects_multiple_operations() -> None:
+def test_parses_multiple_update_file_blocks() -> None:
     patch_text = """*** Begin Patch
-*** Update File: app/main.py
+*** Update File: src/users.py
 SEARCH:
-old
+def load_user(user_id):
 REPLACE:
-new
-*** Update File: app/other.py
+def fetch_user(user_id):
+*** Update File: src/views.py
 SEARCH:
-old
+from users import load_user
 REPLACE:
-new
+from users import fetch_user
+*** Update File: src/audit.py
+SEARCH:
+from users import load_user
+REPLACE:
+from users import fetch_user
 *** End Patch"""
 
-    with pytest.raises(PatchParseError, match="only one file operation"):
-        PatchParser().parse(patch_text, task="multiple files")
+    proposal = PatchParser().parse(patch_text, task="rename load_user")
+
+    assert len(proposal.blocks) == 3
+    paths = [b.file_path.as_posix() for b in proposal.blocks]
+    assert paths == ["src/users.py", "src/views.py", "src/audit.py"]
+    assert all(b.search.strip() for b in proposal.blocks)
+    assert all("fetch_user" in b.replace for b in proposal.blocks)
+
+
+def test_strips_leading_prose_before_envelope() -> None:
+    patch_text = """Phase 1/3: Update the config file.
+
+*** Begin Patch
+*** Update File: config.py
+SEARCH:
+old_value = 1
+REPLACE:
+old_value = 2
+*** End Patch"""
+
+    proposal = PatchParser().parse(patch_text, task="update config")
+    assert len(proposal.blocks) == 1
+    assert proposal.blocks[0].file_path.as_posix() == "config.py"
+
+
+def test_strips_trailing_prose_after_envelope() -> None:
+    patch_text = """*** Begin Patch
+*** Update File: config.py
+SEARCH:
+old_value = 1
+REPLACE:
+old_value = 2
+*** End Patch
+
+This completes phase 1."""
+
+    proposal = PatchParser().parse(patch_text, task="update config")
+    assert len(proposal.blocks) == 1
+
+
+def test_strip_to_envelope_extracts_correctly() -> None:
+    text = "Explanation\n\n*** Begin Patch\n*** Update File: f.py\n*** End Patch\n\nDone."
+    result = _strip_to_envelope(text)
+    assert result == "*** Begin Patch\n*** Update File: f.py\n*** End Patch"
+
+
+def test_strip_to_envelope_returns_text_when_no_markers() -> None:
+    text = "no markers here"
+    result = _strip_to_envelope(text)
+    assert result == "no markers here"

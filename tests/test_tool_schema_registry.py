@@ -218,6 +218,20 @@ class TestSerialization:
         assert data["requires_human_approval"] is True
         assert isinstance(data["args"], list)
 
+
+class TestToolsListCLI:
+    def test_tools_list_json_includes_builtin_and_mcp_field(self, tmp_path: Path, monkeypatch) -> None:
+        from typer.testing import CliRunner
+        from safecode.cli import app
+
+        monkeypatch.chdir(tmp_path)
+        result = CliRunner().invoke(app, ["tools", "list", "--json", "--include-mcp"])
+        assert result.exit_code == 0
+        payload = json.loads(result.output)
+        assert payload["status"] == "success"
+        assert any(tool["name"] == "patch.apply" for tool in payload["data"]["tools"])
+        assert "mcp_tools" in payload["data"]
+
     def test_tool_spec_round_trips(self):
         spec = ToolRegistry().get("context.collect")
         data = spec.model_dump()

@@ -41,6 +41,8 @@ class AgentPatchResponse(BaseModel):
     type: Literal["patch"] = "patch"
     patch_text: str
     explanation: str | None = None
+    input_tokens: int = 0
+    output_tokens: int = 0
 
 
 class AgentStopForUserResponse(BaseModel):

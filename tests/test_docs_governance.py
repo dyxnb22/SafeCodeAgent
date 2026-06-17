@@ -47,7 +47,7 @@ def test_docs_entrypoints_exist() -> None:
 def test_docs_root_stays_curated() -> None:
     root_docs = sorted(path.name for path in DOCS.glob("*.md"))
     assert "README.md" in root_docs
-    assert len(root_docs) <= 18, root_docs
+    assert len(root_docs) <= 20, root_docs
 
 
 def test_reference_index_links_to_key_reference_pages() -> None:

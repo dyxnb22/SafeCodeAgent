@@ -176,3 +176,89 @@ class GitContextCollector:
 def collect_git_context(project_root: Path) -> GitContext:
     """Convenience function: collect git context for a project root."""
     return GitContextCollector(project_root).collect()
+
+
+# ---------------------------------------------------------------------------
+# v6.8.1 — per-file git context
+# ---------------------------------------------------------------------------
+
+_PER_FILE_MAX_LOG_LINES = 5
+_PER_FILE_MAX_DIFF_CHARS = 600
+_PER_FILE_TOTAL_CAP = 2000
+_PER_FILE_TOP_N = 5
+
+
+def collect_per_file_git_context(project_root: Path, rel_paths: list[str]) -> str:
+    """Return a compact git log + diff summary for the top-N selected files.
+
+    Runs ``git log -5 --oneline <file>`` and ``git diff HEAD~1 -- <file>``
+    for each of the first ``_PER_FILE_TOP_N`` files. All subprocess calls use
+    ``shell=False``, timeout=8s, and fail silently. Output is capped at
+    ``_PER_FILE_TOTAL_CAP`` chars and passed through ``redact_secrets()``.
+
+    Returns an empty string when git is not available or no output is produced.
+    """
+    if not shutil.which("git"):
+        return ""
+    if not rel_paths:
+        return ""
+
+    from safecode.context.redactor import redact_secrets
+
+    sections: list[str] = []
+    total_chars = 0
+
+    for rel in rel_paths[:_PER_FILE_TOP_N]:
+        if total_chars >= _PER_FILE_TOTAL_CAP:
+            break
+
+        file_lines: list[str] = [f"### {rel}"]
+
+        # git log
+        try:
+            log_result = subprocess.run(
+                ["git", "log", f"-{_PER_FILE_MAX_LOG_LINES}", "--oneline", "--", rel],
+                cwd=str(project_root),
+                capture_output=True,
+                text=True,
+                shell=False,
+                timeout=8,
+            )
+            log_out = log_result.stdout.strip()
+            if log_out:
+                file_lines.append("Recent commits:")
+                file_lines.extend(f"  {ln}" for ln in log_out.splitlines()[:_PER_FILE_MAX_LOG_LINES])
+        except Exception:
+            pass
+
+        # git diff HEAD~1
+        try:
+            diff_result = subprocess.run(
+                ["git", "diff", "HEAD~1", "--", rel],
+                cwd=str(project_root),
+                capture_output=True,
+                text=True,
+                shell=False,
+                timeout=8,
+            )
+            diff_out = diff_result.stdout.strip()
+            if diff_out:
+                diff_trimmed = diff_out[:_PER_FILE_MAX_DIFF_CHARS]
+                if len(diff_out) > _PER_FILE_MAX_DIFF_CHARS:
+                    diff_trimmed += "\n... (truncated)"
+                file_lines.append("Diff vs HEAD~1:")
+                file_lines.append(diff_trimmed)
+        except Exception:
+            pass
+
+        if len(file_lines) > 1:  # has more than just the header
+            block = redact_secrets("\n".join(file_lines))
+            sections.append(block)
+            total_chars += len(block)
+
+    if not sections:
+        return ""
+    body = "\n\n".join(sections)
+    if len(body) > _PER_FILE_TOTAL_CAP:
+        body = body[:_PER_FILE_TOTAL_CAP] + "\n... (truncated)"
+    return "## Per-file git context\n" + body

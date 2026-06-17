@@ -122,6 +122,8 @@ class OpenAICompatibleLLMClient:
         self._max_retries = getattr(config.llm, "max_retries", 3)
         self._retry_base_delay = getattr(config.llm, "retry_base_delay_seconds", 0.5)
         self._progress_callback = progress_callback
+        # Accumulates token usage from the most recent _chat call; read by propose_patch.
+        self._last_token_usage: dict[str, int] = {"input": 0, "output": 0}
 
     def ask(self, question: str, context: dict) -> AgentAnswer:
         """Answer a read-only question."""
@@ -170,39 +172,78 @@ class OpenAICompatibleLLMClient:
             raise ValueError(f"Expected tool_intent or stop_for_user response, got {response.type}.")
         return response
 
+    _PATCH_SYSTEM_PROMPT = (
+        "{system}\nReturn exactly one JSON object and no prose. "
+        'The JSON shape must be {{"type":"patch","patch_text":"...","explanation":"..."}}. '
+        "The patch_text value must be a SafeCode SEARCH/REPLACE patch. "
+        "If the task touches multiple files, include ALL changed files in one patch "
+        "using multiple *** Update File: sections inside a single *** Begin Patch / *** End Patch envelope. "
+        "Exact format:\n"
+        "*** Begin Patch\n"
+        "*** Update File: path/to/first.py\n"
+        "SEARCH:\n"
+        "old text exactly as it appears in the file\n"
+        "REPLACE:\n"
+        "new text\n"
+        "*** Update File: path/to/second.py\n"
+        "SEARCH:\n"
+        "old text exactly as it appears in that file\n"
+        "REPLACE:\n"
+        "new text\n"
+        "*** End Patch\n"
+        "Do not use unified diff hunks, @@ markers, Markdown fences, or prose inside patch_text. "
+        "SEARCH must not be empty."
+    )
+
     def propose_patch(self, task: str, context: dict) -> AgentPatchResponse:
-        """Return patch text, leaving parsing and validation to SafeCode."""
-        content = self._chat(
-            [
+        """Return patch text, leaving parsing and validation to SafeCode.
+
+        Retries once when the first response contains no patch envelope — this
+        catches models that respond with planning prose instead of a direct patch.
+        """
+        system = self._PATCH_SYSTEM_PROMPT.format(system=SYSTEM_PROMPT)
+        user_msg = f"Task: {task}\nContext: {json.dumps(context)[:12000]}"
+
+        self._last_token_usage = {"input": 0, "output": 0}  # reset before this request
+
+        messages = [
+            {"role": "system", "content": system},
+            {"role": "user", "content": user_msg},
+        ]
+        content = self._chat(messages)
+        patch_text = self._resolve_patch_text(content)
+
+        if "*** Begin Patch" not in patch_text:
+            # Model returned prose / planning text instead of a patch; retry once
+            # with an explicit "output the patch now" instruction.
+            retry_messages = messages + [
+                {"role": "assistant", "content": content},
                 {
-                    "role": "system",
+                    "role": "user",
                     "content": (
-                        f"{SYSTEM_PROMPT}\nReturn exactly one JSON object and no prose. "
-                        'The JSON shape must be {"type":"patch","patch_text":"...","explanation":"..."}. '
-                        "The patch_text value must be one SafeCode SEARCH/REPLACE patch using this exact format:\n"
-                        "*** Begin Patch\n"
-                        "*** Update File: path/to/file.py\n"
-                        "SEARCH:\n"
-                        "old text exactly as it appears in the file\n"
-                        "REPLACE:\n"
-                        "new text\n"
-                        "*** End Patch\n"
-                        "Do not use unified diff hunks, @@ markers, Markdown fences, or prose inside patch_text."
+                        "You responded with planning text instead of a patch. "
+                        "The file contents are already in the context above. "
+                        "Output the patch NOW using *** Begin Patch ... *** End Patch. "
+                        "No explanation."
                     ),
                 },
-                {"role": "user", "content": f"Task: {task}\nContext: {json.dumps(context)[:12000]}"},
             ]
+            content = self._chat(retry_messages)
+            patch_text = self._resolve_patch_text(content)
+
+        return AgentPatchResponse(
+            patch_text=patch_text,
+            explanation="OpenAI-compatible patch response.",
+            input_tokens=self._last_token_usage["input"],
+            output_tokens=self._last_token_usage["output"],
         )
+
+    def _resolve_patch_text(self, content: str) -> str:
+        """Extract the patch envelope from a raw LLM response (JSON or plain text)."""
         parsed = validate_provider_json(content, method="propose_patch")
         if isinstance(parsed, AgentPatchResponse):
-            return AgentPatchResponse(
-                patch_text=_extract_patch_envelope(parsed.patch_text),
-                explanation=parsed.explanation or "OpenAI-compatible patch response.",
-            )
-        return AgentPatchResponse(
-            patch_text=_extract_patch_envelope(content),
-            explanation="OpenAI-compatible patch response.",
-        )
+            return _extract_patch_envelope(parsed.patch_text)
+        return _extract_patch_envelope(content)
 
     def choose_tool_native(
         self,
@@ -211,19 +252,24 @@ class OpenAICompatibleLLMClient:
         tool_specs: list["NativeToolSpec"],
         *,
         step: int = 0,
+        conversation_history: "list[dict] | None" = None,
     ) -> list[AgentNativeToolCallResponse] | AgentStopForUserResponse | RecoverableContractFailure:
         """Call with OpenAI function calling; return tool calls or stop (v4.23.1, EXPERIMENTAL).
 
         Sends ``tool_specs`` as the OpenAI ``tools`` parameter. When the model
         responds with ``tool_calls``, maps them to ``AgentNativeToolCallResponse``.
+
+        ``conversation_history`` (v6.7.0): optional prior messages from ConversationBuffer.
+        When provided they are inserted between the system message and the current
+        user turn so the model has full conversational context.
         """
         tools = [_native_spec_to_openai(spec) for spec in tool_specs]
+        current_user_msg = {"role": "user", "content": f"Goal: {goal}\nContext: {json.dumps(context)[:12000]}"}
+        history = list(conversation_history) if conversation_history else []
+        messages = [{"role": "system", "content": SYSTEM_PROMPT}] + history + [current_user_msg]
         payload = json.dumps({
             "model": self.model,
-            "messages": [
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": f"Goal: {goal}\nContext: {json.dumps(context)[:12000]}"},
-            ],
+            "messages": messages,
             "tools": tools,
             "temperature": 0,
         }).encode("utf-8")
@@ -435,13 +481,16 @@ class OpenAICompatibleLLMClient:
             raise StreamError(f"LLM stream request failed: {exc}") from exc
 
     def _record_usage(self, data: dict) -> None:
-        if self._session_id is None or self._sac_dir is None:
-            return
         usage_raw = data.get("usage") or {}
         if not usage_raw:
             return
         prompt = int(usage_raw.get("prompt_tokens", 0))
         completion = int(usage_raw.get("completion_tokens", 0))
+        # Update last-call cache so propose_patch can embed token counts in the response.
+        self._last_token_usage["input"] += prompt
+        self._last_token_usage["output"] += completion
+        if self._session_id is None or self._sac_dir is None:
+            return
         usage = TokenUsage(
             prompt_tokens=prompt,
             completion_tokens=completion,

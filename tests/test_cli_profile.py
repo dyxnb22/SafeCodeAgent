@@ -17,7 +17,7 @@ from safecode.project.profile import (
     ProfileCommand,
 )
 
-runner = CliRunner(mix_stderr=False)
+runner = CliRunner()
 
 
 def _invoke(*args, cwd: Path | None = None):

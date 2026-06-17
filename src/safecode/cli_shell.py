@@ -48,6 +48,9 @@ Slash commands:
   /history          show recent shell turns for the current session
   /tools            list available native tools (v4.20+)
   /cost             show session token and cost estimate (v5.2+)
+  /mode             show current agentic mode (plan/build)
+  /mode plan        switch agentic shell to read-only planning
+  /mode build       switch agentic shell to build mode
   /help             show this help
   /exit             exit the shell
 
@@ -72,7 +75,7 @@ def _shell_prompt(turn: int, cost_str: str = "", task_str: str = "") -> str:
 _SLASH_COMMANDS = [
     "/status", "/task", "/overview", "/model", "/provider",
     "/apply", "/commit", "/debug", "/clear", "/undo", "/history", "/tools",
-    "/cost", "/help", "/exit", "/quit",
+    "/cost", "/mode", "/help", "/exit", "/quit",
 ]
 
 
@@ -904,6 +907,7 @@ def _run_agentic_shell(
     auto_edit: bool = False,
     full_auto: bool = False,
     command_delay_ms: int = 500,
+    mode: str = "build",
 ) -> int:
     """[EXPERIMENTAL] Drive AgentLoop.run() from a single user input line.
 
@@ -917,7 +921,10 @@ def _run_agentic_shell(
     from safecode.cli_shared_json import CLIJSONResponse, render_json
     from safecode.agent.step_model import APPROVAL_REQUIRED_KINDS
 
-    if full_auto:
+    plan_mode = mode == "plan"
+    if plan_mode:
+        mode_label = "plan"
+    elif full_auto:
         mode_label = "full-auto"
     elif auto_edit:
         mode_label = "auto-edit"
@@ -939,115 +946,211 @@ def _run_agentic_shell(
             )
         console.print("Enter your goal (one line), or Ctrl-C to exit.")
 
-    line = _read_line(is_tty=is_tty)
-    if line is None or not line.strip():
-        if is_tty:
-            console.print("[yellow]No input received. Exiting.[/yellow]")
-        return 0
+    # v6.7.0: multi-turn conversational REPL with persistent ConversationBuffer.
+    from safecode.agent.conversation import ConversationBuffer
+    from safecode.config import SafeCodeConfig
 
-    goal = line.strip()
+    config = SafeCodeConfig.load(project_root)
+    sac_dir = project_root / config.sac_dir
+    import uuid
+    shell_session_id = uuid.uuid4().hex
+    conversation = ConversationBuffer.load(shell_session_id, sac_dir)
+
     loop = AgentLoop(
         project_root,
         auto_edit=auto_edit,
         full_auto=full_auto,
         command_delay_ms=command_delay_ms,
+        no_clarify=True,  # clarification handled interactively in the REPL itself
+        plan_mode=plan_mode,
     )
 
-    step_updates: list[str] = []
-    files_edited: list[str] = []
+    if is_tty and not json_output:
+        console.print(
+            "[bold]SafeCode Shell[/bold] [dim](EXPERIMENTAL --agentic v6.7, conversational)[/dim]\n"
+            "Type your goal. Use /exit to quit, /mode, /clear, /compact, /history, /undo."
+        )
+        if plan_mode:
+            console.print("[cyan]Plan mode active. Only read/search/reference tools are available.[/cyan]")
+        elif full_auto:
+            console.print("[yellow]Full-auto mode active. High-risk commands still blocked.[/yellow]")
+        elif auto_edit:
+            console.print("[yellow]Auto-edit mode active. Use sac rollback --last to undo.[/yellow]")
 
-    def on_step(result):
-        obs = result.observation[:120]
-        step_updates.append(obs)
-        # Track auto-edited files for session summary.
-        if auto_edit and result.state.pending_action:
-            action = result.state.pending_action
-            if action.get("type") == "native_turn":
-                write_calls = int(action.get("write_calls", "0") or "0")
-                if write_calls:
-                    files_edited.append(f"+{write_calls} files (step {len(step_updates)})")
-            if is_tty and not json_output:
+    turn_count = 0
+    while True:
+        turn_count += 1
+        prompt = _shell_prompt(turn_count)
+        line = _read_line(is_tty=is_tty, turn=turn_count, prompt_override=prompt)
+        if line is None:
+            break
+        goal = line.strip()
+        if not goal:
+            continue
+
+        # Slash commands in agentic mode
+        if goal.startswith("/"):
+            if goal in ("/exit", "/quit"):
+                if is_tty:
+                    console.print("[dim]Exiting agentic shell.[/dim]")
+                break
+            if goal == "/clear":
+                conversation = ConversationBuffer.load(uuid.uuid4().hex, sac_dir)
+                if is_tty:
+                    console.print("[dim]Conversation cleared.[/dim]")
+                continue
+            if goal == "/undo":
+                try:
+                    from safecode.checkpoint.manager import CheckpointManager
+                    meta = CheckpointManager(project_root).rollback_last()
+                    paths = [op.path for op in meta.file_operations]
+                    msg = f"Rolled back: {', '.join(paths)}"
+                except Exception as exc:
+                    msg = f"Rollback failed: {exc}"
+                if is_tty:
+                    console.print(msg)
+                continue
+            if goal == "/history":
+                if conversation.is_empty():
+                    msg = "No conversation history yet."
+                else:
+                    msgs = conversation.to_messages()
+                    lines_h = [f"Conversation ({len(msgs)} messages, {conversation.turn_count()} turns):"]
+                    for m in msgs[-10:]:
+                        snippet = str(m.get("content", ""))[:80].replace("\n", " ")
+                        lines_h.append(f"  [{m.get('role','?')}] {snippet}")
+                    msg = "\n".join(lines_h)
+                if is_tty:
+                    console.print(msg)
+                continue
+            if goal == "/compact":
+                before = len(conversation.to_messages())
+                conversation.compact_now()
+                after = len(conversation.to_messages())
+                if is_tty:
+                    console.print(f"[dim]Conversation compacted: {before} -> {after} messages.[/dim]")
+                continue
+            if goal.startswith("/mode"):
+                parts = goal.split(None, 1)
+                if len(parts) == 1:
+                    msg = f"Current mode: {'plan' if plan_mode else 'build'}"
+                else:
+                    requested = parts[1].strip().lower()
+                    if requested not in {"plan", "build"}:
+                        msg = "Usage: /mode plan|build"
+                    else:
+                        plan_mode = requested == "plan"
+                        loop = AgentLoop(
+                            project_root,
+                            auto_edit=False if plan_mode else auto_edit,
+                            full_auto=False if plan_mode else full_auto,
+                            command_delay_ms=command_delay_ms,
+                            no_clarify=True,
+                            plan_mode=plan_mode,
+                        )
+                        msg = (
+                            "Switched to plan mode. Writes and commands are unavailable."
+                            if plan_mode
+                            else "Switched to build mode. Approval settings restored."
+                        )
+                if is_tty:
+                    console.print(msg)
+                elif json_output:
+                    print(render_json(CLIJSONResponse(command="shell --agentic /mode", status="success", data={"message": msg, "mode": "plan" if plan_mode else "build"})))
+                    break
+                continue
+            # Unknown slash command — fall through as a question
+            if is_tty:
+                console.print(f"[yellow]Unknown command: {goal!r}. Use /exit, /clear, /undo, /history.[/yellow]")
+            continue
+
+        # Append user turn to conversation buffer
+        conversation.append_user(goal)
+
+        step_updates: list[str] = []
+
+        def on_step(result, _su=step_updates):
+            obs = result.observation[:120]
+            _su.append(obs)
+            if is_tty and not json_output and auto_edit:
+                action = result.state.pending_action or {}
                 write_calls = int(action.get("write_calls", "0") or "0") if action.get("type") == "native_turn" else 0
                 if write_calls:
                     console.print(f"  [green]✓[/green] {write_calls} file(s) edited")
 
-    try:
-        if is_tty and not json_output:
-            from rich.status import Status
-            with Status("[bold blue]Agent loop running...", spinner="dots"):
-                result = loop.run(goal, max_steps=8, on_step=on_step)
-        else:
-            result = loop.run(goal, max_steps=8, on_step=on_step)
-    except (FileNotFoundError, ValueError) as exc:
+        try:
+            if is_tty and not json_output:
+                from rich.status import Status
+                with Status("[bold blue]Thinking...", spinner="dots"):
+                    result = loop.run(goal, max_steps=8, on_step=on_step, conversation=conversation)
+            else:
+                result = loop.run(goal, max_steps=8, on_step=on_step, conversation=conversation)
+        except (FileNotFoundError, ValueError) as exc:
+            errmsg = str(exc)
+            conversation.append_assistant(f"Error: {errmsg}")
+            if json_output:
+                print(render_json(CLIJSONResponse(command="shell --agentic", status="error", error=errmsg)))
+                return 1
+            if is_tty:
+                console.print(f"[red]{errmsg}[/red]")
+            continue
+
+        # Build assistant reply from step observations
+        observations = [s.observation for s in result.steps if s.observation]
+        for step in result.steps:
+            action = step.state.pending_action or {}
+            if action.get("type") == "native_turn" and step.observation:
+                conversation.append_tool_result("native_turn", step.observation)
+        agent_reply = "\n".join(observations) if observations else f"Done ({result.stopped_reason})"
+        conversation.append_assistant(agent_reply)
+
         if json_output:
-            print(render_json(CLIJSONResponse(command="shell --agentic", status="error", error=str(exc))))
-        else:
-            console.print(f"[red]{exc}[/red]")
-        return 1
-
-    last_typed = loop.last_typed_result
-
-    if json_output:
-        status = result.stopped_reason if result.stopped_reason in ("completed", "approval_required") else "stopped"
-        data: dict = {
-            "session_id": result.state.session_id,
-            "stopped_reason": result.stopped_reason,
-            "steps_count": len(result.steps),
-            "status": result.state.status,
-            "step_updates": step_updates,
-            "auto_edit": auto_edit,
-            "full_auto": full_auto,
-        }
-        if files_edited:
-            data["files_edited_summary"] = files_edited
-        if last_typed is not None:
-            data["last_typed_result"] = last_typed.model_dump()
-        session_cost_json = loop.session_cost()
-        if session_cost_json:
-            data["cost"] = {
-                "input_tokens": session_cost_json.prompt_tokens,
-                "output_tokens": session_cost_json.completion_tokens,
-                "cache_read_tokens": session_cost_json.cache_read_tokens,
-                "estimated_usd": round(
-                    (session_cost_json.prompt_tokens / 1_000_000) * 3.0
-                    + (session_cost_json.completion_tokens / 1_000_000) * 15.0
-                    + (session_cost_json.cache_read_tokens / 1_000_000) * 0.30,
-                    4,
-                ),
+            status = result.stopped_reason if result.stopped_reason in ("completed", "approval_required") else "stopped"
+            data: dict = {
+                "session_id": result.state.session_id,
+                "stopped_reason": result.stopped_reason,
+                "steps_count": len(result.steps),
+                "status": result.state.status,
+                "step_updates": step_updates,
+                "turn": turn_count,
+                "conversation_turns": conversation.turn_count(),
+                "mode": "plan" if plan_mode else "build",
             }
-        print(render_json(CLIJSONResponse(command="shell --agentic", status=status, data=data)))
-        return 0
+            last_typed = loop.last_typed_result
+            if last_typed is not None:
+                data["last_typed_result"] = last_typed.model_dump()
+            session_cost_json = loop.session_cost()
+            if session_cost_json and (session_cost_json.prompt_tokens or session_cost_json.completion_tokens):
+                data["cost"] = {
+                    "input_tokens": session_cost_json.prompt_tokens,
+                    "output_tokens": session_cost_json.completion_tokens,
+                    "cache_read_tokens": session_cost_json.cache_read_tokens,
+                    "estimated_usd": round(
+                        (session_cost_json.prompt_tokens / 1_000_000) * 3.0
+                        + (session_cost_json.completion_tokens / 1_000_000) * 15.0
+                        + (session_cost_json.cache_read_tokens / 1_000_000) * 0.30,
+                        4,
+                    ),
+                }
+            print(render_json(CLIJSONResponse(command="shell --agentic", status=status, data=data)))
+            # In JSON mode stop after one turn (caller drives the loop)
+            break
 
-    for index, step_result in enumerate(result.steps, start=1):
-        line_out = f"Step {index}: {step_result.observation}"
-        if is_tty:
-            console.print(line_out)
-        else:
-            print(line_out)
+        # TTY display
+        for idx, step_result in enumerate(result.steps, start=1):
+            if step_result.observation:
+                console.print(f"[dim]Step {idx}:[/dim] {step_result.observation}")
 
-    # Always show the reversible session summary for auto modes.
-    summary_parts = [
-        f"Session: {result.state.session_id}",
-        f"Status: {result.state.status}",
-        f"Stopped: {result.stopped_reason}",
-    ]
-    if (auto_edit or full_auto) and loop._native_write_count:
-        summary_parts.append(f"Files edited: {loop._native_write_count}")
-        summary_parts.append(f"Undo all: sac rollback --session {result.state.session_id}")
-
-    session_cost = loop.session_cost()
-    if session_cost and (session_cost.prompt_tokens or session_cost.completion_tokens):
-        cost_str = _format_cost(session_cost.prompt_tokens, session_cost.completion_tokens, session_cost.cache_read_tokens)
-        tokens_k_in = session_cost.prompt_tokens // 1000
-        tokens_k_out = session_cost.completion_tokens // 1000
-        cost_display = f"Cost: {cost_str} ({tokens_k_in}k in / {tokens_k_out}k out)" if cost_str else f"Tokens: {tokens_k_in}k in / {tokens_k_out}k out"
-        summary_parts.append(cost_display)
-
-    summary = " | ".join(summary_parts)
-    if is_tty:
-        console.print(f"[dim]{summary}[/dim]")
-    else:
-        print(summary)
+        session_cost = loop.session_cost()
+        cost_parts: list[str] = []
+        if session_cost and (session_cost.prompt_tokens or session_cost.completion_tokens):
+            cost_str = _format_cost(session_cost.prompt_tokens, session_cost.completion_tokens, session_cost.cache_read_tokens)
+            if cost_str:
+                cost_parts.append(cost_str)
+        if loop._native_write_count:
+            cost_parts.append(f"{loop._native_write_count} file(s) edited")
+        if cost_parts or result.stopped_reason not in ("completed", "max_steps_reached"):
+            console.print(f"[dim]{result.stopped_reason}" + (f" · {' · '.join(cost_parts)}" if cost_parts else "") + "[/dim]")
 
     return 0
 
@@ -1086,6 +1189,11 @@ def register(app: typer.Typer) -> None:
             help="[EXPERIMENTAL] Grace period (ms) before run_command executes in --full-auto mode. "
                  "Press Ctrl-C during delay to abort. Range: 0–2000. Default: 500.",
         ),
+        mode: str = typer.Option(
+            "build",
+            "--mode",
+            help="[EXPERIMENTAL] Agentic mode: plan (read-only tools) or build (normal approval flow).",
+        ),
     ) -> None:
         """[EXPERIMENTAL] Start an interactive AI shell session.
 
@@ -1095,6 +1203,8 @@ def register(app: typer.Typer) -> None:
         With --agentic, user input becomes the goal for an AgentLoop.run() invocation
         (the same loop sac agent run drives). Existing shell behavior is unchanged
         without --agentic.
+
+        With --mode plan, only read/search/reference native tools are registered.
 
         With --auto-edit (implies --agentic), edit_file and write_file execute
         without per-call prompts. Use 'sac rollback --last' or '/undo' to undo.
@@ -1106,6 +1216,13 @@ def register(app: typer.Typer) -> None:
         project_root = Path.cwd()
         is_tty = sys.stdin.isatty() and sys.stdout.isatty() and not non_tty
         delay_ms = max(0, min(2000, command_delay_ms))
+        mode_value = mode.strip().lower()
+        if mode_value not in {"plan", "build"}:
+            console.print("[red]--mode must be 'plan' or 'build'.[/red]")
+            raise typer.Exit(code=2)
+        if mode_value == "plan":
+            auto_edit = False
+            full_auto = False
         if model:
             from safecode.cli_model import apply_model_override_env
             try:
@@ -1126,6 +1243,7 @@ def register(app: typer.Typer) -> None:
                 auto_edit=auto_edit,
                 full_auto=full_auto,
                 command_delay_ms=delay_ms,
+                mode=mode_value,
             )
         else:
             code = run_shell(

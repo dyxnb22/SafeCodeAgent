@@ -10,6 +10,7 @@ from safecode.index.files import FileIndexer
 from safecode.memory.facade import MemoryFacade
 
 _RECENCY_BONUS = 2
+_CONVERSATION_BONUS = 3  # v6.7.1: files already mentioned in conversation history
 _GIT_LOG_N = 50
 
 
@@ -85,8 +86,19 @@ class ContextSelector:
         """Return files with path tokens that match query tokens."""
         return [source.path for source in self.select_sources(query, limit)]
 
-    def select_sources(self, query: str, limit: int = 10) -> list[SelectedContextSource]:
-        """Return ranked file sources; recently git-touched files get a score bonus."""
+    def select_sources(
+        self,
+        query: str,
+        limit: int = 10,
+        *,
+        conversation_files: "list[str] | None" = None,
+    ) -> list[SelectedContextSource]:
+        """Return ranked file sources; recently git-touched and conversation-mentioned files get bonuses.
+
+        ``conversation_files`` (v6.7.1): file paths already referenced in the
+        current conversation. They receive ``_CONVERSATION_BONUS`` on top of any
+        keyword score so the model stays focused on files it already discussed.
+        """
         self.last_warnings = {}
         if limit <= 0:
             return []
@@ -94,6 +106,12 @@ class ContextSelector:
         indexed = FileIndexer(self.project_root).index()
         indexed_paths = {item.path for item in indexed}
         recent = self._recent_files()
+        conv_set: set[str] = set()
+        if conversation_files:
+            for cf in conversation_files:
+                cf_norm = cf.lstrip("./").replace("\\", "/")
+                conv_set.add(cf_norm)
+                conv_set.add(Path(cf_norm).name)
         scored: list[SelectedContextSource] = []
         if tokens:
             for item in indexed:
@@ -104,15 +122,18 @@ class ContextSelector:
                 base_score = len(matched)
                 file_name = Path(item.path).name
                 is_recent = item.path in recent or file_name in recent
-                bonus = _RECENCY_BONUS if is_recent else 0
-                reason = f"path matched: {', '.join(matched)}"
+                in_conv = item.path in conv_set or file_name in conv_set
+                bonus = (_RECENCY_BONUS if is_recent else 0) + (_CONVERSATION_BONUS if in_conv else 0)
+                reasons = [f"path matched: {', '.join(matched)}"]
                 if is_recent:
-                    reason += "; recently modified"
+                    reasons.append("recently modified")
+                if in_conv:
+                    reasons.append("mentioned in conversation")
                 scored.append(
                     SelectedContextSource(
                         path=item.path,
                         score=base_score + bonus,
-                        reason=reason,
+                        reason="; ".join(reasons),
                     )
                 )
         ranked = sorted(scored, key=lambda source: (-source.score, source.path))

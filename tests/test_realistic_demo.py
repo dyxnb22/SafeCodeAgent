@@ -55,6 +55,7 @@ def test_realistic_demo_is_fixable() -> None:
             cwd=tmpdir,
             capture_output=True,
             text=True,
+            env={**os.environ, "PYTHONPATH": str(tmpdir / "src")},
         )
         assert result.returncode == 0
         assert "2 passed" in result.stdout

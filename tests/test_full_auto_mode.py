@@ -192,7 +192,8 @@ class TestFullAutoCLIFlags:
 
         class FakeLoop:
             def __init__(self, project_root, llm_client=None, *, auto_edit=False,
-                         full_auto=False, command_delay_ms=500):
+                         full_auto=False, command_delay_ms=500, no_clarify=False,
+                         plan_mode=False):
                 captured["full_auto"] = full_auto
                 captured["command_delay_ms"] = command_delay_ms
                 self._native_write_count = 0
@@ -200,7 +201,7 @@ class TestFullAutoCLIFlags:
             def session_cost(self):
                 return None
 
-            def run(self, goal, max_steps=8, *, on_step=None):
+            def run(self, goal, max_steps=8, *, on_step=None, conversation=None):
                 state = AgentSessionState(
                     session_id="fa-sess",
                     goal=goal or "",
@@ -242,14 +243,15 @@ class TestFullAutoCLIFlags:
 
         class FakeLoop:
             def __init__(self, project_root, llm_client=None, *, auto_edit=False,
-                         full_auto=False, command_delay_ms=500):
+                         full_auto=False, command_delay_ms=500, no_clarify=False,
+                         plan_mode=False):
                 captured["command_delay_ms"] = command_delay_ms
                 self._native_write_count = 0
 
             def session_cost(self):
                 return None
 
-            def run(self, goal, max_steps=8, *, on_step=None):
+            def run(self, goal, max_steps=8, *, on_step=None, conversation=None):
                 state = AgentSessionState(
                     session_id="fa-sess2",
                     goal=goal or "",

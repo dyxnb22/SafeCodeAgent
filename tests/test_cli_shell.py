@@ -465,13 +465,14 @@ class TestShellAgenticMode:
 
         class FakeLoop:
             def __init__(self, project_root, llm_client=None, *, auto_edit=False,
-                         full_auto=False, command_delay_ms=500):
+                         full_auto=False, command_delay_ms=500, no_clarify=False,
+                         plan_mode=False):
                 self._native_write_count = 0
 
             def session_cost(self):
                 return None
 
-            def run(self, goal, max_steps=8, *, on_step=None):
+            def run(self, goal, max_steps=8, *, on_step=None, conversation=None):
                 captured["goal"] = goal
                 state = AgentSessionState(
                     session_id="agentic-sess-001",
@@ -524,7 +525,8 @@ class TestShellAgenticMode:
 
         class FakeLoop:
             def __init__(self, project_root, llm_client=None, *, auto_edit=False,
-                         full_auto=False, command_delay_ms=500):
+                         full_auto=False, command_delay_ms=500, no_clarify=False,
+                         plan_mode=False):
                 agent_loop_called.append(True)
                 self._native_write_count = 0
 

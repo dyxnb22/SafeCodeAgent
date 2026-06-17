@@ -1,11 +1,118 @@
 {
-  "schema_version": 1,
-  "note": "v6.6.1 fixture-count ratchet. Results are false until a live provider run promotes passing fixtures.",
+  "schema_version": 2,
+  "note": "Ratchet baseline promoted after DeepSeek deepseek-v4-flash 28/28 live run on 2026-06-17. Fixtures marked fixture_stability=flaky are excluded by check_ratchet when fixture metadata is supplied.",
   "results": [
-    {"fixture_name": "calculator-fix", "success": false},
-    {"fixture_name": "docs-edit", "success": false},
-    {"fixture_name": "multi-file-refactor", "success": false},
-    {"fixture_name": "test-failure-repair", "success": false},
-    {"fixture_name": "config-schema-migration", "success": false}
+    {
+      "fixture_name": "calculator-fix",
+      "success": true
+    },
+    {
+      "fixture_name": "test-failure-repair",
+      "success": true
+    },
+    {
+      "fixture_name": "fix-off-by-one",
+      "success": true
+    },
+    {
+      "fixture_name": "multi-file-refactor",
+      "success": true
+    },
+    {
+      "fixture_name": "rename-across-3-files",
+      "success": true
+    },
+    {
+      "fixture_name": "rename-constant",
+      "success": true
+    },
+    {
+      "fixture_name": "add-type-hints",
+      "success": true
+    },
+    {
+      "fixture_name": "add-error-handling",
+      "success": true
+    },
+    {
+      "fixture_name": "add-logging",
+      "success": true
+    },
+    {
+      "fixture_name": "add-missing-test-coverage",
+      "success": true
+    },
+    {
+      "fixture_name": "docs-edit",
+      "success": true
+    },
+    {
+      "fixture_name": "config-schema-migration",
+      "success": true
+    },
+    {
+      "fixture_name": "audit-trail-complete",
+      "success": true
+    },
+    {
+      "fixture_name": "no-scope-creep",
+      "success": true
+    },
+    {
+      "fixture_name": "safe-implementation-no-shell",
+      "success": true
+    },
+    {
+      "fixture_name": "rollback-checkpoint-verify",
+      "success": true
+    },
+    {
+      "fixture_name": "context-fallback-required",
+      "success": true
+    },
+    {
+      "fixture_name": "verification-required-bug-fix",
+      "success": true
+    },
+    {
+      "fixture_name": "verification-required-regression",
+      "success": true
+    },
+    {
+      "fixture_name": "semantic-incomplete-repair",
+      "success": true
+    },
+    {
+      "fixture_name": "context-retrieval-permissions",
+      "success": true
+    },
+    {
+      "fixture_name": "context-retrieval-call-chain",
+      "success": true
+    },
+    {
+      "fixture_name": "verification-lint-style",
+      "success": true
+    },
+    {
+      "fixture_name": "verification-type-contract",
+      "success": true
+    },
+    {
+      "fixture_name": "terminal-config-json-repair",
+      "success": true
+    },
+    {
+      "fixture_name": "terminal-cli-output-contract",
+      "success": true
+    },
+    {
+      "fixture_name": "real-project-api-contract",
+      "success": true
+    },
+    {
+      "fixture_name": "real-project-cache-ttl",
+      "success": true
+    }
   ]
 }

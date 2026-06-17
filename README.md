@@ -146,13 +146,17 @@ costly.
 
 ## Core Commands
 
-**AI Shell (v4.9, EXPERIMENTAL):**
+**AI Shell (v6.19, EXPERIMENTAL):**
 ```bash
-cd myproject && sac shell           # [EXPERIMENTAL] start the local AI shell
+cd myproject && sac shell                    # intent-routed shell
+sac shell --agentic --mode plan              # read-only planning tools
+sac shell --auto-edit --mode build           # auto-apply low-risk file edits
 ```
 The shell accepts natural-language questions and slash commands (`/status`, `/overview`,
-`/apply`, `/commit`, `/debug`, `/help`, `/exit`). All mutation paths require explicit
-confirmation. No auto-apply. No auto-commit. No RAG or embeddings.
+`/mode`, `/history`, `/apply`, `/commit`, `/debug`, `/help`, `/exit`). In default
+suggest mode, mutation paths require explicit confirmation. In `--auto-edit` and
+`--full-auto`, SafeCode can execute approved low-friction actions while preserving
+checkpoint, audit, dirty-tree guard, and rollback.
 See [docs/tutorials/ai-shell-first-hour.md](docs/tutorials/ai-shell-first-hour.md).
 
 **Trust Modes (Stable Contract #18):**
@@ -171,7 +175,11 @@ before executing — press Ctrl-C to abort a specific command. Cannot be persist
 sac shell --auto-edit                        # auto-apply file edits; still prompt for commands
 sac shell --full-auto                        # auto-apply edits AND commands (policy still gates)
 sac shell --full-auto --command-delay-ms 0   # zero delay (for scripting/CI)
+sac shell --agentic --mode plan              # read-only planning mode
 ```
+
+Plan/Build mode keeps the terminal mental model explicit: `plan` registers only
+read/search/reference tools; `build` restores the normal approval flow.
 
 **Context Intelligence (v5.3, EXPERIMENTAL):**
 
@@ -217,6 +225,21 @@ sac mcp stop <server>                 # stop a stdio MCP server process [EXPERIM
 
 All MCP tool outputs pass through `redact_secrets()` before model context.
 Write operations require an explicit approval grant — never auto-executed.
+
+**Terminal agent utilities (v6.20-v6.23, EXPERIMENTAL):**
+
+```bash
+sac lsp status
+sac lsp diagnostics --json
+sac session list
+sac session export <session-id> --sanitize
+sac format run --check
+sac tools list --include-mcp --include-user --json
+```
+
+SafeCode can also read user-declared tool metadata from `.sac/tools.toml`. These
+tools are discoverable and auditable first; arbitrary user commands are not
+auto-executed by default.
 
 **Shell Display (v5.2, EXPERIMENTAL):**
 

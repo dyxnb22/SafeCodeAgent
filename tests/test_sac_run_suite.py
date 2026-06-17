@@ -16,7 +16,7 @@ from safecode.project.profile import (
     save_profile,
 )
 
-runner = CliRunner(mix_stderr=False)
+runner = CliRunner()
 
 
 def _make_profile(

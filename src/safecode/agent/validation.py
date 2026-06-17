@@ -99,6 +99,7 @@ class ValidationLoop:
             self._record_validation_result(session_id, step_index, "failed", note, "validation_skipped")
             return ValidationLoopResult(status="skipped", stop_reason="missing_test_suite", notes=(note,))
 
+        formatter_notes = self._run_optional_formatters(session_id)
         suite_results: list[ValidationSuiteResult] = []
         for suite, command in commands:
             result = self._run_suite(command)
@@ -140,6 +141,7 @@ class ValidationLoop:
             status="success",
             suite_results=tuple(suite_results),
             stop_reason="validation_success",
+            notes=tuple(formatter_notes),
         )
 
     def _ordered_commands(self, profile: ProjectProfile) -> list[tuple[str, ProfileCommand]]:
@@ -152,6 +154,36 @@ class ValidationLoop:
 
     def _run_suite(self, command: ProfileCommand) -> ShellRunResult:
         return self.shell_runner.run(shlex.join(command.command), approved=True)
+
+    def _run_optional_formatters(self, session_id: str) -> list[str]:
+        if not self.config.formatter.enabled:
+            return []
+        try:
+            from safecode.project.formatter import run_formatters
+
+            results = run_formatters(
+                self.project_root,
+                approved=True,
+                config=self.config,
+                shell_runner=self.shell_runner,
+            )
+        except Exception as exc:
+            return [f"Formatter skipped: {type(exc).__name__}"]
+        notes: list[str] = []
+        for result in results:
+            note = f"Formatter {result.formatter} exited {result.exit_code}"
+            notes.append(note)
+            self.journal.record_command(
+                session_id,
+                note,
+                {
+                    "suite": "format",
+                    "command": list(result.command),
+                    "exit_code": result.exit_code,
+                    "executed": result.executed,
+                },
+            )
+        return notes
 
     def _handle_failure(
         self,
@@ -208,11 +240,14 @@ class ValidationLoop:
             description=f"Propose repair for failed {failed_suite} validation.",
         )
         self.journal.record_typed_step(session_id, fix_step)
-        repair_goal = (
-            f"{goal}\n\nValidation failed in suite '{failed_suite}'. "
-            "Use this redacted failure tail to propose a safe repair patch only; "
-            "do not apply it automatically.\n\n"
-            f"{failure_tail}"
+        from safecode.agent.repair import classify_failure, build_repair_prompt
+        strategy = classify_failure(failure_tail, suite_name=failed_suite)
+        repair_goal = build_repair_prompt(
+            strategy,
+            goal,
+            failure_tail,
+            failed_suite,
+            diagnostics=self._type_diagnostics_block(),
         )
         pending_patch_id: str | None = None
         try:
@@ -317,6 +352,26 @@ class ValidationLoop:
             return
         next_iteration = iteration.model_copy(update={"iteration_index": state.next_iteration_index()})
         store.save(state.model_copy(update={"iterations": list(state.iterations) + [next_iteration]}))
+
+    def _type_diagnostics_block(self) -> str:
+        """Return bounded Pyright diagnostics for repair prompts when available."""
+        try:
+            from safecode.index.lsp_bridge import PyrightBridge
+
+            diagnostics = PyrightBridge.get_diagnostics(self.project_root)
+        except Exception:
+            return ""
+        if not diagnostics:
+            return ""
+        lines: list[str] = []
+        for diag in diagnostics[:10]:
+            location = f"{diag.get('file', '')}:{diag.get('line', '')}:{diag.get('column', '')}"
+            severity = diag.get("severity", "error")
+            rule = diag.get("rule", "")
+            message = str(diag.get("message", ""))[:240]
+            rule_part = f" [{rule}]" if rule else ""
+            lines.append(f"- {location} {severity}{rule_part}: {message}")
+        return "\n".join(lines)[:2000]
 
 
 def _failure_tail(stdout: str, stderr: str) -> str:

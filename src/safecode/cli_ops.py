@@ -95,6 +95,7 @@ def eval_demo(
     provider: str = typer.Option("anthropic", "--provider", help="LLM provider for --mode live."),
     model: str = typer.Option("", "--model", help="Model override for --mode live."),
     fixture: str = typer.Option("", "--fixture", help="Run one named fixture (live mode only)."),
+    runs: int = typer.Option(1, "--runs", help="Repeat live eval N times and print aggregate stability metrics."),
     suite: str = typer.Option("", "--suite", help="Eval suite for --mode swebench-lite (dir of task JSON files)."),
     limit: int = typer.Option(10, "--limit", help="Max tasks for --mode swebench-lite."),
 ) -> None:
@@ -134,6 +135,7 @@ def eval_demo(
             check_ratchet,
             default_live_fixtures,
             render_live_summary,
+            render_repeated_summary,
             save_latest,
         )
 
@@ -156,9 +158,17 @@ def eval_demo(
         live_runner = LiveEvalRunner(provider=provider, model=model or None)
         model_label = model or "default"
         console.print(
-            f"Running {len(selected)} live fixture(s) with provider={provider!r}, model={model_label!r} …"
+            f"Running {len(selected)} live fixture(s) with provider={provider!r}, model={model_label!r}, runs={runs!r} …"
         )
-        live_results = live_runner.run_all(selected)
+        if runs < 1:
+            console.print("[red]--runs must be >= 1[/red]")
+            raise typer.Exit(code=1)
+        if runs > 1:
+            repeated = live_runner.run_all_repeated(selected, n_runs=runs)
+            live_results = repeated[-1] if repeated else []
+            console.print(render_repeated_summary(live_runner.summarize_repeated(repeated)))
+        else:
+            live_results = live_runner.run_all(selected)
         save_latest(live_results)
         console.print(render_live_summary(live_results))
         ratchet_failures = check_ratchet(live_results)
@@ -268,14 +278,19 @@ def ide_open_files(query: str, limit: int = typer.Option(5, "--limit", min=1)) -
         console.print(f"{target.uri}\n{target.path}")
 
 
-@release_app.command("checklist", hidden=True)
-def release_checklist(version: str) -> None:
+@release_app.command("checklist", hidden=True, help="[advanced] Render a release checklist. Prefer: bump -> pytest -> tag -> preflight.")
+def release_checklist(
+    version: str,
+    help_note: Optional[str] = typer.Option(None, "--help-note", help="[advanced] Planning helper; prefer sac release preflight."),
+) -> None:
     """[advanced] Render a release checklist. Prefer: bump -> pytest -> tag -> preflight."""
     console.print(render_release_checklist(version))
 
 
-@release_app.command("check", hidden=True)
-def release_check() -> None:
+@release_app.command("check", hidden=True, help="[advanced] Report version consistency and working-tree state. Prefer: sac release preflight.")
+def release_check(
+    help_note: Optional[str] = typer.Option(None, "--help-note", help="[advanced] Prefer sac release preflight."),
+) -> None:
     """[advanced] Report version consistency and working-tree state. Prefer: sac release preflight."""
     result = run_release_check(Path.cwd())
     console.print(render_release_check(result))
@@ -283,8 +298,10 @@ def release_check() -> None:
         raise typer.Exit(code=exit_code(result.ok))
 
 
-@release_app.command("smoke", hidden=True)
-def release_smoke() -> None:
+@release_app.command("smoke", hidden=True, help="[advanced] Run a fast release smoke test (import, version, policy). Prefer: sac release preflight.")
+def release_smoke(
+    help_note: Optional[str] = typer.Option(None, "--help-note", help="[advanced] Prefer sac release preflight."),
+) -> None:
     """[advanced] Run a fast release smoke test (import, version, policy). Prefer: sac release preflight."""
     result = run_smoke_tests()
     console.print(render_smoke_results(result))
@@ -304,8 +321,10 @@ def release_bump(
         raise typer.Exit(code=exit_code(result.ok))
 
 
-@release_app.command("meta", hidden=True)
-def release_meta() -> None:
+@release_app.command("meta", hidden=True, help="[advanced] Show release metadata index: version, tag, notes, and baseline consistency.")
+def release_meta(
+    help_note: Optional[str] = typer.Option(None, "--help-note", help="[advanced] Metadata helper; prefer sac release preflight."),
+) -> None:
     """[advanced] Show release metadata index: version, tag, notes, and baseline consistency."""
     meta = collect_release_metadata(Path.cwd())
     console.print(render_release_metadata(meta))
@@ -447,8 +466,10 @@ def release_changelog(
         raise typer.Exit(code=exit_code(result.ok))
 
 
-@release_app.command("signoff", hidden=True)
-def release_signoff() -> None:
+@release_app.command("signoff", hidden=True, help="[internal] Run the final local release signoff. Not required for the standard release flow.")
+def release_signoff(
+    help_note: Optional[str] = typer.Option(None, "--help-note", help="[internal] Not required for the standard release flow."),
+) -> None:
     """[internal] Run the final local release signoff. Not required for the standard release flow."""
     warnings.warn(
         "sac release signoff is deprecated. Use `sac release preflight` instead.",

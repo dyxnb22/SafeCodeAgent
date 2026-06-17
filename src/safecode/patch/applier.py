@@ -126,7 +126,11 @@ class PatchApplier:
         """Validate and render all file operations before writing any file.
 
         B6: Supports 'update', 'create', and 'delete' operations.
+        Multiple update blocks that target the same file are merged into one
+        PreparedOperation (applied in order), so each file is written at most once.
         """
+        # Track update operations by file path so we can fold in additional blocks.
+        update_index: dict[Path, int] = {}  # file_path -> index in operations
         operations: list[PreparedOperation] = []
         for block in proposal.blocks:
             op_type = block.operation
@@ -151,26 +155,48 @@ class PatchApplier:
             if op_type == "update":
                 if block.search is None or block.replace is None:
                     raise PatchValidationError("Update block requires SEARCH and REPLACE.")
-                try:
-                    content = target_path.read_text(encoding="utf-8")
-                except UnicodeDecodeError as exc:
-                    raise PatchValidationError(f"Cannot apply text patch to non-UTF-8 file: {block.file_path}") from exc
-                if content.count(block.search) != 1:
-                    raise PatchValidationError(
-                        f"SEARCH content must match exactly once in {block.file_path} before apply."
+
+                if block.file_path in update_index:
+                    # Merge: apply this block to the already-accumulated updated_content.
+                    prev_idx = update_index[block.file_path]
+                    prev = operations[prev_idx]
+                    acc = prev.updated_content
+                    if acc.count(block.search) != 1:
+                        raise PatchValidationError(
+                            f"SEARCH content must match exactly once in {block.file_path} (second edit block)."
+                        )
+                    operations[prev_idx] = PreparedOperation(
+                        relative_path=prev.relative_path,
+                        target_path=prev.target_path,
+                        original_content=prev.original_content,
+                        updated_content=acc.replace(block.search, block.replace, 1),
+                        file_mode=prev.file_mode,
+                        file_device=prev.file_device,
+                        file_inode=prev.file_inode,
+                        operation="update",
                     )
-                updated = content.replace(block.search, block.replace, 1)
-                stat_info = target_path.stat()
-                operations.append(PreparedOperation(
-                    relative_path=block.file_path,
-                    target_path=target_path,
-                    original_content=content,
-                    updated_content=updated,
-                    file_mode=stat.S_IMODE(stat_info.st_mode),
-                    file_device=stat_info.st_dev if hasattr(stat_info, "st_dev") else None,
-                    file_inode=stat_info.st_ino if hasattr(stat_info, "st_ino") else None,
-                    operation="update",
-                ))
+                else:
+                    try:
+                        content = target_path.read_text(encoding="utf-8")
+                    except UnicodeDecodeError as exc:
+                        raise PatchValidationError(f"Cannot apply text patch to non-UTF-8 file: {block.file_path}") from exc
+                    if content.count(block.search) != 1:
+                        raise PatchValidationError(
+                            f"SEARCH content must match exactly once in {block.file_path} before apply."
+                        )
+                    updated = content.replace(block.search, block.replace, 1)
+                    stat_info = target_path.stat()
+                    update_index[block.file_path] = len(operations)
+                    operations.append(PreparedOperation(
+                        relative_path=block.file_path,
+                        target_path=target_path,
+                        original_content=content,
+                        updated_content=updated,
+                        file_mode=stat.S_IMODE(stat_info.st_mode),
+                        file_device=stat_info.st_dev if hasattr(stat_info, "st_dev") else None,
+                        file_inode=stat_info.st_ino if hasattr(stat_info, "st_ino") else None,
+                        operation="update",
+                    ))
 
             elif op_type == "create":
                 # B6: create — content is the new file body; file must not exist yet

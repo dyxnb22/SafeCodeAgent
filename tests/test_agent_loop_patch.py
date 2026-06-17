@@ -11,6 +11,7 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
+from safecode.agent.schemas import AgentPatchResponse
 from safecode.agent.loop import AgentLoop
 from safecode.agent.orchestrator import AgentOrchestrator
 from safecode.cli import app
@@ -31,6 +32,73 @@ def _setup_calculator(tmp_path: Path) -> Path:
     calc = src / "calculator.py"
     calc.write_text(_CALCULATOR_BUGGY, encoding="utf-8")
     return calc
+
+
+class _RetryPatchLLM:
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, dict]] = []
+
+    def propose_patch(self, task: str, context: dict) -> AgentPatchResponse:
+        self.calls.append((task, context))
+        if len(self.calls) == 1:
+            return AgentPatchResponse(
+                patch_text=(
+                    "*** Begin Patch\n"
+                    "*** Update File: src/calculator.py\n"
+                    "SEARCH:\n"
+                    "return left + right\n"
+                    "REPLACE:\n"
+                    "return left + right\n"
+                    "*** End Patch"
+                ),
+                input_tokens=10,
+                output_tokens=5,
+            )
+        retry = context.get("patch_validation_retry", {})
+        assert "SEARCH content was not found" in retry.get("reason", "")
+        assert "return left - right + 0" in retry.get("current_files", {}).get("src/calculator.py", "")
+        return AgentPatchResponse(
+            patch_text=(
+                "*** Begin Patch\n"
+                "*** Update File: src/calculator.py\n"
+                "SEARCH:\n"
+                "return left - right + 0\n"
+                "REPLACE:\n"
+                "return left + right\n"
+                "*** End Patch"
+            ),
+            input_tokens=20,
+            output_tokens=7,
+        )
+
+
+class _ParseRetryPatchLLM:
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, dict]] = []
+
+    def propose_patch(self, task: str, context: dict) -> AgentPatchResponse:
+        self.calls.append((task, context))
+        if len(self.calls) == 1:
+            return AgentPatchResponse(
+                patch_text="*** Begin Patch\n*** End Patch",
+                input_tokens=5,
+                output_tokens=2,
+            )
+        retry = context.get("patch_parse_retry", {})
+        assert "Patch is too short" in retry.get("reason", "")
+        return AgentPatchResponse(
+            patch_text=(
+                "*** Begin Patch\n"
+                "*** Update File: src/calculator.py\n"
+                "SEARCH:\n"
+                "return left - right + 0\n"
+                "REPLACE:\n"
+                "return left + right\n"
+                "*** End Patch"
+            ),
+            input_tokens=15,
+            output_tokens=6,
+        )
 
 
 class TestAgentLoopPatchPath:
@@ -100,6 +168,44 @@ class TestAgentLoopPatchPath:
         edit_result = AgentOrchestrator(tmp_path).edit("fix calculator bug")
         assert edit_result.pending_patch_path.exists()
         assert calc.read_text(encoding="utf-8") == original
+
+    def test_orchestrator_retries_once_on_patch_validation_error(self, tmp_path):
+        calc = _setup_calculator(tmp_path)
+        original = calc.read_text(encoding="utf-8")
+        steps: list[dict] = []
+        llm = _RetryPatchLLM()
+
+        edit_result = AgentOrchestrator(tmp_path, llm_client=llm, on_step=steps.append).edit(
+            "fix calculator bug"
+        )
+
+        assert len(llm.calls) == 2
+        assert edit_result.pending_patch_path.exists()
+        assert "return left + right" in edit_result.diff_text
+        assert calc.read_text(encoding="utf-8") == original
+        assert steps[-1]["patch_retry_needed"] is True
+        assert steps[-1]["tool_calls"] == 2
+        assert steps[-1]["input_tokens"] == 30
+        assert steps[-1]["output_tokens"] == 12
+
+    def test_orchestrator_retries_once_on_patch_parse_error(self, tmp_path):
+        calc = _setup_calculator(tmp_path)
+        original = calc.read_text(encoding="utf-8")
+        steps: list[dict] = []
+        llm = _ParseRetryPatchLLM()
+
+        edit_result = AgentOrchestrator(tmp_path, llm_client=llm, on_step=steps.append).edit(
+            "fix calculator bug"
+        )
+
+        assert len(llm.calls) == 2
+        assert edit_result.pending_patch_path.exists()
+        assert "return left + right" in edit_result.diff_text
+        assert calc.read_text(encoding="utf-8") == original
+        assert steps[-1]["patch_retry_needed"] is True
+        assert steps[-1]["tool_calls"] == 2
+        assert steps[-1]["input_tokens"] == 20
+        assert steps[-1]["output_tokens"] == 8
 
     def test_journal_records_patch_proposed_event(self, tmp_path):
         _setup_calculator(tmp_path)

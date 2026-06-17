@@ -17,6 +17,7 @@ from safecode.agent.multi_tool_turn import MultiToolTurnResult, MultiToolTurnRun
 
 if TYPE_CHECKING:
     from safecode.llm.cost import TokenUsage
+    from safecode.agent.conversation import ConversationBuffer
 from safecode.agent.orchestrator import AgentOrchestrator
 from safecode.agent.pending_action import PatchPendingAction, StopForUserAction, ToolPendingAction
 from safecode.agent.schemas import AgentNativeToolCallResponse, AgentStopForUserResponse, AgentToolIntentResponse, RecoverableContractFailure
@@ -83,6 +84,8 @@ class AgentLoop:
         auto_edit: bool = False,
         full_auto: bool = False,
         command_delay_ms: int = 500,
+        no_clarify: bool = False,
+        plan_mode: bool = False,
     ) -> None:
         from uuid import uuid4
         from safecode.llm.cost import SessionCostAccumulator
@@ -111,9 +114,11 @@ class AgentLoop:
         self.auto_edit = auto_edit
         self.full_auto = full_auto
         self.command_delay_ms = command_delay_ms
+        self.plan_mode = plan_mode
         self._native_write_count = 0
         self._session_observations: list[str] = []
         self._compactor: object | None = None
+        self.no_clarify = no_clarify
 
     def session_cost(self) -> "TokenUsage | None":
         """Return accumulated token usage for this session, or None if no data."""
@@ -167,28 +172,40 @@ class AgentLoop:
             return None
 
     def _build_dispatcher(self) -> NativeToolDispatcher:
-        """Create a NativeToolDispatcher with read/write/command tools registered.
+        """Create a NativeToolDispatcher with native tools registered.
 
         When auto_edit=True or full_auto=True, write tools are registered with
         approved=True so they execute immediately without blocking.
         In full_auto mode, run_command is registered with a delay for Ctrl-C abort.
         Policy gates (high-risk blocking) still apply via ShellRunner.
+        In plan_mode, only read/search/reference tools are registered.
         """
         from safecode.agent.read_tools import register_read_tools
         from safecode.agent.write_tools import register_write_tools
         from safecode.agent.command_tool import register_command_tool
         from safecode.mcp.native_bridge import register_mcp_tools
+        from safecode.agent.find_references_tool import register_find_references_tool
 
         dispatcher = NativeToolDispatcher()
         register_read_tools(dispatcher, self.project_root)
+        if self.plan_mode:
+            register_mcp_tools(dispatcher, self.project_root)
+            register_find_references_tool(dispatcher, self.project_root)
+            return dispatcher
         write_approved = self.auto_edit or self.full_auto
         register_write_tools(dispatcher, self.project_root, approved=write_approved)
         cmd_delay = self.command_delay_ms if self.full_auto else -1
         register_command_tool(dispatcher, self.project_root, full_auto_delay_ms=cmd_delay)
         register_mcp_tools(dispatcher, self.project_root)  # v5.4.0: MCP native tool bridge
+        register_find_references_tool(dispatcher, self.project_root)  # v6.9.0
         return dispatcher
 
-    def native_step(self, goal: str | None = None) -> "AgentStepResult":
+    def native_step(
+        self,
+        goal: str | None = None,
+        *,
+        conversation: "ConversationBuffer | None" = None,
+    ) -> "AgentStepResult":
         """Advance one step via the native tool protocol (P1, v5.1.0).
 
         Unlike step() which uses the JSON contract, native_step() calls
@@ -232,7 +249,9 @@ class AgentLoop:
             )
             return AgentStepResult(state=saved, observation=saved.last_observation)
 
-        context = self.context_collector.collect(query=state.goal)
+        # v6.7.1: pass conversation-mentioned files for context bonus
+        conv_files = conversation.mentioned_files() if conversation else None
+        context = self.context_collector.collect(query=state.goal, conversation_files=conv_files)
         context = self._enrich_with_subagent_findings(state.session_id, context)
 
         # Compact old observations before the next LLM call so long sessions stay usable.
@@ -275,14 +294,19 @@ class AgentLoop:
             return AgentStepResult(state=saved, observation=observation, stopped_for_approval=True)
 
         # Call model with native tool protocol.
+        conv_history = conversation.to_messages() if conversation and not conversation.is_empty() else None
         raw_result = self.llm_client.choose_tool_native(
-            state.goal, context, tool_specs, step=state.current_step
+            state.goal, context, tool_specs,
+            step=state.current_step,
+            conversation_history=conv_history,
         )
 
         if isinstance(raw_result, RecoverableContractFailure):
             # Single retry on recoverable failures.
             raw_result = self.llm_client.choose_tool_native(
-                state.goal, context, tool_specs, step=state.current_step
+                state.goal, context, tool_specs,
+                step=state.current_step,
+                conversation_history=conv_history,
             )
             if isinstance(raw_result, RecoverableContractFailure):
                 observation = f"Native tool contract failure after retry: {raw_result.message}"
@@ -340,7 +364,11 @@ class AgentLoop:
             """Feed tool results back to model; return next calls or None to stop."""
             enriched = {**ctx, "tool_results": obs_text}
             next_raw = self.llm_client.choose_tool_native(
-                state.goal, enriched, tool_specs, step=state.current_step
+                state.goal,
+                enriched,
+                tool_specs,
+                step=state.current_step,
+                conversation_history=conv_history,
             )
             if isinstance(next_raw, list):
                 return [
@@ -426,7 +454,45 @@ class AgentLoop:
                 self.journal.record_typed_result(session_id, typed_result)
             except Exception:
                 pass
+            try:
+                self._record_step_journal_entry(
+                    session_id=session_id,
+                    step_index=step_index,
+                    pending_action=pending_action,
+                    observation=observation,
+                    typed_result=typed_result,
+                )
+            except Exception:
+                pass
         return typed_step, typed_result
+
+    def _record_step_journal_entry(
+        self,
+        *,
+        session_id: str,
+        step_index: int,
+        pending_action: dict[str, object] | None,
+        observation: str,
+        typed_result: TypedAgentStepResult,
+    ) -> None:
+        from safecode.state.step_journal import StepJournalEntry, StepJournalStore
+
+        action = pending_action or {}
+        raw_files = action.get("files", [])
+        files_changed = [str(item) for item in raw_files] if isinstance(raw_files, (list, tuple)) else []
+        tool_name = str(action.get("tool_name") or action.get("route") or "")
+        StepJournalStore(self.project_root).append(
+            StepJournalEntry(
+                step_id=f"{session_id}:{step_index}",
+                session_id=session_id,
+                step_index=step_index,
+                action_type=typed_result.kind,
+                tool_name=tool_name,
+                files_changed=files_changed,
+                outcome=typed_result.status,
+                summary=observation,
+            )
+        )
 
     def step(self, goal: str | None = None) -> AgentStepResult:
         """Advance exactly one safe session step."""
@@ -615,6 +681,7 @@ class AgentLoop:
         max_steps: int = 20,  # B8 fix: raised from 5 to 20 for real coding tasks
         *,
         on_step: "Callable[[AgentStepResult], None] | None" = None,
+        conversation: "ConversationBuffer | None" = None,
     ) -> AgentRunResult:
         """Advance up to ``max_steps`` safe steps.
 
@@ -623,6 +690,12 @@ class AgentLoop:
         """
         if max_steps < 1:
             raise ValueError("max_steps must be >= 1")
+
+        # Pre-task clarification gate (v6.8.0): stop early when goal is ambiguous.
+        if goal and not self.no_clarify:
+            clarification = self._clarify_if_needed(goal)
+            if clarification is not None:
+                return clarification
 
         steps: list[AgentStepResult] = []
         next_goal = self._prepend_session_memory(goal)
@@ -639,7 +712,10 @@ class AgentLoop:
                 state = self._record_budget_failure(state, budget_task_id, "time_seconds")
                 stopped_reason = "budget_exceeded"
                 break
-            result = self.step(next_goal)
+            if hasattr(self.llm_client, "choose_tool_native"):
+                result = self.native_step(next_goal, conversation=conversation)
+            else:
+                result = self.step(next_goal)
             steps.append(result)
             state = result.state
             next_goal = None
@@ -692,16 +768,72 @@ class AgentLoop:
 
         return AgentRunResult(state=state, steps=steps, stopped_reason=stopped_reason)
 
+    def _clarify_if_needed(self, goal: str) -> "AgentRunResult | None":
+        """Return an AgentRunResult requesting clarification if the goal is ambiguous.
+
+        Returns None when clarification is not needed (normal execution continues).
+        Fails closed: any error returns None (don't block the agent).
+        """
+        try:
+            from safecode.agent.clarify import detect_ambiguity
+            result = detect_ambiguity(goal, self.llm_client)
+            if not result.needs_clarification:
+                return None
+            # Build a minimal stopped state
+            state = self.store.load()
+            if state is None:
+                state = self._start_planned_session(goal)
+            pending_action: dict[str, object] = {
+                "type": "clarification",
+                "route": "needs_clarification",
+                "requires_approval": True,
+                "questions": list(result.questions),
+                "reason": result.reason,
+            }
+            updated = state.model_copy(update={
+                "pending_action": pending_action,
+                "last_observation": (
+                    "Goal is ambiguous. Please answer the following questions before proceeding:\n"
+                    + "\n".join(f"- {q}" for q in result.questions)
+                ),
+                "status": "waiting_for_user",
+            })
+            saved = self.store.save(updated)
+            clarify_step = AgentStepResult(
+                state=saved,
+                observation=saved.last_observation or "",
+                stopped_for_approval=True,
+            )
+            self._write_session_summary(
+                session_id=saved.session_id,
+                goal=goal,
+                steps=[clarify_step],
+                stopped_reason="needs_clarification",
+                started_at=datetime.now(timezone.utc).isoformat(),
+            )
+            return AgentRunResult(
+                state=saved,
+                steps=[clarify_step],
+                stopped_reason="needs_clarification",
+            )
+        except Exception:
+            return None
+
     def _prepend_session_memory(self, goal: str | None) -> str | None:
-        """Load recent session summaries and approved facts; prepend to goal."""
+        """Load approved facts, project notes, and recent session summaries; prepend to goal."""
         try:
             from safecode.memory.session_store import SessionSummaryStore
             from safecode.memory.summary import format_memory_context
             from safecode.memory.facts import ProjectFactStore
+            from safecode.memory.facade import MemoryFacade
             blocks: list[str] = []
             facts_ctx = ProjectFactStore(self._sac_dir).approved_context()
             if facts_ctx:
                 blocks.append(facts_ctx)
+            notes = MemoryFacade(self.project_root).read_project_notes()
+            if notes and notes.strip():
+                notes_trimmed = notes.strip()[:800]
+                blocks.append(f"## Project Notes\n{notes_trimmed}")
             summaries = SessionSummaryStore(self._sac_dir).load_recent(limit=3)
             session_ctx = format_memory_context(summaries)
             if session_ctx:
@@ -1133,18 +1265,76 @@ class AgentLoop:
             return AgentStepResult(state=saved, observation=observation, stopped_for_approval=False)
 
         patch_files = [block.file_path.as_posix() for block in edit_result.proposal.blocks]
+
+        # v6.8.0: classify tier and auto-apply when safe.
+        from safecode.agent.approval_tier import ApprovalTier, classify_proposal
+        tier = classify_proposal(edit_result.proposal, self.config)
+
+        if tier == ApprovalTier.AUTO and self.auto_edit:
+            # Apply immediately — checkpoint + audit still happen inside apply().
+            try:
+                orch = AgentOrchestrator(self.project_root, llm_client=self.llm_client)
+                apply_result = orch.apply(edit_result.proposal)
+                observation = (
+                    f"Auto-applied patch (tier=auto): {', '.join(patch_files)}. "
+                    f"Checkpoint {apply_result.checkpoint.checkpoint_id} created. "
+                    "Run 'sac rollback --last' to undo."
+                )
+                auto_action: dict[str, object] = {
+                    "type": "patch",
+                    "route": routed.route,
+                    "requires_approval": False,
+                    "reason": "auto_applied",
+                    "patch_id": edit_result.proposal.id,
+                    "files": patch_files,
+                    "tier": tier.value,
+                }
+                updated = state.model_copy(
+                    update={
+                        "current_step": state.current_step + 1,
+                        "pending_action": auto_action,
+                        "last_observation": observation,
+                        "status": "active",
+                        "last_error": None,
+                    }
+                )
+                saved = self.store.save(updated)
+                self.journal.record_patch_proposal(
+                    saved.session_id,
+                    saved.current_step,
+                    observation,
+                    {"patch_id": edit_result.proposal.id, "files": patch_files, "tier": tier.value},
+                )
+                self._classify_and_record(
+                    step_index=saved.current_step,
+                    pending_action=auto_action,
+                    observation=observation,
+                    stopped_for_approval=False,
+                    session_id=saved.session_id,
+                )
+                return AgentStepResult(state=saved, observation=observation, stopped_for_approval=False)
+            except Exception as exc:
+                # Auto-apply failed; fall through to normal confirm flow.
+                RuntimeLogger(self.project_root, self.config).error(
+                    "agent.loop", f"Auto-apply failed, falling back to confirm: {exc}", exc=exc
+                )
+                tier = ApprovalTier.CONFIRM
+
+        # CONFIRM or GATE — stop for user approval (gate carries extra warning).
+        gate_note = " [GATE: high-sensitivity change]" if tier == ApprovalTier.GATE else ""
         approved_patch_action = PatchPendingAction(
             route=routed.route,
             requires_approval=True,
-            reason="patch_proposal_awaiting_approval",
+            reason=f"patch_proposal_awaiting_approval{gate_note}",
             patch_id=edit_result.proposal.id,
             pending_patch_path=str(edit_result.pending_patch_path),
             files=tuple(patch_files),
         )
         pending_action = approved_patch_action.to_dict()
+        pending_action["tier"] = tier.value
         observation = (
             f"Patch proposal created: {edit_result.pending_patch_path.name} "
-            f"(patch_id={edit_result.proposal.id}). "
+            f"(patch_id={edit_result.proposal.id}, tier={tier.value}){gate_note}. "
             "Review with 'sac apply' — target files are not modified until you approve."
         )
         updated = state.model_copy(
@@ -1165,6 +1355,7 @@ class AgentLoop:
                 "patch_id": edit_result.proposal.id,
                 "pending_patch_path": str(edit_result.pending_patch_path),
                 "files": patch_files,
+                "tier": tier.value,
                 "scope_status": (
                     edit_result.scope_result.status
                     if edit_result.scope_result is not None

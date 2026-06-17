@@ -12,7 +12,9 @@ from typer.testing import CliRunner
 from safecode.checkpoint.models import CheckpointFileOperation, CheckpointMetadata
 from safecode.cli import app
 from safecode.git.local import dirty_tree_guard
+from safecode.patch.models import PatchBlock, PatchProposal
 from safecode.task.store import TaskStore
+from safecode.utils.time import utc_now_iso
 
 runner = CliRunner()
 
@@ -80,3 +82,32 @@ class TestDirtyWorktreeGuard:
         source = Path("src/safecode/git/local.py").read_text(encoding="utf-8")
         assert '"push"' not in source
         assert '"remote"' not in source
+
+    def test_apply_refuses_dirty_target_file(self, tmp_path):
+        root = _repo(tmp_path)
+        (root / "src" / "app.py").write_text("print('user dirty')\n", encoding="utf-8")
+        proposal = PatchProposal(
+            id="dirty-target",
+            task="change app",
+            blocks=[
+                PatchBlock(
+                    operation="update",
+                    file_path=Path("src/app.py"),
+                    search="print('user dirty')\n",
+                    replace="print('agent')\n",
+                )
+            ],
+            created_at=utc_now_iso(),
+            model="test",
+        )
+
+        from safecode.agent.orchestrator import AgentOrchestrator
+        from safecode.patch.validator import PatchValidationError
+
+        try:
+            AgentOrchestrator(root).apply(proposal)
+        except PatchValidationError as exc:
+            assert "Dirty target files" in str(exc)
+        else:
+            raise AssertionError("dirty target apply should have been refused")
+        assert (root / "src" / "app.py").read_text(encoding="utf-8") == "print('user dirty')\n"

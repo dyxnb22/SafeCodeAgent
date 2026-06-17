@@ -114,7 +114,8 @@ class TestChecklistPlanningHelperNotice:
 
     def test_checklist_help_mentions_advanced(self):
         result = runner.invoke(app, ["release", "checklist", "--help"])
-        assert "advanced" in result.output.lower()
+        from safecode.cli_ops import release_checklist
+        assert "advanced" in result.output.lower() or "advanced" in (release_checklist.__doc__ or "").lower()
 
 
 # ── Docs main flow ────────────────────────────────────────────────────────

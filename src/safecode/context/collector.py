@@ -42,6 +42,7 @@ class ContextCollector:
         seed_files: list[str] | None = None,
         include_git_context: bool = False,
         include_diagnostics: bool = False,
+        conversation_files: list[str] | None = None,
     ) -> dict:
         """Return bounded project context with optional task-focused sources.
 
@@ -62,7 +63,7 @@ class ContextCollector:
         if file_tree_truncated:
             context["file_tree_meta"] = {"truncated": True, "cap": self.config.max_tree_files}
         if query:
-            context["selected_context"] = self._selected_context(query)
+            context["selected_context"] = self._selected_context(query, conversation_files=conversation_files)
         if seed_files:
             context["import_context"] = self._import_graph_context(seed_files)
         if include_git_context:
@@ -234,21 +235,33 @@ class ContextCollector:
             "entrypoints": [asdict(item) for item in repo_map.entrypoints[:20]],
         }
 
-    def _selected_context(self, query: str) -> dict:
+    def _selected_context(self, query: str, *, conversation_files: list[str] | None = None) -> dict:
         """Select and include small snippets for files related to the query."""
         from safecode.context.selector import ContextSelector
 
         selector = ContextSelector(self.project_root)
-        sources = selector.select_sources(query, limit=5)
+        sources = selector.select_sources(query, limit=5, conversation_files=conversation_files)
         snippets = {
             source.path: self._read_limited(source.path, max_lines=min(self.config.max_file_lines, 80))
             for source in sources
         }
-        return {
+        result: dict = {
             "sources": [asdict(source) for source in sources],
             "snippets": {path: text for path, text in snippets.items() if text is not None},
             "warnings": selector.last_warnings,
         }
+        # v6.8.1: per-file git log + diff (opt-in via config_git_per_file)
+        if getattr(self.config, "context_git_per_file", False):
+            try:
+                from safecode.context.git_context import collect_per_file_git_context
+                git_block = collect_per_file_git_context(
+                    self.project_root, [s.path for s in sources]
+                )
+                if git_block:
+                    result["per_file_git_context"] = git_block
+            except Exception:
+                pass
+        return result
 
     def _looks_binary(self, path: Path) -> bool:
         """Detect obvious binary files without reading them into text context."""

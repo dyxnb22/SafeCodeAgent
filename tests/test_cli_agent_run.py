@@ -36,7 +36,7 @@ def _invoke_agent_run(tmp_path: Path, args: list[str], input_text: str = "") -> 
     import os
     import subprocess
 
-    runner_ = CliRunner(mix_stderr=False)
+    runner_ = CliRunner()
     return runner_.invoke(app, ["agent", "run"] + args)
 
 
@@ -233,7 +233,7 @@ class TestNonTTYRefusal:
         with patch("safecode.cli_agent.AgentLoop", FakeLoop):
             with patch("sys.stdin") as mock_stdin:
                 mock_stdin.isatty.return_value = False
-                result = CliRunner(mix_stderr=False).invoke(
+                result = CliRunner().invoke(
                     app, ["agent", "run", "test goal"]
                 )
         assert result.exit_code == 1
@@ -245,7 +245,7 @@ class TestNonTTYRefusal:
         with patch("safecode.cli_agent.AgentLoop", FakeLoop):
             with patch("sys.stdin") as mock_stdin:
                 mock_stdin.isatty.return_value = False
-                result = CliRunner(mix_stderr=False).invoke(
+                result = CliRunner().invoke(
                     app, ["agent", "run", "test goal"]
                 )
         assert result.exit_code == 0

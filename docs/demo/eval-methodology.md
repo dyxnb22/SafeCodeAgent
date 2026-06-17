@@ -14,11 +14,33 @@ agents need in ordinary repositories:
 - A success condition that can be checked locally by reading files or parsing
   Python AST, without network access.
 - Coverage across different work types: calculator repair, docs edit,
-  multi-file refactor, test failure repair, and config schema migration.
+  multi-file refactor, test failure repair, config schema migration,
+  verification-required fixes, bounded repair, and context retrieval.
+
+Live fixture results record more than binary pass/fail:
+
+- Validation evidence: validation commands run, whether they passed, and how
+  many commands were executed.
+- Recovery evidence: whether a patch applied cleanly but the success condition
+  failed, how many bounded repair attempts were used, and whether recovery
+  succeeded.
+- Retrieval evidence: relevant file recall, relevant file precision, and symbol
+  localization accuracy for fixtures that declare expected context.
+- Mergeability evidence: automated minimal-diff score, mergeability score, and
+  reviewer-accept approximation for fixtures with declared expected files.
+- Task provenance: inline, terminal-style, and fixed-commit-inline real-project
+  fixtures are labeled separately so portfolio claims can distinguish synthetic
+  regression tests from more realistic project tasks.
+- Safety evidence: approval gates, audit-chain integrity, checkpoint integrity,
+  unauthorized mutations, and leftover partial-patch artifacts.
 
 The live lane is gated by `SAFECODE_LIVE_TESTS=1` because it can call a real
 provider. Baselines are ratchets: once a fixture is recorded as passing, a
 future failure is treated as a regression.
+
+Repeated live runs can be summarized into pass@1, pass@N, pass rate, retry
+rate, repair rate, recovery rate, average/p95 tokens, average/p95 wall time,
+and whether safety invariants held for every run.
 
 ## SWE-bench Lite Compatibility
 

@@ -76,7 +76,7 @@ supported methods may change. Do not build production automation on top of it.
 
 ---
 
-## Capability Summary (v3.6)
+## Capability Summary (v6.23 dev)
 
 | Capability | Status |
 |-----------|--------|
@@ -86,6 +86,13 @@ supported methods may change. Do not build production automation on top of it.
 | Append-only audit log | Stable |
 | Policy-gated shell execution | Stable |
 | Config precedence (project cannot lower user safety) | Stable |
+| Conversation-backed agentic shell | Experimental |
+| Plan/Build shell mode | Experimental |
+| Semantic Python references and rename | Experimental |
+| Terminal LSP diagnostics | Experimental |
+| Session list/stats/export/import | Experimental |
+| Formatter workflow | Experimental |
+| User-declared tool metadata | Experimental |
 | Sandbox planning (Docker, Seatbelt, Bubblewrap) | Preview |
 | MCP read-only execution | Experimental |
 | MCP write proposals | Experimental |
