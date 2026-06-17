@@ -90,7 +90,7 @@ def export_report(output: Path = typer.Option(Path(".sac/reports/latest.md"), "-
 
 @ops_app.command("eval", hidden=True)
 def eval_demo(
-    mode: str = typer.Option("default", "--mode", help="Eval mode: default, loop, bench, live, real-task, or swebench-lite."),
+    mode: str = typer.Option("default", "--mode", help="Eval mode: default, loop, bench, live, real-task, dashboard, or swebench-lite."),
     update_baseline: bool = typer.Option(False, "--update-baseline", help="Overwrite bench baseline snapshots."),
     provider: str = typer.Option("anthropic", "--provider", help="LLM provider for --mode live."),
     model: str = typer.Option("", "--model", help="Model override for --mode live."),
@@ -100,6 +100,7 @@ def eval_demo(
     runs: int = typer.Option(1, "--runs", help="Repeat live eval N times and print aggregate stability metrics."),
     suite: str = typer.Option("", "--suite", help="Eval suite for --mode swebench-lite (dir of task JSON files)."),
     limit: int = typer.Option(10, "--limit", help="Max tasks for --mode real-task or swebench-lite."),
+    dashboard_output: Path = typer.Option(Path(".sac/eval/dashboard.md"), "--dashboard-output", help="Output path for --mode dashboard."),
 ) -> None:
     """Run lightweight local eval cases.
 
@@ -107,6 +108,7 @@ def eval_demo(
     --mode bench          runs eval bench and collects timing/hash metrics per fixture.
     --mode live           runs real coding tasks against a live provider (requires SAFECODE_LIVE_TESTS=1).
     --mode real-task      runs the built-in real-world task benchmark slice.
+    --mode dashboard      renders a Markdown dashboard from latest eval reports.
     --mode swebench-lite  runs SWE-bench-Lite-compatible tasks from --suite <dir>.
     """
     if mode == "loop":
@@ -214,6 +216,16 @@ def eval_demo(
         out_path = save_real_task_report(report)
         console.print(f"\n[dim]Report saved: {out_path}[/dim]")
         raise typer.Exit(code=0 if report.passed == report.total else 1)
+    elif mode == "dashboard":
+        from safecode.eval.dashboard import build_eval_dashboard_sources, render_eval_dashboard
+
+        sources = build_eval_dashboard_sources(Path.cwd())
+        text = render_eval_dashboard(sources)
+        dashboard_output.parent.mkdir(parents=True, exist_ok=True)
+        dashboard_output.write_text(text, encoding="utf-8")
+        console.print(text)
+        console.print(f"[dim]Dashboard saved: {dashboard_output}[/dim]")
+        raise typer.Exit(code=0)
     elif mode == "swebench-lite":
         from safecode.eval.swebench_adapter import (
             SWEBenchRunner, load_tasks_from_dir, render_report_text, save_report

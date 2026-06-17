@@ -5,11 +5,15 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v7.1.4
+# Current Baseline - v7.1.5
 
 ## Status
-Implemented. Git baseline: tag `v7.1.4`. Local working version: `v7.1.4`.
+Implemented. Git baseline: tag `v7.1.5`. Local working version: `v7.1.5`.
 v7.0.0 remains the latest major stable-contract cut.
+
+v7.1.5 adds an eval report dashboard: `sac eval --mode dashboard` summarizes
+latest live, SWE-bench Lite, and real-task JSON reports into Markdown and saves
+the default artifact at `.sac/eval/dashboard.md`.
 
 v7.1.4 adds a real-task benchmark lane: `sac eval --mode real-task` selects
 external-project SWE-bench-Lite-compatible tasks, renders provenance, and saves
