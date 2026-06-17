@@ -13,8 +13,9 @@ v4.0.0 is a contract cut, not a runtime feature release.
 - **Breaking changes to v3.0 public contracts:** zero.
 - **Already-stable contracts preserved for v4.0.0:** CLI JSON envelope
   (stable since v3.7.2) and MCP read execution (stable since v3.8.2).
-- **Deferred/rejected at v4.0.0:** IDE JSON-RPC, TUI interactive,
-  `sac report html`, and sandbox real-execution opt-in.
+- **Deferred/rejected at v4.0.0:** TUI interactive,
+  `sac report html`, and sandbox real-execution opt-in. IDE JSON-RPC
+  VS Code extension removed post-v7.1 (project is terminal-only).
 
 ## v4.x Series (v4.0–v4.8) Contract Summary
 
@@ -30,7 +31,7 @@ contracts. All new v4.1–v4.8 surfaces remain explicitly experimental:
 - `sac fix --watch` behavior.
 
 The twelve stable contracts from v4.0.0 (sections 1–12 of this document) remain
-stable and unchanged through v4.8.2. No deferred surface (IDE JSON-RPC, TUI,
+stable and unchanged through v4.8.2. No deferred surface (TUI,
 HTML report, sandbox real-execution opt-in) was promoted in v4.x.
 
 ## v4.9.x AI Shell MVP Contract Summary
@@ -772,14 +773,14 @@ history support the claim.
 |---|---|---|---|
 | CLI `--json` envelope | **promote (already stable)** | The envelope has been documented, snapshot-tested, and stable since v3.7.2. | Section 11; `tests/snapshots/contracts/cli_json_envelope.json`; `TestCLIJSONEnvelopeContract`; v3.7.2 release note |
 | MCP read execution | **promote (already stable)** | The read path has explicit scope/classification gates, snapshot coverage, and has remained stable since v3.8.2. | Section 12; `tests/snapshots/contracts/mcp_read_contract.json`; `TestMCPReadContract`; v3.8.2 release note |
-| IDE JSON-RPC | **defer** | The VS Code extension has manifest parity tests, but no VSIX build or release-cycle consumption evidence. | `vscode-extension/`; `tests/test_ide_extension_manifest_contract.py`; v3.9.2 release note |
+| IDE JSON-RPC | **removed** | The VS Code extension skeleton was never shipped (VSIX build always deferred). Project is terminal-only by design. Extension files and manifest parity tests removed post-v7.1. | `src/safecode/ide/` (runtime `sac ide` commands retained); v3.9.2 release note |
 | TUI interactive | **reject stable promotion at v4.0** | The Rich TUI is frozen experimental and has no stable automation-oriented output contract. | Experimental-surface table; `tests/test_tui_interactive_smoke.py`; v3.9.2 release note |
 | `sac report html` | **defer** | HTML report rendering is implemented and tested, but not snapshot-promoted as a public contract. | `src/safecode/report/session_html.py`; `tests/test_report_html.py`; v3.6.3 release note |
 | Sandbox real-execution opt-in | **defer** | Executor preflight and env gates exist, but backend pass evidence is host-local and insufficient for a stable v4 contract. | `src/safecode/sandbox/executor_preflight.py`; `tests/test_sandbox_executor_preflight.py`; v3.11.2 release note |
 
 No new stable contract is promoted by v3.99.1 itself. The v4.0 cut may preserve
 the already-stable CLI JSON envelope and MCP read execution contracts, but it
-must not promote IDE JSON-RPC, TUI, HTML report, or sandbox real-execution based
+must not promote TUI, HTML report, or sandbox real-execution based
 on v3.99.1 evidence.
 
 The following are explicitly experimental. They may change, be removed, or be
@@ -794,7 +795,7 @@ promoted to stable contracts in a future release.
 | MCP lifecycle (`sac mcp start/stop/restart`) | PID management; not yet stable |
 | Subagent payload evolution beyond v2 fields | v2 payload (synthesis + cancellation fields) promoted to supported at v3.4.3; v3+ fields remain experimental |
 | TUI (`sac tui interactive`, `sac tui dashboard`) | **Frozen experimental at v3.9.2.** Rich-based; no Textual upgrade. Surface behavior is stable at v3.5.2 baseline but not promoted to a stable contract. Do not rely on output format for automation. |
-| IDE bridge (`sac ide ...`, `vscode-extension/`) | VSIX build deferred pending Node/tsc environment; manifest parity enforced by `tests/test_ide_extension_manifest_contract.py`; no marketplace publish in v3.9.x |
+| IDE bridge (`sac ide manifest/open-diff/open-files`) | JSON-RPC bridge and file-target commands are experimental. VS Code extension skeleton removed; `src/safecode/ide/` runtime module retained for `sac ide` subcommands. |
 | `OtelExporter` (`SAFECODE_OTEL_EXPORTER` env) | **Frozen experimental at v5.7.1.** Event schema has changed without versioning. Disabled by default. Will not be promoted before v6.0 without a versioned schema. |
 | `sac report html` | **Frozen experimental at v5.7.1.** Generated HTML output is not a stable API. Will not be promoted before v6.0 without a stable output contract. |
 

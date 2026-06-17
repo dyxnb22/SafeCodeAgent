@@ -1,0 +1,13 @@
+{
+  "recommendations": [
+    "ms-python.python",
+    "anysphere.cursorpyright",
+    "ms-python.debugpy",
+    "charliermarsh.ruff",
+    "ms-toolsai.jupyter",
+    "editorconfig.editorconfig",
+    "eamodio.gitlens",
+    "davidanson.vscode-markdownlint",
+    "redhat.vscode-yaml"
+  ]
+}

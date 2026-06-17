@@ -583,11 +583,10 @@ class TestV40PromotionDecisions:
         assert "MCP read execution" in doc
         assert "mcp_read_contract.json" in doc
 
-    def test_ide_jsonrpc_deferred(self) -> None:
+    def test_ide_jsonrpc_removed(self) -> None:
         doc = self._doc()
         assert "IDE JSON-RPC" in doc
-        assert "**defer**" in doc
-        assert "no VSIX build or release-cycle consumption evidence" in doc
+        assert "terminal-only" in doc
 
     def test_tui_rejected_for_v40_stable_promotion(self) -> None:
         doc = self._doc()
