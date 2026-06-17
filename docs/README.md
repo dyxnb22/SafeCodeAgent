@@ -32,7 +32,6 @@ Start here when you are unsure which document owns a topic.
 
 - [Why SafeCode Agent](why-safecode.md): product rationale and safety loop.
 - [Comparison](compare.md): comparison with raw LLM usage and autonomous coding agents.
-- [Product Commercialization Roadmap](product-commercialization-roadmap.md): architecture reference, not the active roadmap.
 - [Security Threat Model](security/threat-model-v3.6.md): personas, risks, and mitigations.
 - [Product Security Review v2.6](security/product-security-review-v2.6.md): historical security review.
 

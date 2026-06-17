@@ -8,6 +8,7 @@ For active forward work, use [../version-plans/post-v4.14-usability-roadmap.md](
 
 ## Capability Plans and Evaluation Records
 
+- [Product Commercialization Roadmap](product-commercialization-roadmap.md): original commercial architecture reference; superseded by v7.0 stable contracts.
 - [Next Capabilities Plan (v6.9–v6.18)](next-capabilities-plan.md): completed capability train, all items shipped.
 - [SafeCode Evaluation Execution Plan](SafeCode-Next-Evaluation-Execution-Plan.md): historical eval planning and execution record.
 - [Post-v4.12 Consolidation Audit](post-v4.12-consolidation-audit.md): documentation consolidation findings after v4.12.

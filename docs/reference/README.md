@@ -23,7 +23,6 @@ their stable paths. This page groups them as reference material.
 - [Why SafeCode Agent](../why-safecode.md): product rationale and safety loop.
 - [Comparison](../compare.md): comparison with raw LLM usage and autonomous coding agents.
 - [Troubleshooting](../troubleshooting.md): diagnostics, blocked commands, rollback, and recovery.
-- [Product Commercialization Roadmap](../product-commercialization-roadmap.md): architecture reference, not the active roadmap.
 - [Threat Model](../security/threat-model-v3.6.md): personas, risks, and mitigations.
 - [Product Security Review v2.6](../security/product-security-review-v2.6.md): historical security review kept under security.
 

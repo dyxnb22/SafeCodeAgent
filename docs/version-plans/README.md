@@ -12,22 +12,19 @@ No active version plan is currently open. Start new planning from
 [_template.md](_template.md) and record completed work in
 [../version-notes/](../version-notes/).
 
-## Historical Roadmaps
+## Recent Historical Roadmaps
 
 - [v7.0.x-agent-productization-followup.md](v7.0.x-agent-productization-followup.md): completed post-v7.0 productization plan for metadata/narrative sync, single-command agent flow, productized subagent roles, and shell/session polish.
-- [post-v4.14-usability-roadmap.md](post-v4.14-usability-roadmap.md): completed post-v4.14 usability and first-run UX planning record.
-- [post-v4.12-consolidation-roadmap.md](post-v4.12-consolidation-roadmap.md): completed consolidation/provider-profile planning record through v4.14.0.
-- [v4.10-to-v4.12-resume-mvp-roadmap.md](v4.10-to-v4.12-resume-mvp-roadmap.md): completed resume-ready MVP train.
-- [v4.9-ai-shell-mvp-roadmap.md](v4.9-ai-shell-mvp-roadmap.md): completed AI shell MVP train.
-- [v4.1-to-v4.8-shell-first-roadmap.md](v4.1-to-v4.8-shell-first-roadmap.md): completed shell-first train.
-- [v3.7-to-v4.0-product-roadmap.md](v3.7-to-v4.0-product-roadmap.md): completed v4.0 product roadmap.
-- [v2.8-to-v3.0-product-architecture-roadmap.md](v2.8-to-v3.0-product-architecture-roadmap.md): completed v3.0 architecture roadmap.
+- [v6.29-to-v7.0-next-roadmap.md](v6.29-to-v7.0-next-roadmap.md): completed v6.29–v7.0 roadmap covering AgentLoop refactor, workspace memory, native-tool coverage, dynamic replanning, context back-pressure, search_symbol discovery, and stable contract cut.
+- [post-v4.16-shell-ux-roadmap.md](post-v4.16-shell-ux-roadmap.md): completed shell UX train (streaming, shell polish, live connectivity, fuzzy matching, per-patch undo, agent-loop transparency).
+- [post-v4.14-usability-roadmap.md](post-v4.14-usability-roadmap.md): completed usability train (v4.14.x–v4.16.x): provider profiles, sac init, session model switching, keychain credentials, bare sac shell, error rewrites.
 
-## Archived Individual Patch Plans
+## Older Roadmaps (Archive)
 
-Individual patch-level plans for v1.8.x, v1.9.x, v2.0.x, v2.1.x, and v2.2.x
-have been moved to [../archive/version-plans/](../archive/version-plans/).
-The consolidated roadmaps above capture the key decisions from those trains.
+All earlier version-specific roadmaps have been moved to
+[../archive/version-plans/](../archive/version-plans/). The version notes
+index at [../version-notes/README.md](../version-notes/README.md) is the
+authoritative entry point for historical train summaries.
 
 ## New Plans
 

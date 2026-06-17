@@ -31,7 +31,7 @@
 > are complete.
 >
 > See [docs/v6-contract-candidates.md](v6-contract-candidates.md) for the v6.0
-> candidate assessment. See [version-plans/v5.6-to-v5.8-product-roadmap.md](version-plans/v5.6-to-v5.8-product-roadmap.md) for the complete train plan.
+> candidate assessment. See [archive/version-plans/v5.6-to-v5.8-product-roadmap.md](archive/version-plans/v5.6-to-v5.8-product-roadmap.md) for the complete train plan.
 >
 > **v7.1.5 is the current product baseline; v7.0.0 remains the current stable-contract cut.** Terminal-only tool by
 > design. 23 stable contracts (sections 1-23 of public-contracts.md). Cost
