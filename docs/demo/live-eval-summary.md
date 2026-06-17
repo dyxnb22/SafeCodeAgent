@@ -55,9 +55,9 @@ The machine-readable copy lives at
   passing the validation error and exact current file contents back to the
   provider. This run did not need that path because all fixtures passed on the
   first proposal.
-- The default live suite now includes 36 fixtures. The committed DeepSeek
+- The default live suite now includes 38 fixtures. The committed DeepSeek
   artifact above covers the earlier 28-fixture suite; the ratchet baseline now
-  tracks the expanded 36-fixture default suite. Coverage includes
+  tracks the expanded 38-fixture default suite. Coverage includes
   validation commands, success-condition repair, relevant-file recall/precision,
   symbol localization, terminal-style tasks, and fixed-commit-inline real-project
   tasks.

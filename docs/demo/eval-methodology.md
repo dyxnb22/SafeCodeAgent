@@ -1,7 +1,8 @@
 # Eval Methodology
 
-SafeCode uses two local eval lanes for product evidence: live coding fixtures
-and a SWE-bench-Lite-compatible harness.
+SafeCode uses four local eval lanes for product evidence: live coding fixtures,
+a SWE-bench-Lite-compatible harness, a real-task slice, and a Markdown eval
+dashboard.
 
 ## Live Eval Fixtures
 
@@ -68,6 +69,11 @@ When enabled, SafeCode writes redacted JSON transcripts under
 `.sac/eval/transcripts/`. These artifacts record fixture metadata, the user
 goal, validation commands, trajectory milestones, and the final outcome.
 
+Each live result also serializes deterministic grader outcomes for fixture
+outcome, validation, safety invariants, scope control, and reviewer-gate
+quality. These grader records feed reports without replacing the fixture
+success condition.
+
 ## SWE-bench Lite Compatibility
 
 The `swebench-lite` mode implements a compatibility layer for
@@ -78,6 +84,20 @@ same harness shape used by larger benchmark workflows.
 The fixtures in `tests/eval_fixtures/swebench_lite/` are still synthetic inline
 fixtures. They do not claim to be official SWE-bench Lite instances, and they
 do not require external repositories or Python packages beyond pytest.
+
+## Real-Task Slice
+
+`sac eval --mode real-task` selects SWE-bench-Lite-compatible tasks whose
+`instance_id` does not start with `safecode__`. This separates external-project
+issue adaptations, such as `arrow__parser-error-boundary`, from local synthetic
+micro-fixtures while reusing the same replay and reporting path.
+
+## Eval Dashboard
+
+`sac eval --mode dashboard` reads the latest live, SWE-bench Lite, and real-task
+JSON reports and writes a Markdown dashboard to `.sac/eval/dashboard.md` by
+default. It reports missing sources, per-suite pass rates, aggregate pass rate,
+and compact failure lines.
 
 ## Running With A Real Provider
 

@@ -26,10 +26,10 @@ class TestDeepSeekPresetData:
         assert not DEEPSEEK_PRESET.base_url.endswith("/v1/chat/completions")
 
     def test_default_model(self):
-        assert DEEPSEEK_PRESET.default_model == "deepseek-v4-pro"
+        assert DEEPSEEK_PRESET.default_model == "deepseek-v4-flash"
 
     def test_fallback_model(self):
-        assert DEEPSEEK_PRESET.fallback_model == "deepseek-v4-flash"
+        assert DEEPSEEK_PRESET.fallback_model == "deepseek-v4-pro"
 
     def test_api_key_env(self):
         assert DEEPSEEK_PRESET.api_key_env == "DEEPSEEK_API_KEY"
@@ -93,7 +93,7 @@ class TestDeepSeekFactory:
         assert cfg.llm.model == "gpt-4.1-mini"  # LLMConfig default
         with patch.dict(os.environ, {"DEEPSEEK_API_KEY": "sk-test-deep"}):
             client = _create_single_client(cfg)
-        assert client.model == "deepseek-v4-pro"
+        assert client.model == "deepseek-v4-flash"
 
     def test_factory_respects_explicit_model_override(self):
         from safecode.llm.factory import _create_single_client

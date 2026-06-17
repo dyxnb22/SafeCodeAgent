@@ -1,19 +1,18 @@
 # SafeCode Agent Final Status and Roadmap
 
-**Status:** current project baseline after `v7.0.1`.
+**Status:** current project baseline after `v7.1.5`.
 **Last updated:** 2026-06-17.
 
-> **Update (2026-06-17, v7.0.1):** Metadata and narrative sync complete.
-> Package/runtime metadata now point at v7.0.1; top-level docs reflect the
-> expanded 36-fixture default live eval suite and 23 stable contracts after the
-> v7.0.0 contract cut. No runtime behavior or stable contract changed in
-> v7.0.1.
+> **Update (2026-06-17, v7.1.5):** v7.0.x productization and v7.1 eval maturity
+> are complete. Package/runtime metadata now point at v7.1.5. The default live
+> suite has 38 fixtures, `sac agent run` has a single-command happy path,
+> read-only subagent roles are productized, session/shell timeline polish is in
+> place, and eval reports can be summarized with `sac eval --mode dashboard`.
+> No new stable contract was added after the v7.0.0 contract cut.
 
-> **Forward plan (post-v7.0):** See
-> [version-plans/v7.0.x-agent-productization-followup.md](version-plans/v7.0.x-agent-productization-followup.md)
-> for the v7.0.x follow-up plan covering metadata/narrative sync,
-> single-command agent flow, productized subagent roles, and shell/session
-> polish.
+> **Forward plan:** v7.0.x and v7.1.x are now closed. Future work should start
+> from the eval dashboard and version-note ledger, then open a new version plan
+> rather than extending the completed v7.0.x follow-up plan.
 
 > **Update (2026-06-16, v6.1.0):** Portfolio maturity cut complete. The
 > project now has a redacted real DeepSeek `deepseek-v4-flash` live eval result,
@@ -34,7 +33,7 @@
 > See [docs/v6-contract-candidates.md](v6-contract-candidates.md) for the v6.0
 > candidate assessment. See [version-plans/v5.6-to-v5.8-product-roadmap.md](version-plans/v5.6-to-v5.8-product-roadmap.md) for the complete train plan.
 >
-> **v7.0.1 is the current product baseline; v7.0.0 remains the current stable-contract cut.** Terminal-only tool by
+> **v7.1.5 is the current product baseline; v7.0.0 remains the current stable-contract cut.** Terminal-only tool by
 > design. 23 stable contracts (sections 1-23 of public-contracts.md). Cost
 > guardrails, live eval, and golden demo were added in v5.6-v5.8; trust modes
 > and session rollback were promoted in v6.0.0. v6.1.0 adds portfolio-grade
@@ -44,9 +43,9 @@
 
 ## v6.1.0 Product Baseline (2026-06-16)
 
-SafeCode Agent v6.1.0 is the current product baseline. PyPI (pipx) is the
+SafeCode Agent v7.1.5 is the current product baseline. PyPI (pipx) is the
 production install path. MCP tool bridge, trust modes, session rollback, cost
-guardrails, diagnostics-aware context, project hooks, and 19 stable contracts
+guardrails, diagnostics-aware context, project hooks, and 23 stable contracts
 are complete. Cost guardrails, diagnostics context, and project hooks remain
 experimental; trust modes and session rollback are stable.
 
@@ -309,6 +308,6 @@ All surfaces remain EXPERIMENTAL. No stable contract promoted.
 `main` is frozen at `v4.18.2` as a learning baseline and portfolio reference.
 The `dev/v4.19` branch baseline is now `v4.19.2`.
 
-This section is historical. The current documented baseline is v7.0.1. Remaining
+This section is historical. The current documented baseline is v7.1.5. Remaining
 out-of-scope work (RAG, embeddings, LangGraph, IDE surface, remote push/PR, and
 agent hooks expansion) remains deferred unless a new roadmap explicitly adopts it.

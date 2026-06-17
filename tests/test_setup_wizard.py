@@ -272,7 +272,7 @@ class TestWizardSafety:
 
 class TestWizardDeepSeek:
     def _run_deepseek_wizard(self, tmp_path: Path, *, confirm_provider: bool = True,
-                             model: str = "deepseek-v4-pro", policy: str = "balanced",
+                             model: str = "deepseek-v4-flash", policy: str = "balanced",
                              network_first: bool = False, write: bool = True) -> tuple[str | None, str | None]:
         """Helper: run wizard selecting deepseek, capture written provider and model."""
         from safecode.config import SafeCodeConfig
@@ -306,7 +306,7 @@ class TestWizardDeepSeek:
 
     def test_deepseek_default_model_is_preset_model(self, tmp_path: Path) -> None:
         _, model = self._run_deepseek_wizard(tmp_path)
-        assert model == "deepseek-v4-pro"
+        assert model == "deepseek-v4-flash"
 
     def test_deepseek_allows_model_override(self, tmp_path: Path) -> None:
         _, model = self._run_deepseek_wizard(tmp_path, model="deepseek-v4-flash")

@@ -5,18 +5,18 @@ the full [version implementation matrix](../version_implementation_matrix.md).
 
 ## Current Baseline
 
-- Current documented baseline: `v7.0.1` — v7 contract cut plus metadata/narrative sync complete.
-- Package/runtime metadata is `7.0.1`.
+- Current documented baseline: `v7.1.5` — v7 contract cut, agent productization, and eval maturity train complete.
+- Package/runtime metadata is `7.1.5`.
 - Current product truth: [../project-final-status-and-roadmap.md](../project-final-status-and-roadmap.md).
-- Current forward state: v7.0.0 is the stable-contract cut; v7.0.1 aligns
-  package/runtime metadata, README claims, and release context without adding
-  new stable contracts.
+- Current forward state: v7.0.0 remains the stable-contract cut; v7.1.5 adds
+  single-command agent polish, read-only subagent roles, session/shell polish,
+  and eval reporting without adding new stable contracts.
 
 ## Major Trains
 
 | Train | Status | What It Established | Primary References |
 | --- | --- | --- | --- |
-| v7.0.x | active | second stable-contract cut, 23 stable contracts, v7.0.x productization follow-up plan | [public contracts](../public-contracts.md), [v7.0.0 note](../version-notes/v7.0.0-second-stable-contract-cut.md), [v7.0.x plan](../version-plans/v7.0.x-agent-productization-followup.md) |
+| v7.0.x-v7.1.x | complete | second stable-contract cut, 23 stable contracts, v7.0.x productization, v7.1 eval maturity | [public contracts](../public-contracts.md), [v7.0.0 note](../version-notes/v7.0.0-second-stable-contract-cut.md), [v7 notes](../version-notes/README.md) |
 | v6.1.0 | complete | real DeepSeek live eval, realistic demo, hooks MVP, diagnostics-aware context | [status](../project-final-status-and-roadmap.md), [live eval](../demo/live-eval-summary.md), [v6.1.0 note](../version-notes/v6.1.0-portfolio-maturity.md) |
 | v6.0.0 | complete | second major contract cut; trust mode schema and session rollback promoted; zero v5.0 breaking changes | [public contracts](../public-contracts.md), [v6.0.0 note](../version-notes/v6.0.0-major-contract-cut.md) |
 | v5.6.x-v5.8.x | complete | prompt engineering, live eval harness, golden demo, threat model review, subagent activation, sandbox promotion, cost guardrails, v6 prep | [v5.6-v5.8 roadmap](../version-plans/v5.6-to-v5.8-product-roadmap.md), [v5.8.2 note](../version-notes/v5.8.2-v6-prep-baseline.md) |

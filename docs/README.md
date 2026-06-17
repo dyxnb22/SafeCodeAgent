@@ -15,7 +15,7 @@ Start here when you are unsure which document owns a topic.
 
 ## Current Product Truth
 
-- [Final Status and Roadmap](project-final-status-and-roadmap.md): current baseline after `v7.0.1`.
+- [Final Status and Roadmap](project-final-status-and-roadmap.md): current baseline after `v7.1.5`.
 - [Version Summary](reference/version-summary.md): short map of major version trains.
 - [Public Contracts](public-contracts.md): stable and experimental public surfaces.
 - [Versioning Policy](versioning-policy.md): patch, minor, major, and contract-churn rules.

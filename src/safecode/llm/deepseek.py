@@ -22,8 +22,8 @@ class DeepSeekPreset:
 
 DEEPSEEK_PRESET = DeepSeekPreset(
     base_url="https://api.deepseek.com",
-    default_model="deepseek-v4-pro",
-    fallback_model="deepseek-v4-flash",
+    default_model="deepseek-v4-flash",
+    fallback_model="deepseek-v4-pro",
     api_key_env="DEEPSEEK_API_KEY",
 )
 

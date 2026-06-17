@@ -75,7 +75,7 @@ See [docs/install-update.md](docs/install-update.md) for the full install matrix
 | **MCP write approval** | MCP servers can inject arbitrary content into writes | Static classification gate; single-use `ApprovalGrant` outside project root; write never auto-executes |
 | **Trust mode safety** | `--full-auto` sounds like "no approval" but must protect the user | 10-file guard + dirty-tree guard + per-tier approval logic; GATE-tier always stops |
 | **Context compaction** | Long sessions lose earlier context silently | LLM-generated structured summary at turn 12+; raw observations archived to `.sac/sessions/` |
-| **Live evaluation** | Prompt changes are faith without measurement | `LiveEvalRunner` with real DeepSeek runs; 36 coding fixtures; ratchet baseline |
+| **Live evaluation** | Prompt changes are faith without measurement | `LiveEvalRunner` with real DeepSeek runs; 38 coding fixtures; ratchet baseline; Markdown dashboard |
 | **Cost guardrails** | Users can accidentally spend $10 in one session | Token budget cap; provider cost fallback; `/budget` command |
 | **Dirty-tree guard** | Agent overwrites user's uncommitted changes | Orchestrator checks target-file dirty status; blocks silent overwrites |
 | **Search quality** | Multi-file refactor requires finding all call sites | `search_symbol` (ripgrep + AST); `find_references` (Jedi Python); `grep_files` (regex) |
@@ -95,7 +95,7 @@ See [docs/install-update.md](docs/install-update.md) for the full install matrix
 | **Symbol search** | ripgrep + AST kind labeling + Jedi references | Built-in tools | Built-in tools |
 | **Plan / Build mode** | `--mode plan` (read-only) / `--mode build` | Not exposed | Plan / Act |
 | **LLM providers** | Anthropic, OpenAI-compat, DeepSeek, mock | Anthropic only | Multi-model |
-| **Live eval** | 36 default fixtures + DeepSeek API artifact | Internal evals | Not documented |
+| **Live eval** | 38 default fixtures + DeepSeek API artifact + dashboard | Internal evals | Not documented |
 | **Offline / no key** | Full mock mode; all 6000+ tests pass keyless | Requires key | Requires key |
 | **Install** | `pipx install safecode-agent` | `npm i -g @anthropic-ai/claude-code` | Various |
 | **IDE** | Terminal only (by design) | Terminal + VS Code + JetBrains | Terminal + IDE |
@@ -104,9 +104,10 @@ See [docs/install-update.md](docs/install-update.md) for the full install matrix
 
 ## Eval results (DeepSeek v4-flash, 2026-06-17)
 
-Current default live suite: 36 coding fixtures. The latest committed redacted
-DeepSeek artifact covers the 28-fixture suite before the v6.31 multi-turn
-expansion; the ratchet baseline now tracks all 36 default fixtures.
+Current default live suite: 38 coding fixtures. The latest committed redacted
+DeepSeek artifact covers the 28-fixture suite before the v6.31 multi-turn and
+v7.1.3 negative-safety expansions; the ratchet baseline now tracks all 38
+default fixtures.
 
 DeepSeek v4-flash artifact, real API calls, isolated temp workspace per fixture:
 
@@ -125,8 +126,16 @@ DeepSeek v4-flash artifact, real API calls, isolated temp workspace per fixture:
 Safety invariants across all runs: `audit_chain_complete=true`, `checkpoint_integrity_ok=true`,
 `unauthorized_mutations=0`, `working_tree_clean_after_eval=true`.
 
+Generate the current local eval rollup with:
+
+```bash
+sac eval --mode dashboard
+```
+
 See [docs/benchmark-results-deepseek-v4-flash-2026-06-16.md](docs/benchmark-results-deepseek-v4-flash-2026-06-16.md)
-for per-fixture breakdown and failure analysis.
+for the full historical per-fixture breakdown, and
+[docs/benchmark-results-deepseek-v4-flash-2026-06-17-v7.1.5.md](docs/benchmark-results-deepseek-v4-flash-2026-06-17-v7.1.5.md)
+for the v7.1.5 targeted audit run.
 
 ---
 
@@ -307,3 +316,4 @@ See the approval tiers table above for what each tier covers.
 | [docs/security/threat-model-v3.6.md](docs/security/threat-model-v3.6.md) | Threat model |
 | [docs/context-budgets.md](docs/context-budgets.md) | Token budget reference |
 | [docs/benchmark-results-deepseek-v4-flash-2026-06-16.md](docs/benchmark-results-deepseek-v4-flash-2026-06-16.md) | Eval results |
+| [docs/benchmark-results-deepseek-v4-flash-2026-06-17-v7.1.5.md](docs/benchmark-results-deepseek-v4-flash-2026-06-17-v7.1.5.md) | Targeted audit benchmark |

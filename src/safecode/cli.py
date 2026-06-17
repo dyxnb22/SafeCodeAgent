@@ -59,7 +59,7 @@ _WIZARD_DEFAULT_MODELS: dict[str, str] = {
     "mock": "gpt-4.1-mini",
     "openai": "gpt-4.1-mini",
     "openai-compatible": "gpt-4.1-mini",
-    "deepseek": "deepseek-v4-pro",
+    "deepseek": "deepseek-v4-flash",
 }
 
 

@@ -87,16 +87,18 @@ def test_version_notes_index_covers_major_trains_and_links_exist() -> None:
 
 def test_version_summary_points_to_current_baseline_and_matrix() -> None:
     text = _read(DOCS / "reference" / "version-summary.md")
-    assert "v7.0.1" in text
-    assert "../version-plans/v7.0.x-agent-productization-followup.md" in text
+    assert "v7.1.5" in text
+    assert "../version-notes/README.md" in text
     assert "../version_implementation_matrix.md" in text
     assert "../project-final-status-and-roadmap.md" in text
 
 
-def test_version_plans_index_links_active_v70_followup() -> None:
+def test_version_plans_index_marks_v70_followup_historical() -> None:
     index_text = _read(DOCS / "version-plans" / "README.md")
     plan_name = "v7.0.x-agent-productization-followup.md"
     assert plan_name in index_text
+    assert "No active version plan" in index_text
+    assert "completed post-v7.0 productization plan" in index_text
 
     plan_text = _read(DOCS / "version-plans" / plan_name)
     for version in ("v7.0.1", "v7.0.2", "v7.0.3", "v7.0.4"):

@@ -8,10 +8,13 @@ matching file exists in [../version-notes/](../version-notes/).
 
 ## Current Planning
 
-- [v7.0.x-agent-productization-followup.md](v7.0.x-agent-productization-followup.md): active post-v7.0 productization plan for metadata/narrative sync, single-command agent flow, productized subagent roles, and shell/session polish.
+No active version plan is currently open. Start new planning from
+[_template.md](_template.md) and record completed work in
+[../version-notes/](../version-notes/).
 
 ## Historical Roadmaps
 
+- [v7.0.x-agent-productization-followup.md](v7.0.x-agent-productization-followup.md): completed post-v7.0 productization plan for metadata/narrative sync, single-command agent flow, productized subagent roles, and shell/session polish.
 - [post-v4.14-usability-roadmap.md](post-v4.14-usability-roadmap.md): completed post-v4.14 usability and first-run UX planning record.
 - [post-v4.12-consolidation-roadmap.md](post-v4.12-consolidation-roadmap.md): completed consolidation/provider-profile planning record through v4.14.0.
 - [v4.10-to-v4.12-resume-mvp-roadmap.md](v4.10-to-v4.12-resume-mvp-roadmap.md): completed resume-ready MVP train.
