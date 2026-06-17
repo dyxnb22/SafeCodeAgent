@@ -1,6 +1,7 @@
 # Live Eval Results — DeepSeek v4 Flash
 
-**Status:** Real provider run completed on 2026-06-17.
+**Status:** Real provider artifact completed on 2026-06-17; default fixture
+suite expanded after this artifact.
 **Provider/model:** `deepseek` / `deepseek-v4-flash`.
 **Credential handling:** API key was supplied only through the process
 environment and is not stored in this artifact.
@@ -21,7 +22,8 @@ Recorded redacted snapshot summary:
   "provider": "deepseek",
   "model": "deepseek-v4-flash",
   "passed": "28/28",
-  "current_default_fixture_count": 28,
+  "artifact_fixture_count": 28,
+  "current_default_fixture_count": 36,
   "total_wall_seconds": 205.6,
   "avg_wall_seconds": 7.3,
   "avg_tokens_per_fixture": 3045.1,
@@ -53,7 +55,9 @@ The machine-readable copy lives at
   passing the validation error and exact current file contents back to the
   provider. This run did not need that path because all fixtures passed on the
   first proposal.
-- The default live suite now includes 28 fixtures. Coverage now includes
+- The default live suite now includes 36 fixtures. The committed DeepSeek
+  artifact above covers the earlier 28-fixture suite; the ratchet baseline now
+  tracks the expanded 36-fixture default suite. Coverage includes
   validation commands, success-condition repair, relevant-file recall/precision,
   symbol localization, terminal-style tasks, and fixed-commit-inline real-project
   tasks.

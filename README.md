@@ -75,7 +75,7 @@ See [docs/install-update.md](docs/install-update.md) for the full install matrix
 | **MCP write approval** | MCP servers can inject arbitrary content into writes | Static classification gate; single-use `ApprovalGrant` outside project root; write never auto-executes |
 | **Trust mode safety** | `--full-auto` sounds like "no approval" but must protect the user | 10-file guard + dirty-tree guard + per-tier approval logic; GATE-tier always stops |
 | **Context compaction** | Long sessions lose earlier context silently | LLM-generated structured summary at turn 12+; raw observations archived to `.sac/sessions/` |
-| **Live evaluation** | Prompt changes are faith without measurement | `LiveEvalRunner` with real DeepSeek runs; 28 coding fixtures; ratchet baseline |
+| **Live evaluation** | Prompt changes are faith without measurement | `LiveEvalRunner` with real DeepSeek runs; 36 coding fixtures; ratchet baseline |
 | **Cost guardrails** | Users can accidentally spend $10 in one session | Token budget cap; provider cost fallback; `/budget` command |
 | **Dirty-tree guard** | Agent overwrites user's uncommitted changes | Orchestrator checks target-file dirty status; blocks silent overwrites |
 | **Search quality** | Multi-file refactor requires finding all call sites | `search_symbol` (ripgrep + AST); `find_references` (Jedi Python); `grep_files` (regex) |
@@ -95,7 +95,7 @@ See [docs/install-update.md](docs/install-update.md) for the full install matrix
 | **Symbol search** | ripgrep + AST kind labeling + Jedi references | Built-in tools | Built-in tools |
 | **Plan / Build mode** | `--mode plan` (read-only) / `--mode build` | Not exposed | Plan / Act |
 | **LLM providers** | Anthropic, OpenAI-compat, DeepSeek, mock | Anthropic only | Multi-model |
-| **Live eval** | 28 inline fixtures + DeepSeek API pass rate | Internal evals | Not documented |
+| **Live eval** | 36 default fixtures + DeepSeek API artifact | Internal evals | Not documented |
 | **Offline / no key** | Full mock mode; all 6000+ tests pass keyless | Requires key | Requires key |
 | **Install** | `pipx install safecode-agent` | `npm i -g @anthropic-ai/claude-code` | Various |
 | **IDE** | Terminal only (by design) | Terminal + VS Code + JetBrains | Terminal + IDE |
@@ -104,7 +104,11 @@ See [docs/install-update.md](docs/install-update.md) for the full install matrix
 
 ## Eval results (DeepSeek v4-flash, 2026-06-17)
 
-28 inline coding fixtures, real API calls, isolated temp workspace per fixture:
+Current default live suite: 36 coding fixtures. The latest committed redacted
+DeepSeek artifact covers the 28-fixture suite before the v6.31 multi-turn
+expansion; the ratchet baseline now tracks all 36 default fixtures.
+
+DeepSeek v4-flash artifact, real API calls, isolated temp workspace per fixture:
 
 | Category | Count | Pass rate |
 |---|---|---|
@@ -244,7 +248,7 @@ sac release sync-versions-json
 
 ## Stable contracts
 
-21 stable contracts documented in [docs/public-contracts.md](docs/public-contracts.md).  
+23 stable contracts documented in [docs/public-contracts.md](docs/public-contracts.md).  
 Protected by snapshot tests. Patch-level changes never break stable surfaces.
 
 ---

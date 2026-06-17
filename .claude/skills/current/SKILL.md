@@ -5,11 +5,31 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v6.28.0
+# Current Baseline - v7.0.1
 
 ## Status
-Implemented. Git baseline: tag `v6.28.0`. Local working version: `v6.28.0`.
-v6.0.0 remains the latest major stable-contract cut.
+Implemented. Git baseline: tag `v7.0.1`. Local working version: `v7.0.1`.
+v7.0.0 remains the latest major stable-contract cut.
+
+v7.0.1 is a metadata and narrative sync release: package/runtime metadata,
+README claims, project status docs, version summary, `.claude/versions.json`,
+and this skill baseline all point at the v7.0.x line. The default live eval
+suite has 36 fixtures. Public contracts have 23 stable sections after the
+v7.0.0 cut. No runtime behavior or stable contract changed in v7.0.1.
+
+Current forward plan:
+`docs/version-plans/v7.0.x-agent-productization-followup.md`
+
+## v6.29–v7.0 stabilization train
+
+- `v6.29.0`: AgentLoop layered refactor.
+- `v6.30.0`: cross-session workspace memory.
+- `v6.31.0`: multi-turn eval fixtures.
+- `v6.32.0`: dynamic re-planning.
+- `v6.33.0`: context back-pressure.
+- `v6.35.0`: search_symbol discovery improvement.
+- `v7.0.0`: stable contract cut for project memory store shape,
+  `search_symbol`, and model context budget profile.
 
 v6.24–v6.28 is the opencode alignment train (5 versions). Plan:
 `docs/version-plans/v6.24-to-v6.28-opencode-alignment-roadmap.md`

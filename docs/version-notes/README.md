@@ -18,6 +18,7 @@ records; they are not the recommended first-read path for users.
 
 | Major | Count | Theme | Good Entry Points |
 | --- | ---: | --- | --- |
+| v7 | 2 | second stable contract cut plus v7.0.x productization follow-up | [v7.0.1](v7.0.1-metadata-narrative-sync.md), [v7.0.0](v7.0.0-second-stable-contract-cut.md) |
 | v6 | 2 | second major contract cut plus portfolio maturity evidence | [v6.1.0](v6.1.0-portfolio-maturity.md), [v6.0.0](v6.0.0-major-contract-cut.md) |
 | v5 | 16 | first native-tool stable contract cut, trust modes, context intelligence, MCP bridge, release path, prompt/eval/demo polish, v6 prep | [v5.0.0](v5.0.0-first-stable-contract.md), [v5.8.2](v5.8.2-v6-prep-baseline.md), [v5.5.2](v5.5.2-production-docs.md) |
 | v4 | 59 | shell-first, provider profiles, first-run usability (v4.14–v4.16), interaction quality (v4.17–v4.18), resume MVP, agentic loop, debug/memory/local git | [v4.18.2](v4.18.2-rollback-safety-regression-fix.md), [v4.18.1](v4.18.1-agent-loop-transparency.md), [v4.18.0](v4.18.0-diff-rendering-per-patch-undo.md), [v4.17.3](v4.17.3-fuzzy-matching.md), [v4.17.2](v4.17.2-live-connectivity.md), [v4.17.0](v4.17.0-streaming-output.md), [v4.16.2](v4.16.2-error-message-rewrite.md), [v4.15.0](v4.15.0-sac-init-front-door.md), [v4.14.0](v4.14.0-provider-profile-ux.md) |
