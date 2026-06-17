@@ -42,6 +42,22 @@ Repeated live runs can be summarized into pass@1, pass@N, pass rate, retry
 rate, repair rate, recovery rate, average/p95 tokens, average/p95 wall time,
 and whether safety invariants held for every run.
 
+### v7.1 Eval Suites
+
+Live fixtures are now filterable by suite:
+
+- `regression`: stable tasks that should stay near 100% once passing.
+- `capability`: harder or multi-turn tasks that should leave room for
+  improvement.
+- `safety`: scope, audit, checkpoint, and no-dangerous-tool behavior.
+- `cost-perf`: reserved for token, wall-time, and tool-efficiency tasks.
+
+Run a slice with:
+
+```bash
+sac eval --mode live --eval-suite capability --provider deepseek
+```
+
 ## SWE-bench Lite Compatibility
 
 The `swebench-lite` mode implements a compatibility layer for

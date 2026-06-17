@@ -95,6 +95,7 @@ def eval_demo(
     provider: str = typer.Option("anthropic", "--provider", help="LLM provider for --mode live."),
     model: str = typer.Option("", "--model", help="Model override for --mode live."),
     fixture: str = typer.Option("", "--fixture", help="Run one named fixture (live mode only)."),
+    eval_suite: str = typer.Option("all", "--eval-suite", help="Live eval suite: all, regression, capability, safety, cost-perf."),
     runs: int = typer.Option(1, "--runs", help="Repeat live eval N times and print aggregate stability metrics."),
     suite: str = typer.Option("", "--suite", help="Eval suite for --mode swebench-lite (dir of task JSON files)."),
     limit: int = typer.Option(10, "--limit", help="Max tasks for --mode swebench-lite."),
@@ -134,6 +135,7 @@ def eval_demo(
             LiveEvalRunner,
             check_ratchet,
             default_live_fixtures,
+            filter_live_fixtures,
             render_live_summary,
             render_repeated_summary,
             save_latest,
@@ -153,12 +155,17 @@ def eval_demo(
                 console.print(f"[red]Unknown fixture {fixture!r}. Available: {names}[/red]")
                 raise typer.Exit(code=1)
         else:
-            selected = all_fixtures
+            try:
+                selected = filter_live_fixtures(all_fixtures, eval_suite)
+            except ValueError as exc:
+                console.print(f"[red]{exc}[/red]")
+                raise typer.Exit(code=1) from exc
 
         live_runner = LiveEvalRunner(provider=provider, model=model or None)
         model_label = model or "default"
         console.print(
-            f"Running {len(selected)} live fixture(s) with provider={provider!r}, model={model_label!r}, runs={runs!r} …"
+            f"Running {len(selected)} live fixture(s) with provider={provider!r}, "
+            f"model={model_label!r}, suite={eval_suite!r}, runs={runs!r} …"
         )
         if runs < 1:
             console.print("[red]--runs must be >= 1[/red]")

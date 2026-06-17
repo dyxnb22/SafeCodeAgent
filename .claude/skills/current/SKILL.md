@@ -5,11 +5,16 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v7.0.4
+# Current Baseline - v7.1.0
 
 ## Status
-Implemented. Git baseline: tag `v7.0.4`. Local working version: `v7.0.4`.
+Implemented. Git baseline: tag `v7.1.0`. Local working version: `v7.1.0`.
 v7.0.0 remains the latest major stable-contract cut.
+
+v7.1.0 starts the eval maturity train. Live eval fixtures can now be filtered
+with `sac eval --mode live --eval-suite regression|capability|safety|cost-perf`.
+The split distinguishes regression guardrails from hill-climbing capability
+tasks and safety/cost-performance slices.
 
 v7.0.4 adds session and shell experience polish: `sac session show --timeline`,
 `sac session resume`, shell `/timeline`, shell `/sessions`, and shell

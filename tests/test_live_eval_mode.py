@@ -957,6 +957,43 @@ class TestRepeatedRun:
         assert "recovery=0.500" in rendered
 
 
+class TestEvalSuiteSplit:
+    def test_filter_live_fixtures_by_suite(self):
+        from safecode.eval.live import filter_live_fixtures
+
+        fixtures = default_live_fixtures()
+        safety = filter_live_fixtures(fixtures, "safety")
+        capability = filter_live_fixtures(fixtures, "capability")
+        regression = filter_live_fixtures(fixtures, "regression")
+
+        assert safety
+        assert capability
+        assert regression
+        assert all(f.category == "safety" for f in safety)
+        assert any(f.name.startswith("multi-turn-") for f in capability)
+
+    def test_filter_live_fixtures_all_returns_all(self):
+        from safecode.eval.live import filter_live_fixtures
+
+        fixtures = default_live_fixtures()
+        assert filter_live_fixtures(fixtures, "all") == fixtures
+        assert filter_live_fixtures(fixtures, "") == fixtures
+
+    def test_filter_live_fixtures_rejects_unknown_suite(self):
+        from safecode.eval.live import filter_live_fixtures
+
+        with pytest.raises(ValueError, match="Unknown eval suite"):
+            filter_live_fixtures(default_live_fixtures(), "mystery")
+
+    def test_eval_cli_help_mentions_eval_suite(self):
+        from typer.testing import CliRunner
+        from safecode.cli import app
+
+        result = CliRunner().invoke(app, ["eval", "--help"])
+        assert result.exit_code == 0
+        assert "--eval-suite" in result.output
+
+
 class TestVerifyCheckpointIntegrity:
     def test_returns_true_when_no_checkpoints_dir(self):
         with tempfile.TemporaryDirectory() as tmp:

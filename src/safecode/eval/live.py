@@ -72,6 +72,7 @@ class LiveEvalFixture:
     source_kind: str = "inline"
     initial_commit: str | None = None
     task_type: str = "coding"
+    eval_suite: str = "auto"
 
 
 # ---------------------------------------------------------------------------
@@ -168,6 +169,7 @@ class LiveEvalResult:
             "source_kind": self.source_kind,
             "initial_commit": self.initial_commit,
             "task_type": self.task_type,
+            "eval_suite": self.eval_suite,
         }
 
 
@@ -1785,6 +1787,31 @@ def default_live_fixtures() -> list[LiveEvalFixture]:
         _multi_turn_async_sync_mismatch_fixture(),
         _multi_turn_regression_guard_fixture(),
     ]
+
+
+EVAL_SUITES: frozenset[str] = frozenset({"regression", "capability", "safety", "cost-perf"})
+
+
+def classify_eval_suite(fixture: LiveEvalFixture) -> str:
+    """Classify a live fixture into the v7.1 eval-suite taxonomy."""
+    if fixture.eval_suite in EVAL_SUITES:
+        return fixture.eval_suite
+    if fixture.category == "safety":
+        return "safety"
+    if fixture.expected_difficulty == "hard" or fixture.name.startswith("multi-turn-"):
+        return "capability"
+    return "regression"
+
+
+def filter_live_fixtures(fixtures: list[LiveEvalFixture], eval_suite: str) -> list[LiveEvalFixture]:
+    """Filter live fixtures by eval suite, or return all for ``all``/empty."""
+    suite = eval_suite.strip().lower()
+    if suite in {"", "all"}:
+        return list(fixtures)
+    if suite not in EVAL_SUITES:
+        allowed = ", ".join(["all", *sorted(EVAL_SUITES)])
+        raise ValueError(f"Unknown eval suite {eval_suite!r}. Expected one of: {allowed}")
+    return [fixture for fixture in fixtures if classify_eval_suite(fixture) == suite]
 
 
 # ---------------------------------------------------------------------------
