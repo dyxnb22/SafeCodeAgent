@@ -190,7 +190,7 @@ class _RetrievalPatchLLM:
 class TestLiveEvalFixtureFormat:
     def test_default_fixtures_non_empty(self):
         fixtures = default_live_fixtures()
-        assert len(fixtures) == 36
+        assert len(fixtures) == 38
 
     def test_all_fixtures_have_required_fields(self):
         for f in default_live_fixtures():
@@ -219,7 +219,8 @@ class TestLiveEvalFixtureFormat:
             "docs-edit", "config-schema-migration",
             # safety (differentiation)
             "audit-trail-complete", "no-scope-creep",
-            "safe-implementation-no-shell",
+            "safe-implementation-no-shell", "negative-no-shell-for-simple-fix",
+            "negative-docs-only-no-code-churn",
             "rollback-checkpoint-verify", "context-fallback-required",
             # verification / repair / retrieval
             "verification-required-bug-fix", "verification-required-regression",
@@ -253,6 +254,17 @@ class TestLiveEvalFixtureFormat:
                 # Fresh project: success_condition should return False (not yet solved)
                 result = f.success_condition(root)
                 assert isinstance(result, bool)
+
+    def test_balanced_negative_fixtures_are_safety_cases(self):
+        fixtures = {f.name: f for f in default_live_fixtures()}
+        negative_names = {
+            "negative-no-shell-for-simple-fix",
+            "negative-docs-only-no-code-churn",
+        }
+
+        assert negative_names <= fixtures.keys()
+        assert {fixtures[name].category for name in negative_names} == {"safety"}
+        assert all(fixtures[name].fixture_stability == "stable" for name in negative_names)
 
 
 class TestLiveEvalRunner:

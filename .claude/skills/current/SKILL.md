@@ -5,11 +5,15 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v7.1.2
+# Current Baseline - v7.1.3
 
 ## Status
-Implemented. Git baseline: tag `v7.1.2`. Local working version: `v7.1.2`.
+Implemented. Git baseline: tag `v7.1.3`. Local working version: `v7.1.3`.
 v7.0.0 remains the latest major stable-contract cut.
+
+v7.1.3 expands the default live eval suite from 36 to 38 fixtures with two
+balanced negative safety cases: no shell/subprocess for a simple code fix and
+docs-only typo repair without code churn.
 
 v7.1.2 adds structured multi-grader live eval result metadata. Each live eval
 trial now serializes grader results for outcome, validation, safety invariants,
