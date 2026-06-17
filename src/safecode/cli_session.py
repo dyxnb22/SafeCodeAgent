@@ -13,6 +13,8 @@ from rich.table import Table
 from safecode.cli_shared import console
 from safecode.cli_shared_json import CLIJSONResponse, render_json
 from safecode.context.redactor import redact_secrets
+from safecode.report.session_timeline import build_session_timeline, render_session_timeline
+from safecode.state.journal import AgentJournalStore
 from safecode.shell_session.state import ShellSessionState
 from safecode.shell_session.store import ShellSessionStore
 from safecode.task.store import TaskStore
@@ -34,23 +36,96 @@ def list_sessions(
         if state is None:
             continue
         rows.append({
+            "kind": "shell",
             "session_id": state.session_id,
             "task_id": state.task_id,
             "turns": len(state.turns),
             "created_at": state.created_at,
             "updated_at": state.updated_at,
         })
+    journal = AgentJournalStore(project_root)
+    for session_id in _agent_journal_ids(journal):
+        summary = journal.summary(session_id)
+        rows.append({
+            "kind": "agent",
+            "session_id": session_id,
+            "task_id": "",
+            "turns": summary.event_count,
+            "created_at": summary.first_timestamp or "",
+            "updated_at": summary.last_timestamp or "",
+        })
     if json_output:
         print(render_json(CLIJSONResponse(command="session list", status="success", data={"sessions": rows})))
         return
     table = Table(title="SafeCode Sessions")
+    table.add_column("Kind")
     table.add_column("Session")
     table.add_column("Task")
-    table.add_column("Turns", justify="right")
+    table.add_column("Events", justify="right")
     table.add_column("Updated")
     for row in rows:
-        table.add_row(row["session_id"], row["task_id"] or "", str(row["turns"]), row["updated_at"])
+        table.add_row(row["kind"], row["session_id"], row["task_id"] or "", str(row["turns"]), row["updated_at"])
     console.print(table if rows else "[dim]No sessions found.[/dim]")
+
+
+@session_app.command("show")
+def show_session(
+    session_id: str = typer.Argument(..., help="Session id to show."),
+    timeline: bool = typer.Option(False, "--timeline", help="Show agent journal timeline."),
+    json_output: bool = typer.Option(False, "--json", help="Output result as JSON."),
+) -> None:
+    """Show a shell or agent session."""
+    project_root = Path.cwd()
+    shell_state = ShellSessionStore(project_root).load(session_id)
+    rows = build_session_timeline(project_root, session_id) if timeline else []
+    if shell_state is None and not rows:
+        _emit_error("session show", f"Session not found: {session_id}", json_output)
+        raise typer.Exit(code=1)
+    data = {
+        "session_id": session_id,
+        "kind": "shell" if shell_state is not None else "agent",
+        "turns": len(shell_state.turns) if shell_state is not None else None,
+        "timeline": [row.__dict__ for row in rows],
+    }
+    if json_output:
+        print(render_json(CLIJSONResponse(command="session show", status="success", data=data)))
+        return
+    if timeline:
+        console.print(render_session_timeline(project_root, session_id))
+        return
+    if shell_state is not None:
+        console.print(f"Shell session {session_id}: {len(shell_state.turns)} turn(s).")
+
+
+@session_app.command("resume")
+def resume_session(
+    session_id: str = typer.Argument(..., help="Agent session id to resume from journal/current state."),
+    json_output: bool = typer.Option(False, "--json", help="Output result as JSON."),
+) -> None:
+    """Passively resume an agent session by id."""
+    project_root = Path.cwd()
+    try:
+        from safecode.agent.loop import AgentLoop
+
+        state = AgentLoop(project_root).resume_from(session_id)
+    except Exception as exc:
+        _emit_error("session resume", f"Cannot resume session {session_id}: {exc}", json_output)
+        raise typer.Exit(code=1) from exc
+    data = {
+        "session_id": state.session_id,
+        "status": state.status,
+        "current_step": state.current_step,
+        "goal": state.goal,
+    }
+    if json_output:
+        print(render_json(CLIJSONResponse(command="session resume", status="success", data=data)))
+    else:
+        console.print(
+            f"Resumed agent session {state.session_id}\n"
+            f"Status: {state.status}\n"
+            f"Current step: {state.current_step}/{len(state.plan)}\n"
+            f"Next: sac agent run --max-steps 1"
+        )
 
 
 @session_app.command("stats")
@@ -135,3 +210,13 @@ def _emit_error(command: str, message: str, json_output: bool) -> None:
         print(render_json(CLIJSONResponse(command=command, status="error", error=message)))
     else:
         console.print(f"[red]{message}[/red]")
+
+
+def _agent_journal_ids(journal: AgentJournalStore) -> list[str]:
+    if not journal.root.exists():
+        return []
+    return [
+        path.stem
+        for path in sorted(journal.root.glob("*.jsonl"), key=lambda p: p.stat().st_mtime, reverse=True)
+        if path.is_file() and not path.is_symlink()
+    ]

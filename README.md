@@ -167,6 +167,8 @@ sac lsp diagnostics --json
 **Session + commit:**
 ```bash
 sac session list
+sac session show <session-id> --timeline
+sac session resume <session-id>
 sac commit --ai                # LLM-generated conventional-commit message
 sac commit --ai --dry-run      # preview without committing
 ```

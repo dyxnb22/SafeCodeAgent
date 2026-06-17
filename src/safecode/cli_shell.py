@@ -35,6 +35,9 @@ _SHELL_BANNER = (
 _SHELL_HELP = """\
 Slash commands:
   /status           show current task, pending patch, and next step
+  /timeline         show latest agent session timeline
+  /sessions         show recent shell and agent sessions
+  /resume <id>      passively resume an agent session
   /task             show current task details
   /overview         show project structure overview
   /model            show current model and available aliases
@@ -73,7 +76,7 @@ def _shell_prompt(turn: int, cost_str: str = "", task_str: str = "") -> str:
     return f"sac[{inner}]> "
 
 _SLASH_COMMANDS = [
-    "/status", "/task", "/overview", "/model", "/provider",
+    "/status", "/timeline", "/sessions", "/resume", "/task", "/overview", "/model", "/provider",
     "/apply", "/commit", "/debug", "/clear", "/undo", "/history", "/tools",
     "/cost", "/mode", "/help", "/exit", "/quit",
 ]
@@ -334,6 +337,70 @@ def _slash_status(project_root: Path) -> str:
         return "\n".join(lines)
     except Exception as exc:
         return f"Status unavailable: {exc}"
+
+
+def _slash_timeline(project_root: Path, session_id: str = "") -> str:
+    """Return the latest or selected agent session timeline."""
+    try:
+        from safecode.agent.session import AgentSessionStore
+        from safecode.report.session_timeline import render_session_timeline
+        from safecode.state.journal import AgentJournalStore
+
+        selected = session_id.strip()
+        if not selected:
+            state = AgentSessionStore(project_root).load()
+            selected = state.session_id if state is not None else AgentJournalStore(project_root).latest_session_id() or ""
+        if not selected:
+            return "No agent session timeline found."
+        return render_session_timeline(project_root, selected, limit=20)
+    except Exception as exc:
+        return f"Timeline unavailable: {exc}"
+
+
+def _slash_sessions(project_root: Path) -> str:
+    """Return a compact list of recent shell and agent sessions."""
+    try:
+        from safecode.shell_session.store import ShellSessionStore
+        from safecode.state.journal import AgentJournalStore
+
+        lines = ["Recent sessions"]
+        shell_store = ShellSessionStore(project_root)
+        shell_ids = shell_store.list_sessions()[-5:]
+        for sid in shell_ids:
+            state = shell_store.load(sid)
+            if state is not None:
+                lines.append(f"shell {sid} turns={len(state.turns)} updated={state.updated_at}")
+
+        journal = AgentJournalStore(project_root)
+        if journal.root.exists():
+            paths = sorted(journal.root.glob("*.jsonl"), key=lambda p: p.stat().st_mtime, reverse=True)[:5]
+            for path in paths:
+                if path.is_file() and not path.is_symlink():
+                    summary = journal.summary(path.stem)
+                    lines.append(f"agent {path.stem} events={summary.event_count} updated={summary.last_timestamp or ''}")
+        if len(lines) == 1:
+            lines.append("No sessions found.")
+        return "\n".join(lines)
+    except Exception as exc:
+        return f"Sessions unavailable: {exc}"
+
+
+def _slash_resume(project_root: Path, session_id: str) -> str:
+    """Passively resume an agent session from shell."""
+    if not session_id.strip():
+        return "Usage: /resume <session-id>"
+    try:
+        from safecode.agent.loop import AgentLoop
+
+        state = AgentLoop(project_root).resume_from(session_id.strip())
+        return (
+            f"Resumed agent session {state.session_id}\n"
+            f"status: {state.status}\n"
+            f"current_step: {state.current_step}/{len(state.plan)}\n"
+            "next: sac agent run --max-steps 1"
+        )
+    except Exception as exc:
+        return f"Resume failed: {exc}"
 
 
 def _slash_task(project_root: Path) -> str:
@@ -637,6 +704,15 @@ def _handle_slash_command(
 
     if name == "/status":
         return _slash_status(project_root), "status", False
+
+    if name == "/timeline":
+        return _slash_timeline(project_root, parts[1] if len(parts) > 1 else ""), "timeline", False
+
+    if name == "/sessions":
+        return _slash_sessions(project_root), "sessions", False
+
+    if name == "/resume":
+        return _slash_resume(project_root, parts[1] if len(parts) > 1 else ""), "resume", False
 
     if name == "/cost":
         return _slash_cost(project_root), "cost", False
@@ -1029,6 +1105,14 @@ def _run_agentic_shell(
                 after = len(conversation.to_messages())
                 if is_tty:
                     console.print(f"[dim]Conversation compacted: {before} -> {after} messages.[/dim]")
+                continue
+            if goal.startswith(("/timeline", "/sessions", "/resume")):
+                response, _intent, _exit = _handle_slash_command(goal, project_root, None, is_tty=is_tty)
+                if json_output:
+                    print(render_json(CLIJSONResponse(command="shell --agentic slash", status="success", data={"response": response})))
+                    break
+                if is_tty:
+                    console.print(response)
                 continue
             if goal.startswith("/mode"):
                 parts = goal.split(None, 1)

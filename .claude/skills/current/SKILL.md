@@ -5,11 +5,16 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v7.0.3
+# Current Baseline - v7.0.4
 
 ## Status
-Implemented. Git baseline: tag `v7.0.3`. Local working version: `v7.0.3`.
+Implemented. Git baseline: tag `v7.0.4`. Local working version: `v7.0.4`.
 v7.0.0 remains the latest major stable-contract cut.
+
+v7.0.4 adds session and shell experience polish: `sac session show --timeline`,
+`sac session resume`, shell `/timeline`, shell `/sessions`, and shell
+`/resume <id>`. Timeline output is a human-oriented projection from existing
+agent journal events; it is not a stable machine-readable contract.
 
 v7.0.3 productizes read-only subagent roles. `sac subagent roles` lists the
 built-in presets, and `sac subagent explore|review|scout` run read-only
