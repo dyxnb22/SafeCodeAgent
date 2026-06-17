@@ -566,7 +566,7 @@ SEARCH_SYMBOL_SPEC = NativeToolSpec(
     },
     requires_approval=False,
     audit_event_type="tool_call_read",
-    experimental=True,
+    experimental=False,
 )
 
 

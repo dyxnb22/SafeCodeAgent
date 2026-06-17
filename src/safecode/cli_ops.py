@@ -560,6 +560,16 @@ _V5_STABLE_CONTRACTS = [
     "sac_shell_loop",
 ]
 
+_STABLE_CONTRACTS = _V5_STABLE_CONTRACTS + [
+    "sandbox_execution_lifecycle",
+    "trust_mode_schema",
+    "session_rollback",
+    "github_pr_workflow",
+    "project_memory_store_shape",
+    "search_symbol",
+    "model_context_budget_profile",
+]
+
 
 @ops_app.command("version", hidden=True)
 def version(
@@ -572,7 +582,7 @@ def version(
         print(render_json(CLIJSONResponse(
             command="version",
             status="success",
-            data={"version": __version__, "stable_contracts": _V5_STABLE_CONTRACTS},
+            data={"version": __version__, "stable_contracts": _STABLE_CONTRACTS},
         )))
         return
     console.print(f"SafeCode Agent {__version__}")

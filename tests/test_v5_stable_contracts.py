@@ -17,7 +17,7 @@ from safecode.agent.read_tools import (
     SEARCH_FILES_SPEC,
 )
 from safecode.agent.write_tools import EDIT_FILE_SPEC, WRITE_FILE_SPEC
-from safecode.cli_ops import _V5_STABLE_CONTRACTS
+from safecode.cli_ops import _STABLE_CONTRACTS, _V5_STABLE_CONTRACTS
 
 
 # ---------------------------------------------------------------------------
@@ -134,7 +134,7 @@ class TestVersionJsonStableContracts:
         assert "sac_shell_loop" in contracts
 
     def test_version_json_stable_contracts_matches_constant(self, tmp_path):
-        """stable_contracts in JSON matches _V5_STABLE_CONTRACTS."""
+        """stable_contracts in JSON matches the current full stable contract list."""
         from io import StringIO
         from unittest.mock import patch
 
@@ -144,7 +144,8 @@ class TestVersionJsonStableContracts:
             version_cmd(json_output=True)
 
         data = json.loads(output_buf.getvalue().strip())
-        assert sorted(data["data"]["stable_contracts"]) == sorted(_V5_STABLE_CONTRACTS)
+        assert sorted(data["data"]["stable_contracts"]) == sorted(_STABLE_CONTRACTS)
+        assert set(_V5_STABLE_CONTRACTS).issubset(set(data["data"]["stable_contracts"]))
 
 
 # ---------------------------------------------------------------------------

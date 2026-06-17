@@ -126,8 +126,8 @@ For v5.1.x and beyond, the same policy applies: minor releases may add
 experimental surfaces; major releases required for any breaking change to any
 stable contract. As of v5.7.1, sandbox execution is the seventeenth stable
 contract (Section 17). As of v6.0.0, trust mode schema (Section 18) and
-session rollback (Section 19) are promoted. There are now **19 stable contracts
-in total**.
+session rollback (Section 19) are promoted. After the v6.0.0 cut there were
+**19 stable contracts in total**.
 
 ## v6.0 Contract Churn Budget
 
@@ -145,6 +145,22 @@ Candidates approved for promotion at v6.0.0:
 All other experimental surfaces remain experimental through v6.0.0 unless
 the candidate assessment is updated with new evidence.
 
+## v7.0 Contract Churn Budget
+
+The v7.0.0 contract churn budget:
+
+- **At most 5 new stable contracts** promoted from experimental.
+- **Zero breaking changes** to v6.0.0 stable contracts (sections 1–20).
+
+Promoted at v7.0.0:
+- Project memory store shape (Section 21).
+- `search_symbol` native tool schema and result shape (Section 22).
+- Model context budget profile semantics (Section 23).
+
+Live eval multi-turn fixtures and dynamic re-planning remain development
+evidence/internal behavior, not stable public contracts. There are now
+**23 stable contracts in total**.
+
 ## Policy Changelog
 
 | Version | Change |
@@ -160,3 +176,4 @@ the candidate assessment is updated with new evidence.
 | **v5.8.1** | **v6.0 contract candidate assessment published at ``docs/v6-contract-candidates.md``.** |
 | **v5.8.2** | **Final v6.0 pre-docs pass: roadmap table, v6.0 budget stated, candidates documented.** |
 | **v6.0.0** | **Major contract cut: trust mode schema (Section 18) and session rollback (Section 19) promoted. 19 total stable contracts. Zero v5.0 breaking changes.** |
+| **v7.0.0** | **Major contract cut: project memory store shape, search_symbol, and model context budget profile promoted. 23 total stable contracts. Zero v6.0 breaking changes.** |

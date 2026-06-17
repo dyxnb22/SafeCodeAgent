@@ -303,12 +303,12 @@ branch, checkpoint, and timestamp fields; `_get_current_branch()` internals.
 
 ---
 
-### 21. Project Memory Store Shape (v6.2.0 — CANDIDATE, not yet stable)
+### 21. Project Memory Store Shape (v7.0.0)
 
 **Surface:** `SessionSummaryStore` and `ProjectFactStore` — the two stores
 written to `.sac/memory/sessions.jsonl` and `.sac/memory/facts.json`.
 
-**Candidate invariants (subject to change before promotion):**
+**Contract:** The project memory persistence shape and approval gate are stable.
 
 - `sessions.jsonl`: append-only JSONL, one `SessionSummary` dict per line,
   newest entry last, capped at 50 entries. All string values are redacted
@@ -321,12 +321,76 @@ written to `.sac/memory/sessions.jsonl` and `.sac/memory/facts.json`.
 - Fact approval is audit-logged with `type="memory_fact_approved"`.
 - `SessionSummaryStore.load_recent()` returns summaries newest-first.
 
-**Not yet stable:** The exact field set of `SessionSummary` and `ProjectFact`
-may expand before promotion. The `.sac/memory/` directory layout is not a
-stable contract in v6.2.x.
+**Not stable:** Additional optional fields may be added to `SessionSummary` or
+`ProjectFact`. Consumers must ignore unknown fields. Workspace-memory JSONL
+under `.sac/workspace_memory.jsonl` remains experimental and is not part of
+this contract.
 
 **Source:** `src/safecode/memory/session_store.py`,
 `src/safecode/memory/facts.py`, `src/safecode/memory/summary.py`
+
+---
+
+### 22. `search_symbol` Native Tool Contract (v7.0.0)
+
+**Promoted surface:** `search_symbol(name, kind?, file?)` — the read-only
+native tool for symbol definition lookup.
+
+**Contract:** `search_symbol` is a stable read-only native tool. Its
+`NativeToolSpec` shape, input fields, approval behavior, audit event type, and
+result item fields are stable.
+
+**Stable invariants:**
+
+- `requires_approval=False`; calls are auto-executed as read-only operations.
+- `audit_event_type="tool_call_read"`.
+- Required input: `name`.
+- Optional inputs: `kind` (`function`, `class`, `variable`, `import`,
+  `symbol`) and `file` (project-relative file restriction).
+- Results are JSON arrays of objects containing `file`, `line`, `kind`, and
+  `snippet`, capped at 50.
+- Path inputs are validated against the project root boundary. `.git`, `.sac`,
+  sensitive files, binary files, and symlinks are skipped.
+- Output snippets are passed through `redact_secrets()`.
+- The implementation may use ripgrep, a Python walker, or both. Backend choice
+  and result ordering are not stable.
+- snake_case and camelCase/PascalCase variants may match the same symbol.
+
+**Source:** `src/safecode/agent/read_tools.py`
+
+**Contract tests:** `tests/test_search_symbol_tool.py`, `tests/test_read_tools.py`
+
+---
+
+### 23. Model Context Budget Profile Contract (v7.0.0)
+
+**Promoted surface:** `ModelContextProfile` and `effective_context_budget()`
+for model-window-aware context packing.
+
+**Contract:** Context budget selection is stable at the semantic level:
+explicit project/user `max_context_chars` overrides win, while the built-in
+default budget may be expanded for known non-mock model profiles.
+
+**Stable invariants:**
+
+- Explicit `max_context_chars != 40000` is respected exactly.
+- `provider="mock"` keeps the default 40,000 character budget.
+- Known non-mock model profiles compute a safe input budget from
+  `context_window_tokens * safe_input_ratio`.
+- The default `safe_input_ratio` is `0.70`; the default compaction threshold
+  ratio is `0.60`.
+- `ContextCollector.collect()` reports the effective budget in
+  `context_budget.max_bytes` and `context_budget.max_tokens`.
+- Agent session compaction uses the model profile's context window when one is
+  available.
+
+**Not stable:** The exact inferred context-window number for a future model ID;
+new model families may be added without a major version bump.
+
+**Source:** `src/safecode/context/budget.py`,
+`src/safecode/context/collector.py`, `src/safecode/agent/loop_budget.py`
+
+**Contract tests:** `tests/test_context_budget.py`, `tests/test_context_compaction.py`
 
 ---
 
@@ -659,6 +723,25 @@ Full assessment: `docs/v6-contract-candidates.md`
 
 **v6.0.0 churn budget result:** 2 new stable contracts (within ≤ 5 budget).
 Zero breaking changes to v5.0 or earlier stable contracts (sections 1–17).
+
+---
+
+## v7.0.0 Contract Promotions
+
+v7.0.0 is the next major stable-contract cut after v6.0.0. Three additive
+contracts are promoted. Zero breaking changes are made to v6.0 or earlier
+stable contracts.
+
+| # | Surface | v6.x debut | v7.0 decision |
+|---|---|---|---|
+| 1 | Project memory store shape | v6.2.0 | **Promoted → Section 21** |
+| 2 | `search_symbol` native tool | v6.25.0 | **Promoted → Section 22** |
+| 3 | Model context budget profile | v6.33.0 | **Promoted → Section 23** |
+| 4 | Live eval multi-turn fixtures | v6.31.0 | Deferred (development evidence, not public API) |
+| 5 | Dynamic re-planning | v6.32.0 | Deferred (internal behavior, not public API) |
+
+**v7.0.0 churn budget result:** 3 new stable contracts.
+Zero breaking changes to v6.0 or earlier stable contracts (sections 1–20).
 
 ---
 
