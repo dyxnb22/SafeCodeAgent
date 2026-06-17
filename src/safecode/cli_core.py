@@ -181,7 +181,12 @@ def edit(
         )))
         return
     console.print(Panel.fit(f"Pending patch saved: {result.pending_patch_path}", title="SafeCode"))
-    console.print(Syntax(result.diff_text, "diff", theme="ansi_dark"))
+    # v6.27: Rich per-file diff panels; fallback to plain Syntax on non-TTY.
+    try:
+        from safecode.cli_diff_render import render_rich_diff
+        render_rich_diff(result.diff_text, title="Proposed changes", console=console)
+    except Exception:
+        console.print(Syntax(result.diff_text, "diff", theme="ansi_dark"))
     if result.scope_result and result.scope_result.warning:
         console.print(f"[yellow]{result.scope_result.warning}[/yellow]")
 
@@ -226,7 +231,12 @@ def apply(
     except Exception:
         pass
 
-    console.print(Syntax(preview.diff_text, "diff", theme="ansi_dark"))
+    # v6.27: Rich per-file diff panels in apply preview.
+    try:
+        from safecode.cli_diff_render import render_rich_diff
+        render_rich_diff(preview.diff_text, title="Apply preview", console=console)
+    except Exception:
+        console.print(Syntax(preview.diff_text, "diff", theme="ansi_dark"))
     checkpoint = HumanCheckpointPresenter(project_root).checkpoint(
         checkpoint_type="patch_apply",
         title="Patch Apply Checkpoint",

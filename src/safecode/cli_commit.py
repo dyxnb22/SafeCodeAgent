@@ -11,6 +11,7 @@ from rich.syntax import Syntax
 from safecode.cli_shared import console
 from safecode.cli_shared_json import CLIJSONResponse, render_json
 from safecode.context.redactor import redact_secrets
+from safecode.llm.factory import create_llm_client
 from safecode.patch.diff import build_unified_diff
 from safecode.git.local import (
     GitError,
@@ -56,10 +57,58 @@ def _commit_message(goal: str, task_id: str, include_summary: bool, iterations: 
     return "\n".join(body)
 
 
+def _generate_ai_commit_message(project_root: Path, task_goal: str, files: list[str]) -> str:
+    """Call the configured LLM to generate a conventional-commit message.
+
+    Collects a capped git diff and asks the LLM to produce:
+      type(scope): subject
+      <blank line>
+      body (optional)
+
+    Returns the raw message text. Never raises — callers catch exceptions.
+    """
+    from safecode.config import SafeCodeConfig
+    from safecode.agent.schemas import AgentAnswer
+
+    config = SafeCodeConfig.load(project_root)
+    llm = create_llm_client(config)
+
+    # Collect a compact diff (capped to keep prompt reasonable).
+    try:
+        raw_diff = diff_for_files(project_root, files) or ""
+    except Exception:
+        raw_diff = ""
+    diff_snippet = redact_secrets(raw_diff)[:4000]
+
+    file_list = "\n".join(f"  - {f}" for f in files[:30])
+    if len(files) > 30:
+        file_list += f"\n  ... and {len(files) - 30} more"
+
+    prompt = (
+        "Generate a conventional-commit message for the following code change.\n\n"
+        "Format:\n"
+        "  type(scope): short subject (≤72 chars)\n"
+        "  <blank line>\n"
+        "  Optional body (concise, explain WHY not WHAT, max 3 sentences).\n\n"
+        "Types: feat, fix, refactor, docs, test, chore, perf, style.\n"
+        "Be specific. Do not include 'Co-authored-by' lines.\n\n"
+        f"Task goal: {task_goal}\n\n"
+        f"Files changed:\n{file_list}\n\n"
+        f"Diff (may be truncated):\n```diff\n{diff_snippet}\n```"
+    )
+    result = llm.ask(prompt, {})
+    if not isinstance(result, AgentAnswer) or not result.content:
+        raise ValueError("LLM returned empty commit message")
+    return result.content.strip()
+
+
 def register(app: typer.Typer) -> None:
     @app.command("commit")
     def commit_cmd(
         message_from_task: bool = typer.Option(False, "--message-from-task", help="Use the task goal as the commit subject."),
+        ai_message: bool = typer.Option(False, "--ai", help="[v6.28] Use AI to generate a conventional commit message."),
+        dry_run: bool = typer.Option(False, "--dry-run", help="Print the commit message without committing (for --ai)."),
+        yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation prompt (for --ai)."),
         branch: Optional[str] = typer.Option(None, "--branch", help="Create and switch to this local branch before committing."),
         include_task_summary: bool = typer.Option(False, "--include-task-summary", help="Include an iteration trail in the commit body."),
         allow_unrelated_changes: bool = typer.Option(False, "--allow-unrelated-changes", help="Bypass the dirty-tree guard."),
@@ -86,7 +135,40 @@ def register(app: typer.Typer) -> None:
             unrelated_staged = sorted(set(staged) - set(files))
             if unrelated_staged:
                 raise GitError(f"Refusing to commit unrelated staged files: {', '.join(unrelated_staged)}")
-            message = _commit_message(task.goal if message_from_task else task.goal, task.task_id, include_task_summary, list(task.iterations))
+
+            # v6.28: AI-generated commit message path.
+            if ai_message:
+                try:
+                    generated = _generate_ai_commit_message(project_root, task.goal, list(files))
+                except Exception as exc:
+                    err = redact_secrets(str(exc))
+                    if json_output:
+                        _json_or_print("commit", True, "error", {}, f"AI message generation failed: {err}. Use --message-from-task instead.")
+                    else:
+                        console.print(f"[red]AI message generation failed:[/red] {err}")
+                        console.print("[yellow]Hint: use --message-from-task as a fallback.[/yellow]")
+                    raise typer.Exit(code=1) from exc
+
+                if dry_run:
+                    if json_output:
+                        _json_or_print("commit", True, "success", {"dry_run": True, "message": generated, "files": list(files)})
+                    else:
+                        console.print("[bold]Generated commit message (--dry-run, not committed):[/bold]")
+                        console.print(generated)
+                    return
+
+                if not yes and not json_output:
+                    console.print("[bold]Generated commit message:[/bold]")
+                    console.print(generated)
+                    confirm = console.input("\nCommit with this message? [y/N] ").strip().lower()
+                    if confirm not in ("y", "yes"):
+                        console.print("[yellow]Commit cancelled.[/yellow]")
+                        raise typer.Exit(code=0)
+
+                message = generated
+            else:
+                message = _commit_message(task.goal if message_from_task else task.goal, task.task_id, include_task_summary, list(task.iterations))
+
             output = commit(project_root, message)
         except GitError as exc:
             if json_output:
@@ -190,4 +272,9 @@ def _run_diff_task(task_id: Optional[str], *, json_output: bool) -> None:
         return
     console.print(f"Task diff: {data['task_id']}")
     console.print("\n".join(data["files"]))
-    console.print(Syntax(data["diff"], "diff", theme="ansi_dark"))
+    # v6.27: Rich per-file diff panels.
+    try:
+        from safecode.cli_diff_render import render_rich_diff
+        render_rich_diff(data["diff"], title="Task diff", console=console)
+    except Exception:
+        console.print(Syntax(data["diff"], "diff", theme="ansi_dark"))
