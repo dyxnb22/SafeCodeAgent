@@ -8,6 +8,7 @@ For active forward work, use [../version-plans/post-v4.14-usability-roadmap.md](
 
 ## Capability Plans and Evaluation Records
 
+- [Software Design Document](safe_code_agent_software_design_doc.md): original Chinese-language design document from early development (v1.x era).
 - [Product Commercialization Roadmap](product-commercialization-roadmap.md): original commercial architecture reference; superseded by v7.0 stable contracts.
 - [Next Capabilities Plan (v6.9–v6.18)](next-capabilities-plan.md): completed capability train, all items shipped.
 - [SafeCode Evaluation Execution Plan](SafeCode-Next-Evaluation-Execution-Plan.md): historical eval planning and execution record.
