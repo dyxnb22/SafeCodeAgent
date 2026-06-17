@@ -74,6 +74,11 @@ class ContextCollector:
             diag_block = self._diagnostics_context_block()
             if diag_block:
                 context["diagnostics"] = diag_block
+        # v6.30: inject cross-session workspace memory so the agent builds on
+        # lessons learned in previous sessions (test commands, bug fixes, conventions).
+        workspace_mem_block = self._workspace_memory_block(query)
+        if workspace_mem_block:
+            context["workspace_memory"] = workspace_mem_block
         return self._cap_context(context)
 
     def _import_graph_context(self, seed_files: list[str]) -> dict:
@@ -120,6 +125,21 @@ class ContextCollector:
             return diagnostics_context_block(self.project_root, self.config)
         except Exception:
             return {}
+
+    def _workspace_memory_block(self, query: str | None) -> str:
+        """Return a bounded cross-session workspace memory block (v6.30).
+
+        Loads the most recent entries from ``.sac/workspace_memory.jsonl``
+        ranked by relevance to *query* and recency. Fails closed — returns
+        empty string on any error.
+        """
+        try:
+            from safecode.memory.workspace_memory import WorkspaceMemoryStore
+
+            store = WorkspaceMemoryStore(self.project_root)
+            return store.top_context_block(query=query)
+        except Exception:
+            return ""
 
     def _list_files(self) -> tuple[list[str], bool]:
         """Return (file_list, truncated) relative to project_root.

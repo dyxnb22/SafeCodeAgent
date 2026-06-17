@@ -486,6 +486,10 @@ class AgentOrchestrator:
         self.trace_logger.write(trace_id, "apply.completed", proposal.id)
 
         files = [block.file_path.as_posix() for block in proposal.blocks]
+
+        # v6.30: capture cross-session workspace memory after a successful apply.
+        self._capture_workspace_memory(proposal.task, files)
+
         self.audit_logger.write(
             AuditEvent(
                 type="checkpoint_created",
@@ -509,6 +513,25 @@ class AgentOrchestrator:
             )
         )
         return ApplyResult(proposal=proposal, checkpoint=checkpoint, files=files, hooks=hooks)
+
+    def _capture_workspace_memory(self, task: str, files: list[str]) -> None:
+        """Record what the agent learned from this apply into cross-session memory (v6.30).
+
+        Best-effort: failures here must never block the apply flow.
+        """
+        try:
+            from safecode.memory.workspace_memory import WorkspaceMemoryStore
+
+            store = WorkspaceMemoryStore(self.project_root)
+            file_stems = {Path(f).stem for f in files}
+            for stem in sorted(file_stems)[:5]:
+                store.record(
+                    key=f"fix:{stem}",
+                    value=task[:200],
+                    source="agent_observed",
+                )
+        except Exception:
+            pass
 
     def _guard_dirty_patch_targets(self, proposal: PatchProposal) -> None:
         """Refuse to apply over dirty target files in git worktrees."""

@@ -236,5 +236,41 @@ class _PlannerMixin:
                 )
             except Exception:
                 pass
+            # v6.30: capture observed conventions from this session into workspace memory.
+            self._capture_session_conventions(summary)
+        except Exception:
+            pass
+
+    def _capture_session_conventions(self: "AgentLoop", summary: object) -> None:
+        """Record observed patterns from this session into workspace memory (v6.30)."""
+        try:
+            from safecode.memory.workspace_memory import WorkspaceMemoryStore
+
+            store = WorkspaceMemoryStore(self.project_root)
+            touched = getattr(summary, "touched_files", []) or []
+            commands = getattr(summary, "commands_run", []) or []
+            goal = getattr(summary, "goal", "") or ""
+            session_id = getattr(summary, "session_id", "") or ""
+
+            # Capture test/build/lint commands so future sessions know them.
+            for cmd in commands[:5]:
+                if "pytest" in cmd or "python -m pytest" in cmd:
+                    store.record("test_command", cmd, source="agent_observed", session_id=session_id)
+                elif any(kw in cmd for kw in ("ruff", "black", "mypy", "eslint", "gofmt")):
+                    store.record("lint_command", cmd, source="agent_observed", session_id=session_id)
+                elif any(kw in cmd for kw in ("npm build", "cargo build", "go build")):
+                    store.record("build_command", cmd, source="agent_observed", session_id=session_id)
+
+            # Capture file stems touched so future sessions know which files matter.
+            for f in touched[:8]:
+                stem = Path(f).stem
+                if stem and not stem.startswith("test_") and not stem.startswith("__"):
+                    store.record(
+                        f"recent:{stem}",
+                        f"File modified during session: {goal[:100]}",
+                        source="agent_observed",
+                        session_id=session_id,
+                        confidence=0.5,
+                    )
         except Exception:
             pass
