@@ -189,7 +189,7 @@ class _RetrievalPatchLLM:
 class TestLiveEvalFixtureFormat:
     def test_default_fixtures_non_empty(self):
         fixtures = default_live_fixtures()
-        assert len(fixtures) == 28
+        assert len(fixtures) == 36
 
     def test_all_fixtures_have_required_fields(self):
         for f in default_live_fixtures():
@@ -228,6 +228,11 @@ class TestLiveEvalFixtureFormat:
             "verification-lint-style", "verification-type-contract",
             "terminal-config-json-repair", "terminal-cli-output-contract",
             "real-project-api-contract", "real-project-cache-ttl",
+            # multi-turn reasoning
+            "multi-turn-wrong-import", "multi-turn-partial-rename",
+            "multi-turn-type-error-chain", "multi-turn-test-driven",
+            "multi-turn-config-cascade", "multi-turn-import-cycle",
+            "multi-turn-async-sync-mismatch", "multi-turn-regression-guard",
         }
         assert names == expected
 
@@ -541,6 +546,15 @@ class TestLiveEvalFixtureMetadata:
             assert fixture.source_kind == "fixed-commit-inline"
             assert fixture.initial_commit
             assert fixture.validation_commands
+
+    def test_multi_turn_fixtures_are_validation_backed(self):
+        fixtures = {f.name: f for f in default_live_fixtures()}
+        multi_turn = {name: f for name, f in fixtures.items() if name.startswith("multi-turn-")}
+        assert len(multi_turn) == 8
+        assert {f.category for f in multi_turn.values()} == {"multi-turn"}
+        assert all(f.validation_commands for f in multi_turn.values())
+        assert all(f.max_success_condition_repairs >= 1 for f in multi_turn.values())
+        assert all(f.max_turns >= 3 for f in multi_turn.values())
 
 
 class TestLiveEvalResultNewFields:

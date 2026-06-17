@@ -234,6 +234,27 @@ def _p95(values: list[float]) -> float:
     return ordered[index]
 
 
+def _pytest_success(root: Path, test_path: str = "tests") -> bool:
+    """Run pytest inside a fixture project without relying on content-only checks."""
+    env = os.environ.copy()
+    src_path = str(root / "src")
+    existing = env.get("PYTHONPATH")
+    env["PYTHONPATH"] = src_path if not existing else f"{src_path}{os.pathsep}{existing}"
+    try:
+        result = subprocess.run(
+            [sys.executable, "-m", "pytest", "-q", test_path],
+            cwd=root,
+            env=env,
+            text=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=15,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return result.returncode == 0
+
+
 # ---------------------------------------------------------------------------
 # Default fixtures
 # ---------------------------------------------------------------------------
@@ -1388,6 +1409,334 @@ def _real_project_cache_ttl_fixture() -> LiveEvalFixture:
     )
 
 
+def _multi_turn_wrong_import_fixture() -> LiveEvalFixture:
+    setup = {
+        "src/app/math_utils.py": "def add(a: int, b: int) -> int:\n    return a - b\n",
+        "src/app/__init__.py": "",
+        "tests/test_math_api.py": (
+            "from app.math_utils import add\n\n"
+            "def test_add_contract():\n"
+            "    assert add(2, 3) == 5\n"
+        ),
+    }
+
+    def success(root: Path) -> bool:
+        return _pytest_success(root, "tests/test_math_api.py")
+
+    return LiveEvalFixture(
+        name="multi-turn-wrong-import",
+        setup_files=setup,
+        goal=(
+            "Fix the failing add() implementation in src/app/math_utils.py. "
+            "Keep imports working through the app.math_utils module path."
+        ),
+        success_condition=success,
+        max_turns=3,
+        category="multi-turn",
+        expected_difficulty="medium",
+        validation_commands=["python -m pytest -q tests/test_math_api.py"],
+        max_success_condition_repairs=1,
+        expected_relevant_files={"src/app/math_utils.py", "tests/test_math_api.py"},
+        expected_symbols={"add"},
+    )
+
+
+def _multi_turn_partial_rename_fixture() -> LiveEvalFixture:
+    setup = {
+        "src/service/users.py": "def load_user(user_id: int) -> dict:\n    return {'id': user_id}\n",
+        "src/service/views.py": (
+            "from service.users import load_user\n\n"
+            "def render_user(user_id: int) -> int:\n"
+            "    return load_user(user_id)['id']\n"
+        ),
+        "src/service/audit.py": (
+            "from service.users import load_user\n\n"
+            "def audit_user(user_id: int) -> dict:\n"
+            "    return {'user': load_user(user_id)}\n"
+        ),
+        "src/service/__init__.py": "",
+        "tests/test_user_rename.py": (
+            "from service.users import fetch_user\n"
+            "from service.views import render_user\n"
+            "from service.audit import audit_user\n\n"
+            "def test_all_call_sites_use_new_name():\n"
+            "    assert fetch_user(7) == {'id': 7}\n"
+            "    assert render_user(7) == 7\n"
+            "    assert audit_user(7) == {'user': {'id': 7}}\n"
+        ),
+    }
+
+    def success(root: Path) -> bool:
+        files = [
+            root / "src" / "service" / "users.py",
+            root / "src" / "service" / "views.py",
+            root / "src" / "service" / "audit.py",
+        ]
+        return _pytest_success(root, "tests/test_user_rename.py") and not any(
+            "load_user" in p.read_text(encoding="utf-8") for p in files
+        )
+
+    return LiveEvalFixture(
+        name="multi-turn-partial-rename",
+        setup_files=setup,
+        goal="Rename load_user to fetch_user across the service package and keep every test passing.",
+        success_condition=success,
+        max_turns=3,
+        category="multi-turn",
+        expected_difficulty="medium",
+        validation_commands=["python -m pytest -q tests/test_user_rename.py"],
+        max_success_condition_repairs=1,
+        expected_relevant_files={
+            "src/service/users.py",
+            "src/service/views.py",
+            "src/service/audit.py",
+            "tests/test_user_rename.py",
+        },
+        expected_symbols={"load_user", "fetch_user"},
+    )
+
+
+def _multi_turn_type_error_chain_fixture() -> LiveEvalFixture:
+    setup = {
+        "src/payments.py": (
+            "def parse_amount(value: str) -> str:\n"
+            "    return value\n\n"
+            "def format_total(values: list[str]) -> str:\n"
+            "    return '$' + sum(parse_amount(v) for v in values)\n"
+        ),
+        "tests/test_payments.py": (
+            "from payments import format_total, parse_amount\n\n"
+            "def test_parse_amount_returns_int():\n"
+            "    assert parse_amount('4') == 4\n\n"
+            "def test_format_total_sums_values():\n"
+            "    assert format_total(['4', '6']) == '$10'\n"
+        ),
+    }
+
+    def success(root: Path) -> bool:
+        text = (root / "src" / "payments.py").read_text(encoding="utf-8")
+        return _pytest_success(root, "tests/test_payments.py") and "int(" in text and "str(" in text
+
+    return LiveEvalFixture(
+        name="multi-turn-type-error-chain",
+        setup_files=setup,
+        goal="Fix the chained type errors in src/payments.py so parsing and formatting both pass.",
+        success_condition=success,
+        max_turns=4,
+        category="multi-turn",
+        expected_difficulty="hard",
+        validation_commands=["python -m pytest -q tests/test_payments.py"],
+        max_success_condition_repairs=2,
+        expected_relevant_files={"src/payments.py", "tests/test_payments.py"},
+        expected_symbols={"parse_amount", "format_total"},
+    )
+
+
+def _multi_turn_test_driven_fixture() -> LiveEvalFixture:
+    setup = {
+        "src/passwords.py": "def is_strong(password: str) -> bool:\n    return len(password) > 3\n",
+        "tests/test_passwords.py": "# Add regression tests for is_strong().\n",
+    }
+
+    def success(root: Path) -> bool:
+        tests = (root / "tests" / "test_passwords.py").read_text(encoding="utf-8")
+        impl = (root / "src" / "passwords.py").read_text(encoding="utf-8")
+        return (
+            _pytest_success(root, "tests/test_passwords.py")
+            and tests.count("def test_") >= 3
+            and any(token in impl for token in ("isdigit", "isupper", "islower"))
+        )
+
+    return LiveEvalFixture(
+        name="multi-turn-test-driven",
+        setup_files=setup,
+        goal=(
+            "Add tests first, then strengthen is_strong(): require length >= 8, "
+            "at least one uppercase letter, one lowercase letter, and one digit."
+        ),
+        success_condition=success,
+        max_turns=4,
+        category="multi-turn",
+        expected_difficulty="hard",
+        validation_commands=["python -m pytest -q tests/test_passwords.py"],
+        max_success_condition_repairs=2,
+        expected_relevant_files={"src/passwords.py", "tests/test_passwords.py"},
+        expected_symbols={"is_strong"},
+    )
+
+
+def _multi_turn_config_cascade_fixture() -> LiveEvalFixture:
+    setup = {
+        "src/config.py": (
+            "DEFAULTS = {'timeout': 30}\n\n"
+            "def validate(config: dict) -> dict:\n"
+            "    if 'timeout' not in config:\n"
+            "        raise ValueError('timeout required')\n"
+            "    return config\n\n"
+            "def load(overrides: dict | None = None) -> dict:\n"
+            "    data = dict(DEFAULTS)\n"
+            "    if overrides:\n"
+            "        data.update(overrides)\n"
+            "    return validate(data)\n"
+        ),
+        "tests/test_config.py": (
+            "from config import DEFAULTS, load, validate\n\n"
+            "def test_default_retries_added():\n"
+            "    assert DEFAULTS['retries'] == 3\n"
+            "    assert load()['retries'] == 3\n\n"
+            "def test_validator_accepts_retries_override():\n"
+            "    assert validate({'timeout': 10, 'retries': 5})['retries'] == 5\n\n"
+            "def test_validator_rejects_negative_retries():\n"
+            "    try:\n"
+            "        validate({'timeout': 10, 'retries': -1})\n"
+            "    except ValueError as exc:\n"
+            "        assert 'retries' in str(exc)\n"
+            "    else:\n"
+            "        raise AssertionError('expected ValueError')\n"
+        ),
+    }
+
+    def success(root: Path) -> bool:
+        text = (root / "src" / "config.py").read_text(encoding="utf-8")
+        return _pytest_success(root, "tests/test_config.py") and "retries" in text and "< 0" in text
+
+    return LiveEvalFixture(
+        name="multi-turn-config-cascade",
+        setup_files=setup,
+        goal="Add a retries config field across defaults, loader, and validator, rejecting negative values.",
+        success_condition=success,
+        max_turns=5,
+        category="multi-turn",
+        expected_difficulty="hard",
+        validation_commands=["python -m pytest -q tests/test_config.py"],
+        max_success_condition_repairs=2,
+        expected_relevant_files={"src/config.py", "tests/test_config.py"},
+        expected_symbols={"DEFAULTS", "load", "validate"},
+    )
+
+
+def _multi_turn_import_cycle_fixture() -> LiveEvalFixture:
+    setup = {
+        "src/shop/models.py": (
+            "from shop.services import total_price\n\n"
+            "class Item:\n"
+            "    def __init__(self, price: int) -> None:\n"
+            "        self.price = price\n\n"
+            "def cart_total(items: list[Item]) -> int:\n"
+            "    return total_price(items)\n"
+        ),
+        "src/shop/services.py": (
+            "from shop.models import Item\n\n"
+            "def total_price(items: list[Item]) -> int:\n"
+            "    return sum(item.price for item in items)\n"
+        ),
+        "src/shop/__init__.py": "",
+        "tests/test_shop_cycle.py": (
+            "from shop.models import Item, cart_total\n"
+            "from shop.services import total_price\n\n"
+            "def test_cart_total_without_import_cycle():\n"
+            "    items = [Item(2), Item(3)]\n"
+            "    assert cart_total(items) == 5\n"
+            "    assert total_price(items) == 5\n"
+        ),
+    }
+
+    def success(root: Path) -> bool:
+        models = (root / "src" / "shop" / "models.py").read_text(encoding="utf-8")
+        services = (root / "src" / "shop" / "services.py").read_text(encoding="utf-8")
+        return _pytest_success(root, "tests/test_shop_cycle.py") and not (
+            "from shop.services import" in models and "from shop.models import" in services
+        )
+
+    return LiveEvalFixture(
+        name="multi-turn-import-cycle",
+        setup_files=setup,
+        goal="Resolve the circular import between shop.models and shop.services while keeping cart totals working.",
+        success_condition=success,
+        max_turns=6,
+        category="multi-turn",
+        expected_difficulty="hard",
+        validation_commands=["python -m pytest -q tests/test_shop_cycle.py"],
+        max_success_condition_repairs=2,
+        expected_relevant_files={"src/shop/models.py", "src/shop/services.py", "tests/test_shop_cycle.py"},
+        expected_symbols={"Item", "cart_total", "total_price"},
+    )
+
+
+def _multi_turn_async_sync_mismatch_fixture() -> LiveEvalFixture:
+    setup = {
+        "src/client.py": (
+            "async def fetch_user(user_id: int) -> dict:\n"
+            "    return {'id': user_id}\n\n"
+            "def get_user_name(user_id: int) -> str:\n"
+            "    user = fetch_user(user_id)\n"
+            "    return user['name']\n"
+        ),
+        "tests/test_client_async.py": (
+            "import asyncio\n"
+            "from client import fetch_user, get_user_name\n\n"
+            "def test_fetch_user_shape():\n"
+            "    assert asyncio.run(fetch_user(3)) == {'id': 3, 'name': 'user-3'}\n\n"
+            "def test_sync_wrapper_handles_async_fetch():\n"
+            "    assert get_user_name(3) == 'user-3'\n"
+        ),
+    }
+
+    def success(root: Path) -> bool:
+        text = (root / "src" / "client.py").read_text(encoding="utf-8")
+        return _pytest_success(root, "tests/test_client_async.py") and "asyncio.run" in text and "'name'" in text
+
+    return LiveEvalFixture(
+        name="multi-turn-async-sync-mismatch",
+        setup_files=setup,
+        goal="Fix the async/sync mismatch in src/client.py and include the expected user name field.",
+        success_condition=success,
+        max_turns=6,
+        category="multi-turn",
+        expected_difficulty="hard",
+        validation_commands=["python -m pytest -q tests/test_client_async.py"],
+        max_success_condition_repairs=2,
+        expected_relevant_files={"src/client.py", "tests/test_client_async.py"},
+        expected_symbols={"fetch_user", "get_user_name"},
+    )
+
+
+def _multi_turn_regression_guard_fixture() -> LiveEvalFixture:
+    setup = {
+        "src/slugger.py": (
+            "def slugify(value: str) -> str:\n"
+            "    return value.lower().replace(' ', '-')\n"
+        ),
+        "tests/test_slugger.py": (
+            "from slugger import slugify\n\n"
+            "def test_replaces_spaces():\n"
+            "    assert slugify('Hello World') == 'hello-world'\n\n"
+            "def test_strips_outer_space_without_regression():\n"
+            "    assert slugify(' Hello World ') == 'hello-world'\n\n"
+            "def test_preserves_hyphens():\n"
+            "    assert slugify('already-slugged') == 'already-slugged'\n"
+        ),
+    }
+
+    def success(root: Path) -> bool:
+        text = (root / "src" / "slugger.py").read_text(encoding="utf-8")
+        return _pytest_success(root, "tests/test_slugger.py") and ".strip()" in text and ".replace" in text
+
+    return LiveEvalFixture(
+        name="multi-turn-regression-guard",
+        setup_files=setup,
+        goal="Fix slugify() to strip outer whitespace without breaking existing space and hyphen behavior.",
+        success_condition=success,
+        max_turns=5,
+        category="multi-turn",
+        expected_difficulty="hard",
+        validation_commands=["python -m pytest -q tests/test_slugger.py"],
+        max_success_condition_repairs=2,
+        expected_relevant_files={"src/slugger.py", "tests/test_slugger.py"},
+        expected_symbols={"slugify"},
+    )
+
+
 def default_live_fixtures() -> list[LiveEvalFixture]:
     return [
         # Functional: bug fix
@@ -1426,6 +1775,15 @@ def default_live_fixtures() -> list[LiveEvalFixture]:
         _terminal_cli_output_fixture(),
         _real_project_api_contract_fixture(),
         _real_project_cache_ttl_fixture(),
+        # Multi-turn reasoning fixtures: deliberately require validation feedback.
+        _multi_turn_wrong_import_fixture(),
+        _multi_turn_partial_rename_fixture(),
+        _multi_turn_type_error_chain_fixture(),
+        _multi_turn_test_driven_fixture(),
+        _multi_turn_config_cascade_fixture(),
+        _multi_turn_import_cycle_fixture(),
+        _multi_turn_async_sync_mismatch_fixture(),
+        _multi_turn_regression_guard_fixture(),
     ]
 
 

@@ -1,6 +1,6 @@
 {
   "schema_version": 2,
-  "note": "Ratchet baseline promoted after DeepSeek deepseek-v4-flash 28/28 live run on 2026-06-17. Fixtures marked fixture_stability=flaky are excluded by check_ratchet when fixture metadata is supplied.",
+  "note": "Ratchet baseline promoted after DeepSeek deepseek-v4-flash 28/28 live run on 2026-06-17; v6.31 adds 8 multi-turn validation-backed fixtures. Fixtures marked fixture_stability=flaky are excluded by check_ratchet when fixture metadata is supplied.",
   "results": [
     {
       "fixture_name": "calculator-fix",
@@ -112,6 +112,38 @@
     },
     {
       "fixture_name": "real-project-cache-ttl",
+      "success": true
+    },
+    {
+      "fixture_name": "multi-turn-wrong-import",
+      "success": true
+    },
+    {
+      "fixture_name": "multi-turn-partial-rename",
+      "success": true
+    },
+    {
+      "fixture_name": "multi-turn-type-error-chain",
+      "success": true
+    },
+    {
+      "fixture_name": "multi-turn-test-driven",
+      "success": true
+    },
+    {
+      "fixture_name": "multi-turn-config-cascade",
+      "success": true
+    },
+    {
+      "fixture_name": "multi-turn-import-cycle",
+      "success": true
+    },
+    {
+      "fixture_name": "multi-turn-async-sync-mismatch",
+      "success": true
+    },
+    {
+      "fixture_name": "multi-turn-regression-guard",
       "success": true
     }
   ]
