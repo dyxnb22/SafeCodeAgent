@@ -210,7 +210,7 @@ class TestAutoApplyInLoop:
         mock_apply_result = MagicMock()
         mock_apply_result.checkpoint.checkpoint_id = "cp-001"
 
-        with patch("safecode.agent.loop.AgentOrchestrator") as MockOrch:
+        with patch("safecode.agent.loop_dispatcher.AgentOrchestrator") as MockOrch:
             instance = MockOrch.return_value
             instance.edit.return_value = mock_edit_result
             instance.apply.return_value = mock_apply_result

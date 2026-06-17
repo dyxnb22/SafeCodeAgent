@@ -354,7 +354,7 @@ class TestAgentLoopMCPReadonly:
         _patch_llm_mcp_intent(monkeypatch, "notion.create", {})
         called = []
         monkeypatch.setattr(
-            "safecode.agent.loop.MCPReadToolExecutor",
+            "safecode.agent.loop_dispatcher.MCPReadToolExecutor",
             lambda *a, **kw: _RecordingRunner(called),
         )
 
@@ -446,5 +446,5 @@ def _patch_mcp_executor(
         )
 
     monkeypatch.setattr(
-        "safecode.agent.loop.MCPReadToolExecutor.execute", fake_execute
+        "safecode.agent.loop_dispatcher.MCPReadToolExecutor.execute", fake_execute
     )

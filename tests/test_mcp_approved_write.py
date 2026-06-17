@@ -459,7 +459,7 @@ class TestAgentLoopApprovedWrite:
         _patch_llm_mcp_write_intent(monkeypatch, "notion.create", {})
         called = []
         monkeypatch.setattr(
-            "safecode.agent.loop.MCPApprovedWriteExecutor",
+            "safecode.agent.loop_dispatcher.MCPApprovedWriteExecutor",
             lambda *a, **kw: _RecordingApprovedExecutor(called),
         )
 
@@ -478,7 +478,7 @@ class TestAgentLoopApprovedWrite:
         _patch_llm_mcp_write_intent(monkeypatch, "notion.create", {})
         called = []
         monkeypatch.setattr(
-            "safecode.agent.loop.MCPApprovedWriteExecutor",
+            "safecode.agent.loop_dispatcher.MCPApprovedWriteExecutor",
             lambda *a, **kw: _RecordingApprovedExecutor(called),
         )
 
@@ -520,7 +520,7 @@ class TestAgentLoopApprovedWrite:
                 exit_code=0, metadata={"classification": "read"},
             )
 
-        monkeypatch.setattr("safecode.agent.loop.MCPReadToolExecutor.execute", fake_execute)
+        monkeypatch.setattr("safecode.agent.loop_dispatcher.MCPReadToolExecutor.execute", fake_execute)
         _patch_llm_mcp_readonly_intent(monkeypatch, "notion.search", {})
 
         loop = AgentLoop(tmp_path)
@@ -615,4 +615,4 @@ def _patch_approved_write_executor(
             metadata={"classification": "write"},
         )
 
-    monkeypatch.setattr("safecode.agent.loop.MCPApprovedWriteExecutor.execute", fake_execute)
+    monkeypatch.setattr("safecode.agent.loop_dispatcher.MCPApprovedWriteExecutor.execute", fake_execute)

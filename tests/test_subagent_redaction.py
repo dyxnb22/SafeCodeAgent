@@ -28,8 +28,8 @@ class TestSubagentFindingRedaction:
         merged.observations = []
         merged.files_inspected = []
 
-        with patch("safecode.agent.loop.findings_from_journal_events", return_value=[]):
-            with patch("safecode.agent.loop.merge_subagent_findings", return_value=merged):
+        with patch("safecode.agent.loop_dispatcher.findings_from_journal_events", return_value=[]):
+            with patch("safecode.agent.loop_dispatcher.merge_subagent_findings", return_value=merged):
                 with patch.object(loop.journal, "read", return_value=[]):
                     context = loop._enrich_with_subagent_findings("session-1", {})
 
@@ -46,8 +46,8 @@ class TestSubagentFindingRedaction:
         merged.observations = ["Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"]
         merged.files_inspected = []
 
-        with patch("safecode.agent.loop.findings_from_journal_events", return_value=[]):
-            with patch("safecode.agent.loop.merge_subagent_findings", return_value=merged):
+        with patch("safecode.agent.loop_dispatcher.findings_from_journal_events", return_value=[]):
+            with patch("safecode.agent.loop_dispatcher.merge_subagent_findings", return_value=merged):
                 with patch.object(loop.journal, "read", return_value=[]):
                     context = loop._enrich_with_subagent_findings("session-1", {})
 
@@ -65,8 +65,8 @@ class TestSubagentFindingRedaction:
         merged.observations = []
         merged.files_inspected = []
 
-        with patch("safecode.agent.loop.findings_from_journal_events", return_value=[]):
-            with patch("safecode.agent.loop.merge_subagent_findings", return_value=merged):
+        with patch("safecode.agent.loop_dispatcher.findings_from_journal_events", return_value=[]):
+            with patch("safecode.agent.loop_dispatcher.merge_subagent_findings", return_value=merged):
                 with patch.object(loop.journal, "read", return_value=[]):
                     context = loop._enrich_with_subagent_findings("session-1", {})
 
@@ -84,8 +84,8 @@ class TestSubagentFindingRedaction:
         merged.observations = ["module foo has unused import bar"]
         merged.files_inspected = ["foo.py"]
 
-        with patch("safecode.agent.loop.findings_from_journal_events", return_value=[]):
-            with patch("safecode.agent.loop.merge_subagent_findings", return_value=merged):
+        with patch("safecode.agent.loop_dispatcher.findings_from_journal_events", return_value=[]):
+            with patch("safecode.agent.loop_dispatcher.merge_subagent_findings", return_value=merged):
                 with patch.object(loop.journal, "read", return_value=[]):
                     context = loop._enrich_with_subagent_findings("session-1", {})
 
@@ -281,8 +281,8 @@ class TestConsumerSideRedactionWarning:
         merged.observations = []
         merged.files_inspected = []
 
-        with patch("safecode.agent.loop.findings_from_journal_events", return_value=[]):
-            with patch("safecode.agent.loop.merge_subagent_findings", return_value=merged):
+        with patch("safecode.agent.loop_dispatcher.findings_from_journal_events", return_value=[]):
+            with patch("safecode.agent.loop_dispatcher.merge_subagent_findings", return_value=merged):
                 with patch.object(loop.journal, "read", return_value=[]):
                     with warnings.catch_warnings(record=True) as caught:
                         warnings.simplefilter("always")
@@ -306,8 +306,8 @@ class TestConsumerSideRedactionWarning:
         merged.observations = ["module foo imports bar"]
         merged.files_inspected = []
 
-        with patch("safecode.agent.loop.findings_from_journal_events", return_value=[]):
-            with patch("safecode.agent.loop.merge_subagent_findings", return_value=merged):
+        with patch("safecode.agent.loop_dispatcher.findings_from_journal_events", return_value=[]):
+            with patch("safecode.agent.loop_dispatcher.merge_subagent_findings", return_value=merged):
                 with patch.object(loop.journal, "read", return_value=[]):
                     with warnings.catch_warnings(record=True) as caught:
                         warnings.simplefilter("always")

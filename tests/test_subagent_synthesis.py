@@ -116,9 +116,9 @@ class TestSynthesisCalledBeforeConsumption:
                 used_fallback=False,
             )
 
-        with patch("safecode.agent.loop.findings_from_journal_events", return_value=[finding]):
-            with patch("safecode.agent.loop.merge_subagent_findings", return_value=merged_mock):
-                with patch("safecode.agent.loop.synthesize_findings", side_effect=fake_synthesize):
+        with patch("safecode.agent.loop_dispatcher.findings_from_journal_events", return_value=[finding]):
+            with patch("safecode.agent.loop_dispatcher.merge_subagent_findings", return_value=merged_mock):
+                with patch("safecode.agent.loop_dispatcher.synthesize_findings", side_effect=fake_synthesize):
                     with patch.object(loop.journal, "read", return_value=[]):
                         context = loop._enrich_with_subagent_findings("session-1", {})
 
@@ -246,9 +246,9 @@ class TestSynthesisFailureFallback:
         def fail_synthesize(*args, **kwargs):
             raise RuntimeError("synthesis exploded")
 
-        with patch("safecode.agent.loop.findings_from_journal_events", return_value=[finding]):
-            with patch("safecode.agent.loop.merge_subagent_findings", return_value=merged_mock):
-                with patch("safecode.agent.loop.synthesize_findings", side_effect=fail_synthesize):
+        with patch("safecode.agent.loop_dispatcher.findings_from_journal_events", return_value=[finding]):
+            with patch("safecode.agent.loop_dispatcher.merge_subagent_findings", return_value=merged_mock):
+                with patch("safecode.agent.loop_dispatcher.synthesize_findings", side_effect=fail_synthesize):
                     with patch.object(loop.journal, "read", return_value=[]):
                         with warnings.catch_warnings(record=True) as w:
                             warnings.simplefilter("always")
