@@ -5,11 +5,16 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v7.0.2
+# Current Baseline - v7.0.3
 
 ## Status
-Implemented. Git baseline: tag `v7.0.2`. Local working version: `v7.0.2`.
+Implemented. Git baseline: tag `v7.0.3`. Local working version: `v7.0.3`.
 v7.0.0 remains the latest major stable-contract cut.
+
+v7.0.3 productizes read-only subagent roles. `sac subagent roles` lists the
+built-in presets, and `sac subagent explore|review|scout` run read-only
+context collectors with role-specific instructions. Role output is journaled as
+`subagent_dispatch` so the main agent can merge findings into context.
 
 v7.0.2 adds the single-command agent happy path. `sac agent run` now accepts
 `--auto-edit`, `--full-auto`, and `--tests`; JSON output includes

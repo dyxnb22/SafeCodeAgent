@@ -171,6 +171,14 @@ sac commit --ai                # LLM-generated conventional-commit message
 sac commit --ai --dry-run      # preview without committing
 ```
 
+**Read-only subagent roles [EXPERIMENTAL]:**
+```bash
+sac subagent roles
+sac subagent explore "find parser config handling"
+sac subagent review --pending
+sac subagent scout "where is auth policy enforced?"
+```
+
 **Introspection:**
 ```bash
 sac init                        # first-time project setup

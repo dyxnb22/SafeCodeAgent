@@ -9,6 +9,7 @@ from rich.table import Table
 from safecode.cli_shared import console, log_cli_error, runtime_logger, show_human_checkpoint
 
 from safecode.subagents.merge import SubagentMergeReviewer
+from safecode.subagents.roles import ROLE_PRESETS, SubagentRole, get_role
 from safecode.subagents.runner import ReadonlySubagentRunner
 from safecode.subagents.task import SubagentTaskStore
 
@@ -20,6 +21,49 @@ subagent_app = typer.Typer(
         "They are not independent LLM investigations.[/dim]"
     )
 )
+
+
+@subagent_app.command("roles")
+def subagent_roles() -> None:
+    """List built-in read-only subagent role presets."""
+    table = Table(title="Built-in Subagent Roles")
+    table.add_column("Role")
+    table.add_column("Readonly")
+    table.add_column("Purpose")
+    table.add_column("Allowed Tools")
+    for role in ROLE_PRESETS.values():
+        table.add_row(
+            role.name,
+            "yes" if role.readonly else "no",
+            role.purpose,
+            ", ".join(role.allowed_tools),
+        )
+    console.print(table)
+
+
+@subagent_app.command("explore")
+def subagent_explore(query: str) -> None:
+    """Run the built-in read-only explore role."""
+    _run_role(get_role("explore"), query)
+
+
+@subagent_app.command("review")
+def subagent_review(
+    query: str = typer.Argument("", help="Review target or description."),
+    pending: bool = typer.Option(False, "--pending", help="Review the pending patch/session state."),
+) -> None:
+    """Run the built-in read-only review role."""
+    target = "pending patch and current session state" if pending and not query else query
+    if not target:
+        console.print("[red]Provide a review target or use --pending.[/red]")
+        raise typer.Exit(code=1)
+    _run_role(get_role("review"), target)
+
+
+@subagent_app.command("scout")
+def subagent_scout(query: str) -> None:
+    """Run the built-in read-only scout role."""
+    _run_role(get_role("scout"), query)
 
 
 @subagent_app.command("create")
@@ -155,4 +199,71 @@ def subagent_merge_review(
     console.print(Syntax(result.diff_text, "diff", theme="ansi_dark"))
     console.print("[green]Review the diff above. Run 'sac apply' to apply the merge.[/green]")
 
+
+def _run_role(role: SubagentRole, query: str) -> None:
+    project_root = Path.cwd()
+    title = role.build_title(query)
+    instructions = role.build_instructions(query)
+    try:
+        result = ReadonlySubagentRunner(project_root).run(title, instructions)
+        _record_role_journal(project_root, role, result)
+    except Exception as exc:
+        log_cli_error("cli.subagent.role", f"subagent role {role.name} failed", exc)
+        console.print(f"[red]Subagent role failed:[/red] {exc}")
+        raise typer.Exit(code=1) from exc
+
+    console.print(
+        Panel.fit(
+            f"Role: {role.name}\n"
+            f"Task ID: {result.task.id}\n"
+            f"Status: {result.task.status}\n"
+            f"Readonly: yes\n"
+            f"Result: {result.result_path}\n\n"
+            "Role output was journaled for the main agent context.",
+            title="Subagent Role Run",
+        )
+    )
+
+
+def _record_role_journal(project_root: Path, role: SubagentRole, result) -> None:
+    from safecode.agent.session import AgentSessionStore
+    from safecode.state.journal import AgentJournalStore
+
+    state = AgentSessionStore(project_root).load()
+    session_id = state.session_id if state is not None else "subagent_roles"
+    files_inspected = _files_from_result(result.result_path)
+    summary = f"{role.name} role completed task {result.task.id}"
+    AgentJournalStore(project_root).record_subagent_dispatch(
+        session_id=session_id,
+        step=0,
+        message=summary,
+        dispatch_summary={
+            "task_id": result.task.id,
+            "summary": summary,
+            "observations": [f"role={role.name}", f"query={result.task.title}"],
+            "files_inspected": files_inspected,
+            "errors": [result.error] if result.error else [],
+            "blocked": not result.executed,
+            "success": result.executed and result.error is None,
+            "role": role.name,
+            "allowed_tools": list(role.allowed_tools),
+        },
+    )
+
+
+def _files_from_result(result_path: Path | None) -> list[str]:
+    if result_path is None or not result_path.exists():
+        return []
+    try:
+        text = result_path.read_text(encoding="utf-8")
+    except OSError:
+        return []
+    for line in text.splitlines():
+        if not line.startswith("Project files:"):
+            continue
+        raw = line.removeprefix("Project files:").strip()
+        if not raw:
+            return []
+        return [part.strip() for part in raw.split(",") if part.strip()][:20]
+    return []
 
