@@ -116,6 +116,96 @@ class _PlannerMixin:
         except Exception:
             return list(DEFAULT_PLAN)
 
+    def _try_replan(
+        self: "AgentLoop",
+        state: AgentSessionState,
+        failure_reason: str,
+        *,
+        repair_attempts: int,
+        failure_category: str,
+    ) -> bool:
+        """Try one bounded dynamic re-plan after repeated full-auto failures.
+
+        Re-planning is intentionally conservative: it only runs in full-auto,
+        only for validation/patch/stuck-loop failures, only after at least two
+        repair attempts, and at most twice per session.
+        """
+        allowed_categories = {"validation_fail", "validation_failed", "patch_parse_fail", "loop_stuck"}
+        if not self.full_auto:
+            return False
+        if repair_attempts < 2:
+            return False
+        if failure_category not in allowed_categories:
+            return False
+        if state.replan_count >= 2:
+            return False
+
+        attempted_summary = self._summarize_attempted_plan(state.session_id)
+        replan_goal = (
+            f"{state.goal}\n\n"
+            "Previous plan failed. Re-plan from scratch and avoid repeating the same approach.\n"
+            f"Failure category: {failure_category}\n"
+            f"Failure reason: {failure_reason}\n"
+            f"Attempted plan summary:\n{attempted_summary}"
+        )
+        try:
+            context = self.context_collector.collect(query=replan_goal)
+            context["replan_failure_category"] = failure_category
+            context["replan_failure_reason"] = failure_reason
+            context["replan_attempted_summary"] = attempted_summary
+            plan = self.llm_client.plan(replan_goal, context)
+            new_steps = [str(step) for step in plan.steps if str(step).strip()]
+        except Exception:
+            new_steps = []
+        if not new_steps:
+            return False
+
+        updated = state.model_copy(
+            update={
+                "plan": new_steps,
+                "current_step": 0,
+                "pending_action": None,
+                "last_observation": "Dynamic re-plan generated after repeated failure.",
+                "status": "active",
+                "last_error": None,
+                "replan_count": state.replan_count + 1,
+            }
+        )
+        saved = self.store.save(updated)
+        self.journal.record_failure(
+            saved.session_id,
+            "Dynamic re-plan triggered after repeated failure.",
+            {
+                "failure_category": failure_category,
+                "failure_reason": failure_reason,
+                "repair_attempts": repair_attempts,
+                "replan_count": saved.replan_count,
+                "attempted_summary": attempted_summary,
+            },
+        )
+        self.journal.record_plan(saved.session_id, saved.goal, new_steps)
+        return True
+
+    def _summarize_attempted_plan(self: "AgentLoop", session_id: str) -> str:
+        """Build a bounded summary of recent actions/failures for re-plan prompts."""
+        try:
+            events = self.journal.read(session_id)
+        except Exception:
+            return "(no journal available)"
+        lines: list[str] = []
+        for event in events[-12:]:
+            if event.type not in {"action", "failure", "typed_result"}:
+                continue
+            text = event.message
+            if event.type == "typed_result":
+                raw = event.payload.get("typed_result")
+                if isinstance(raw, dict):
+                    text = str(raw.get("summary") or text)
+            text = " ".join(str(text).split())
+            if text:
+                lines.append(f"- {event.type}: {text[:240]}")
+        return "\n".join(lines[-8:]) if lines else "(no prior attempts recorded)"
+
     # ------------------------------------------------------------------
     # Internal: clarification
     # ------------------------------------------------------------------

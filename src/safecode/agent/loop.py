@@ -641,6 +641,25 @@ class AgentLoop(_PlannerMixin, _BudgetMixin, _JournalMixin, _DispatcherMixin):
                         stopped_reason = "approval_required"
                     else:
                         stopped_reason = validation_result.stop_reason or validation_result.status
+                        failure_category = (
+                            "loop_stuck"
+                            if validation_result.status == "loop_no_progress"
+                            else "validation_fail"
+                        )
+                        failure_reason = (
+                            validation_result.stop_reason
+                            or validation_result.failure_tail
+                            or validation_result.status
+                        )
+                        if self._try_replan(
+                            state,
+                            failure_reason,
+                            repair_attempts=validation_result.repair_iterations,
+                            failure_category=failure_category,
+                        ):
+                            state = self.store.load() or state
+                            stopped_reason = "replanned"
+                            continue
                     break
             if result.stopped_for_approval:
                 stopped_reason = "approval_required"

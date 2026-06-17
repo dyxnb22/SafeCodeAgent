@@ -32,6 +32,8 @@ class AgentSessionState(BaseModel):
     cost_tokens_in: int = 0
     cost_tokens_out: int = 0
     cost_cache_read: int = 0
+    # v6.32: bounded dynamic re-planning attempts for full-auto repair loops.
+    replan_count: int = 0
 
 
 class AgentSessionStore:
