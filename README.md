@@ -132,10 +132,8 @@ Generate the current local eval rollup with:
 sac eval --mode dashboard
 ```
 
-See [docs/benchmark-results-deepseek-v4-flash-2026-06-16.md](docs/benchmark-results-deepseek-v4-flash-2026-06-16.md)
-for the full historical per-fixture breakdown, and
-[docs/benchmark-results-deepseek-v4-flash-2026-06-17-v7.1.5.md](docs/benchmark-results-deepseek-v4-flash-2026-06-17-v7.1.5.md)
-for the v7.1.5 targeted audit run.
+See [docs/benchmark-results-deepseek-v4-flash-2026-06-17-v7.1.5.md](docs/benchmark-results-deepseek-v4-flash-2026-06-17-v7.1.5.md)
+for the full per-fixture breakdown (v7.1.5 targeted audit run).
 
 ---
 
@@ -315,5 +313,4 @@ See the approval tiers table above for what each tier covers.
 | [docs/install-update.md](docs/install-update.md) | Install, update, signing |
 | [docs/security/threat-model-v3.6.md](docs/security/threat-model-v3.6.md) | Threat model |
 | [docs/context-budgets.md](docs/context-budgets.md) | Token budget reference |
-| [docs/benchmark-results-deepseek-v4-flash-2026-06-16.md](docs/benchmark-results-deepseek-v4-flash-2026-06-16.md) | Eval results |
-| [docs/benchmark-results-deepseek-v4-flash-2026-06-17-v7.1.5.md](docs/benchmark-results-deepseek-v4-flash-2026-06-17-v7.1.5.md) | Targeted audit benchmark |
+| [docs/benchmark-results-deepseek-v4-flash-2026-06-17-v7.1.5.md](docs/benchmark-results-deepseek-v4-flash-2026-06-17-v7.1.5.md) | DeepSeek v4-flash eval results (v7.1.5) |

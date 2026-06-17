@@ -41,10 +41,9 @@ Start here when you are unsure which document owns a topic.
 These documents are useful for archaeology, audits, and release traceability, but
 they should not be treated as the current user path.
 
-- [Documentation Archive](archive/README.md): historical audits, roadmaps, and review follow-ups.
+- [Documentation Archive](archive/README.md): historical audits, roadmaps, capability plans, and individual patch plans.
 - [Version Notes](version-notes/README.md): release-by-release completion notes.
 - [Version Plans](version-plans/README.md): completed and active planning documents.
-- [Post-v4.12 Consolidation Audit](post-v4.12-consolidation-audit.md): historical documentation consolidation findings.
 
 ## Maintenance
 

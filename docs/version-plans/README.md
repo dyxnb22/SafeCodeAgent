@@ -23,6 +23,12 @@ No active version plan is currently open. Start new planning from
 - [v3.7-to-v4.0-product-roadmap.md](v3.7-to-v4.0-product-roadmap.md): completed v4.0 product roadmap.
 - [v2.8-to-v3.0-product-architecture-roadmap.md](v2.8-to-v3.0-product-architecture-roadmap.md): completed v3.0 architecture roadmap.
 
+## Archived Individual Patch Plans
+
+Individual patch-level plans for v1.8.x, v1.9.x, v2.0.x, v2.1.x, and v2.2.x
+have been moved to [../archive/version-plans/](../archive/version-plans/).
+The consolidated roadmaps above capture the key decisions from those trains.
+
 ## New Plans
 
 Use [_template.md](_template.md) and the workflow in
