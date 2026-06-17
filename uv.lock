@@ -1024,7 +1024,7 @@ wheels = [
 
 [[package]]
 name = "safecode-agent"
-version = "7.0.1"
+version = "7.0.2"
 source = { editable = "." }
 dependencies = [
     { name = "pydantic" },

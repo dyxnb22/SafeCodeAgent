@@ -1,11 +1,14 @@
 import json
+import shlex
 from pathlib import Path
+from typing import Any
 
 import typer
 from rich.panel import Panel
 from rich.table import Table
 
 from safecode.agent.loop import AgentLoop
+from safecode.agent.loop_types import AgentRunResult
 from safecode.agent.session import AgentSessionStore
 from safecode.cli_shared import console
 from safecode.state.journal import AgentJournalStore
@@ -159,6 +162,21 @@ def agent_run(
     max_steps: int = typer.Option(8, "--max-steps", min=1, help="Maximum steps to advance (default 8)."),
     json_output: bool = typer.Option(False, "--json", help="Output result as JSON."),
     model: str = typer.Option("", "--model", help="One-shot model override (e.g. flash or deepseek:pro)."),
+    auto_edit: bool = typer.Option(
+        False,
+        "--auto-edit",
+        help="[EXPERIMENTAL] Auto-apply AUTO-tier edits. Approval gates still apply.",
+    ),
+    full_auto: bool = typer.Option(
+        False,
+        "--full-auto",
+        help="[EXPERIMENTAL] Auto-apply AUTO and CONFIRM tiers. GATE-tier always stops.",
+    ),
+    run_tests: bool = typer.Option(
+        False,
+        "--tests",
+        help="[EXPERIMENTAL] Run one detected project test command after the agent run.",
+    ),
     auto_approve_read_only: bool = typer.Option(
         False,
         "--auto-approve-read-only",
@@ -202,7 +220,13 @@ def agent_run(
         obs = result.observation[:120]
         step_updates.append(obs)
 
-    loop = AgentLoop(Path.cwd())
+    project_root = Path.cwd()
+    try:
+        loop = AgentLoop(project_root, auto_edit=auto_edit, full_auto=full_auto)
+    except TypeError:
+        # Older tests monkeypatch AgentLoop with minimal fakes that predate
+        # trust-mode constructor flags. Runtime AgentLoop supports the flags.
+        loop = AgentLoop(project_root)
     try:
         loop.no_validate = no_validate
     except Exception:
@@ -275,15 +299,22 @@ def agent_run(
                 console.print(f"[red]{msg}[/red]")
             raise typer.Exit(code=1)
 
+    validation = _run_agent_tests(project_root, result, enabled=run_tests)
+    summary = _build_agent_run_summary(project_root, result, loop, validation)
+
     if json_output:
         status = result.stopped_reason if result.stopped_reason in ("completed", "approval_required") else "stopped"
-        last_typed = loop.last_typed_result
         data: dict = {
             "session_id": result.state.session_id,
             "stopped_reason": result.stopped_reason,
             "steps_count": len(result.steps),
             "status": result.state.status,
+            "tools_used": summary["tools_used"],
+            "files_changed": summary["files_changed"],
+            "validation": validation,
+            "rollback_command": summary["rollback_command"],
         }
+        last_typed = loop.last_typed_result
         if last_typed is not None:
             data["last_typed_result"] = last_typed.model_dump()
         print(render_json(CLIJSONResponse(
@@ -304,7 +335,11 @@ def agent_run(
             f"Session ID: {result.state.session_id}\n"
             f"Status: {result.state.status}\n"
             f"Current Step: {result.state.current_step}/{len(result.state.plan)}\n"
-            f"Stopped Reason: {result.stopped_reason}",
+            f"Stopped Reason: {result.stopped_reason}\n"
+            f"Tools: {', '.join(summary['tools_used']) or '(none)'}\n"
+            f"Changed: {', '.join(summary['files_changed']) or '(none)'}\n"
+            f"Validation: {_format_validation_line(validation)}\n"
+            f"Rollback: {summary['rollback_command']}",
             title="Agent Run Summary",
         )
     )
@@ -329,3 +364,119 @@ def agent_run(
                 )
             )
 
+
+def _run_agent_tests(
+    project_root: Path,
+    result: AgentRunResult,
+    *,
+    enabled: bool,
+) -> dict[str, Any]:
+    """Run a single detected test command for ``sac agent run --tests``.
+
+    The command is executed through ``ShellRunner`` with an explicit approval
+    because test commands are user-requested by the CLI flag. Mutating approval
+    semantics for the agent itself are unchanged.
+    """
+    if not enabled:
+        return {"requested": False, "status": "not_requested", "commands": []}
+    if result.stopped_reason != "completed":
+        return {
+            "requested": True,
+            "status": "skipped",
+            "reason": f"agent_stopped_{result.stopped_reason}",
+            "commands": [],
+        }
+
+    from safecode.project.test_detector import ProjectTestDetector
+    from safecode.shell.runner import ShellRunner
+
+    candidates = ProjectTestDetector(project_root).detect()
+    test_candidates = [candidate for candidate in candidates if "test" in candidate.command.split()]
+    selected = test_candidates[0] if test_candidates else (candidates[0] if candidates else None)
+    if selected is None:
+        return {
+            "requested": True,
+            "status": "skipped",
+            "reason": "no_test_command_detected",
+            "commands": [],
+        }
+
+    shell_result = ShellRunner(project_root).run(selected.command, approved=True)
+    return {
+        "requested": True,
+        "status": "passed" if shell_result.exit_code == 0 else "failed",
+        "commands": [
+            {
+                "command": selected.command,
+                "exit_code": shell_result.exit_code,
+                "executed": shell_result.executed,
+                "tool": selected.tool,
+            }
+        ],
+    }
+
+
+def _build_agent_run_summary(
+    project_root: Path,
+    result: AgentRunResult,
+    loop: AgentLoop,
+    validation: dict[str, Any],
+) -> dict[str, Any]:
+    """Build the compact human/JSON summary for ``sac agent run``."""
+    tools_used: list[str] = []
+    files_changed: list[str] = []
+
+    typed = loop.last_typed_result
+    if typed is not None:
+        tools_used.append(typed.kind)
+
+    pending = result.state.pending_action or {}
+    files = pending.get("files")
+    if isinstance(files, list):
+        files_changed.extend(str(item) for item in files)
+
+    journal = AgentJournalStore(project_root)
+    try:
+        events = journal.read(result.state.session_id)
+    except ValueError:
+        events = []
+    for event in events:
+        if event.type in {"command", "mcp_call", "subagent_dispatch", "patch_proposed"}:
+            tools_used.append(event.type)
+        if event.type == "patch_proposed":
+            proposal = event.payload.get("patch_proposal")
+            if isinstance(proposal, dict):
+                event_files = proposal.get("files")
+                if isinstance(event_files, list):
+                    files_changed.extend(str(item) for item in event_files)
+
+    if validation.get("requested"):
+        tools_used.append("run_tests")
+
+    return {
+        "tools_used": _stable_unique(tools_used),
+        "files_changed": _stable_unique(files_changed),
+        "validation": validation,
+        "rollback_command": f"sac rollback --session {shlex.quote(result.state.session_id)}",
+    }
+
+
+def _stable_unique(items: list[str]) -> list[str]:
+    seen: set[str] = set()
+    out: list[str] = []
+    for item in items:
+        if item in seen:
+            continue
+        seen.add(item)
+        out.append(item)
+    return out
+
+
+def _format_validation_line(validation: dict[str, Any]) -> str:
+    status = validation.get("status", "unknown")
+    commands = validation.get("commands") or []
+    if commands:
+        first = commands[0]
+        return f"{first.get('command')} {status.upper()}"
+    reason = validation.get("reason")
+    return f"{status} ({reason})" if reason else str(status)

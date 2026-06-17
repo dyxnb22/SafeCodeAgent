@@ -147,6 +147,7 @@ See [docs/tutorials/ai-shell-first-hour.md](docs/tutorials/ai-shell-first-hour.m
 ```bash
 sac agent run "fix the off-by-one in src/parser.py" --max-steps 8
 sac agent run "add type hints to utils.py" --auto-edit
+sac agent run "fix parser None handling" --full-auto --tests
 ```
 
 **Edit → apply → rollback:**

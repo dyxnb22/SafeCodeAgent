@@ -5,17 +5,20 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v7.0.1
+# Current Baseline - v7.0.2
 
 ## Status
-Implemented. Git baseline: tag `v7.0.1`. Local working version: `v7.0.1`.
+Implemented. Git baseline: tag `v7.0.2`. Local working version: `v7.0.2`.
 v7.0.0 remains the latest major stable-contract cut.
 
-v7.0.1 is a metadata and narrative sync release: package/runtime metadata,
-README claims, project status docs, version summary, `.claude/versions.json`,
-and this skill baseline all point at the v7.0.x line. The default live eval
-suite has 36 fixtures. Public contracts have 23 stable sections after the
-v7.0.0 cut. No runtime behavior or stable contract changed in v7.0.1.
+v7.0.2 adds the single-command agent happy path. `sac agent run` now accepts
+`--auto-edit`, `--full-auto`, and `--tests`; JSON output includes
+`tools_used`, `files_changed`, `validation`, and `rollback_command`; human
+output shows the same compact run summary. Approval gates remain unchanged.
+
+v7.0.1 aligned package/runtime metadata, README claims, project status docs,
+version summary, `.claude/versions.json`, and this skill baseline with the
+v7.0.x line.
 
 Current forward plan:
 `docs/version-plans/v7.0.x-agent-productization-followup.md`

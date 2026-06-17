@@ -294,6 +294,128 @@ class TestJsonEnvelope:
         # The envelope must have command, status at the top level or inside data
         assert "status" in payload or "status" in payload.get("data", {})
 
+    def test_json_envelope_includes_v702_happy_path_summary(self, tmp_path, monkeypatch):
+        """v7.0.2: --json includes compact run summary fields."""
+        monkeypatch.chdir(tmp_path)
+        FakeLoop = _make_loop_with_typed_result("ask", stopped_reason="completed")
+        with patch("safecode.cli_agent.AgentLoop", FakeLoop):
+            result = CliRunner().invoke(app, ["agent", "run", "--json", "test"])
+        assert result.exit_code == 0
+        data = json.loads(result.output)["data"]
+        assert data["tools_used"] == ["ask"]
+        assert data["files_changed"] == []
+        assert data["validation"]["status"] == "not_requested"
+        assert data["rollback_command"] == "sac rollback --session test-sess-003"
+
+
+class TestAgentRunTestsFlag:
+    def test_tests_flag_runs_detected_test_command_in_json(self, tmp_path, monkeypatch):
+        """v7.0.2: --tests runs one detected command and reports validation."""
+        monkeypatch.chdir(tmp_path)
+        FakeLoop = _make_loop_with_typed_result("ask", stopped_reason="completed")
+
+        class FakeDetector:
+            def __init__(self, project_root):
+                self.project_root = project_root
+
+            def detect(self):
+                from safecode.project.test_detector import TestCommandCandidate
+
+                return [
+                    TestCommandCandidate(
+                        command="pytest -q",
+                        tool="pytest",
+                        reason="test",
+                        confidence="high",
+                    )
+                ]
+
+        class FakeShellRunner:
+            def __init__(self, project_root):
+                self.project_root = project_root
+
+            def run(self, command, approved=False):
+                from safecode.shell.runner import ShellRunResult
+                from safecode.shell.risk import RiskLevel, ShellRisk
+
+                assert command == "pytest -q"
+                assert approved is True
+                return ShellRunResult(
+                    command=command,
+                    risk=ShellRisk(RiskLevel.MEDIUM, [], ["pytest", "-q"]),
+                    exit_code=0,
+                    stdout="passed",
+                    stderr="",
+                    duration_ms=1,
+                    executed=True,
+                )
+
+        with (
+            patch("safecode.cli_agent.AgentLoop", FakeLoop),
+            patch("safecode.project.test_detector.ProjectTestDetector", FakeDetector),
+            patch("safecode.shell.runner.ShellRunner", FakeShellRunner),
+        ):
+            result = CliRunner().invoke(app, ["agent", "run", "--tests", "--json", "test goal"])
+
+        assert result.exit_code == 0
+        data = json.loads(result.output)["data"]
+        assert data["validation"]["status"] == "passed"
+        assert data["validation"]["commands"][0]["command"] == "pytest -q"
+        assert "run_tests" in data["tools_used"]
+
+    def test_tests_flag_skips_when_agent_stops_for_approval(self, tmp_path, monkeypatch):
+        """v7.0.2: --tests does not run when the agent is waiting for approval."""
+        monkeypatch.chdir(tmp_path)
+        FakeLoop = _make_loop_with_typed_result("ask", stopped_reason="approval_required")
+        with patch("safecode.cli_agent.AgentLoop", FakeLoop):
+            result = CliRunner().invoke(app, ["agent", "run", "--tests", "--json", "test goal"])
+
+        assert result.exit_code == 0
+        data = json.loads(result.output)["data"]
+        assert data["validation"]["status"] == "skipped"
+        assert data["validation"]["reason"] == "agent_stopped_approval_required"
+
+
+class TestTrustModeFlags:
+    def test_full_auto_flag_is_passed_to_agent_loop(self, tmp_path, monkeypatch):
+        """v7.0.2: --full-auto reaches AgentLoop without changing safety checks."""
+        monkeypatch.chdir(tmp_path)
+        captured = {}
+
+        class CapturingLoop:
+            def __init__(self, project_root, llm_client=None, *, auto_edit=False, full_auto=False):
+                captured["auto_edit"] = auto_edit
+                captured["full_auto"] = full_auto
+
+            def run(self, goal, max_steps=8, *, on_step=None):
+                from safecode.agent.loop import AgentRunResult
+                from safecode.agent.session import AgentSessionState
+                from safecode.utils.time import utc_now_iso
+
+                state = AgentSessionState(
+                    session_id="test-sess-full-auto",
+                    goal=goal or "",
+                    plan=[],
+                    current_step=0,
+                    status="completed",
+                    pending_action=None,
+                    last_observation="done",
+                    last_error=None,
+                    created_at=utc_now_iso(),
+                    updated_at=utc_now_iso(),
+                )
+                return AgentRunResult(state=state, steps=[], stopped_reason="completed")
+
+            @property
+            def last_typed_result(self):
+                return None
+
+        with patch("safecode.cli_agent.AgentLoop", CapturingLoop):
+            result = CliRunner().invoke(app, ["agent", "run", "--full-auto", "--json", "test goal"])
+
+        assert result.exit_code == 0
+        assert captured == {"auto_edit": False, "full_auto": True}
+
 
 # ---------------------------------------------------------------------------
 # --no-validate warning
