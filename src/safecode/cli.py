@@ -16,7 +16,6 @@ from safecode.cli_sandbox import sandbox_app
 from safecode.cli_subagent import subagent_app
 from safecode.cli_test_demo import demo_app, test_app
 from safecode.cli_testgen import testgen_app
-from safecode.cli_api import api_app
 from safecode.cli_tui import tui_app
 from safecode.cli_shared import console
 from safecode.cli_quickstart import register as _register_quickstart
@@ -336,7 +335,6 @@ app.add_typer(agent_app, name="agent", hidden=True)
 app.add_typer(test_app, name="test", hidden=True)
 app.add_typer(demo_app, name="demo", hidden=True)
 app.add_typer(tui_app, name="tui", hidden=True)
-app.add_typer(api_app, name="api", hidden=True)
 app.add_typer(report_app, name="report", hidden=True)
 app.add_typer(smoke_app, name="smoke", hidden=True)
 app.add_typer(refactor_app, name="refactor", hidden=True)  # v6.9.1

@@ -795,8 +795,7 @@ promoted to stable contracts in a future release.
 | MCP lifecycle (`sac mcp start/stop/restart`) | PID management; not yet stable |
 | Subagent payload evolution beyond v2 fields | v2 payload (synthesis + cancellation fields) promoted to supported at v3.4.3; v3+ fields remain experimental |
 | TUI (`sac tui interactive`, `sac tui dashboard`) | **Frozen experimental at v3.9.2.** Rich-based; no Textual upgrade. Surface behavior is stable at v3.5.2 baseline but not promoted to a stable contract. Do not rely on output format for automation. |
-| IDE bridge (`sac ide manifest/open-diff/open-files`) | JSON-RPC bridge and file-target commands are experimental. VS Code extension skeleton removed; `src/safecode/ide/` runtime module retained for `sac ide` subcommands. |
-| `OtelExporter` (`SAFECODE_OTEL_EXPORTER` env) | **Frozen experimental at v5.7.1.** Event schema has changed without versioning. Disabled by default. Will not be promoted before v6.0 without a versioned schema. |
+| IDE bridge (`sac ide manifest/open-diff/open-files`) | File-target and manifest commands are experimental. `src/safecode/ide/` runtime module retained; JSON-RPC server (`sac api jsonrpc`) removed with VS Code extension. |
 | `sac report html` | **Frozen experimental at v5.7.1.** Generated HTML output is not a stable API. Will not be promoted before v6.0 without a stable output contract. |
 
 ## Contract Test Coverage
