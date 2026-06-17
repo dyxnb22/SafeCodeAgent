@@ -90,7 +90,7 @@ def export_report(output: Path = typer.Option(Path(".sac/reports/latest.md"), "-
 
 @ops_app.command("eval", hidden=True)
 def eval_demo(
-    mode: str = typer.Option("default", "--mode", help="Eval mode: default, loop, bench, live, or swebench-lite."),
+    mode: str = typer.Option("default", "--mode", help="Eval mode: default, loop, bench, live, real-task, or swebench-lite."),
     update_baseline: bool = typer.Option(False, "--update-baseline", help="Overwrite bench baseline snapshots."),
     provider: str = typer.Option("anthropic", "--provider", help="LLM provider for --mode live."),
     model: str = typer.Option("", "--model", help="Model override for --mode live."),
@@ -99,13 +99,14 @@ def eval_demo(
     transcripts: bool = typer.Option(False, "--transcripts", help="Write redacted live eval transcript artifacts under .sac/eval/transcripts."),
     runs: int = typer.Option(1, "--runs", help="Repeat live eval N times and print aggregate stability metrics."),
     suite: str = typer.Option("", "--suite", help="Eval suite for --mode swebench-lite (dir of task JSON files)."),
-    limit: int = typer.Option(10, "--limit", help="Max tasks for --mode swebench-lite."),
+    limit: int = typer.Option(10, "--limit", help="Max tasks for --mode real-task or swebench-lite."),
 ) -> None:
     """Run lightweight local eval cases.
 
     --mode loop           runs realistic scripted agent-loop fixtures (no real LLM).
     --mode bench          runs eval bench and collects timing/hash metrics per fixture.
     --mode live           runs real coding tasks against a live provider (requires SAFECODE_LIVE_TESTS=1).
+    --mode real-task      runs the built-in real-world task benchmark slice.
     --mode swebench-lite  runs SWE-bench-Lite-compatible tasks from --suite <dir>.
     """
     if mode == "loop":
@@ -188,6 +189,31 @@ def eval_demo(
             raise typer.Exit(code=1)
         all_passed = all(r.success for r in live_results)
         raise typer.Exit(code=0 if all_passed else 1)
+    elif mode == "real-task":
+        from safecode.eval.real_task import (
+            build_real_task_manifest,
+            load_default_real_tasks,
+            render_real_task_report,
+            run_real_task_benchmark,
+            save_real_task_report,
+        )
+
+        suite_dir = Path(suite) if suite else None
+        tasks = load_default_real_tasks(suite_dir)
+        if not tasks:
+            console.print("[yellow]No real-task benchmark tasks found.[/yellow]")
+            raise typer.Exit(code=0)
+        selected = tasks[:limit] if limit else tasks
+        manifest = build_real_task_manifest(selected)
+        report = run_real_task_benchmark(
+            suite_dir=suite_dir,
+            limit=limit,
+            provider=provider,
+        )
+        console.print(render_real_task_report(report, manifest))
+        out_path = save_real_task_report(report)
+        console.print(f"\n[dim]Report saved: {out_path}[/dim]")
+        raise typer.Exit(code=0 if report.passed == report.total else 1)
     elif mode == "swebench-lite":
         from safecode.eval.swebench_adapter import (
             SWEBenchRunner, load_tasks_from_dir, render_report_text, save_report

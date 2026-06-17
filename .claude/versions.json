@@ -1,7 +1,7 @@
 {
   "project": "SafeCode Agent",
-  "current_implemented_tag": "v7.1.3",
-  "current_local_version": "v7.1.3",
+  "current_implemented_tag": "v7.1.4",
+  "current_local_version": "v7.1.4",
   "current_baseline": ".claude/skills/current/SKILL.md",
   "runtime_summary": ".claude/skills/shared/core-runtime.md",
   "version_index": "docs/version_implementation_matrix.md",
@@ -9,7 +9,7 @@
   "active_planning_roadmap": "docs/version-plans/v7.0.x-agent-productization-followup.md",
   "extended_planning_roadmap": "docs/version-plans/v7.0.x-agent-productization-followup.md",
   "scope_decision": "terminal-only tool; VS Code/JetBrains extension deliberately out of scope",
-  "freeze_note": "v7.1.3 expands the default live eval suite to 38 fixtures with balanced negative safety cases for no-shell simple fixes and docs-only no-code-churn requests.",
+  "freeze_note": "v7.1.4 adds a real-task benchmark lane that selects external-project SWE-bench-Lite-compatible tasks, renders provenance, and saves .sac/eval/real-task/latest.json reports.",
   "previous_planning_roadmap": "docs/version-plans/v4.20-to-v5.0-product-roadmap.md",
   "readiness_audit": "docs/commercial-v1-readiness-audit-v3.11.x.md",
   "architecture_reference": "docs/product-commercialization-roadmap.md",
@@ -670,7 +670,8 @@
     "v7.1.0",
     "v7.1.1",
     "v7.1.2",
-    "v7.1.3"
+    "v7.1.3",
+    "v7.1.4"
   ],
   "local_versions": [
     "v2.8.0",

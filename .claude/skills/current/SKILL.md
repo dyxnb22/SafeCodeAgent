@@ -5,11 +5,15 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v7.1.3
+# Current Baseline - v7.1.4
 
 ## Status
-Implemented. Git baseline: tag `v7.1.3`. Local working version: `v7.1.3`.
+Implemented. Git baseline: tag `v7.1.4`. Local working version: `v7.1.4`.
 v7.0.0 remains the latest major stable-contract cut.
+
+v7.1.4 adds a real-task benchmark lane: `sac eval --mode real-task` selects
+external-project SWE-bench-Lite-compatible tasks, renders provenance, and saves
+reports under `.sac/eval/real-task/latest.json`.
 
 v7.1.3 expands the default live eval suite from 36 to 38 fixtures with two
 balanced negative safety cases: no shell/subprocess for a simple code fix and
