@@ -58,6 +58,16 @@ Run a slice with:
 sac eval --mode live --eval-suite capability --provider deepseek
 ```
 
+Transcript artifacts are opt-in:
+
+```bash
+sac eval --mode live --eval-suite capability --transcripts --provider deepseek
+```
+
+When enabled, SafeCode writes redacted JSON transcripts under
+`.sac/eval/transcripts/`. These artifacts record fixture metadata, the user
+goal, validation commands, trajectory milestones, and the final outcome.
+
 ## SWE-bench Lite Compatibility
 
 The `swebench-lite` mode implements a compatibility layer for

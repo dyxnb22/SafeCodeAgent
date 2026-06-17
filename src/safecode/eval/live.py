@@ -130,6 +130,8 @@ class LiveEvalResult:
     source_kind: str = "inline"
     initial_commit: str | None = None
     task_type: str = "coding"
+    eval_suite: str = "regression"
+    transcript_path: str | None = None
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -170,6 +172,7 @@ class LiveEvalResult:
             "initial_commit": self.initial_commit,
             "task_type": self.task_type,
             "eval_suite": self.eval_suite,
+            "transcript_path": self.transcript_path,
         }
 
 
@@ -2155,6 +2158,59 @@ def _classify_error(error: str) -> str:
     return "unknown"
 
 
+def save_live_transcript(
+    *,
+    fixture: LiveEvalFixture,
+    result: LiveEvalResult,
+    transcript_dir: Path,
+    provider: str,
+    model: str | None,
+) -> Path:
+    """Write a redacted JSON transcript artifact for one live eval trial."""
+    from safecode.context.redactor import redact_secrets
+
+    transcript_dir.mkdir(parents=True, exist_ok=True)
+    stamp = str(int(time.time() * 1000))
+    path = transcript_dir / f"{fixture.name}-{stamp}.json"
+    payload = {
+        "schema_version": 1,
+        "fixture": {
+            "name": fixture.name,
+            "category": fixture.category,
+            "expected_difficulty": fixture.expected_difficulty,
+            "fixture_stability": fixture.fixture_stability,
+            "eval_suite": classify_eval_suite(fixture),
+            "source_kind": fixture.source_kind,
+            "initial_commit": fixture.initial_commit,
+            "task_type": fixture.task_type,
+        },
+        "trial": {
+            "provider": provider,
+            "model": model,
+            "goal": fixture.goal,
+            "validation_commands": list(fixture.validation_commands),
+        },
+        "trajectory": [
+            {"type": "user_goal", "content": fixture.goal},
+            {"type": "outcome", "content": "success" if result.success else "failure"},
+        ],
+        "outcome": result.as_dict(),
+    }
+    text = json.dumps(_redact_json_value(payload, redact_secrets), indent=2, sort_keys=True, ensure_ascii=False)
+    path.write_text(text + "\n", encoding="utf-8")
+    return path
+
+
+def _redact_json_value(value: Any, redact) -> Any:
+    if isinstance(value, str):
+        return redact(value)
+    if isinstance(value, list):
+        return [_redact_json_value(item, redact) for item in value]
+    if isinstance(value, dict):
+        return {str(key): _redact_json_value(item, redact) for key, item in value.items()}
+    return value
+
+
 class LiveEvalRunner:
     """Runs live eval fixtures against a real LLM provider.
 
@@ -2162,14 +2218,30 @@ class LiveEvalRunner:
     imports when the module is imported in tests.
     """
 
-    def __init__(self, provider: str = "anthropic", model: str | None = None) -> None:
+    def __init__(
+        self,
+        provider: str = "anthropic",
+        model: str | None = None,
+        transcript_dir: Path | None = None,
+    ) -> None:
         self.provider = provider
         self.model = model
+        self.transcript_dir = transcript_dir
 
     def run_fixture(self, fixture: LiveEvalFixture) -> LiveEvalResult:
         tmp = tempfile.mkdtemp(prefix="sac_live_eval_")
         try:
-            return self._run_in_tmp(fixture, Path(tmp))
+            result = self._run_in_tmp(fixture, Path(tmp))
+            if self.transcript_dir is not None:
+                path = save_live_transcript(
+                    fixture=fixture,
+                    result=result,
+                    transcript_dir=self.transcript_dir,
+                    provider=self.provider,
+                    model=self.model,
+                )
+                result.transcript_path = str(path)
+            return result
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
 
@@ -2336,6 +2408,7 @@ class LiveEvalRunner:
             source_kind=fixture.source_kind,
             initial_commit=fixture.initial_commit,
             task_type=fixture.task_type,
+            eval_suite=classify_eval_suite(fixture),
         )
 
     def run_all(

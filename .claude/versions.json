@@ -1,7 +1,7 @@
 {
   "project": "SafeCode Agent",
-  "current_implemented_tag": "v7.1.0",
-  "current_local_version": "v7.1.0",
+  "current_implemented_tag": "v7.1.1",
+  "current_local_version": "v7.1.1",
   "current_baseline": ".claude/skills/current/SKILL.md",
   "runtime_summary": ".claude/skills/shared/core-runtime.md",
   "version_index": "docs/version_implementation_matrix.md",
@@ -9,7 +9,7 @@
   "active_planning_roadmap": "docs/version-plans/v7.0.x-agent-productization-followup.md",
   "extended_planning_roadmap": "docs/version-plans/v7.0.x-agent-productization-followup.md",
   "scope_decision": "terminal-only tool; VS Code/JetBrains extension deliberately out of scope",
-  "freeze_note": "v7.1.0 starts the eval maturity train with live eval suite split: regression, capability, safety, and cost-perf. sac eval --mode live now supports --eval-suite. v7.0.4 completed session and shell polish.",
+  "freeze_note": "v7.1.1 adds opt-in redacted live eval transcript artifacts via sac eval --mode live --transcripts. v7.1.0 split live eval suites into regression, capability, safety, and cost-perf.",
   "previous_planning_roadmap": "docs/version-plans/v4.20-to-v5.0-product-roadmap.md",
   "readiness_audit": "docs/commercial-v1-readiness-audit-v3.11.x.md",
   "architecture_reference": "docs/product-commercialization-roadmap.md",
@@ -667,7 +667,8 @@
     "v7.0.2",
     "v7.0.3",
     "v7.0.4",
-    "v7.1.0"
+    "v7.1.0",
+    "v7.1.1"
   ],
   "local_versions": [
     "v2.8.0",

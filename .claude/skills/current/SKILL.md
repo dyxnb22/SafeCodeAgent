@@ -5,11 +5,16 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v7.1.0
+# Current Baseline - v7.1.1
 
 ## Status
-Implemented. Git baseline: tag `v7.1.0`. Local working version: `v7.1.0`.
+Implemented. Git baseline: tag `v7.1.1`. Local working version: `v7.1.1`.
 v7.0.0 remains the latest major stable-contract cut.
+
+v7.1.1 adds opt-in redacted transcript artifacts for live evals:
+`sac eval --mode live --transcripts`. Artifacts are written under
+`.sac/eval/transcripts/` and include fixture metadata, trajectory milestones,
+validation commands, and outcome metrics.
 
 v7.1.0 starts the eval maturity train. Live eval fixtures can now be filtered
 with `sac eval --mode live --eval-suite regression|capability|safety|cost-perf`.

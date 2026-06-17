@@ -994,6 +994,74 @@ class TestEvalSuiteSplit:
         assert "--eval-suite" in result.output
 
 
+class TestLiveEvalTranscripts:
+    def test_save_live_transcript_redacts_goal_and_records_outcome(self, tmp_path):
+        from safecode.eval.live import LiveEvalResult, save_live_transcript
+
+        fixture = LiveEvalFixture(
+            name="transcript-test",
+            setup_files={"a.py": "x = 1\n"},
+            goal='Fix bug with api_key="sk-secret1234567890".',
+            success_condition=lambda root: True,
+        )
+        result = LiveEvalResult(
+            fixture_name="transcript-test",
+            success=True,
+            turns_used=1,
+            tool_calls=1,
+            redundant_reads=0,
+            input_tokens=10,
+            output_tokens=5,
+            wall_seconds=0.1,
+        )
+
+        path = save_live_transcript(
+            fixture=fixture,
+            result=result,
+            transcript_dir=tmp_path,
+            provider="mock",
+            model="mock-model",
+        )
+
+        text = path.read_text(encoding="utf-8")
+        data = json.loads(text)
+        assert data["schema_version"] == 1
+        assert data["outcome"]["success"] is True
+        assert "sk-secret" not in text
+        assert "[REDACTED]" in text
+
+    def test_runner_writes_transcript_when_enabled(self, tmp_path, monkeypatch):
+        class _FastLLM:
+            def ask(self, *a, **kw): ...
+            def plan(self, *a, **kw): ...
+            def choose_tool(self, *a, **kw): raise NotImplementedError
+            def propose_patch(self, task, context):
+                from safecode.agent.schemas import AgentPatchResponse
+                return AgentPatchResponse(patch_text=(
+                    "*** Begin Patch\n"
+                    "*** Update File: src/hello.py\n"
+                    "SEARCH:\n"
+                    "x = 1\n"
+                    "REPLACE:\n"
+                    "x = 2\n"
+                    "*** End Patch"
+                ))
+
+        monkeypatch.setattr("safecode.llm.factory.create_llm_client", lambda cfg: _FastLLM())
+        fixture = LiveEvalFixture(
+            name="transcript-runner-test",
+            setup_files={"src/hello.py": "x = 1\n"},
+            goal="Change x to 2.",
+            success_condition=lambda root: "x = 2" in (root / "src" / "hello.py").read_text(),
+        )
+        runner = LiveEvalRunner(provider="mock", transcript_dir=tmp_path)
+
+        result = runner.run_fixture(fixture)
+
+        assert result.transcript_path
+        assert Path(result.transcript_path).exists()
+
+
 class TestVerifyCheckpointIntegrity:
     def test_returns_true_when_no_checkpoints_dir(self):
         with tempfile.TemporaryDirectory() as tmp:

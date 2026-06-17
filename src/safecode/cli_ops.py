@@ -96,6 +96,7 @@ def eval_demo(
     model: str = typer.Option("", "--model", help="Model override for --mode live."),
     fixture: str = typer.Option("", "--fixture", help="Run one named fixture (live mode only)."),
     eval_suite: str = typer.Option("all", "--eval-suite", help="Live eval suite: all, regression, capability, safety, cost-perf."),
+    transcripts: bool = typer.Option(False, "--transcripts", help="Write redacted live eval transcript artifacts under .sac/eval/transcripts."),
     runs: int = typer.Option(1, "--runs", help="Repeat live eval N times and print aggregate stability metrics."),
     suite: str = typer.Option("", "--suite", help="Eval suite for --mode swebench-lite (dir of task JSON files)."),
     limit: int = typer.Option(10, "--limit", help="Max tasks for --mode swebench-lite."),
@@ -161,7 +162,8 @@ def eval_demo(
                 console.print(f"[red]{exc}[/red]")
                 raise typer.Exit(code=1) from exc
 
-        live_runner = LiveEvalRunner(provider=provider, model=model or None)
+        transcript_dir = Path.cwd() / ".sac" / "eval" / "transcripts" if transcripts else None
+        live_runner = LiveEvalRunner(provider=provider, model=model or None, transcript_dir=transcript_dir)
         model_label = model or "default"
         console.print(
             f"Running {len(selected)} live fixture(s) with provider={provider!r}, "
