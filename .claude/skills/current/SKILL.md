@@ -5,19 +5,35 @@ description: >
   runtime summary before implementing the next version.
 ---
 
-# Current Baseline - v6.6.3
+# Current Baseline - v6.28.0
 
 ## Status
-Implemented. Git baseline: tag `v6.6.3`. Local working version: `v6.6.3`.
-v6.0.0 was the previous stable-contract cut. v6.6.3 cleans current docs and
-guard tests: Section 20/21 numbering is consistent, stable-contract labels are
-current, README duplicate provider/memory/search material now points to
-canonical docs, and stale version comments are reduced in hot runtime files.
-v6.6.2 adds a real-world demo scaffold for an Arrow parser exception-boundary
-issue and an inline SWE-bench Lite adaptation, bringing the mock baseline to
-0/8. v6.6.1 expands live eval to five representative local coding fixtures and
-the synthetic SWE-bench Lite suite to seven inline fixtures. v6.6.0 makes
-semantic retrieval an optional dependency via `safecode-agent[semantic]`.
+Implemented. Git baseline: tag `v6.28.0`. Local working version: `v6.28.0`.
+v6.0.0 remains the latest major stable-contract cut.
+
+v6.24–v6.28 is the opencode alignment train (5 versions). Plan:
+`docs/version-plans/v6.24-to-v6.28-opencode-alignment-roadmap.md`
+
+v6.7–v6.23 was the prior alignment train (17 versions). Plan:
+`docs/next-capabilities-plan.md`
+
+## v6.24–v6.28 opencode alignment train
+
+- `v6.24.0`: `ConversationBuffer.compact_with_llm(llm_client)` — LLM summary
+  of oldest COMPRESS_BATCH turns; AgentLoop triggers at turn_count > 12;
+  fallback to string-based compress on LLM error.
+- `v6.25.0`: `search_symbol(name, kind?, file?)` native tool — ripgrep
+  (rg --json) + Python walk fallback + AST kind labeling; returns
+  [{file, line, kind, snippet}] capped at 50; registered in register_read_tools.
+- `v6.26.0`: `_execute_patch_proposal_step` auto_apply_condition extended —
+  CONFIRM tier now auto-applies when `full_auto=True` (not just AUTO tier);
+  GATE tier always requires approval.
+- `v6.27.0`: `src/safecode/cli_diff_render.py` — `render_rich_diff()` splits
+  unified diff into per-file Rich Panels with monokai Syntax; `format_diff_for_plain()`
+  for non-TTY; wired into `sac edit`, `sac apply`, `sac diff --task`.
+- `v6.28.0`: `sac commit --ai` — `_generate_ai_commit_message()` collects
+  git diff (4KB cap, secrets redacted), calls LLM for conventional-commit
+  message; `--dry-run` and `--yes` flags; fallback hint on LLM error.
 
 ## Stage
 The v4.14–v4.18 usability trains are complete (14 versions shipped):
