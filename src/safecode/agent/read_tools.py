@@ -281,6 +281,179 @@ def _grep_files_handler(call_id: str, inp: dict[str, Any]) -> NativeToolResult:
 
 
 # ---------------------------------------------------------------------------
+# search_symbol (v6.25) — ripgrep / grep + Python AST kind labeling
+# ---------------------------------------------------------------------------
+
+_SEARCH_SYMBOL_MAX = 50
+_PY_KIND_PATTERNS = {
+    "class": re.compile(r"^\s*class\s+\w"),
+    "function": re.compile(r"^\s*(?:async\s+)?def\s+\w"),
+    "import": re.compile(r"^\s*(?:import|from)\s+\w"),
+}
+
+
+def _kind_from_line(line: str) -> str:
+    for kind, pat in _PY_KIND_PATTERNS.items():
+        if pat.match(line):
+            return kind
+    return "variable"
+
+
+def _search_symbol_via_walk(project_root: Path, name: str, kind_filter: str | None,
+                             file_filter: str | None) -> tuple[list[dict], bool]:
+    """Pure-Python fallback symbol search using regex walk."""
+    import os, json as _json  # noqa: F401
+
+    # Build a pattern that matches common definition forms across languages.
+    # Order: def/fn name, class name, type alias, const, variable.
+    patterns = [
+        re.compile(rf"\b(?:def|fn|func|function|class|type|const|var|let)\s+{re.escape(name)}\b"),
+        re.compile(rf"\b{re.escape(name)}\s*(?:=|:=)\s"),  # assignment definition
+        re.compile(rf"^{re.escape(name)}\s*(?:=|:)"),       # top-level name
+    ]
+
+    results: list[dict] = []
+    truncated = False
+
+    search_root = project_root
+    if file_filter:
+        candidate = project_root / file_filter
+        if candidate.is_file():
+            search_root = candidate.parent
+
+    for root, dir_names, file_names in os.walk(search_root, followlinks=False):
+        root_path = Path(root)
+        dir_names[:] = sorted(d for d in dir_names if d not in SKIP_DIRS)
+        for fname in sorted(file_names):
+            if len(results) >= _SEARCH_SYMBOL_MAX:
+                truncated = True
+                break
+            full = root_path / fname
+            if file_filter and full.name != Path(file_filter).name:
+                continue
+            if full.is_symlink() or not full.is_file():
+                continue
+            if not _is_safe_file(full, project_root):
+                continue
+            if _looks_binary(full):
+                continue
+            try:
+                rel = full.relative_to(project_root).as_posix()
+                text = full.read_text(encoding="utf-8", errors="replace")
+            except OSError:
+                continue
+            is_python = full.suffix == ".py"
+            for lineno, line in enumerate(text.splitlines(), 1):
+                if name not in line:
+                    continue
+                if not any(p.search(line) for p in patterns):
+                    continue
+                k = _kind_from_line(line) if is_python else "symbol"
+                if kind_filter and k != kind_filter:
+                    continue
+                results.append({
+                    "file": rel,
+                    "line": lineno,
+                    "kind": k,
+                    "snippet": redact_secrets(line.strip()[:160]),
+                })
+                if len(results) >= _SEARCH_SYMBOL_MAX:
+                    truncated = True
+                    break
+        if truncated:
+            break
+
+    return results, truncated
+
+
+def _search_symbol_via_ripgrep(project_root: Path, name: str, kind_filter: str | None,
+                                file_filter: str | None) -> tuple[list[dict] | None, bool]:
+    """Try ripgrep for faster multi-language search. Returns (None, False) if rg not available."""
+    import subprocess, shutil, json as _json
+    if not shutil.which("rg"):
+        return None, False
+
+    pattern = rf"\b(?:def|fn|func|function|class|type|const|var|let|async def)\s+{re.escape(name)}\b"
+    args = ["rg", "--json", "--max-count=1", "-n", pattern]
+    if file_filter:
+        args += ["--", file_filter]
+    else:
+        args.append(str(project_root))
+
+    try:
+        proc = subprocess.run(
+            args, cwd=project_root, capture_output=True, text=True, shell=False, timeout=10
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None, False
+
+    results: list[dict] = []
+    truncated = False
+    for raw_line in proc.stdout.splitlines():
+        if not raw_line.strip():
+            continue
+        try:
+            obj = _json.loads(raw_line)
+        except Exception:
+            continue
+        if obj.get("type") != "match":
+            continue
+        data = obj.get("data", {})
+        file_path = data.get("path", {}).get("text", "")
+        lineno = data.get("line_number", 0)
+        line_text = data.get("lines", {}).get("text", "").rstrip()
+        try:
+            rel = Path(file_path).relative_to(project_root).as_posix()
+        except ValueError:
+            rel = file_path
+        is_python = rel.endswith(".py")
+        k = _kind_from_line(line_text) if is_python else "symbol"
+        if kind_filter and k != kind_filter:
+            continue
+        results.append({
+            "file": rel,
+            "line": lineno,
+            "kind": k,
+            "snippet": redact_secrets(line_text[:160]),
+        })
+        if len(results) >= _SEARCH_SYMBOL_MAX:
+            truncated = True
+            break
+
+    return results, truncated
+
+
+def _search_symbol_handler(call_id: str, inp: dict[str, Any]) -> NativeToolResult:
+    """Find where a symbol is defined across the project (v6.25)."""
+    import json
+    project_root = Path(inp.get("_project_root", ".")).resolve()
+    name: str = inp.get("name", "").strip()
+    kind_filter: str | None = inp.get("kind", None)  # function, class, variable, import
+    file_filter: str | None = inp.get("file", None)  # restrict to specific file/path
+
+    if not name:
+        return NativeToolResult(call_id=call_id, tool_name="search_symbol", status="error",
+                                error="Missing 'name'.")
+    if len(name) < 2:
+        return NativeToolResult(call_id=call_id, tool_name="search_symbol", status="error",
+                                error="'name' must be at least 2 characters.")
+
+    # Try ripgrep first (faster, multi-language).
+    results, truncated = _search_symbol_via_ripgrep(project_root, name, kind_filter, file_filter)
+    if results is None:
+        # Fallback to pure-Python walk.
+        results, truncated = _search_symbol_via_walk(project_root, name, kind_filter, file_filter)
+
+    output = json.dumps(results, indent=None)
+    return NativeToolResult(
+        call_id=call_id,
+        tool_name="search_symbol",
+        output=output,
+        metadata={"count": len(results), "truncated": truncated, "backend": "ripgrep" if results is not None else "walk"},
+    )
+
+
+# ---------------------------------------------------------------------------
 # Specs
 # ---------------------------------------------------------------------------
 
@@ -351,8 +524,34 @@ GREP_FILES_SPEC = NativeToolSpec(
 )
 
 
+SEARCH_SYMBOL_SPEC = NativeToolSpec(
+    name="search_symbol",
+    description=(
+        "Find where a symbol (function, class, variable) is defined across the project. "
+        "Uses ripgrep if available, falls back to built-in walk. "
+        "Returns [{file, line, kind, snippet}] capped at 50 results."
+    ),
+    input_schema={
+        "type": "object",
+        "properties": {
+            "name": {"type": "string", "description": "Symbol name to search for."},
+            "kind": {
+                "type": "string",
+                "description": "Optional kind filter: function, class, variable, import.",
+                "enum": ["function", "class", "variable", "import", "symbol"],
+            },
+            "file": {"type": "string", "description": "Optional: restrict search to this file path."},
+        },
+        "required": ["name"],
+    },
+    requires_approval=False,
+    audit_event_type="tool_call_read",
+    experimental=True,
+)
+
+
 def register_read_tools(dispatcher: NativeToolDispatcher, project_root: Path) -> None:
-    """Register all four read-only tools on a dispatcher, injecting project_root."""
+    """Register all read-only tools on a dispatcher, injecting project_root."""
 
     def make_handler(fn):
         def _handler(call_id: str, inp: dict) -> NativeToolResult:
@@ -363,3 +562,4 @@ def register_read_tools(dispatcher: NativeToolDispatcher, project_root: Path) ->
     dispatcher.register(LIST_FILES_SPEC, make_handler(_list_files_handler))
     dispatcher.register(SEARCH_FILES_SPEC, make_handler(_search_files_handler))
     dispatcher.register(GREP_FILES_SPEC, make_handler(_grep_files_handler))
+    dispatcher.register(SEARCH_SYMBOL_SPEC, make_handler(_search_symbol_handler))

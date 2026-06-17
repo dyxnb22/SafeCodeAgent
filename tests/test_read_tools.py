@@ -221,7 +221,9 @@ def test_register_read_tools_wires_four_tools(tmp_path: Path):
     dispatcher = NativeToolDispatcher()
     register_read_tools(dispatcher, tmp_path)
     names = {s.name for s in dispatcher.specs()}
-    assert names == {"read_file", "list_files", "search_files", "grep_files"}
+    # v6.25 added search_symbol as a 5th read tool.
+    assert {"read_file", "list_files", "search_files", "grep_files"}.issubset(names)
+    assert "search_symbol" in names
 
 
 def test_registered_read_file_works(tmp_path: Path):
