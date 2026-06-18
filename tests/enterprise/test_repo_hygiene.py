@@ -106,6 +106,7 @@ def test_progress_state_is_valid_and_matches_backlog() -> None:
 
     if current["status"] == "ready":
         assert current["active_task"] is None
+        assert progress["stages"][current["stage"]] == "ready"
     else:
         assert current["active_task"]
         date.fromisoformat(current["active_task"]["started_at"])
@@ -137,6 +138,9 @@ def test_progress_state_is_valid_and_matches_backlog() -> None:
     date.fromisoformat(verification["recorded_at"])
     assert verification["command"].strip()
     assert verification["result"].strip()
+    if progress["stages"]["v1.1"] == "completed":
+        assert verification["command"] == "PYTHONPATH=src python3 -m pytest -q"
+        assert "passed" in verification["result"]
 
 
 @pytest.mark.parametrize("relative_path", LEGACY_CLAUDE_POLICY_FILES)

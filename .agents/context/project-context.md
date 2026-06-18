@@ -86,7 +86,7 @@ regression analysis.
 |---|---|---|---|
 | v1.0 | Enterprise branch, plans, namespace | Complete | `product-planning/` |
 | v1.1 | Permission-aware RAG knowledge base | Complete | `enterprise-docs/rag-implementation-plan.md` |
-| v1.2 | Typed workflow state and orchestration | Planned | `enterprise-docs/workflow-design.md` |
+| v1.2 | Typed workflow state and orchestration | Ready | `enterprise-docs/workflow-design.md` |
 | v1.3 | Native, connector, scanner, and MCP layer | Planned | `enterprise-docs/system-architecture-v1.md` |
 | v1.4 | Policy, RBAC, approval, and audit governance | Planned | `enterprise-docs/security-governance-plan.md` |
 | v1.5 | AgentOps trace and dashboard | Planned | `enterprise-docs/agentops-observability-plan.md` |

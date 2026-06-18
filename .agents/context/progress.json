@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-06-18",
+  "updated_at": "2026-06-19",
   "implemented_baseline_tag": "v7.1.5",
   "current": {
     "stage": "v1.2",
@@ -12,7 +12,7 @@
   "stages": {
     "v1.0": "completed",
     "v1.1": "completed",
-    "v1.2": "planned",
+    "v1.2": "ready",
     "v1.3": "planned",
     "v1.4": "planned",
     "v1.5": "planned",
@@ -76,52 +76,52 @@
     {
       "id": "v1.1.2-T1",
       "completed_at": "2026-06-18",
-      "evidence": "tests/enterprise/rag/test_chunk_model.py: passed"
+      "evidence": "00cab29"
     },
     {
       "id": "v1.1.2-T2",
       "completed_at": "2026-06-18",
-      "evidence": "tests/enterprise/rag/test_chunker.py: passed"
+      "evidence": "1a0236a"
     },
     {
       "id": "v1.1.2-T3",
       "completed_at": "2026-06-18",
-      "evidence": "tests/enterprise/rag/test_permission_scope.py: passed"
+      "evidence": "ad1c93a"
     },
     {
       "id": "v1.1.3-T1",
       "completed_at": "2026-06-18",
-      "evidence": "tests/enterprise/rag/test_lexical_scorer.py: passed"
+      "evidence": "71242e0"
     },
     {
       "id": "v1.1.3-T2",
       "completed_at": "2026-06-18",
-      "evidence": "tests/enterprise/rag/test_semantic_scorer.py: passed"
+      "evidence": "077df0d"
     },
     {
       "id": "v1.1.3-T3",
       "completed_at": "2026-06-18",
-      "evidence": "tests/enterprise/rag/test_hybrid_retriever.py: passed"
+      "evidence": "31b6db0"
     },
     {
       "id": "v1.1.3-T4",
       "completed_at": "2026-06-18",
-      "evidence": "tests/enterprise/cli/test_cli_retrieve.py: passed"
+      "evidence": "93a75fa"
     },
     {
       "id": "v1.1.4-T1",
       "completed_at": "2026-06-18",
-      "evidence": "tests/enterprise/eval/cases/retrieval/: 4 cases"
+      "evidence": "446b07c"
     },
     {
       "id": "v1.1.4-T2",
       "completed_at": "2026-06-18",
-      "evidence": "tests/enterprise/eval/test_retrieval_quality.py: passed"
+      "evidence": "6a6636b"
     },
     {
       "id": "v1.1.4-T3",
       "completed_at": "2026-06-18",
-      "evidence": "tests/enterprise/eval/baselines/retrieval_v1_1.json"
+      "evidence": "ec030ba"
     }
   ],
   "recent_maintenance": [
@@ -129,14 +129,19 @@
       "id": "maintenance-agent-context-governance",
       "completed_at": "2026-06-18",
       "evidence": "77 governance tests and full regression: 5778 passed, 4 skipped"
+    },
+    {
+      "id": "maintenance-v1.1-regression-cleanup",
+      "completed_at": "2026-06-19",
+      "evidence": "Reported 4 regressions independently passed; full regression: 5818 passed, 4 skipped"
     }
   ],
   "blockers": [],
   "decisions_required": [],
   "last_verification": {
-    "recorded_at": "2026-06-18",
-    "command": "PYTHONPATH=src python3 -m pytest -q tests/enterprise",
-    "result": "66 passed",
-    "scope": "v1.1 RAG Security Knowledge Base MVP"
+    "recorded_at": "2026-06-19",
+    "command": "PYTHONPATH=src python3 -m pytest -q",
+    "result": "5818 passed, 4 skipped",
+    "scope": "v1.1 closeout and repository-wide regression"
   }
 }
