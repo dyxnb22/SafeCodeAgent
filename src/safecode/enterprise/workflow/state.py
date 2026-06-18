@@ -8,6 +8,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from safecode.enterprise.rag.models import Citation
+from safecode.enterprise.connectors.models import IssueEvidence, PullRequestEvidence
 from safecode.enterprise.workflow.contracts import NodeCost, NodeOutput, RunCosts
 from safecode.enterprise.workflow.exceptions import InvalidStateSchemaVersionError
 from safecode.enterprise.workflow.types import RiskTier, TaskType, WorkflowStatus
@@ -213,6 +214,8 @@ class EnterpriseRunState(BaseModel):
     policy_snapshot_id: str
     request: RunRequest
     repo: RepoContext
+    pull_request_evidence: PullRequestEvidence | None = None
+    issue_evidence: IssueEvidence | None = None
     citations: list[Citation] = Field(default_factory=list)
     findings: list[SecurityFinding] = Field(default_factory=list)
     risk_tier: RiskTier | None = None
