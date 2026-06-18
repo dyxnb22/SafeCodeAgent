@@ -155,10 +155,15 @@ implementation.
 - **Tests:**
   - `tests/enterprise/rag/test_loader_markdown.py`
 - **Acceptance:**
-  - Loader emits one `RawRecord` per Markdown file with `text`,
-    `path`, and `metadata={"headings": [...]}`.
-  - Heading hierarchy preserved (H1 → H6).
+  - Loader emits one `RawRecord` per H1 section (or one record for the
+    whole file when no H1 exists).
+  - Non-empty body before the first H1 becomes a separate preamble
+    record with stable `record_id`.
+  - Each record carries `text`, `path`, `span`, and
+    `metadata={"headings": [...]}` with H1→H6 hierarchy preserved.
   - Front-matter YAML, when present, lands in `metadata`.
+  - `record_id` is stable, deterministic, and reproducible across
+    runs.
 - **Estimate:** 0.5 PR-day.
 
 ### v1.1.1-T4 — Code loader

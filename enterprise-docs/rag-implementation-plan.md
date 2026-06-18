@@ -83,12 +83,15 @@ modified by this plan.
 - Loader output is `RawRecord(record_id, text, path, span, metadata)`.
   Records are *not* persisted; they exist in memory only until
   chunking writes the durable `Chunk` records.
+- Markdown `record_id` is derived from `(source_id, path, span,
+  section_kind)` so H1 sections and preamble blocks are stable across
+  runs.
 
 ### Loader behavior matrix
 
 | Loader | Inputs | Output cardinality | Permission scope |
 |--------|--------|--------------------|------------------|
-| `loader_markdown` | `.md` files | One record per H1 section | Inherited from source |
+| `loader_markdown` | `.md` files | One record per H1 section; non-empty preamble before the first H1 is a separate record; whole-file fallback when no H1 | Inherited from source |
 | `loader_code` | `.py` files | One record per top-level def/class; module-level records for orphan blocks | Inherited |
 | `loader_sarif` | SARIF 2.1.0 JSON | One record per `result` | Inherited |
 | `loader_semgrep` | Semgrep `results` array | One record per finding | Inherited |

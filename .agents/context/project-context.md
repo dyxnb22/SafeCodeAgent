@@ -144,14 +144,6 @@ Do not rescan the whole repository by default. A broad scan is justified when:
 
 Otherwise inspect the routed plans, owning modules, callers, and tests only.
 
-## Known Near-Term Decision
-
-Before `v1.1.1-T3`, reconcile Markdown record granularity: the execution backlog
-describes one record per file while the RAG plan describes one per H1 section.
-The recommended contract is one record per H1 section with a whole-file fallback
-when no H1 exists. Do not silently implement either interpretation before the
-authoritative plans agree.
-
 ## Verification Commands
 
 ```bash

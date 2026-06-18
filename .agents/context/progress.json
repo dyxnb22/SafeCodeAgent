@@ -52,13 +52,7 @@
     }
   ],
   "blockers": [],
-  "decisions_required": [
-    {
-      "id": "rag-markdown-record-granularity",
-      "required_before": "v1.1.1-T3",
-      "summary": "Align per-file versus per-H1 Markdown RawRecord behavior in authoritative plans."
-    }
-  ],
+  "decisions_required": [],
   "last_verification": {
     "recorded_at": "2026-06-18",
     "command": "PYTHONPATH=src python3 -m pytest -q",
