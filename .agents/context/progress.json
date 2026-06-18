@@ -84,7 +84,7 @@
     {"id": "v1.5.2-T2", "completed_at": "2026-06-19", "evidence": "758af4c"},
     {"id": "v1.5.3-T1", "completed_at": "2026-06-19", "evidence": "00bbf11"},
     {"id": "v1.5.3-T2", "completed_at": "2026-06-19", "evidence": "e68b172"},
-    {"id": "v1.5.4-T1", "completed_at": "2026-06-19", "evidence": "pending"}
+    {"id": "v1.5.4-T1", "completed_at": "2026-06-19", "evidence": "ac1014f"}
   ],
   "recent_maintenance": [
     {"id": "maintenance-agent-context-governance", "completed_at": "2026-06-18", "evidence": "77 governance tests and full regression: 5778 passed, 4 skipped"},
@@ -97,7 +97,7 @@
   "last_verification": {
     "recorded_at": "2026-06-19",
     "command": "PYTHONPATH=src python3 -m pytest -q",
-    "result": "5932 passed, 5 skipped",
-    "scope": "v1.3 and v1.4 security closeout with repository-wide regression"
+    "result": "5952 passed, 8 skipped",
+    "scope": "v1.5 AgentOps observability stage closeout"
   }
 }
