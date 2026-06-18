@@ -17,7 +17,7 @@ compliance evidence, and auditable tool-using security operations.
 - Legacy implemented baseline: `v7.1.5`.
 - Enterprise planning and namespace stages: complete.
 - Current delivery stage: `v1.5 AgentOps Observability and Trace Dashboard`.
-- Next delivery task: `v1.5.2-T2 sac enterprise trace export CLI`.
+- Next delivery task: `v1.5.3-T1 Markdown dashboard renderer`.
 - Machine-readable live status: `.agents/context/progress.json`.
 
 Do not infer current progress from prose in this file. Read `progress.json`.

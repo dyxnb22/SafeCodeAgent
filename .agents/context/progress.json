@@ -7,12 +7,12 @@
     "milestone": "v1.5.1",
     "status": "in_progress",
     "active_task": {
-      "id": "v1.5.2-T2",
+      "id": "v1.5.3-T1",
       "kind": "delivery",
-      "title": "trace export CLI",
+      "title": "Markdown dashboard renderer",
       "started_at": "2026-06-19"
     },
-    "next_delivery_task": "v1.5.2-T2"
+    "next_delivery_task": "v1.5.3-T1"
   },
   "stages": {
     "v1.0": "completed",
@@ -86,7 +86,8 @@
     {"id": "v1.5.1-T1", "completed_at": "2026-06-19", "evidence": "7536fe6"},
     {"id": "v1.5.1-T2", "completed_at": "2026-06-19", "evidence": "3fed594"},
     {"id": "v1.5.2-T1", "completed_at": "2026-06-19", "evidence": "ca780fc"},
-    {"id": "v1.5.2-T2", "completed_at": "2026-06-19", "evidence": "pending"}
+    {"id": "v1.5.2-T2", "completed_at": "2026-06-19", "evidence": "758af4c"},
+    {"id": "v1.5.3-T1", "completed_at": "2026-06-19", "evidence": "pending"}
   ],
   "recent_maintenance": [
     {"id": "maintenance-agent-context-governance", "completed_at": "2026-06-18", "evidence": "77 governance tests and full regression: 5778 passed, 4 skipped"},
