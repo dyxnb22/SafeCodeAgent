@@ -56,7 +56,8 @@
     {"id": "v1.2.4-T2", "completed_at": "2026-06-19", "evidence": "55d1c4c"},
     {"id": "v1.2.4-T3", "completed_at": "2026-06-19", "evidence": "fc50b33"},
     {"id": "v1.3.1-T1", "completed_at": "2026-06-19", "evidence": "cab8baa"},
-    {"id": "v1.3.1-T2", "completed_at": "2026-06-19", "evidence": "tests/enterprise/tools/test_native_tool_specs_present.py: 2 passed"}
+    {"id": "v1.3.1-T2", "completed_at": "2026-06-19", "evidence": "aaa9688"},
+    {"id": "v1.3.2-T1", "completed_at": "2026-06-19", "evidence": "tests/enterprise/connectors/test_pull_request_evidence_model.py: 1 passed"}
   ],
   "recent_maintenance": [
     {"id": "maintenance-agent-context-governance", "completed_at": "2026-06-18", "evidence": "77 governance tests and full regression: 5778 passed, 4 skipped"},
