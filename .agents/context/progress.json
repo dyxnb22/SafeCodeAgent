@@ -4,15 +4,10 @@
   "implemented_baseline_tag": "v7.1.5",
   "current": {
     "stage": "v1.2",
-    "milestone": "v1.2.1",
-    "status": "in_progress",
-    "active_task": {
-      "id": "v1.2.1-T2",
-      "kind": "delivery",
-      "title": "EnterpriseRunState model",
-      "started_at": "2026-06-19"
-    },
-    "next_delivery_task": "v1.2.1-T2"
+    "milestone": "v1.2.3",
+    "status": "ready",
+    "active_task": null,
+    "next_delivery_task": "v1.2.3-T2"
   },
   "stages": {
     "v1.0": "completed",
@@ -28,130 +23,44 @@
     "v2.0": "planned"
   },
   "completed_delivery_tasks": [
-    {
-      "id": "v1.0.1-T1",
-      "completed_at": "2026-06-18",
-      "evidence": "enterprise-v1.0.1-sot"
-    },
-    {
-      "id": "v1.0.2-T1",
-      "completed_at": "2026-06-18",
-      "evidence": "enterprise-v1.0.2-t1"
-    },
-    {
-      "id": "v1.0.3-T1",
-      "completed_at": "2026-06-18",
-      "evidence": "enterprise-v1.0.3-t1"
-    },
-    {
-      "id": "v1.0.4-T1",
-      "completed_at": "2026-06-18",
-      "evidence": "enterprise-v1.0.4-t1"
-    },
-    {
-      "id": "v1.1.1-T1",
-      "completed_at": "2026-06-18",
-      "evidence": "578d182"
-    },
-    {
-      "id": "v1.1.1-T2",
-      "completed_at": "2026-06-18",
-      "evidence": "5006faa"
-    },
-    {
-      "id": "v1.1.1-T3",
-      "completed_at": "2026-06-18",
-      "evidence": "449920d"
-    },
-    {
-      "id": "v1.1.1-T4",
-      "completed_at": "2026-06-18",
-      "evidence": "806d643"
-    },
-    {
-      "id": "v1.1.1-T5",
-      "completed_at": "2026-06-18",
-      "evidence": "93b253c"
-    },
-    {
-      "id": "v1.1.1-T6",
-      "completed_at": "2026-06-18",
-      "evidence": "c02025b"
-    },
-    {
-      "id": "v1.1.2-T1",
-      "completed_at": "2026-06-18",
-      "evidence": "00cab29"
-    },
-    {
-      "id": "v1.1.2-T2",
-      "completed_at": "2026-06-18",
-      "evidence": "1a0236a"
-    },
-    {
-      "id": "v1.1.2-T3",
-      "completed_at": "2026-06-18",
-      "evidence": "ad1c93a"
-    },
-    {
-      "id": "v1.1.3-T1",
-      "completed_at": "2026-06-18",
-      "evidence": "71242e0"
-    },
-    {
-      "id": "v1.1.3-T2",
-      "completed_at": "2026-06-18",
-      "evidence": "077df0d"
-    },
-    {
-      "id": "v1.1.3-T3",
-      "completed_at": "2026-06-18",
-      "evidence": "31b6db0"
-    },
-    {
-      "id": "v1.1.3-T4",
-      "completed_at": "2026-06-18",
-      "evidence": "93a75fa"
-    },
-    {
-      "id": "v1.1.4-T1",
-      "completed_at": "2026-06-18",
-      "evidence": "446b07c"
-    },
-    {
-      "id": "v1.1.4-T2",
-      "completed_at": "2026-06-18",
-      "evidence": "6a6636b"
-    },
-    {
-      "id": "v1.1.4-T3",
-      "completed_at": "2026-06-18",
-      "evidence": "ec030ba"
-    },
-    {
-      "id": "v1.2.1-T1",
-      "completed_at": "2026-06-19",
-      "evidence": "66b5b25"
-    }
+    {"id": "v1.0.1-T1", "completed_at": "2026-06-18", "evidence": "enterprise-v1.0.1-sot"},
+    {"id": "v1.0.2-T1", "completed_at": "2026-06-18", "evidence": "enterprise-v1.0.2-t1"},
+    {"id": "v1.0.3-T1", "completed_at": "2026-06-18", "evidence": "enterprise-v1.0.3-t1"},
+    {"id": "v1.0.4-T1", "completed_at": "2026-06-18", "evidence": "enterprise-v1.0.4-t1"},
+    {"id": "v1.1.1-T1", "completed_at": "2026-06-18", "evidence": "578d182"},
+    {"id": "v1.1.1-T2", "completed_at": "2026-06-18", "evidence": "5006faa"},
+    {"id": "v1.1.1-T3", "completed_at": "2026-06-18", "evidence": "449920d"},
+    {"id": "v1.1.1-T4", "completed_at": "2026-06-18", "evidence": "806d643"},
+    {"id": "v1.1.1-T5", "completed_at": "2026-06-18", "evidence": "93b253c"},
+    {"id": "v1.1.1-T6", "completed_at": "2026-06-18", "evidence": "c02025b"},
+    {"id": "v1.1.2-T1", "completed_at": "2026-06-18", "evidence": "00cab29"},
+    {"id": "v1.1.2-T2", "completed_at": "2026-06-18", "evidence": "1a0236a"},
+    {"id": "v1.1.2-T3", "completed_at": "2026-06-18", "evidence": "ad1c93a"},
+    {"id": "v1.1.3-T1", "completed_at": "2026-06-18", "evidence": "71242e0"},
+    {"id": "v1.1.3-T2", "completed_at": "2026-06-18", "evidence": "077df0d"},
+    {"id": "v1.1.3-T3", "completed_at": "2026-06-18", "evidence": "31b6db0"},
+    {"id": "v1.1.3-T4", "completed_at": "2026-06-18", "evidence": "93a75fa"},
+    {"id": "v1.1.4-T1", "completed_at": "2026-06-18", "evidence": "446b07c"},
+    {"id": "v1.1.4-T2", "completed_at": "2026-06-18", "evidence": "6a6636b"},
+    {"id": "v1.1.4-T3", "completed_at": "2026-06-18", "evidence": "ec030ba"},
+    {"id": "v1.2.1-T1", "completed_at": "2026-06-19", "evidence": "66b5b25"},
+    {"id": "v1.2.1-T2", "completed_at": "2026-06-19", "evidence": "8bd452f"},
+    {"id": "v1.2.1-T3", "completed_at": "2026-06-19", "evidence": "c8c60ce"},
+    {"id": "v1.2.2-T1", "completed_at": "2026-06-19", "evidence": "656e704"},
+    {"id": "v1.2.2-T2", "completed_at": "2026-06-19", "evidence": "714437a"},
+    {"id": "v1.2.2-T3", "completed_at": "2026-06-19", "evidence": "923b07a"},
+    {"id": "v1.2.3-T1", "completed_at": "2026-06-19", "evidence": "tests/enterprise/workflow/test_optional_extra_import.py passed"}
   ],
   "recent_maintenance": [
-    {
-      "id": "maintenance-agent-context-governance",
-      "completed_at": "2026-06-18",
-      "evidence": "77 governance tests and full regression: 5778 passed, 4 skipped"
-    },
-    {
-      "id": "maintenance-v1.1-regression-cleanup",
-      "completed_at": "2026-06-19",
-      "evidence": "Reported 4 regressions independently passed; full regression: 5818 passed, 4 skipped"
-    }
+    {"id": "maintenance-agent-context-governance", "completed_at": "2026-06-18", "evidence": "77 governance tests and full regression: 5778 passed, 4 skipped"},
+    {"id": "maintenance-v1.1-regression-cleanup", "completed_at": "2026-06-19", "evidence": "Reported 4 regressions independently passed; full regression: 5818 passed, 4 skipped"}
   ],
   "blockers": [],
   "decisions_required": [],
   "last_verification": {
     "recorded_at": "2026-06-19",
-    "command": "PYTHONPATH=src python3 -m pytest -q",
-    "result": "5818 passed, 4 skipped",
-    "scope": "v1.1 closeout and repository-wide regression"
+    "command": "PYTHONPATH=src pytest -q tests/enterprise/workflow/test_optional_extra_import.py",
+    "result": "1 passed",
+    "scope": "v1.2.3-T1 optional extra dependency"
   }
 }
