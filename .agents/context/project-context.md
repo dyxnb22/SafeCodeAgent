@@ -16,8 +16,8 @@ compliance evidence, and auditable tool-using security operations.
 
 - Legacy implemented baseline: `v7.1.5`.
 - Enterprise planning and namespace stages: complete.
-- Current delivery stage: `v1.3 Tool/MCP Enterprise Connector Layer`.
-- Next delivery task: `v1.3.1-T2 Native tool spec wrappers`.
+- Current delivery stage: `v1.5 AgentOps Observability and Trace Dashboard`.
+- Next delivery task: `v1.5.1-T1 TraceEvent schema and emitter`.
 - Machine-readable live status: `.agents/context/progress.json`.
 
 Do not infer current progress from prose in this file. Read `progress.json`.
@@ -87,9 +87,9 @@ regression analysis.
 | v1.0 | Enterprise branch, plans, namespace | Complete | `product-planning/` |
 | v1.1 | Permission-aware RAG knowledge base | Complete | `enterprise-docs/rag-implementation-plan.md` |
 | v1.2 | Typed workflow state and orchestration | Complete | `enterprise-docs/workflow-design.md` |
-| v1.3 | Native, connector, scanner, and MCP layer | Planned | `enterprise-docs/system-architecture-v1.md` |
-| v1.4 | Policy, RBAC, approval, and audit governance | Planned | `enterprise-docs/security-governance-plan.md` |
-| v1.5 | AgentOps trace and dashboard | Planned | `enterprise-docs/agentops-observability-plan.md` |
+| v1.3 | Native, connector, scanner, and MCP layer | Complete | `enterprise-docs/system-architecture-v1.md` |
+| v1.4 | Policy, RBAC, approval, and audit governance | Complete | `enterprise-docs/security-governance-plan.md` |
+| v1.5 | AgentOps trace and dashboard | Ready | `enterprise-docs/agentops-observability-plan.md` |
 | v1.6 | Evaluation and regression platform | Planned | `enterprise-docs/evaluation-plan.md` |
 | v1.7 | PR security review workflow | Planned | `enterprise-docs/workflow-design.md` |
 | v1.8 | Vulnerability remediation workflow | Planned | `enterprise-docs/workflow-design.md` |
