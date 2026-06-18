@@ -3,16 +3,11 @@
   "updated_at": "2026-06-19",
   "implemented_baseline_tag": "v7.1.5",
   "current": {
-    "stage": "v1.5",
-    "milestone": "v1.5.1",
-    "status": "in_progress",
-    "active_task": {
-      "id": "v1.5.3-T2",
-      "kind": "delivery",
-      "title": "trace show CLI",
-      "started_at": "2026-06-19"
-    },
-    "next_delivery_task": "v1.5.3-T2"
+    "stage": "v1.6",
+    "milestone": "v1.6.1",
+    "status": "ready",
+    "active_task": null,
+    "next_delivery_task": "v1.6.1-T1"
   },
   "stages": {
     "v1.0": "completed",
@@ -20,8 +15,8 @@
     "v1.2": "completed",
     "v1.3": "completed",
     "v1.4": "completed",
-    "v1.5": "in_progress",
-    "v1.6": "planned",
+    "v1.5": "completed",
+    "v1.6": "ready",
     "v1.7": "planned",
     "v1.8": "planned",
     "v1.9": "planned",
@@ -88,7 +83,8 @@
     {"id": "v1.5.2-T1", "completed_at": "2026-06-19", "evidence": "ca780fc"},
     {"id": "v1.5.2-T2", "completed_at": "2026-06-19", "evidence": "758af4c"},
     {"id": "v1.5.3-T1", "completed_at": "2026-06-19", "evidence": "00bbf11"},
-    {"id": "v1.5.3-T2", "completed_at": "2026-06-19", "evidence": "pending"}
+    {"id": "v1.5.3-T2", "completed_at": "2026-06-19", "evidence": "e68b172"},
+    {"id": "v1.5.4-T1", "completed_at": "2026-06-19", "evidence": "pending"}
   ],
   "recent_maintenance": [
     {"id": "maintenance-agent-context-governance", "completed_at": "2026-06-18", "evidence": "77 governance tests and full regression: 5778 passed, 4 skipped"},

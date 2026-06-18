@@ -7,7 +7,10 @@ import os
 from pathlib import Path
 from typing import Iterable
 
-from safecode.context.redactor import redact_secrets
+from safecode.enterprise.trace.redaction import (
+    DEFAULT_TRACE_EXPORT_PROFILE,
+    apply_profile_to_payload,
+)
 from safecode.enterprise.trace.events import (
     MAX_PAYLOAD_FIELD_BYTES,
     TraceEvent,
@@ -29,42 +32,12 @@ def trace_file_path(sac_root: Path, run_id: str) -> Path:
     return target / "trace.jsonl"
 
 
-def _redact_payload_value(value: object) -> tuple[object, bool, str | None]:
-    if isinstance(value, str):
-        redacted = redact_secrets(value)
-        reason: str | None = None
-        changed = redacted != value
-        if len(redacted.encode("utf-8")) > MAX_PAYLOAD_FIELD_BYTES:
-            redacted = redacted[:MAX_PAYLOAD_FIELD_BYTES] + "…[truncated]"
-            changed = True
-            reason = "field_truncated"
-        elif changed:
-            reason = "secret_pattern"
-        return redacted, changed, reason
-    if isinstance(value, list):
-        items: list[object] = []
-        changed = False
-        reason: str | None = None
-        for item in value:
-            item_value, item_changed, item_reason = _redact_payload_value(item)
-            items.append(item_value)
-            if item_changed:
-                changed = True
-                reason = item_reason or reason
-        return items, changed, reason
-    return value, False, None
-
-
 def redact_event_payload(payload: dict[str, object]) -> tuple[dict[str, object], bool, str | None]:
-    redacted: dict[str, object] = {}
-    applied = False
-    reason: str | None = None
-    for key, value in payload.items():
-        new_value, changed, field_reason = _redact_payload_value(value)
-        redacted[key] = new_value
-        if changed:
-            applied = True
-            reason = field_reason or reason
+    redacted, applied = apply_profile_to_payload(
+        payload,
+        profile=DEFAULT_TRACE_EXPORT_PROFILE,
+    )
+    reason = "profile_strict" if applied else None
     return redacted, applied, reason
 
 

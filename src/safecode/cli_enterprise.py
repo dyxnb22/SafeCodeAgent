@@ -32,6 +32,8 @@ from safecode.enterprise.workflow.orchestrator import LocalOrchestrator, build_i
 from safecode.enterprise.workflow.types import TaskType
 from safecode.enterprise.trace.timeline import build_timeline, serialize_timeline, write_timeline
 from safecode.enterprise.trace.render_markdown import render_markdown
+from safecode.enterprise.trace.redaction import DebugTraceNotAllowed, resolve_export_profile
+from safecode.enterprise.policy.resolver import resolve_policy
 from safecode.enterprise.workflow.exceptions import CheckpointCorruptedError, InvalidRunIdError
 from safecode.enterprise.workflow.checkpoint import load_checkpoint
 
@@ -299,6 +301,10 @@ def trace_export(
     run_id: str = typer.Argument(..., help="Run identifier."),
     root: Path = typer.Option(None, "--root", help="Project root (defaults to cwd)."),
     json_output: bool = typer.Option(True, "--json/--no-json", help="Write timeline JSON."),
+    profile: str = typer.Option("strict", "--profile", help="Trace export profile."),
+    config_root: Optional[Path] = typer.Option(
+        None, "--config-root", help="Enterprise config root."
+    ),
 ) -> None:
     """Export a canonical run timeline JSON artifact."""
     project_root = (root or Path.cwd()).resolve()
@@ -308,6 +314,11 @@ def trace_export(
     except (InvalidRunIdError, CheckpointCorruptedError, FileNotFoundError):
         typer.echo("Run not found.", err=True)
         raise typer.Exit(code=1)
+    try:
+        resolve_export_profile(resolve_policy(project_root, config_root=config_root), requested=profile)
+    except DebugTraceNotAllowed as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
     if json_output:
         path = write_timeline(sac_root, run_id)
         typer.echo(path.read_text(encoding="utf-8"))
@@ -321,6 +332,10 @@ def trace_show(
     run_id: str = typer.Argument(..., help="Run identifier."),
     root: Path = typer.Option(None, "--root", help="Project root (defaults to cwd)."),
     out: Optional[Path] = typer.Option(None, "--out", help="Optional output Markdown path."),
+    profile: str = typer.Option("strict", "--profile", help="Trace export profile."),
+    config_root: Optional[Path] = typer.Option(
+        None, "--config-root", help="Enterprise config root."
+    ),
 ) -> None:
     """Render a Markdown dashboard for a workflow run."""
     project_root = (root or Path.cwd()).resolve()
@@ -330,6 +345,11 @@ def trace_show(
     except (InvalidRunIdError, CheckpointCorruptedError, FileNotFoundError):
         typer.echo("Run not found.", err=True)
         raise typer.Exit(code=1)
+    try:
+        resolve_export_profile(resolve_policy(project_root, config_root=config_root), requested=profile)
+    except DebugTraceNotAllowed as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
     markdown = render_markdown(build_timeline(sac_root, run_id))
     if out is not None:
         out.write_text(markdown, encoding="utf-8")
