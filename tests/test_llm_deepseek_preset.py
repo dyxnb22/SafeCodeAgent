@@ -74,6 +74,19 @@ class TestDeepSeekFactory:
             client = _create_single_client(cfg)
         assert isinstance(client, OpenAICompatibleLLMClient)
 
+    def test_factory_uses_deepseek_keychain_when_env_missing(self):
+        from safecode.llm.factory import _create_single_client
+
+        cfg = self._make_config()
+        env = {k: v for k, v in os.environ.items()
+               if k not in ("DEEPSEEK_API_KEY", "OPENAI_API_KEY", "SAFECODE_LLM_API_KEY")}
+        with (
+            patch.dict(os.environ, env, clear=True),
+            patch("safecode.security.keychain.get_api_key", return_value="sk-keychain-deepseek"),
+        ):
+            client = _create_single_client(cfg)
+        assert client.api_key == "sk-keychain-deepseek"
+
     def test_factory_applies_preset_base_url_when_default(self):
         from safecode.llm.factory import _create_single_client
         from safecode.llm.openai_client import OpenAICompatibleLLMClient

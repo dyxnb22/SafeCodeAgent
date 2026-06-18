@@ -179,5 +179,8 @@ def test_tools_marks_approval_required(tmp_path: Path):
 # ---------------------------------------------------------------------------
 
 def test_new_slash_commands_in_list():
-    for cmd in ("/undo", "/history", "/tools", "/timeline", "/sessions", "/resume"):
+    for cmd in (
+        "/undo", "/history", "/tools", "/continue", "/memory", "/ready",
+        "/doctor", "/demo", "/smoke", "/timeline", "/sessions", "/resume",
+    ):
         assert cmd in _SLASH_COMMANDS

@@ -56,8 +56,9 @@ v7.0.1 aligned package/runtime metadata, README claims, project status docs,
 version summary, `.claude/versions.json`, and this skill baseline with the
 v7.0.x line.
 
-Current forward plan:
-`docs/version-plans/v7.0.x-agent-productization-followup.md`
+Current forward planning:
+`docs/version-plans/_template.md`; completed planning is summarized in
+`docs/planning-history.md`.
 
 ## v6.29–v7.0 stabilization train
 
@@ -163,14 +164,14 @@ Next: `docs/version-plans/v5.6-to-v5.8-product-roadmap.md` (quality, security, c
 v5.4.x train (3 versions):
 - `v5.4.0`: MCPNativeToolBridge — MCP read tools as NativeToolSpecs; register_mcp_tools in _build_dispatcher; sac mcp list-native
 - `v5.4.1`: MCP write execution — write_proposal_required scope; _handle_mcp_write_proposal; sac mcp execute --grant-id
-- `v5.4.2`: MCP docs cut — README, providers.md, mvp-user-guide, troubleshooting; matrix rows
+- `v5.4.2`: MCP docs cut — README, providers.md, user-guide, troubleshooting; matrix rows
 
 v5.5.x train (3 versions):
 - `v5.5.0`: PyPI release CI job — release job in ci.yml triggered on vX.Y.0 tags; needs test; SAFECODE_PUBLISH=1; release preflight + publish --no-dry-run; 11 new CI matrix tests
 - `v5.5.1`: Homebrew formula — scripts/update-brew-formula.sh; sac release publish --update-brew; _run_update_brew_formula helper; Formula/safecode-agent.rb template
 - `v5.5.2`: Production docs cut — install-update.md install matrix; project-final-status v5.5.2 baseline; README "Production (v5.5)"
 
-Previous: `v4.8.2` final-v4-shell-first-docs-cut — T-4.8.2-A v4.8-final-docs-cut: README adds Python tutorial link and task-first daily loop summary (17-command surface, v4.x train complete, no v5.0 promise); `docs/mvp-user-guide.md` updated to v4.8.x with new Task-First Daily Loop section; `docs/public-contracts.md` adds v4.x series contract summary (zero new stable contracts v4.0–v4.8, all new surfaces EXPERIMENTAL); `docs/versioning-policy.md` adds v4.x train closure section and policy changelog entry; `docs/security/threat-model-v3.6.md` adds v4.x shell-first addendum table (task/profile/resume/commit/memory/debug/smoke surfaces). All existing tests pass; no stable public contract promoted; v4.x train is complete.
+Previous: `v4.8.2` final-v4-shell-first-docs-cut — T-4.8.2-A v4.8-final-docs-cut: README adds Python tutorial link and task-first daily loop summary (17-command surface, v4.x train complete, no v5.0 promise); `docs/user-guide.md` updated to v4.8.x with new Task-First Daily Loop section; `docs/public-contracts.md` adds v4.x series contract summary (zero new stable contracts v4.0–v4.8, all new surfaces EXPERIMENTAL); `docs/versioning-policy.md` adds v4.x train closure section and policy changelog entry; `docs/security/threat-model-v3.6.md` adds v4.x shell-first addendum table (task/profile/resume/commit/memory/debug/smoke surfaces). All existing tests pass; no stable public contract promoted; v4.x train is complete.
 
 Previous: `v4.8.1` v4-tutorials-and-doc-guards — T-4.8.1-A tutorials-v4-rewrite: three tutorials rewritten around the v4.x task-first daily loop (`sac quickstart` → `sac task new` → `sac profile detect` → `sac status` → `sac ask` → `sac edit` or `sac fix --watch` → `sac apply` → `sac commit` → `sac debug last-failure`/`bundle`); all tutorials honest: no auto-apply, no auto-commit, no push, no live provider required, no IDE required; all v4.x surfaces marked EXPERIMENTAL; new `docs/tutorials/python-first-hour.md` (12 sections), `docs/tutorials/typescript-first-hour.md` rewritten, `docs/tutorials/go-first-hour.md` rewritten. T-4.8.1-B docs-claims-guard-extend: new `tests/test_docs_claims_guard.py` with 46 tests verifying tutorial existence, daily-loop coverage, honesty guards (no auto-apply/commit/push/live-provider-requirement), command existence, stack-specific content, failure taxonomy command existence, and visible command documentation coverage. No stable public contract promoted.
 
@@ -202,13 +203,13 @@ Previous: `v4.3.1` fix-loop-guards — T-4.3.1-A no-progress-stop: `sac fix --wa
 
 Previous: `v4.3.0` fix-watch-mode — T-4.3.0-A fix-loop-iteration-record: `TaskIteration` now carries experimental fix-loop metadata (`mode`, `suite`, `exit_code`, `tail_hash`, `pending_patch_path`, `status`, `created_at`) while preserving existing v4.1 fields; `record_fix_on_task()` stores one append-only record per fix proposal/failure using sha256 of a bounded redacted tail; plain `sac fix` records proposed pending-patch details without changing PatchProposal or AuditEvent. T-4.3.0-B fix-watch-mode: `sac fix --watch [--max-iterations N=3] [--rerun-suite test]`; one invocation runs the selected test command, proposes a pending patch on failure, exits with next step `sac apply` then rerun; after apply, a later watch rerun can mark the task passing/applied. `--watch` never auto-applies. JSON output includes task_id, iteration_index, test_command, test_exit_code, pending_patch_path, next_step. 2 new test files plus extended sac fix tests; targeted slice green.
 
-`v4.2.2` project-tooling-doctor-and-docs — T-4.2.2-A doctor-missing-deps: `Doctor._project_tooling_diagnostics()` in `src/safecode/doctor.py`; no profile → single SKIP "run sac profile detect"; with profile → one diagnostic per kind: PASS (detected+binary present), SKIP (not detected or missing_dependency=True); missing tool → SKIP not FAIL; SKIP includes binary name + "sac profile set <kind>" hint; 4 diagnostics per kind (project_tooling_test/_lint/_typecheck/_build); preserves diagnostic substrate contract. T-4.2.2-B v4.2-docs-cut: README "Profile commands (v4.2, EXPERIMENTAL)" section with detect/show/set/clear/run suite; docs/mvp-user-guide.md updated to v4.2.x + full profile flow section; docs/troubleshooting.md missing-tool guidance; all v4.2 surfaces EXPERIMENTAL. 30 new tests; full suite 4005 passed, 2 skipped; contract snapshots green.
+`v4.2.2` project-tooling-doctor-and-docs — T-4.2.2-A doctor-missing-deps: `Doctor._project_tooling_diagnostics()` in `src/safecode/doctor.py`; no profile → single SKIP "run sac profile detect"; with profile → one diagnostic per kind: PASS (detected+binary present), SKIP (not detected or missing_dependency=True); missing tool → SKIP not FAIL; SKIP includes binary name + "sac profile set <kind>" hint; 4 diagnostics per kind (project_tooling_test/_lint/_typecheck/_build); preserves diagnostic substrate contract. T-4.2.2-B v4.2-docs-cut: README "Profile commands (v4.2, EXPERIMENTAL)" section with detect/show/set/clear/run suite; docs/user-guide.md updated to v4.2.x + full profile flow section; docs/troubleshooting.md missing-tool guidance; all v4.2 surfaces EXPERIMENTAL. 30 new tests; full suite 4005 passed, 2 skipped; contract snapshots green.
 
 Previous: `v4.2.1` run-suite-and-fix-profile — T-4.2.1-A sac-run-suite: `sac run --suite test|lint|typecheck|build`; reads `.sac/project_profile.json`; missing profile → "run sac profile detect" guidance (exit 1); missing kind → actionable next-step (exit 1); auto-approved (treated as --yes=True); high-risk still blocked via policy; exit codes 125/126 per v2.8.8; audit/task wiring unchanged from sac run. T-4.2.1-B fix-uses-profile: `sac fix` precedence: --test-command > profile test command > ProjectTestDetector; profile never auto-set by `sac fix`. 43 new tests; full suite 3991 passed, 2 skipped; contract snapshots green.
 
 Previous: `v4.2.0` project-profile — T-4.2.0-A project-profile-detector: new `src/safecode/project/profile.py`; `ProjectProfile` Pydantic model (payload_version=1, test/lint/typecheck/build: ProfileCommand|None, user_overrides: frozenset[str]); `ProfileCommand` (command: tuple[str,...], stack, source: detected|user|none, missing_dependency: bool); atomic persist to `.sac/project_profile.json`; detect for Python (pytest/ruff/mypy), Node (npm/pnpm/yarn package.json scripts), Go (go test/vet/build), Rust (cargo test/clippy/check/build); missing tool → missing_dependency=True (command kept visible); user overrides survive detect and always win; detection never executes project commands. T-4.2.0-B sac-profile-cli: new `src/safecode/cli_profile.py`; `sac profile detect|show|set <kind> "<cmd>"|clear <kind>`; `set` parses with shlex.split and rejects ; | & $ ` and newline; `show --json` deterministic; profile_app registered in cli.py; fixed matrix heading from v4.0.1 to v4.1.2. 87 new tests; full suite 3972 passed, 2 skipped; contract snapshots green.
 
-Previous: `v4.1.2` task-history-filter-and-docs — T-4.1.2-A history-task-filter: `sac history --task <id>` (EXPERIMENTAL) filters audit table to events with exact `metadata.task_id` match; `AuditLogger.read_by_task_id(task_id, limit=200)` added (empty id → [], missing file → [], corrupted lines skipped, raw events returned); `AuditEvent` field set unchanged. T-4.1.2-B v4.1-docs-cut: README Core Commands updated with `sac task`, `sac status`, `sac history --task` (all EXPERIMENTAL); `docs/mvp-user-guide.md` version updated to v4.1.x and "Task-First Flow (v4.1, EXPERIMENTAL)" section added. 17 new targeted tests; full suite 3885 passed, 2 skipped; contract snapshots green.
+Previous: `v4.1.2` task-history-filter-and-docs — T-4.1.2-A history-task-filter: `sac history --task <id>` (EXPERIMENTAL) filters audit table to events with exact `metadata.task_id` match; `AuditLogger.read_by_task_id(task_id, limit=200)` added (empty id → [], missing file → [], corrupted lines skipped, raw events returned); `AuditEvent` field set unchanged. T-4.1.2-B v4.1-docs-cut: README Core Commands updated with `sac task`, `sac status`, `sac history --task` (all EXPERIMENTAL); `docs/user-guide.md` version updated to v4.1.x and "Task-First Flow (v4.1, EXPERIMENTAL)" section added. 17 new targeted tests; full suite 3885 passed, 2 skipped; contract snapshots green.
 
 Previous: `v4.1.1` sac-status-and-task-wiring — T-4.1.1-A sac-status-cmd: new `src/safecode/cli_status.py`; `sac status [--json]`; pure `next_step(state, pending_patch_exists)` truth table; TTY/non-TTY deterministic; never writes audit events. T-4.1.1-B wire-edit-apply-rollback-into-task: new `src/safecode/task/wiring.py`; `get_or_create_current_task()` + record helpers; `sac edit|apply|rollback|fix|run` now attach to CURRENT task; task sidecar mutated on each command; `AuditLogger.write()` extended with optional `task_id` keyword stuffed into metadata; AuditEvent field set unchanged. 26 new tests; full suite 3868 passed, 2 skipped.
 
@@ -248,7 +249,7 @@ Previous: `v3.8.1` MCP per-server scopes + doctor — `MCPServerConfig.scope` fi
 
 Previous: `v3.8.0` MCP stdio wire + lifecycle — `StdioReadOnlyAdapter` wired into `MCPReadOnlyRunner.call_readonly` behind `SAFECODE_MCP_STDIO_RUNNER=1` env var / `stdio_runner=True` constructor param; classification gate always runs before stdio call; server-supplied classification ignored. `MCPLifecycleManager` (start/stop/restart) added in `src/safecode/mcp/lifecycle.py`; PID files at `.sac/mcp/<server>.pid`; stop() idempotent; each transition emits RuntimeLogger + AuditEvent. `sac mcp start/stop/restart` CLI commands (all [EXPERIMENTAL]). 19 new tests in `tests/test_mcp_stdio_wired.py`, 32 new tests in `tests/test_mcp_lifecycle.py`, 2 tests updated in `tests/test_mcp_stdio_runner.py`. Full suite: 3465 passed, 2 skipped.
 
-Previous: `v3.7.3` v3.7.x docs cut — `README.md` Core Commands updated: `sac setup --wizard`, `sac fix`, `sac fix --test-command`, `--json` usage documented. `docs/mvp-user-guide.md` updated: intro references v3.7.x; quickstart documents stack detection; new "Interactive setup wizard" subsection; new "Fixing failing tests with sac fix" section; new "Machine-readable output" section with stable JSON envelope contract reference. No runtime changes. Full suite: 3414 passed, 2 skipped.
+Previous: `v3.7.3` v3.7.x docs cut — `README.md` Core Commands updated: `sac setup --wizard`, `sac fix`, `sac fix --test-command`, `--json` usage documented. `docs/user-guide.md` updated: intro references v3.7.x; quickstart documents stack detection; new "Interactive setup wizard" subsection; new "Fixing failing tests with sac fix" section; new "Machine-readable output" section with stable JSON envelope contract reference. No runtime changes. Full suite: 3414 passed, 2 skipped.
 
 Previous: `v3.7.2` repo recency signal + JSON envelope promotion — `src/safecode/context/selector.py` extended: `ContextSelector._recent_files()` runs `git log -n50 --name-only`, caches by HEAD, adds `_RECENCY_BONUS=2` to keyword-matched files that appear in recent commits; git failures fall back silently; 22 new tests in `tests/test_context_recency.py`. `CLIJSONResponse` promoted to stable contract in `docs/public-contracts.md` Section 11; snapshot at `tests/snapshots/contracts/cli_json_envelope.json`; 12 new tests in `TestCLIJSONEnvelopeContract`; `TestCrossContractDeterminism` extended. Full suite: 3414 passed, 2 skipped.
 
@@ -258,7 +259,7 @@ Previous: `v3.7.0` sac fix + stack-aware quickstart — `src/safecode/cli_fix.py
 
 Previous: `v3.6.6` Commercial v1 cut — metadata-only release marker; version bumped to 3.6.6; `.claude/versions.json` updated; version matrix rows for v3.6.4–v3.6.6 added. No runtime changes.
 
-Previous: `v3.6.5` Landing documentation — `docs/why-safecode.md`, `docs/compare.md`, `docs/troubleshooting.md` added; all linked from `README.md`; claims aligned with public contracts; experimental surfaces labeled; 20 new tests in `tests/test_landing_docs.py`.
+Previous: `v3.6.5` Landing documentation — `docs/why-safecode.md`, `docs/why-safecode.md`, `docs/troubleshooting.md` added; all linked from `README.md`; claims aligned with public contracts; experimental surfaces labeled; 20 new tests in `tests/test_landing_docs.py`.
 
 Previous: `v3.6.4` Threat model documentation — `docs/security/threat-model-v3.6.md` added; covers 9 threat personas; semi-annual review cadence; 14 new tests in `tests/test_threat_model_docs.py`.
 
@@ -684,9 +685,9 @@ Key additions:
 - 20 new tests in `tests/test_sandbox_backend_strategy.py` proving strategy is independently testable.
 
 ## Current Forward Plan
-The current project status is `docs/project-final-status-and-roadmap.md`.
-The active post-v4.14 forward plan is
-`docs/version-plans/post-v4.14-usability-roadmap.md`.
+The current project status is `docs/current-status.md`.
+No active version plan is open. Use `docs/version-plans/_template.md` for new
+planning and `docs/planning-history.md` for completed roadmap context.
 
 Planning stance:
 - v4.10-v4.12 resume MVP is complete as of v4.12.3; v4.12.4 only tracks the FastAPI todo project profile.
@@ -761,7 +762,7 @@ Key additions:
 - `sac quickstart` checks/creates `.sac/config.toml`, displays provider/policy, recommends a demo workflow, prints next-step commands.
 - `--demo` materializes the recommended demo project; `--force` overwrites existing config.
 - `--yes` skips confirmation (CI-safe). Never claims edit/apply ran.
-- README Core Commands updated to include `quickstart`; `docs/mvp-user-guide.md` adds quickstart path.
+- README Core Commands updated to include `quickstart`; `docs/user-guide.md` adds quickstart path.
 - 8 new tests in `tests/test_quickstart.py`.
 
 ## v2.7.4 (Release Surface Honesty Lite)
@@ -842,7 +843,7 @@ Key additions:
 `src/safecode/release/changelog.py` added. `src/safecode/cli_ops.py` exposes `sac release changelog --from X.Y.Z --to X.Y.Z`.
 
 Key additions:
-- Generates Markdown from local `docs/version-notes/vX.Y.Z-*.md` files without writing files.
+- Generates Markdown from local `docs/release-ledger.md` entries without writing files.
 - Parses first Markdown heading and `## Summary` content for each included release.
 - `tests/test_release_changelog.py` adds parser, renderer, and CLI coverage.
 
@@ -867,7 +868,7 @@ Key additions:
 
 Key additions:
 - Version-note files for the current version must have a first Markdown heading that mentions `vX.Y.Z`.
-- Duplicate `docs/version-notes/vX.Y.Z-*.md` files are reported as metadata issues.
+- Missing `docs/release-ledger.md` entries are reported as metadata issues.
 - `tests/test_release_metadata.py` adds focused heading and duplicate-note coverage.
 
 ## v2.6.11 (Release Preflight)
@@ -892,7 +893,7 @@ Key additions:
 `src/safecode/release/docs_guard.py` added. `smoke.py` gains `_check_docs_finalized()` case. `docs/install-update.md` updated with release command section.
 
 Key additions:
-- `check_docs_finalized()`: verifies version-note exists, SKILL.md mentions version, README/docs/install-update mentions release commands.
+- `check_docs_finalized()`: verifies release-ledger entry exists and README/docs/install-update mentions release commands.
 - Integrated into `run_smoke_tests()` as a fast, local, deterministic check.
 - `tests/test_release_docs_guard.py` adds focused pass/fail tests.
 
@@ -929,7 +930,7 @@ Key additions:
 - Smoke checks are fast, local-only, and do not mutate config.
 
 ## v2.6.4 (Policy Docs Hardening)
-`README.md`, `docs/install-update.md`, and `docs/version-notes/v2.6.4-policy-docs-hardening.md` updated.
+`README.md`, `docs/install-update.md`, and release documentation updated.
 
 Key additions:
 - Policy docs now distinguish canonical names (`strict`, `balanced`, `experimental`) from legacy aliases (`normal`, `learning`).

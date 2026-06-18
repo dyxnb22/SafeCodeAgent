@@ -14,7 +14,7 @@ def test_checklist_normalizes_version_prefix() -> None:
 def test_checklist_includes_bump_flow() -> None:
     text = render_release_checklist("v2.6.16")
     assert "sac release bump 2.6.16" in text
-    assert "docs/version-notes/v2.6.16-<summary>.md" in text
+    assert "docs/release-ledger.md" in text
 
 
 def test_checklist_includes_release_gates() -> None:

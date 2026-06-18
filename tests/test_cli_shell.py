@@ -87,6 +87,128 @@ class TestShellTTYBehaviour:
         assert result.exit_code == 0
         assert "task_id" in result.output
 
+    def test_non_tty_status_is_workspace_dashboard(self, tmp_path, monkeypatch):
+        """In-shell /status should be the main product dashboard, not task-only output."""
+        from typer.testing import CliRunner
+        from safecode.cli import app
+
+        monkeypatch.chdir(tmp_path)
+        runner = CliRunner()
+        result = runner.invoke(app, ["shell", "--non-tty"], input="/status\n/exit\n")
+
+        assert result.exit_code == 0
+        for label in ("Provider", "Task", "Session", "Memory", "Safety", "Workspace", "Next"):
+            assert label in result.output
+        assert "credential:" in result.output
+        assert "approved facts:" in result.output
+        assert "network:" in result.output
+
+    def test_non_tty_continue_without_session_explains_next_step(self, tmp_path, monkeypatch):
+        """In-shell /continue should guide instead of failing when there is no active session."""
+        from typer.testing import CliRunner
+        from safecode.cli import app
+
+        monkeypatch.chdir(tmp_path)
+        runner = CliRunner()
+        result = runner.invoke(app, ["shell", "--non-tty"], input="/continue\n/exit\n")
+
+        assert result.exit_code == 0
+        assert "No active agent session" in result.output
+        assert "Next:" in result.output
+
+    def test_non_tty_continue_advances_active_agent_session(self, tmp_path, monkeypatch):
+        """In-shell /continue advances one safe mock-backed agent step."""
+        from typer.testing import CliRunner
+        from safecode.agent.session import AgentSessionStore
+        from safecode.cli import app
+
+        monkeypatch.chdir(tmp_path)
+        state = AgentSessionStore(tmp_path).start("continue safely", plan=["inspect", "summarize"])
+
+        runner = CliRunner()
+        result = runner.invoke(app, ["shell", "--non-tty"], input="/continue\n/exit\n")
+
+        assert result.exit_code == 0
+        assert "Continued one safe agent step" in result.output
+        updated = AgentSessionStore(tmp_path).load()
+        assert updated is not None
+        assert updated.session_id == state.session_id
+        assert updated.current_step == 1
+
+    def test_non_tty_continue_does_not_apply_pending_patch(self, tmp_path, monkeypatch):
+        """In-shell /continue must not cross the patch approval gate."""
+        from typer.testing import CliRunner
+        from safecode.cli import app
+
+        monkeypatch.chdir(tmp_path)
+        pending = tmp_path / ".sac" / "pending_patch.json"
+        pending.parent.mkdir(parents=True)
+        pending.write_text("{}", encoding="utf-8")
+
+        runner = CliRunner()
+        result = runner.invoke(app, ["shell", "--non-tty"], input="/continue\n/exit\n")
+
+        assert result.exit_code == 0
+        assert "Pending patch is ready" in result.output
+        assert "Next: /apply" in result.output
+        assert pending.exists()
+
+    def test_non_tty_ready_reports_readiness_card(self, tmp_path, monkeypatch):
+        from typer.testing import CliRunner
+        from safecode.cli import app
+
+        monkeypatch.chdir(tmp_path)
+        result = CliRunner().invoke(app, ["shell", "--non-tty"], input="/ready\n/exit\n")
+
+        assert result.exit_code == 0
+        assert "Readiness:" in result.output
+        assert "Provider:" in result.output
+        assert "Credential:" in result.output
+
+    def test_non_tty_memory_show_and_teach(self, tmp_path, monkeypatch):
+        from typer.testing import CliRunner
+        from safecode.cli import app
+
+        monkeypatch.chdir(tmp_path)
+        runner = CliRunner()
+        result = runner.invoke(
+            app,
+            ["shell", "--non-tty"],
+            input='/memory teach "always run pytest -q before commit"\n/memory\n/exit\n',
+        )
+
+        assert result.exit_code == 0
+        assert "Memory Note Added" in result.output
+        assert "Memory" in result.output
+        assert "Injected project notes: yes" in result.output
+
+    def test_non_tty_memory_review_lists_pending_facts(self, tmp_path, monkeypatch):
+        from typer.testing import CliRunner
+        from safecode.cli import app
+        from safecode.memory.facts import ProjectFactStore
+
+        monkeypatch.chdir(tmp_path)
+        fact = ProjectFactStore(tmp_path / ".sac").propose("test_command", "pytest -q", source="auto")
+        assert fact is not None
+
+        result = CliRunner().invoke(app, ["shell", "--non-tty"], input="/memory review\n/exit\n")
+
+        assert result.exit_code == 0
+        assert "Memory Review" in result.output
+        assert fact.fact_id[:8] in result.output
+
+    def test_non_tty_demo_shows_safe_path(self, tmp_path, monkeypatch):
+        from typer.testing import CliRunner
+        from safecode.cli import app
+
+        monkeypatch.chdir(tmp_path)
+        result = CliRunner().invoke(app, ["shell", "--non-tty"], input="/demo\n/exit\n")
+
+        assert result.exit_code == 0
+        assert "Safe First-Run Demo" in result.output
+        assert "/status" in result.output
+        assert "/apply" in result.output
+
     def test_non_tty_task(self, tmp_path, monkeypatch):
         """Non-TTY /task returns task details."""
         from typer.testing import CliRunner

@@ -96,7 +96,7 @@ See [docs/install-update.md](docs/install-update.md) for the full install matrix
 | **Plan / Build mode** | `--mode plan` (read-only) / `--mode build` | Not exposed | Plan / Act |
 | **LLM providers** | Anthropic, OpenAI-compat, DeepSeek, mock | Anthropic only | Multi-model |
 | **Live eval** | 38 default fixtures + DeepSeek API artifact + dashboard | Internal evals | Not documented |
-| **Offline / no key** | Full mock mode; all 6000+ tests pass keyless | Requires key | Requires key |
+| **Offline / no key** | Full mock mode; fast local suite runs keyless (~6k tests) | Requires key | Requires key |
 | **Install** | `pipx install safecode-agent` | `npm i -g @anthropic-ai/claude-code` | Various |
 | **IDE** | Terminal only (by design) | Terminal + VS Code + JetBrains | Terminal + IDE |
 
@@ -132,8 +132,8 @@ Generate the current local eval rollup with:
 sac eval --mode dashboard
 ```
 
-See [docs/benchmark-results-deepseek-v4-flash-2026-06-17-v7.1.5.md](docs/benchmark-results-deepseek-v4-flash-2026-06-17-v7.1.5.md)
-for the full per-fixture breakdown (v7.1.5 targeted audit run).
+See [docs/evaluation.md](docs/evaluation.md) for live
+eval snapshots and the v7.1.5 targeted audit run.
 
 ---
 
@@ -147,7 +147,8 @@ sac shell --agentic --mode build       # agent can propose + auto-apply
 sac shell --agentic --full-auto        # auto-apply AUTO and CONFIRM tiers
 ```
 
-Inside the shell: `/status` `/mode` `/history` `/compact` `/apply` `/undo` `/commit` `/tools` `/exit`  
+Inside the shell, start with `/status`; use `/continue` for the next safe step,
+`/ready` for setup checks, and `/memory` to inspect what will enter context.
 See [docs/tutorials/ai-shell-first-hour.md](docs/tutorials/ai-shell-first-hour.md) for a step-by-step guide.
 
 **Agent run (non-interactive):**
@@ -179,6 +180,12 @@ sac session resume <session-id>
 sac commit --ai                # LLM-generated conventional-commit message
 sac commit --ai --dry-run      # preview without committing
 ```
+
+For interactive work, run bare `sac` and start with `/status`. The shell status
+view is the main dashboard for provider/model readiness, current task, active
+session, memory, safety policy, git state, and the next safe action. `/continue`
+will either advance one safe agent step or explain the exact blocker; it never
+crosses the `/apply` or `/commit` approval gates.
 
 **Read-only subagent roles [EXPERIMENTAL]:**
 ```bash
@@ -247,7 +254,7 @@ SAFECODE_DEEPSEEK_API_KEY=sk-... python scripts/run_live_eval_deepseek.py
 ## Development
 
 ```bash
-PYTHONPATH=src python3 -m pytest -q          # full suite (~90s, keyless)
+PYTHONPATH=src python3 -m pytest -q -m "not slow"  # fast local suite (~90s, keyless)
 PYTHONPATH=src python3 -m pytest -q -x       # stop on first failure
 scripts/test-fast.sh                         # fast subset, skips slow checks
 ```
@@ -281,7 +288,7 @@ sac apply
 sac rollback --last    # undo if needed
 ```
 
-See [docs/mvp-user-guide.md](docs/mvp-user-guide.md) for the complete first-run guide.
+See [docs/user-guide.md](docs/user-guide.md) for the complete first-run guide.
 
 ---
 
@@ -303,9 +310,8 @@ See the approval tiers table above for what each tier covers.
 
 | Doc | Purpose |
 |---|---|
-| [docs/mvp-user-guide.md](docs/mvp-user-guide.md) | End-to-end first run |
-| [docs/compare.md](docs/compare.md) | Comparison with alternative approaches |
-| [docs/why-safecode.md](docs/why-safecode.md) | Design rationale |
+| [docs/user-guide.md](docs/user-guide.md) | End-to-end first run |
+| [docs/why-safecode.md](docs/why-safecode.md) | Design rationale and comparison |
 | [docs/troubleshooting.md](docs/troubleshooting.md) | Common issues |
 | [docs/public-contracts.md](docs/public-contracts.md) | Stable API contracts |
 | [docs/providers.md](docs/providers.md) | LLM provider configuration |
@@ -313,4 +319,4 @@ See the approval tiers table above for what each tier covers.
 | [docs/install-update.md](docs/install-update.md) | Install, update, signing |
 | [docs/security/threat-model-v3.6.md](docs/security/threat-model-v3.6.md) | Threat model |
 | [docs/context-budgets.md](docs/context-budgets.md) | Token budget reference |
-| [docs/benchmark-results-deepseek-v4-flash-2026-06-17-v7.1.5.md](docs/benchmark-results-deepseek-v4-flash-2026-06-17-v7.1.5.md) | DeepSeek v4-flash eval results (v7.1.5) |
+| [docs/evaluation.md](docs/evaluation.md) | DeepSeek live eval snapshots |

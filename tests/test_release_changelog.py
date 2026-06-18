@@ -16,6 +16,16 @@ def _write_note(notes_dir: Path, name: str, heading: str, summary: str) -> None:
     )
 
 
+def _write_ledger(root: Path, entries: list[tuple[str, str, str]]) -> Path:
+    ledger = root / "docs" / "release-ledger.md"
+    ledger.parent.mkdir(parents=True, exist_ok=True)
+    lines = ["# SafeCode Release Ledger", ""]
+    for version, title, summary in entries:
+        lines.extend([f"## v{version} - {title}", "", summary, ""])
+    ledger.write_text("\n".join(lines), encoding="utf-8")
+    return ledger
+
+
 class TestGenerateChangelog:
     def test_includes_versions_in_range(self, tmp_path):
         notes = tmp_path / "docs" / "version-notes"
@@ -70,8 +80,7 @@ class TestRenderChangelog:
 
 class TestReleaseChangelogCLI:
     def test_cli_changelog_success(self, tmp_path, monkeypatch):
-        notes = tmp_path / "docs" / "version-notes"
-        _write_note(notes, "v2.6.15-release-changelog-generator.md", "v2.6.15 — Changelog", "Builds changelog.")
+        _write_ledger(tmp_path, [("2.6.15", "Changelog", "Builds changelog.")])
         monkeypatch.chdir(tmp_path)
         result = CliRunner().invoke(app, ["release", "changelog", "--from", "2.6.15", "--to", "2.6.15"])
         assert result.exit_code == 0
@@ -84,9 +93,13 @@ class TestReleaseChangelogCLI:
         assert result.exit_code == 1
 
     def test_cli_changelog_recent_success(self, tmp_path, monkeypatch):
-        notes = tmp_path / "docs" / "version-notes"
-        _write_note(notes, "v2.6.14-release-command-ux-polish.md", "v2.6.14 — UX", "UX polish.")
-        _write_note(notes, "v2.6.15-release-changelog-generator.md", "v2.6.15 — Changelog", "Builds changelog.")
+        _write_ledger(
+            tmp_path,
+            [
+                ("2.6.14", "UX", "UX polish."),
+                ("2.6.15", "Changelog", "Builds changelog."),
+            ],
+        )
         monkeypatch.chdir(tmp_path)
         result = CliRunner().invoke(app, ["release", "changelog", "--recent", "1"])
         assert result.exit_code == 0

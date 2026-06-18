@@ -70,6 +70,51 @@ secrets from context before sending to the LLM.
 - **Not a network proxy.** Network access is disabled by default. SafeCode does
   not intercept or proxy your outbound traffic.
 
+## Comparison
+
+Claims here are limited to observable behaviours described in
+[docs/public-contracts.md](public-contracts.md) and tested in the test suite.
+
+| Aspect | Raw LLM | SafeCode Agent |
+|--------|---------|----------------|
+| Diff preview | Manual copy-paste | Rich per-file panels before apply |
+| Write gate | None | Explicit `sac apply` or tier-gated auto-apply |
+| Rollback | `git checkout` | `sac rollback --last` or session rollback |
+| Audit log | None | Append-only JSONL with hash chain |
+| Context control | Manual | Budget-limited, secret-filtered, git-aware |
+| Shell execution | None | Policy-gated, risk-classified |
+
+Compared with fully autonomous agents, SafeCode optimizes for control:
+`--full-auto` reduces stops for lower-risk tiers, but GATE-tier operations such
+as delete, shell, network, push, and `.env` access still stop for review. The
+audit log records both manual approvals and auto-approvals.
+
+Compared with git-only workflows, SafeCode creates a checkpoint before the
+write and records why the agent wanted the change. Use both: git for branch and
+project history, SafeCode for controlled AI-assisted edits within a branch.
+
+Compared with editor extensions, SafeCode keeps the approval loop in the
+terminal and applies the same checkpoint/audit path regardless of which editor
+you use.
+
+## Capability Summary
+
+| Capability | Status |
+|-----------|--------|
+| Diff preview before write | Stable |
+| Explicit write gate (`sac apply`) | Stable |
+| Rollback (`sac rollback --last`) | Stable |
+| Append-only audit log (hash-chain) | Stable |
+| Policy-gated shell execution | Stable |
+| Config precedence (project cannot lower user safety) | Stable |
+| Conversation-backed agentic shell (`sac shell --agentic`) | Experimental |
+| Plan / Build shell mode (`--mode plan\|build`) | Experimental |
+| Approval tiers (`auto` / `confirm` / `gate`) | Experimental |
+| Global symbol search (`search_symbol`, ripgrep + AST) | Stable |
+| Sandbox planning (Docker, Seatbelt, Bubblewrap) | Preview |
+| MCP read-only execution | Stable |
+| MCP write proposals | Experimental |
+
 ## Experimental Surfaces
 
 The following capabilities are explicitly experimental as of v3.6:
@@ -96,4 +141,4 @@ uv run sac quickstart   # guided first-run
 uv run sac doctor       # check your setup
 ```
 
-See [docs/mvp-user-guide.md](mvp-user-guide.md) for a complete walkthrough.
+See [docs/user-guide.md](user-guide.md) for a complete walkthrough.

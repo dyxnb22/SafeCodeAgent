@@ -15,7 +15,7 @@
 ## Verification
 - Default full regression command: `PYTHONPATH=src python3 -m pytest -q`.
 - For narrow changes, run the closest targeted tests first, then full tests when risk is cross-cutting.
-- Update `docs/version_implementation_matrix.md` and `docs/version-notes/` when a version changes behavior or acceptance commands.
+- Update `docs/version_implementation_matrix.md` and `docs/release-ledger.md` when a version changes behavior or acceptance commands.
 
 ## Git
 - Branch names for this repository intentionally do not use the `codex/` prefix.

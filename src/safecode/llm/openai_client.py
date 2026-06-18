@@ -86,6 +86,17 @@ def _extract_patch_envelope(text: str) -> str:
     return text.strip()
 
 
+def _keychain_api_key(provider: str | None) -> str | None:
+    """Return provider-specific keychain credential when available."""
+    if not provider:
+        return None
+    try:
+        from safecode.security.keychain import get_api_key
+        return get_api_key(provider)
+    except Exception:
+        return None
+
+
 class OpenAICompatibleLLMClient:
     """Call an OpenAI-compatible chat completions endpoint."""
 
@@ -96,6 +107,7 @@ class OpenAICompatibleLLMClient:
         session_id: str | None = None,
         sac_dir: Path | None = None,
         api_key_env: str = "OPENAI_API_KEY",
+        keychain_provider: str | None = None,
         progress_callback: "Callable[[str], None] | None" = None,
     ) -> None:
         # Network policy is asserted against the raw base_url (before normalization).
@@ -103,9 +115,10 @@ class OpenAICompatibleLLMClient:
         self.model = config.llm.model
         # Normalize: join /v1/chat/completions onto the base URL.
         self.base_url = _normalize_endpoint(config.llm.base_url)
-        # Resolve API key: provider env var -> OPENAI_API_KEY -> SAFECODE_LLM_API_KEY -> user config.
+        # Resolve API key: provider env var -> provider keychain -> generic env vars -> user config.
         self.api_key = (
             os.getenv(api_key_env)
+            or _keychain_api_key(keychain_provider)
             or (os.getenv("OPENAI_API_KEY") if api_key_env != "OPENAI_API_KEY" else None)
             or os.getenv("SAFECODE_LLM_API_KEY")
             or config.llm.api_key

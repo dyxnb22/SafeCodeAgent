@@ -72,6 +72,49 @@ class TestAPIKeyResolution:
             client = OpenAICompatibleLLMClient(cfg, api_key_env="DEEPSEEK_API_KEY")
         assert client.api_key == "sk-deepseek-key"
 
+    def test_provider_env_var_takes_priority_over_keychain(self):
+        cfg = self._make_config()
+        env = {"DEEPSEEK_API_KEY": "sk-deepseek-key"}
+        with (
+            patch.dict(os.environ, env, clear=True),
+            patch("safecode.security.keychain.get_api_key", return_value="sk-keychain"),
+        ):
+            client = OpenAICompatibleLLMClient(
+                cfg,
+                api_key_env="DEEPSEEK_API_KEY",
+                keychain_provider="deepseek",
+            )
+        assert client.api_key == "sk-deepseek-key"
+
+    def test_falls_back_to_provider_keychain(self):
+        cfg = self._make_config()
+        base = {k: v for k, v in os.environ.items()
+                if k not in ("DEEPSEEK_API_KEY", "OPENAI_API_KEY", "SAFECODE_LLM_API_KEY")}
+        with (
+            patch.dict(os.environ, base, clear=True),
+            patch("safecode.security.keychain.get_api_key", return_value="sk-keychain"),
+        ):
+            client = OpenAICompatibleLLMClient(
+                cfg,
+                api_key_env="DEEPSEEK_API_KEY",
+                keychain_provider="deepseek",
+            )
+        assert client.api_key == "sk-keychain"
+
+    def test_provider_keychain_takes_priority_over_openai_fallback(self):
+        cfg = self._make_config()
+        env = {"OPENAI_API_KEY": "sk-openai-key"}
+        with (
+            patch.dict(os.environ, env, clear=True),
+            patch("safecode.security.keychain.get_api_key", return_value="sk-keychain"),
+        ):
+            client = OpenAICompatibleLLMClient(
+                cfg,
+                api_key_env="DEEPSEEK_API_KEY",
+                keychain_provider="deepseek",
+            )
+        assert client.api_key == "sk-keychain"
+
     def test_falls_back_to_openai_key(self):
         cfg = self._make_config()
         env = {"OPENAI_API_KEY": "sk-openai-key"}

@@ -60,7 +60,7 @@ network_allowlist = ["api.openai.com"]
 ```
 
 Both lines are required. A project-level config cannot enable network access
-by itself. See [docs/mvp-user-guide.md](mvp-user-guide.md#model-configuration).
+by itself. See [docs/user-guide.md](user-guide.md#model-configuration).
 
 ---
 
@@ -886,7 +886,7 @@ Ensure the server binary is reachable (`sac mcp doctor <server>` shows binary pa
 
 - Run `sac --help` for command reference.
 - Run `sac <command> --help` for per-command options.
-- See [docs/mvp-user-guide.md](mvp-user-guide.md) for a guided walkthrough.
+- See [docs/user-guide.md](user-guide.md) for a guided walkthrough.
 - See [docs/tutorials/ai-shell-first-hour.md](tutorials/ai-shell-first-hour.md) for the AI shell tutorial.
 - See [docs/public-contracts.md](public-contracts.md) for stable API contracts.
 - File issues at the project repository.

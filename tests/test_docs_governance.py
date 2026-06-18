@@ -31,13 +31,15 @@ def test_docs_relative_links_are_valid() -> None:
 def test_docs_entrypoints_exist() -> None:
     required = [
         DOCS / "README.md",
-        DOCS / "archive" / "README.md",
+        DOCS / "current-status.md",
+        DOCS / "planning-history.md",
+        DOCS / "release-ledger.md",
+        DOCS / "user-guide.md",
         DOCS / "reference" / "README.md",
         DOCS / "reference" / "commands.md",
         DOCS / "reference" / "version-summary.md",
         DOCS / "tutorials" / "README.md",
         DOCS / "tutorials" / "stack-first-hour.md",
-        DOCS / "version-notes" / "README.md",
         DOCS / "version-plans" / "README.md",
     ]
     missing = [path for path in required if not path.is_file()]
@@ -65,41 +67,33 @@ def test_reference_index_links_to_key_reference_pages() -> None:
 
 def test_tutorial_index_uses_shared_stack_first_hour() -> None:
     text = _read(DOCS / "tutorials" / "README.md")
-    stack_idx = text.index("stack-first-hour.md")
-    python_idx = text.index("python-first-hour.md")
-    ts_idx = text.index("typescript-first-hour.md")
-    go_idx = text.index("go-first-hour.md")
-    assert stack_idx < python_idx < ts_idx < go_idx
+    assert "stack-first-hour.md" in text
+    assert "python-first-hour.md" not in text
+    assert "typescript-first-hour.md" not in text
+    assert "go-first-hour.md" not in text
 
 
-def test_version_notes_index_covers_major_trains_and_links_exist() -> None:
-    index = DOCS / "version-notes" / "README.md"
-    text = _read(index)
-    for major in ("v0", "v1", "v2", "v3", "v4"):
-        assert f"| {major} |" in text
-
-    for target in re.findall(r"\[[^\]]+\]\(([^)]+)\)", text):
-        target = target.split("#", 1)[0]
-        if not target or re.match(r"^[a-zA-Z][a-zA-Z0-9+.-]*:", target):
-            continue
-        assert (index.parent / target).resolve().exists(), target
+def test_release_ledger_covers_current_baseline() -> None:
+    text = _read(DOCS / "release-ledger.md")
+    assert "## v7.1.5" in text
+    assert "## v7.0.0" in text
+    assert "## v6.0.0" in text
 
 
 def test_version_summary_points_to_current_baseline_and_matrix() -> None:
     text = _read(DOCS / "reference" / "version-summary.md")
     assert "v7.1.5" in text
-    assert "../version-notes/README.md" in text
+    assert "../release-ledger.md" in text
     assert "../version_implementation_matrix.md" in text
-    assert "../project-final-status-and-roadmap.md" in text
+    assert "../current-status.md" in text
 
 
 def test_version_plans_index_marks_v70_followup_historical() -> None:
     index_text = _read(DOCS / "version-plans" / "README.md")
-    plan_name = "v7.0.x-agent-productization-followup.md"
-    assert plan_name in index_text
     assert "No active version plan" in index_text
-    assert "completed post-v7.0 productization plan" in index_text
+    assert "_template.md" in index_text
+    assert "../planning-history.md" in index_text
 
-    plan_text = _read(DOCS / "version-plans" / plan_name)
+    plan_text = _read(DOCS / "planning-history.md")
     for version in ("v7.0.1", "v7.0.2", "v7.0.3", "v7.0.4"):
         assert version in plan_text

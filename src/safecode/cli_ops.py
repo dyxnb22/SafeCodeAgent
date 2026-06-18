@@ -449,12 +449,12 @@ def release_changelog(
     to_version: Optional[str] = typer.Option(None, "--to", help="Last version to include, e.g. 2.6.15."),
     recent: Optional[int] = typer.Option(None, "--recent", min=1, help="Include the latest N version-note versions."),
 ) -> None:
-    """Print a Markdown changelog from local version-note files."""
-    notes_dir = Path.cwd() / "docs" / "version-notes"
+    """Print a Markdown changelog from the local release ledger."""
+    ledger_path = Path.cwd() / "docs" / "release-ledger.md"
     if recent is not None:
-        result = generate_recent_changelog(recent, version_notes_dir=notes_dir)
+        result = generate_recent_changelog(recent, release_ledger_path=ledger_path)
     elif from_version is not None and to_version is not None:
-        result = generate_changelog(from_version, to_version, version_notes_dir=notes_dir)
+        result = generate_changelog(from_version, to_version, release_ledger_path=ledger_path)
     else:
         console.print("[red]Provide either --recent N or both --from and --to.[/red]")
         raise typer.Exit(code=1)

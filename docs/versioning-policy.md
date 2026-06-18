@@ -134,7 +134,7 @@ session rollback (Section 19) are promoted. After the v6.0.0 cut there were
 The v6.0.0 contract churn budget:
 
 - **At most 5 new stable contracts** promoted from experimental (candidates
-  assessed in ``docs/v6-contract-candidates.md``).
+  summarized in ``docs/public-contracts.md``).
 - **Zero breaking changes** to v5.0.0 stable contracts (sections 1–17 plus
   the CLI JSON envelope and MCP read execution contracts).
 
@@ -173,7 +173,7 @@ evidence/internal behavior, not stable public contracts. There are now
 | v5.0.0 | First major bump since v4.0.0. Four new stable contracts (native tool schemas, audit event types, write-tool rollback, sac shell loop). Zero v4.x breaking changes. |
 | **v5.7.1** | **Sandbox execution promoted to stable (Section 17). OTel/HTML report frozen experimental. Zero breaking changes to earlier stable contracts.** |
 | **v5.8.0** | **Cost guardrails added: ``CostConfig`` model, ``/budget`` shell command, merge rules. Experimental.** |
-| **v5.8.1** | **v6.0 contract candidate assessment published at ``docs/v6-contract-candidates.md``.** |
+| **v5.8.1** | **v6.0 contract candidate assessment published and later consolidated into ``docs/public-contracts.md``.** |
 | **v5.8.2** | **Final v6.0 pre-docs pass: roadmap table, v6.0 budget stated, candidates documented.** |
 | **v6.0.0** | **Major contract cut: trust mode schema (Section 18) and session rollback (Section 19) promoted. 19 total stable contracts. Zero v5.0 breaking changes.** |
 | **v7.0.0** | **Major contract cut: project memory store shape, search_symbol, and model context budget profile promoted. 23 total stable contracts. Zero v6.0 breaking changes.** |

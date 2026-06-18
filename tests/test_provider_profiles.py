@@ -87,30 +87,52 @@ class TestProviderProfileModel:
         monkeypatch.setenv("DEEPSEEK_API_KEY", "sk-test")
         assert p.api_key_source() == "env:DEEPSEEK_API_KEY"
 
+    def test_api_key_source_keychain(self, monkeypatch) -> None:
+        monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
+        p = make_deepseek_profile(api_key=None)
+        with patch("safecode.security.keychain.get_api_key", return_value="sk-keychain"):
+            assert p.api_key_source() == "keychain"
+
     def test_api_key_source_user_config(self, monkeypatch) -> None:
         monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
         p = make_deepseek_profile(api_key="sk-stored")
-        assert p.api_key_source() == "user-config"
+        with patch("safecode.security.keychain.get_api_key", return_value=None):
+            assert p.api_key_source() == "user-config"
 
     def test_api_key_source_missing(self, monkeypatch) -> None:
         monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
         p = make_deepseek_profile(api_key=None)
-        assert p.api_key_source() == "missing"
+        with patch("safecode.security.keychain.get_api_key", return_value=None):
+            assert p.api_key_source() == "missing"
 
     def test_effective_api_key_env_overrides_stored(self, monkeypatch) -> None:
         monkeypatch.setenv("DEEPSEEK_API_KEY", "sk-from-env")
         p = make_deepseek_profile(api_key="sk-stored")
         assert p.effective_api_key() == "sk-from-env"
 
+    def test_effective_api_key_env_overrides_keychain(self, monkeypatch) -> None:
+        monkeypatch.setenv("DEEPSEEK_API_KEY", "sk-from-env")
+        p = make_deepseek_profile(api_key=None)
+        with patch("safecode.security.keychain.get_api_key", return_value="sk-keychain"):
+            assert p.effective_api_key() == "sk-from-env"
+
+    def test_effective_api_key_falls_back_to_keychain(self, monkeypatch) -> None:
+        monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
+        p = make_deepseek_profile(api_key="sk-stored")
+        with patch("safecode.security.keychain.get_api_key", return_value="sk-keychain"):
+            assert p.effective_api_key() == "sk-keychain"
+
     def test_effective_api_key_falls_back_to_stored(self, monkeypatch) -> None:
         monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
         p = make_deepseek_profile(api_key="sk-stored")
-        assert p.effective_api_key() == "sk-stored"
+        with patch("safecode.security.keychain.get_api_key", return_value=None):
+            assert p.effective_api_key() == "sk-stored"
 
     def test_effective_api_key_none_when_missing(self, monkeypatch) -> None:
         monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
         p = make_deepseek_profile(api_key=None)
-        assert p.effective_api_key() is None
+        with patch("safecode.security.keychain.get_api_key", return_value=None):
+            assert p.effective_api_key() is None
 
 
 # ---------------------------------------------------------------------------

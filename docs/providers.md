@@ -198,10 +198,13 @@ model = "deepseek-v4-flash"        # default; override as needed
 | Model aliases | `flash`, `pro` |
 | Network allowlist | `api.deepseek.com` |
 
-**Key resolution order**: `DEEPSEEK_API_KEY` env → profile api_key → `OPENAI_API_KEY` → `SAFECODE_LLM_API_KEY`.
+**Key resolution order**: `DEEPSEEK_API_KEY` env → DeepSeek keychain entry →
+`OPENAI_API_KEY` → `SAFECODE_LLM_API_KEY` → profile api_key.
 
 **Advisory notes:**
-- Never write `DEEPSEEK_API_KEY` to disk or commit it to the repository.
+- Prefer `DEEPSEEK_API_KEY` or `sac provider add deepseek --store keychain`.
+  `--store user-config` is supported but stores the key in the trusted user config.
+- Never write `DEEPSEEK_API_KEY` to project config or commit it to the repository.
 - DeepSeek V4 may return reasoning/thinking-related fields; unknown response fields
   are ignored safely by the existing parser.
 - Network policy still governs whether the call is permitted.

@@ -6,7 +6,6 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 WHY = ROOT / "docs" / "why-safecode.md"
-COMPARE = ROOT / "docs" / "compare.md"
 TROUBLESHOOTING = ROOT / "docs" / "troubleshooting.md"
 README = ROOT / "README.md"
 
@@ -20,16 +19,12 @@ def test_why_safecode_exists() -> None:
     assert WHY.is_file()
 
 
-def test_compare_exists() -> None:
-    assert COMPARE.is_file()
-
-
 def test_troubleshooting_exists() -> None:
     assert TROUBLESHOOTING.is_file()
 
 
 # ---------------------------------------------------------------------------
-# why-safecode.md headings and content
+# comparison content in why-safecode.md
 # ---------------------------------------------------------------------------
 
 
@@ -59,32 +54,32 @@ def test_why_safecode_links_to_public_contracts() -> None:
 
 
 # ---------------------------------------------------------------------------
-# compare.md headings and content
+# why-safecode.md headings and content
 # ---------------------------------------------------------------------------
 
 
 def test_compare_has_required_headings() -> None:
-    text = COMPARE.read_text(encoding="utf-8")
+    text = WHY.read_text(encoding="utf-8")
     for heading in (
-        "# SafeCode Agent vs.",
+        "## Comparison",
         "## Capability Summary",
     ):
         assert heading in text, f"Missing heading: {heading}"
 
 
 def test_compare_mentions_stable_and_experimental() -> None:
-    text = COMPARE.read_text(encoding="utf-8")
+    text = WHY.read_text(encoding="utf-8")
     assert "Stable" in text
     assert "Experimental" in text
 
 
 def test_compare_links_to_public_contracts() -> None:
-    text = COMPARE.read_text(encoding="utf-8")
+    text = WHY.read_text(encoding="utf-8")
     assert "public-contracts.md" in text
 
 
 def test_compare_does_not_overclaim_sandbox() -> None:
-    text = COMPARE.read_text(encoding="utf-8").lower()
+    text = WHY.read_text(encoding="utf-8").lower()
     assert "preview" in text or "experimental" in text
 
 
@@ -131,7 +126,7 @@ def test_readme_links_to_why_safecode() -> None:
 
 def test_readme_links_to_compare() -> None:
     text = README.read_text(encoding="utf-8")
-    assert "docs/compare.md" in text
+    assert "docs/why-safecode.md" in text
 
 
 def test_readme_links_to_troubleshooting() -> None:

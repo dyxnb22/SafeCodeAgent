@@ -1,4 +1,4 @@
-"""Generate Markdown changelogs from local version-note files."""
+"""Generate Markdown changelogs from the local release ledger."""
 
 from __future__ import annotations
 
@@ -9,11 +9,14 @@ from pathlib import Path
 from safecode.release.ux import header, next_steps
 
 _NOTE_RE = re.compile(r"^v(?P<version>\d+\.\d+\.\d+)-.*\.md$")
+_LEDGER_HEADING_RE = re.compile(
+    r"^##\s+v(?P<version>\d+\.\d+\.\d+)(?:\s*[-:]\s*(?P<title>.*))?$"
+)
 
 
 @dataclass(frozen=True)
 class ChangelogEntry:
-    """One version-note entry included in a changelog."""
+    """One release entry included in a changelog."""
 
     version: str
     filename: str
@@ -66,11 +69,75 @@ def _first_heading_and_summary(path: Path) -> tuple[str, str]:
     return heading, summary
 
 
+def _ledger_entries(ledger_path: Path) -> list[ChangelogEntry]:
+    if not ledger_path.is_file():
+        return []
+
+    entries: list[ChangelogEntry] = []
+    current_version: str | None = None
+    current_heading = ""
+    body: list[str] = []
+
+    def flush() -> None:
+        nonlocal current_version, current_heading, body
+        if current_version is None:
+            return
+        summary_lines = [line.strip() for line in body if line.strip() and not line.startswith("#")]
+        summary = " ".join(summary_lines[:2]) if summary_lines else current_heading
+        entries.append(
+            ChangelogEntry(
+                version=current_version,
+                filename=ledger_path.name,
+                heading=current_heading,
+                summary=summary,
+            )
+        )
+        current_version = None
+        current_heading = ""
+        body = []
+
+    for line in ledger_path.read_text(encoding="utf-8").splitlines():
+        match = _LEDGER_HEADING_RE.match(line.strip())
+        if match:
+            flush()
+            current_version = match.group("version")
+            title = match.group("title") or ""
+            current_heading = f"v{current_version}" + (f" - {title}" if title else "")
+            body = []
+        elif current_version is not None:
+            body.append(line)
+    flush()
+    return entries
+
+
+def _version_note_entries(notes_dir: Path) -> list[ChangelogEntry]:
+    entries: list[ChangelogEntry] = []
+    if not notes_dir.is_dir():
+        return entries
+
+    for path in sorted(notes_dir.iterdir()):
+        match = _NOTE_RE.match(path.name)
+        if not match:
+            continue
+        version = match.group("version")
+        heading, summary = _first_heading_and_summary(path)
+        entries.append(
+            ChangelogEntry(
+                version=version,
+                filename=path.name,
+                heading=heading,
+                summary=summary,
+            )
+        )
+    return entries
+
+
 def generate_changelog(
     from_version: str,
     to_version: str,
     *,
     version_notes_dir: Path | None = None,
+    release_ledger_path: Path | None = None,
 ) -> ChangelogResult:
     """Generate changelog entries between inclusive semantic version bounds."""
     issues: list[str] = []
@@ -88,36 +155,42 @@ def generate_changelog(
             [f"from version {from_version!r} must be <= to version {to_version!r}."],
         )
 
-    notes_dir = version_notes_dir or Path("docs") / "version-notes"
-    if not notes_dir.is_dir():
+    entries: list[ChangelogEntry] = []
+    if release_ledger_path is not None:
+        ledger_path = release_ledger_path
+        candidates = _ledger_entries(ledger_path)
+    elif version_notes_dir is not None:
+        ledger_path = Path("docs") / "release-ledger.md"
+        if not version_notes_dir.is_dir():
+            return ChangelogResult(
+                from_version,
+                to_version,
+                [],
+                [f"Version-notes directory not found: {version_notes_dir}."],
+            )
+        candidates = _version_note_entries(version_notes_dir)
+    else:
+        ledger_path = Path("docs") / "release-ledger.md"
+        candidates = _ledger_entries(ledger_path)
+        if not candidates:
+            candidates = _version_note_entries(Path("docs") / "version-notes")
+
+    if not candidates:
         return ChangelogResult(
             from_version,
             to_version,
             [],
-            [f"Version-notes directory not found: {notes_dir}."],
+            [f"No release ledger entries found in {ledger_path}."],
         )
 
-    entries: list[ChangelogEntry] = []
-    for path in sorted(notes_dir.iterdir()):
-        match = _NOTE_RE.match(path.name)
-        if not match:
-            continue
-        version = match.group("version")
-        vt = _version_tuple(version)
+    for entry in candidates:
+        vt = _version_tuple(entry.version)
         if low <= vt <= high:
-            heading, summary = _first_heading_and_summary(path)
-            entries.append(
-                ChangelogEntry(
-                    version=version,
-                    filename=path.name,
-                    heading=heading,
-                    summary=summary,
-                )
-            )
+            entries.append(entry)
 
     entries.sort(key=lambda entry: _version_tuple(entry.version))
     if not entries:
-        issues.append(f"No version notes found from v{from_version} to v{to_version}.")
+        issues.append(f"No release entries found from v{from_version} to v{to_version}.")
 
     return ChangelogResult(from_version, to_version, entries, issues)
 
@@ -126,23 +199,37 @@ def generate_recent_changelog(
     count: int,
     *,
     version_notes_dir: Path | None = None,
+    release_ledger_path: Path | None = None,
 ) -> ChangelogResult:
-    """Generate changelog entries for the latest *count* version-note versions."""
-    notes_dir = version_notes_dir or Path("docs") / "version-notes"
+    """Generate changelog entries for the latest *count* release versions."""
     if count <= 0:
         return ChangelogResult("", "", [], ["recent count must be greater than zero."])
-    if not notes_dir.is_dir():
-        return ChangelogResult("", "", [], [f"Version-notes directory not found: {notes_dir}."])
 
-    versions = sorted(
-        {match.group("version") for path in notes_dir.iterdir() if (match := _NOTE_RE.match(path.name))},
-        key=_version_tuple,
-    )
+    if release_ledger_path is not None:
+        ledger_path = release_ledger_path
+        candidates = _ledger_entries(ledger_path)
+    elif version_notes_dir is not None:
+        ledger_path = Path("docs") / "release-ledger.md"
+        if not version_notes_dir.is_dir():
+            return ChangelogResult("", "", [], [f"Version-notes directory not found: {version_notes_dir}."])
+        candidates = _version_note_entries(version_notes_dir)
+    else:
+        ledger_path = Path("docs") / "release-ledger.md"
+        candidates = _ledger_entries(ledger_path)
+        if not candidates:
+            candidates = _version_note_entries(Path("docs") / "version-notes")
+
+    versions = sorted({entry.version for entry in candidates}, key=_version_tuple)
     if not versions:
-        return ChangelogResult("", "", [], [f"No version notes found in {notes_dir}."])
+        return ChangelogResult("", "", [], [f"No release entries found in {ledger_path}."])
 
     selected = versions[-count:]
-    return generate_changelog(selected[0], selected[-1], version_notes_dir=notes_dir)
+    return generate_changelog(
+        selected[0],
+        selected[-1],
+        version_notes_dir=version_notes_dir,
+        release_ledger_path=release_ledger_path,
+    )
 
 
 def render_changelog(result: ChangelogResult) -> str:
@@ -155,7 +242,7 @@ def render_changelog(result: ChangelogResult) -> str:
             lines.append(f"## v{entry.version}")
             lines.append("")
             lines.append(f"- {entry.summary}")
-            lines.append(f"- Source: `docs/version-notes/{entry.filename}`")
+            lines.append(f"- Source: `{entry.filename}`")
             lines.append("")
     if result.issues:
         lines.append("Issues:")

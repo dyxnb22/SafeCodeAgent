@@ -163,18 +163,31 @@ class ProviderProfile(BaseModel):
         env_var = preset.get("api_key_env", "")
         if env_var and os.getenv(env_var):
             return f"env:{env_var}"
+        try:
+            from safecode.security.keychain import get_api_key
+            if get_api_key(self.name):
+                return "keychain"
+        except Exception:
+            pass
         if self.api_key:
             return "user-config"
         return "missing"
 
     def effective_api_key(self) -> str | None:
-        """Env var takes precedence over stored api_key."""
+        """Env var takes precedence over keychain, then stored api_key."""
         preset = _PROVIDER_PRESETS.get(self.name, {})
         env_var = preset.get("api_key_env", "")
         if env_var:
             key = os.getenv(env_var)
             if key:
                 return key
+        try:
+            from safecode.security.keychain import get_api_key
+            key = get_api_key(self.name)
+            if key:
+                return key
+        except Exception:
+            pass
         return self.api_key
 
 

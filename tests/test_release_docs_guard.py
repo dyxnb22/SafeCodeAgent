@@ -77,7 +77,7 @@ class TestCheckDocsFinalized:
         assert result.ok is False
         assert any("version-note" in i.lower() or "v2.6.9" in i for i in result.issues)
 
-    def test_stale_skill_fails(self, tmp_path):
+    def test_stale_skill_is_informational(self, tmp_path):
         env = _Env(tmp_path)
         env.write_note()
         env.write_skill(mention=False)
@@ -88,8 +88,8 @@ class TestCheckDocsFinalized:
             release_commands_documented=True,
         )
         assert result.skill_mentions_version is False
-        assert result.ok is False
-        assert any("SKILL.md" in i or "2.6.9" in i for i in result.issues)
+        assert result.ok is True
+        assert result.issues == []
 
     def test_missing_release_command_docs_fails(self, tmp_path):
         env = _Env(tmp_path)

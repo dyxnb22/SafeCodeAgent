@@ -10,7 +10,7 @@ runner = CliRunner()
 
 
 def test_mvp_user_guide_covers_new_user_path() -> None:
-    guide = (ROOT / "docs" / "mvp-user-guide.md").read_text(encoding="utf-8")
+    guide = (ROOT / "docs" / "user-guide.md").read_text(encoding="utf-8")
 
     required_sections = [
         "## Install",
@@ -37,7 +37,7 @@ def test_mvp_user_guide_covers_new_user_path() -> None:
 
 
 def test_model_config_docs_match_current_policy_boundaries() -> None:
-    guide = (ROOT / "docs" / "mvp-user-guide.md").read_text(encoding="utf-8")
+    guide = (ROOT / "docs" / "user-guide.md").read_text(encoding="utf-8")
 
     assert "SafeCode defaults to the deterministic `mock` provider" in guide
     assert "network_enabled = true" in guide
@@ -50,7 +50,7 @@ def test_model_config_docs_match_current_policy_boundaries() -> None:
 def test_readme_links_to_mvp_guide_and_first_demo() -> None:
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
 
-    assert "docs/mvp-user-guide.md" in readme
+    assert "docs/user-guide.md" in readme
     assert "## First Demo Task" in readme
     assert "sac demo materialize failing-test-repair" in readme
     assert "sac rollback --last" in readme
@@ -58,7 +58,7 @@ def test_readme_links_to_mvp_guide_and_first_demo() -> None:
 
 def test_v43_fix_watch_docs_cover_approval_gated_loop() -> None:
     # v6.28: README is concise — detailed commands live in guide.
-    guide = (ROOT / "docs" / "mvp-user-guide.md").read_text(encoding="utf-8")
+    guide = (ROOT / "docs" / "user-guide.md").read_text(encoding="utf-8")
     troubleshooting = (ROOT / "docs" / "troubleshooting.md").read_text(encoding="utf-8")
 
     for text in (guide, ):
@@ -88,7 +88,7 @@ def test_documented_v43_fix_options_exist() -> None:
 
 def test_v44_resume_budget_docs_cover_recovery_flow() -> None:
     # v6.28: README is concise — detailed commands live in guide.
-    guide = (ROOT / "docs" / "mvp-user-guide.md").read_text(encoding="utf-8")
+    guide = (ROOT / "docs" / "user-guide.md").read_text(encoding="utf-8")
     troubleshooting = (ROOT / "docs" / "troubleshooting.md").read_text(encoding="utf-8")
 
     for text in (guide, ):
@@ -119,7 +119,7 @@ def test_documented_v44_commands_exist() -> None:
 
 def test_v45_local_git_docs_cover_delivery_flow() -> None:
     # v6.28: README is concise — detailed commands live in guide.
-    guide = (ROOT / "docs" / "mvp-user-guide.md").read_text(encoding="utf-8")
+    guide = (ROOT / "docs" / "user-guide.md").read_text(encoding="utf-8")
     troubleshooting = (ROOT / "docs" / "troubleshooting.md").read_text(encoding="utf-8")
 
     for text in (guide, ):
@@ -155,7 +155,7 @@ def test_documented_v45_commands_exist() -> None:
 
 def test_v46_memory_docs_cover_unified_memory_flow() -> None:
     # v6.28: README is concise — detailed commands live in guide.
-    guide = (ROOT / "docs" / "mvp-user-guide.md").read_text(encoding="utf-8")
+    guide = (ROOT / "docs" / "user-guide.md").read_text(encoding="utf-8")
     troubleshooting = (ROOT / "docs" / "troubleshooting.md").read_text(encoding="utf-8")
 
     for text in (guide, ):
@@ -199,7 +199,7 @@ def test_documented_v46_memory_commands_exist() -> None:
 
 def test_v47_debug_docs_cover_workflow() -> None:
     # v6.28: README is concise — debug commands live in guide + troubleshooting.
-    guide = (ROOT / "docs" / "mvp-user-guide.md").read_text(encoding="utf-8")
+    guide = (ROOT / "docs" / "user-guide.md").read_text(encoding="utf-8")
     troubleshooting = (ROOT / "docs" / "troubleshooting.md").read_text(encoding="utf-8")
     for text in (guide, troubleshooting):
         assert "sac debug last-failure" in text
@@ -253,13 +253,13 @@ def test_documented_v47_debug_and_audit_commands_exist() -> None:
 
 def test_v419_observability_commands_in_readme() -> None:
     # v6.28: README is now concise — check guide or README for these commands.
-    guide = (ROOT / "docs" / "mvp-user-guide.md").read_text(encoding="utf-8")
-    assert "sac task stats" in guide, "mvp-user-guide must document sac task stats"
-    assert "sac memory size" in guide, "mvp-user-guide must document sac memory size"
+    guide = (ROOT / "docs" / "user-guide.md").read_text(encoding="utf-8")
+    assert "sac task stats" in guide, "user-guide must document sac task stats"
+    assert "sac memory size" in guide, "user-guide must document sac memory size"
 
 
 def test_v419_mvp_guide_inspecting_local_state_section() -> None:
-    guide = (ROOT / "docs" / "mvp-user-guide.md").read_text(encoding="utf-8")
+    guide = (ROOT / "docs" / "user-guide.md").read_text(encoding="utf-8")
     assert "Inspecting Local State" in guide, "MVP guide must have 'Inspecting Local State' section"
     assert "sac task stats" in guide
     assert "sac memory size" in guide
@@ -285,12 +285,12 @@ def test_v419_commands_exist_on_typer_apps() -> None:
 
 def test_v420_native_tools_in_readme() -> None:
     # v6.28: README is concise — native tool details live in the guide.
-    guide = (ROOT / "docs" / "mvp-user-guide.md").read_text(encoding="utf-8")
-    assert "read_file" in guide, "mvp-user-guide must mention native tools"
+    guide = (ROOT / "docs" / "user-guide.md").read_text(encoding="utf-8")
+    assert "read_file" in guide, "user-guide must mention native tools"
 
 
 def test_v420_mvp_guide_native_tools_section() -> None:
-    guide = (ROOT / "docs" / "mvp-user-guide.md").read_text(encoding="utf-8")
+    guide = (ROOT / "docs" / "user-guide.md").read_text(encoding="utf-8")
     assert "Native Tools" in guide or "native tool" in guide.lower()
     assert "read_file" in guide
     assert "list_files" in guide
@@ -307,12 +307,12 @@ def test_v420_matrix_has_v420_rows() -> None:
 
 def test_v421_write_tools_in_readme() -> None:
     # v6.28: README is concise — write tool details live in the guide.
-    guide = (ROOT / "docs" / "mvp-user-guide.md").read_text(encoding="utf-8")
+    guide = (ROOT / "docs" / "user-guide.md").read_text(encoding="utf-8")
     assert "edit_file" in guide and "write_file" in guide
 
 
 def test_v421_mvp_guide_making_edits_section() -> None:
-    guide = (ROOT / "docs" / "mvp-user-guide.md").read_text(encoding="utf-8")
+    guide = (ROOT / "docs" / "user-guide.md").read_text(encoding="utf-8")
     assert "edit_file" in guide
     assert "write_file" in guide
     assert "run_command" in guide
@@ -328,12 +328,12 @@ def test_v421_matrix_has_v421_rows() -> None:
 def test_v422_multi_tool_in_readme() -> None:
     # v6.28: README is concise — /undo still present in Core Commands section.
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
-    guide = (ROOT / "docs" / "mvp-user-guide.md").read_text(encoding="utf-8")
+    guide = (ROOT / "docs" / "user-guide.md").read_text(encoding="utf-8")
     assert "/undo" in readme or "/undo" in guide
 
 
 def test_v422_mvp_guide_one_turn_section() -> None:
-    guide = (ROOT / "docs" / "mvp-user-guide.md").read_text(encoding="utf-8")
+    guide = (ROOT / "docs" / "user-guide.md").read_text(encoding="utf-8")
     assert "One Turn" in guide or "one turn" in guide.lower()
     assert "/undo" in guide
     assert "/history" in guide
@@ -354,7 +354,7 @@ def test_v423_anthropic_in_readme() -> None:
 
 
 def test_v423_mvp_guide_first_run_with_claude() -> None:
-    guide = (ROOT / "docs" / "mvp-user-guide.md").read_text(encoding="utf-8")
+    guide = (ROOT / "docs" / "user-guide.md").read_text(encoding="utf-8")
     assert "First-Run with Claude" in guide or "First-run with Claude" in guide
     assert "ANTHROPIC_API_KEY" in guide
 
@@ -369,13 +369,13 @@ def test_v423_matrix_has_v423_rows() -> None:
 def test_v424_github_tools_in_readme() -> None:
     # v6.28: README is concise — github mentioned in core commands; Stable Contract #20 in guide.
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
-    guide = (ROOT / "docs" / "mvp-user-guide.md").read_text(encoding="utf-8")
+    guide = (ROOT / "docs" / "user-guide.md").read_text(encoding="utf-8")
     assert "github" in readme.lower()
     assert "Stable Contract #20" in guide or "stable contract" in guide.lower()
 
 
 def test_v424_mvp_guide_pr_section() -> None:
-    guide = (ROOT / "docs" / "mvp-user-guide.md").read_text(encoding="utf-8")
+    guide = (ROOT / "docs" / "user-guide.md").read_text(encoding="utf-8")
     assert "Open PR" in guide or "open PR" in guide.lower() or "local edits" in guide.lower()
     assert "github_create_pr" in guide
 
@@ -429,7 +429,7 @@ def test_v510_readme_trust_modes_section() -> None:
 
 
 def test_v510_mvp_guide_trust_modes_section() -> None:
-    guide = (ROOT / "docs" / "mvp-user-guide.md").read_text(encoding="utf-8")
+    guide = (ROOT / "docs" / "user-guide.md").read_text(encoding="utf-8")
     assert "Trust Modes" in guide
     assert "auto-edit" in guide
     assert "full-auto" in guide
@@ -463,13 +463,13 @@ def test_v510_matrix_has_v510_and_v511_rows() -> None:
 
 def test_v520_readme_shell_display_section() -> None:
     # v6.28: README is concise — shell display details live in guide.
-    guide = (ROOT / "docs" / "mvp-user-guide.md").read_text(encoding="utf-8")
+    guide = (ROOT / "docs" / "user-guide.md").read_text(encoding="utf-8")
     assert "/cost" in guide
     assert "lines hidden" in guide
 
 
 def test_v520_mvp_guide_display_section() -> None:
-    guide = (ROOT / "docs" / "mvp-user-guide.md").read_text(encoding="utf-8")
+    guide = (ROOT / "docs" / "user-guide.md").read_text(encoding="utf-8")
     assert "Understanding What the Agent Did" in guide
     assert "/cost" in guide
     assert "lines hidden" in guide
@@ -495,13 +495,13 @@ def test_v52_matrix_has_520_and_521_rows() -> None:
 def test_v530_readme_context_intelligence_section() -> None:
     # v6.28: README is concise — context intelligence in guide; compaction mentioned in README.
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
-    guide = (ROOT / "docs" / "mvp-user-guide.md").read_text(encoding="utf-8")
+    guide = (ROOT / "docs" / "user-guide.md").read_text(encoding="utf-8")
     assert "compaction" in readme.lower() or "compaction" in guide.lower()
     assert "import-graph" in guide.lower() or "import graph" in guide.lower()
 
 
 def test_v530_mvp_guide_working_with_large_codebases() -> None:
-    guide = (ROOT / "docs" / "mvp-user-guide.md").read_text(encoding="utf-8")
+    guide = (ROOT / "docs" / "user-guide.md").read_text(encoding="utf-8")
     assert "Working with Large Codebases" in guide
     assert "compaction" in guide.lower()
     assert "import-graph" in guide.lower() or "seed" in guide.lower()
@@ -514,10 +514,11 @@ def test_v530_troubleshooting_context_intelligence() -> None:
     assert "seed" in troubleshooting.lower() or "import" in troubleshooting.lower()
 
 
-def test_v530_project_final_status_updated() -> None:
-    status = (ROOT / "docs" / "project-final-status-and-roadmap.md").read_text(encoding="utf-8")
-    assert "v5.3.2" in status
-    assert "B-series" in status
+def test_current_status_is_compact_current_baseline() -> None:
+    status = (ROOT / "docs" / "current-status.md").read_text(encoding="utf-8")
+    assert "v7.1.5" in status
+    assert "Stable contract cut" in status
+    assert "release-ledger.md" in status
 
 
 def test_v53_matrix_has_530_and_531_rows() -> None:

@@ -1,9 +1,9 @@
-"""Tests for v2.6.20 product security review documentation."""
+"""Tests for consolidated product security review documentation."""
 
 from pathlib import Path
 
 
-DOC = Path("docs/security/product-security-review-v2.6.md")
+DOC = Path("docs/security/threat-model-v3.6.md")
 
 
 def _text() -> str:
@@ -17,11 +17,11 @@ def test_security_review_doc_exists() -> None:
 def test_security_review_covers_required_sections() -> None:
     text = _text()
     for heading in (
-        "## Configuration Policy",
-        "## Sandbox Defaults",
-        "## Hooks",
-        "## Release Gates",
-        "## Trust Boundaries",
+        "### Configuration Policy",
+        "### Sandbox Defaults",
+        "### Hooks",
+        "### Release Gates",
+        "### Trust Boundaries",
     ):
         assert heading in text
 

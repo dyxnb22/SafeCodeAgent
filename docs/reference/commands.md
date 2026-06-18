@@ -1,9 +1,13 @@
 # SafeCode Command Reference
 
 This page collects command details that are useful after the first run. For the
-short guided path, start with [../mvp-user-guide.md](../mvp-user-guide.md).
+short guided path, start with [../user-guide.md](../user-guide.md).
 
 ## Core Daily Commands
+
+The default `sac --help` intentionally shows the small daily command surface.
+Advanced and experimental commands remain callable; run `sac help --all` to see
+the full hidden surface.
 
 ```bash
 sac quickstart

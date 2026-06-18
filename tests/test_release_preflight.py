@@ -54,7 +54,7 @@ def _metadata(ok: bool = True) -> ReleaseMetadata:
         version_note_files=["v2.6.11-release-preflight.md"],
         has_version_note=ok,
         skill_mentions_version=ok,
-        issues=[] if ok else ["No version-note file found for v2.6.11."],
+        issues=[] if ok else ["No release ledger entry found for v2.6.11."],
     )
 
 
@@ -74,7 +74,7 @@ def _docs(ok: bool = True) -> DocsGuardResult:
         has_version_note=ok,
         skill_mentions_version=ok,
         release_commands_documented=ok,
-        issues=[] if ok else ["SKILL.md does not mention version 2.6.11."],
+        issues=[] if ok else ["release docs incomplete for 2.6.11."],
     )
 
 

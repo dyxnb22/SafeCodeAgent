@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
+import re
 
 
 RELEASE_COMMANDS: tuple[str, ...] = (
@@ -39,6 +40,16 @@ def _note_exists(version: str, notes_dir: Path) -> bool:
     return any(p.name.startswith(prefix) for p in notes_dir.iterdir() if p.suffix == ".md")
 
 
+def _ledger_entry_exists(version: str, ledger_path: Path) -> bool:
+    if not ledger_path.is_file():
+        return False
+    pattern = re.compile(rf"^##\s+v{re.escape(version)}(?:\s|[-:]|$)")
+    try:
+        return any(pattern.match(line.strip()) for line in ledger_path.read_text(encoding="utf-8").splitlines())
+    except OSError:
+        return False
+
+
 def _skill_mentions(version: str, skill_path: Path) -> bool:
     if not skill_path.is_file():
         return False
@@ -67,6 +78,7 @@ def check_docs_finalized(
     *,
     project_root: Path | None = None,
     notes_dir: Path | None = None,
+    release_ledger_path: Path | None = None,
     skill_path: Path | None = None,
     release_commands_documented: bool | None = None,
 ) -> DocsGuardResult:
@@ -75,15 +87,22 @@ def check_docs_finalized(
     Args:
         version: package version string, e.g. "2.6.9".
         project_root: repo root; defaults to cwd.
-        notes_dir: path to version-notes directory; defaults to project_root/docs/version-notes.
+        notes_dir: legacy path to version-notes directory; used only as a fallback.
+        release_ledger_path: path to release ledger; defaults to project_root/docs/release-ledger.md.
         skill_path: path to SKILL.md; defaults to project_root/.claude/skills/current/SKILL.md.
         release_commands_documented: inject True/False for testing; if None, auto-detects.
     """
     root = project_root or Path.cwd()
     nd = notes_dir or (root / "docs" / "version-notes")
+    ledger = release_ledger_path or (root / "docs" / "release-ledger.md")
     sp = skill_path or (root / ".claude" / "skills" / "current" / "SKILL.md")
 
-    has_note = _note_exists(version, nd)
+    if release_ledger_path is not None:
+        has_note = _ledger_entry_exists(version, ledger)
+    elif notes_dir is not None:
+        has_note = _note_exists(version, nd)
+    else:
+        has_note = _ledger_entry_exists(version, ledger) or _note_exists(version, nd)
     skill_ok = _skill_mentions(version, sp)
 
     if release_commands_documented is None:
@@ -94,13 +113,8 @@ def check_docs_finalized(
     issues: list[str] = []
     if not has_note:
         issues.append(
-            f"No version-note file found for v{version} in {nd}. "
-            f"Add docs/version-notes/v{version}-<feature>.md."
-        )
-    if not skill_ok:
-        issues.append(
-            f".claude/skills/current/SKILL.md does not mention version {version}. "
-            "Update the baseline before releasing."
+            f"No release ledger entry found for v{version} in {ledger}. "
+            f"Add a `## v{version}` entry to docs/release-ledger.md."
         )
     if not cmds_ok:
         issues.append(

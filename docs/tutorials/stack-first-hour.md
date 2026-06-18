@@ -31,9 +31,24 @@ iteration and never auto-applies; review the diff and run `sac apply` yourself.
 
 ## Stack Hints
 
-- Python: expect `pyproject.toml`, `setup.py`, `pytest`, `ruff`, or `mypy`.
-- TypeScript: expect `package.json` scripts such as `test`, `lint`, or `typecheck`.
-- Go: expect `go.mod`, `go test ./...`, `go vet`, and `go build`.
+| Stack | Detection Signals | Useful Commands |
+| --- | --- | --- |
+| Python | `pyproject.toml`, `setup.py`, test layouts | `pytest -q`, `ruff check .`, `mypy` |
+| TypeScript | `package.json` | `npm test`, `npm run lint`, `npm run typecheck`, `npm run build` |
+| Go | `go.mod` | `go test ./...`, `go vet ./...`, `go build ./...` |
+
+If you already know the failing test command, pass it directly:
+
+```sh
+sac fix --test-command "pytest -q"
+sac fix --test-command "go test ./..."
+sac fix --watch --max-iterations 3
+```
+
+For TypeScript projects, make sure `package.json` exposes scripts such as
+`test`, `lint`, or `typecheck`. For Go projects, keep `go.mod` at the project
+root so stack detection can find it. Use `sac ask` before `sac edit` when you
+want a read-only map of routes, handlers, packages, or tests.
 
 ## Safety Notes
 
@@ -45,6 +60,5 @@ iteration and never auto-applies; review the diff and run `sac apply` yourself.
 
 ## See Also
 
-- [Python: First Hour](python-first-hour.md)
-- [TypeScript: First Hour](typescript-first-hour.md)
-- [Go: First Hour](go-first-hour.md)
+- [User Guide](../user-guide.md)
+- [Command Reference](../reference/commands.md)

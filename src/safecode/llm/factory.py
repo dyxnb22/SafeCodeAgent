@@ -81,6 +81,7 @@ def _create_single_client(
             session_id=session_id,
             sac_dir=sac_dir,
             api_key_env=DEEPSEEK_PRESET.api_key_env,
+            keychain_provider="deepseek",
         )
     if provider in _ANTHROPIC_PROVIDERS:
         from safecode.llm.anthropic_client import AnthropicLLMClient

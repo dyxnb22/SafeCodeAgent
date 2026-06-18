@@ -555,7 +555,7 @@ For release workflows:
 ```
 sac release preflight   # final local release gate (aggregates check/smoke/meta/docs)
 sac release bump        # update version in pyproject.toml and __init__.py
-sac release changelog   # render Markdown changelog from version notes
+sac release changelog   # render Markdown changelog from release ledger
 ```
 
 ---
@@ -720,10 +720,13 @@ are promoted. Zero v5.0 breaking changes.
 | 7 | Live eval harness | v5.6.1 | Deferred (not user-facing API) |
 | 8 | Golden demo | v5.6.2 | Deferred (not a contract) |
 
-Full assessment: `docs/v6-contract-candidates.md`
-
 **v6.0.0 churn budget result:** 2 new stable contracts (within ≤ 5 budget).
 Zero breaking changes to v5.0 or earlier stable contracts (sections 1–17).
+
+Candidate notes: MCP native tool bridge naming remained provisional; git
+context stayed an internal heuristic; `cost.max_tokens_per_session` needed more
+release-cycle evidence; live eval and golden demo stayed development evidence
+rather than user-facing contracts.
 
 ---
 

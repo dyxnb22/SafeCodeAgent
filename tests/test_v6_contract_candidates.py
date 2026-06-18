@@ -2,8 +2,8 @@
 
 from pathlib import Path
 
-_DOC = Path(__file__).parent.parent / "docs" / "v6-contract-candidates.md"
-_CONTRACTS_DOC = Path(__file__).parent.parent / "docs" / "public-contracts.md"
+_DOC = Path(__file__).parent.parent / "docs" / "public-contracts.md"
+_CONTRACTS_DOC = _DOC
 
 
 def _text() -> str:
@@ -20,7 +20,7 @@ def test_candidates_doc_non_empty():
 
 def test_candidates_doc_is_final_v600_assessment():
     text = _text()
-    assert "Final v6.0.0 assessment" in text
+    assert "v6.0.0 Contract Promotions" in text
     assert "not a commitment" not in text
 
 
@@ -76,7 +76,7 @@ def test_zero_v50_breaking_changes_stated():
 
 def test_summary_table_exists():
     text = _text()
-    assert "Summary Table" in text or "| # |" in text
+    assert "| # |" in text
 
 # ---------------------------------------------------------------------------
 # public-contracts.md v6.0 candidate section (v5.8.2)

@@ -9,6 +9,51 @@ contract promotion is introduced.
 
 **Next scheduled review:** 2027-06-01 (v5.7.0 review completed 2026-06-16).
 
+## v2.6 Product Security Review Snapshot
+
+The v2.6 hardening review is consolidated here so current security context
+stays in one place.
+
+### Configuration Policy
+
+- Canonical policies are `strict`, `balanced`, and `experimental`; legacy
+  aliases remain compatibility-only.
+- Unknown `SAFECODE_POLICY` values warn and are ignored.
+- Project-local configuration cannot lower user-level safety.
+- `sac config policy-audit` checks policy names, aliases, effective values, and
+  preset invariants.
+
+### Sandbox Defaults
+
+- `sandbox.restrict_to_project_root` stays enabled across policy presets.
+- `sandbox.network_enabled` defaults to disabled across policy presets.
+- Secret-like names stay in the deny-oriented discovery surface.
+- Docker, macOS Seatbelt, and Linux Bubblewrap preview backends must fail
+  honestly when unavailable.
+
+### Hooks
+
+- Project hooks do not auto-approve medium-risk commands by default.
+- Hook and sandbox approvals are stored outside the project root.
+- Hook approvals bind to schema version, user, command, hook-relevant config,
+  and project root hash.
+
+### Release Gates
+
+- `sac release check`, `sac release smoke`, `sac release meta`, and
+  `sac release preflight` cover version, tag, docs, metadata, and dirty-tree
+  drift.
+- CI avoids exact-tag-only checks where HEAD is not expected to equal a release
+  tag.
+
+### Trust Boundaries
+
+- User-level configuration is trusted more than project-local configuration.
+- Project-local config cannot enable network access when user config disables
+  it.
+- Release tags are not trusted unless they match package metadata and
+  `safecode.__version__`.
+
 ---
 
 ## Assumptions

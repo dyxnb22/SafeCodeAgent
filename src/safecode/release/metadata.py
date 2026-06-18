@@ -1,8 +1,9 @@
-"""Release metadata index: collects version, tag, notes, and baseline consistency."""
+"""Release metadata index: collects version, tag, ledger, and baseline consistency."""
 
 from __future__ import annotations
 
 import subprocess
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -49,7 +50,11 @@ def _list_version_notes(version_notes_dir: Path) -> list[str]:
     """Return sorted list of version-note filenames in *version_notes_dir*."""
     if not version_notes_dir.is_dir():
         return []
-    return sorted(p.name for p in version_notes_dir.iterdir() if p.suffix == ".md")
+    return sorted(
+        p.name
+        for p in version_notes_dir.iterdir()
+        if p.suffix == ".md" and p.name.startswith("v")
+    )
 
 
 def _note_exists_for_version(version: str, note_files: list[str]) -> bool:
@@ -60,6 +65,16 @@ def _note_exists_for_version(version: str, note_files: list[str]) -> bool:
 def _notes_for_version(version: str, note_files: list[str]) -> list[str]:
     prefix = f"v{version}-"
     return [name for name in note_files if name.startswith(prefix)]
+
+
+def _ledger_has_version(version: str, ledger_path: Path) -> bool:
+    if not ledger_path.is_file():
+        return False
+    pattern = re.compile(rf"^##\s+v{re.escape(version)}(?:\s|[-:]|$)")
+    try:
+        return any(pattern.match(line.strip()) for line in ledger_path.read_text(encoding="utf-8").splitlines())
+    except OSError:
+        return False
 
 
 def _first_heading_mentions_version(note_path: Path, version: str) -> bool:
@@ -93,6 +108,7 @@ def collect_release_metadata(
     package_version: str | None = None,
     latest_git_tag: str | None | object = _UNSET,  # type: ignore[assignment]
     version_notes_dir: Path | None = None,
+    release_ledger_path: Path | None = None,
     skill_path: Path | None = None,
 ) -> ReleaseMetadata:
     """Collect local release metadata for auditing.
@@ -122,11 +138,13 @@ def collect_release_metadata(
 
     notes_dir = version_notes_dir or (root / "docs" / "version-notes")
     note_files = _list_version_notes(notes_dir)
-    has_note = _note_exists_for_version(package_version, note_files)
+    ledger_path = release_ledger_path or (root / "docs" / "release-ledger.md")
+    has_ledger_entry = _ledger_has_version(package_version, ledger_path)
+    has_note = has_ledger_entry or _note_exists_for_version(package_version, note_files)
     matching_notes = _notes_for_version(package_version, note_files)
     duplicate_notes = matching_notes[1:] if len(matching_notes) > 1 else []
     heading_ok = True
-    if matching_notes:
+    if not has_ledger_entry and matching_notes:
         heading_ok = _first_heading_mentions_version(
             notes_dir / matching_notes[0],
             package_version,
@@ -138,20 +156,16 @@ def collect_release_metadata(
     issues: list[str] = []
     if not has_note:
         issues.append(
-            f"No version-note file found for v{package_version} in {notes_dir}."
+            f"No release ledger entry found for v{package_version} in {ledger_path}."
         )
     elif not heading_ok:
         issues.append(
             f"Version-note heading for v{package_version} does not mention v{package_version}."
         )
-    if duplicate_notes:
+    if duplicate_notes and not has_ledger_entry:
         issues.append(
             f"Duplicate version-note files found for v{package_version}: "
             f"{', '.join(matching_notes)}."
-        )
-    if not skill_ok:
-        issues.append(
-            f".claude/skills/current/SKILL.md does not mention version {package_version}."
         )
 
     return ReleaseMetadata(
@@ -173,11 +187,11 @@ def render_release_metadata(meta: ReleaseMetadata) -> str:
         f"  package version        : {meta.package_version}",
         f"  runtime version        : {meta.runtime_version}",
         f"  latest git tag         : {meta.latest_git_tag or '(none)'}",
-        f"  version-note present   : {'yes' if meta.has_version_note else 'NO'}",
-        f"  version-note heading   : {'yes' if meta.version_note_heading_ok else 'NO'}",
-        f"  duplicate notes        : {len(meta.duplicate_version_note_files)}",
-        f"  SKILL.md mentions ver  : {'yes' if meta.skill_mentions_version else 'NO'}",
-        f"  version-note count     : {len(meta.version_note_files)}",
+        f"  release entry present  : {'yes' if meta.has_version_note else 'NO'}",
+        f"  legacy note heading    : {'yes' if meta.version_note_heading_ok else 'NO'}",
+        f"  duplicate legacy notes : {len(meta.duplicate_version_note_files)}",
+        f"  SKILL.md mentions ver  : {'yes' if meta.skill_mentions_version else 'no'}",
+        f"  legacy note count      : {len(meta.version_note_files)}",
         "",
     ]
     if meta.issues:

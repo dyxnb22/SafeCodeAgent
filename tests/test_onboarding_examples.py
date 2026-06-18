@@ -28,9 +28,14 @@ def test_demo_list_shows_safe_shell_workflow():
     assert "safe-shell-status" in result.output
 
 
-def test_tutorial_docs_exist():
-    docs = Path("docs/tutorials")
-    for name in ["bug-fix.md", "feature-edit.md", "docs-edit.md", "safe-shell-task.md"]:
-        path = docs / name
-        assert path.exists()
-        assert "sac " in path.read_text(encoding="utf-8")
+def test_tutorial_index_covers_focused_workflows():
+    text = Path("docs/tutorials/README.md").read_text(encoding="utf-8")
+    for workflow in [
+        "failing-test-repair",
+        "fastapi-health-endpoint",
+        "docs-safety-note",
+        "safe-shell-status",
+    ]:
+        assert workflow in text
+    assert "sac edit" in text
+    assert "sac run" in text

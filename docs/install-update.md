@@ -57,7 +57,7 @@ Recommended main path for each release:
 sac release bump X.Y.Z         # update canonical version files; does not commit or tag
 scripts/test-fast.sh
 PYTHONPATH=src python3 -m pytest -q
-git add -p                      # stage only version + version-note changes
+git add -p                      # stage only version + release-ledger changes
 git commit -m "Implement vX.Y.Z <summary>"
 git tag -a vX.Y.Z -m "vX.Y.Z <summary>"
 sac release preflight          # aggregate local gate: check, smoke, metadata, docs, versions governance

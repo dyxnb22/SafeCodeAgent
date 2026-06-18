@@ -124,18 +124,18 @@ class TestVersioningPolicyV49:
 
 class TestMvpGuideV49:
     def test_mvp_guide_has_ai_shell_section(self):
-        """docs/mvp-user-guide.md must have an AI shell section."""
-        content = (_DOCS / "mvp-user-guide.md").read_text()
+        """docs/user-guide.md must have an AI shell section."""
+        content = (_DOCS / "user-guide.md").read_text()
         assert "sac shell" in content
 
     def test_mvp_guide_experimental_label(self):
-        """docs/mvp-user-guide.md must mark AI shell EXPERIMENTAL."""
-        content = (_DOCS / "mvp-user-guide.md").read_text()
+        """docs/user-guide.md must mark AI shell EXPERIMENTAL."""
+        content = (_DOCS / "user-guide.md").read_text()
         assert "EXPERIMENTAL" in content
 
     def test_mvp_guide_no_auto_apply(self):
-        """docs/mvp-user-guide.md must state no auto-apply."""
-        content = (_DOCS / "mvp-user-guide.md").read_text().lower()
+        """docs/user-guide.md must state no auto-apply."""
+        content = (_DOCS / "user-guide.md").read_text().lower()
         assert "no auto-apply" in content or "never auto-applies" in content
 
 

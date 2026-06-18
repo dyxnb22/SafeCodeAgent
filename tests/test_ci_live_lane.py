@@ -208,12 +208,7 @@ class TestNoSecretsInRepository:
 
 
 _PROVIDERS_DOC = Path(__file__).parent.parent / "docs" / "providers.md"
-_VERSION_NOTE_3101 = (
-    Path(__file__).parent.parent
-    / "docs"
-    / "version-notes"
-    / "v3.10.1-ci-gates-live-provider.md"
-)
+_RELEASE_LEDGER = Path(__file__).parent.parent / "docs" / "release-ledger.md"
 
 
 class TestLiveProviderLaneRecord:
@@ -239,17 +234,17 @@ class TestLiveProviderLaneRecord:
             "providers.md must record v3.10.x release train status"
         )
 
-    def test_version_note_exists(self) -> None:
-        assert _VERSION_NOTE_3101.exists(), (
-            "Version note docs/version-notes/v3.10.1-ci-gates-live-provider.md must exist"
-        )
+    def test_release_ledger_mentions_v3_10_1(self) -> None:
+        assert _RELEASE_LEDGER.exists(), "docs/release-ledger.md must exist"
+        content = _RELEASE_LEDGER.read_text(encoding="utf-8")
+        assert "## v3.10.1" in content
 
-    def test_version_note_mentions_advisory(self) -> None:
-        content = _VERSION_NOTE_3101.read_text(encoding="utf-8")
+    def test_release_ledger_mentions_advisory(self) -> None:
+        content = _RELEASE_LEDGER.read_text(encoding="utf-8")
         assert "advisory" in content.lower()
 
-    def test_version_note_mentions_live_provider(self) -> None:
-        content = _VERSION_NOTE_3101.read_text(encoding="utf-8")
+    def test_release_ledger_mentions_live_provider(self) -> None:
+        content = _RELEASE_LEDGER.read_text(encoding="utf-8")
         assert "live" in content.lower() and "provider" in content.lower()
 
     def test_live_lane_no_credential_change(self) -> None:

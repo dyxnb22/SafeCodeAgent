@@ -68,6 +68,35 @@ class TestProviderAddRequiresStore:
         )
         assert result.exit_code == 1
 
+    def test_api_key_with_store_keychain_does_not_write_key_to_user_config(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.chdir(tmp_path)
+        user_config = tmp_path / "user_config.toml"
+        monkeypatch.setenv("SAFECODE_USER_CONFIG", str(user_config))
+        (tmp_path / ".sac").mkdir(parents=True, exist_ok=True)
+        (tmp_path / ".sac" / "config.toml").write_text(
+            '[llm]\nprovider = "mock"\nmodel = "gpt-4.1-mini"\n'
+            'base_url = "http://localhost:8080/v1"\n'
+            "[sandbox]\nnetwork_enabled = false\n",
+            encoding="utf-8",
+        )
+
+        with patch("safecode.security.keychain.store_api_key", return_value=True) as store:
+            result = runner.invoke(
+                app,
+                ["provider", "add", "deepseek", "--api-key", "sk-keychain-only",
+                 "--store", "keychain"],
+                catch_exceptions=False,
+            )
+
+        assert result.exit_code == 0
+        store.assert_called_once_with("deepseek", "sk-keychain-only")
+        assert "stored in system keychain" in result.stdout
+        content = user_config.read_text(encoding="utf-8")
+        assert "sk-keychain-only" not in content
+        assert "api_key" not in content
+
 
 class TestProviderAddNoApiKey:
     def test_provider_add_without_api_key_works(

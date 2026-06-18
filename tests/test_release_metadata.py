@@ -158,7 +158,7 @@ class TestCollectReleaseMetadata:
         )
         assert meta.skill_mentions_version is True
 
-    def test_stale_skill_reported(self, tmp_path):
+    def test_stale_skill_is_informational(self, tmp_path):
         env = _Env(tmp_path)
         env.write_note()
         env.write_skill(mention_version=False)
@@ -171,7 +171,7 @@ class TestCollectReleaseMetadata:
             skill_path=env.skill_dir / "SKILL.md",
         )
         assert meta.skill_mentions_version is False
-        assert any("SKILL.md" in issue or "2.6.8" in issue for issue in meta.issues)
+        assert meta.issues == []
 
     def test_ok_when_note_and_skill_present(self, tmp_path):
         env = _Env(tmp_path)
@@ -330,8 +330,8 @@ class TestRenderReleaseMetadata:
             duplicate_version_note_files=["v2.6.8-other.md"],
         )
         text = render_release_metadata(meta)
-        assert "version-note heading" in text
-        assert "duplicate notes" in text
+        assert "legacy note heading" in text
+        assert "duplicate legacy notes" in text
 
 
 # ---------------------------------------------------------------------------

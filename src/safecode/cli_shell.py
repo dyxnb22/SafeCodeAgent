@@ -8,7 +8,7 @@ The shell provides a TTY REPL that routes natural-language questions to existing
 SafeCode primitives (ask, edit, fix, run, status, apply, commit, debug, overview).
 All mutation paths require explicit approval and delegate to the existing safe gates.
 
-Slash commands: /status /task /overview /model /apply /commit /debug /help /exit
+Slash commands: /status /continue /memory /ready /task /overview /model /apply /commit /help /exit
 
 All surfaces in this module are EXPERIMENTAL and carry no stable contract.
 """
@@ -29,32 +29,51 @@ from safecode.context.redactor import redact_secrets
 
 _SHELL_BANNER = (
     "[bold]SafeCode Shell[/bold] [dim](EXPERIMENTAL v4.17)[/dim]\n"
-    "Ask questions, use /help for slash commands, /exit to quit."
+    "Type a request, or use /status for the workspace dashboard. /help lists commands."
 )
 
 _SHELL_HELP = """\
-Slash commands:
-  /status           show current task, pending patch, and next step
-  /timeline         show latest agent session timeline
-  /sessions         show recent shell and agent sessions
-  /resume <id>      passively resume an agent session
-  /task             show current task details
-  /overview         show project structure overview
-  /model            show current model and available aliases
-  /model <alias>    switch model: /model flash  /model pro  /model deepseek:pro
-  /provider status  show current provider profile status
-  /apply            apply pending patch (requires confirmation)
-  /commit           commit current task locally (requires confirmation)
-  /debug            show last failure debug info
-  /clear            reset shell context and agent session history
+Slash commands
+==============
+
+Start here:
+  /status           workspace dashboard and next safe step
+  /continue         take one safe step, or explain the blocker
+
+Work:
+  Type a request    ask, inspect, edit, or fix using natural language
+  /apply            apply pending patch (shows diff and asks first)
+  /commit           commit current task locally (asks first)
   /undo             roll back the most recent write-tool checkpoint
-  /history          show recent shell turns for the current session
-  /tools            list available native tools (v4.20+)
-  /cost             show session token and cost estimate (v5.2+)
-  /mode             show current agentic mode (plan/build)
-  /mode plan        switch agentic shell to read-only planning
-  /mode build       switch agentic shell to build mode
-  /help             show this help
+
+Inspect:
+  /task             show current task card
+  /timeline         show latest high-signal agent timeline
+  /sessions         show recent shell and agent sessions
+  /history          show recent shell turns
+  /debug            show last failure debug info
+
+Configure:
+  /ready            check provider/model/network/memory readiness
+  /ready --live     opt-in live provider smoke
+  /model            show current model, aliases, and readiness
+  /model <alias>    switch model: /model flash  /model pro
+  /provider status  show provider profile status
+
+Memory:
+  /memory           show what will enter context
+  /memory review    review pending learned facts
+  /memory teach <text>
+                    add a non-secret project note
+  /memory prune     remove stale workspace memory
+
+Advanced:
+  /demo             show a safe first-run demo path
+  /smoke live       run the live-provider smoke (opt-in network)
+  /tools            list native tools and approval flags
+  /cost             show session token/cost estimate
+  /mode plan|build  switch agentic shell mode
+  /clear            reset shell context and agent session history
   /exit             exit the shell
 
 Model changes via /model are persisted globally (saved to user config).
@@ -76,7 +95,8 @@ def _shell_prompt(turn: int, cost_str: str = "", task_str: str = "") -> str:
     return f"sac[{inner}]> "
 
 _SLASH_COMMANDS = [
-    "/status", "/timeline", "/sessions", "/resume", "/task", "/overview", "/model", "/provider",
+    "/status", "/continue", "/timeline", "/sessions", "/resume", "/task", "/overview", "/model", "/provider",
+    "/memory", "/ready", "/doctor", "/demo", "/smoke",
     "/apply", "/commit", "/debug", "/clear", "/undo", "/history", "/tools",
     "/cost", "/mode", "/help", "/exit", "/quit",
 ]
@@ -320,23 +340,499 @@ def _session_edit_summary(project_root: Path, session_id: str) -> str:
     return "\n".join(lines)
 
 
-def _slash_status(project_root: Path) -> str:
-    """Return status text by calling the internal status builder."""
+def _git_state(project_root: Path) -> tuple[str, bool | None]:
+    """Return (branch, dirty) without raising."""
+    import subprocess
+
+    branch = "(unknown)"
+    dirty: bool | None = None
     try:
-        from safecode.cli_status import _build_status_data
-        from safecode.task.store import TaskStore
-        store = TaskStore(project_root)
-        data = _build_status_data(project_root, store)
-        lines = [
-            f"task_id: {data.get('task_id') or '(none)'}",
-            f"goal: {data.get('goal') or '(none)'}",
-            f"status: {data.get('status') or '(none)'}",
-            f"pending_patch: {'yes' if data.get('pending_patch') else 'no'}",
-            f"next_step: {data.get('next_step', '')}",
-        ]
-        return "\n".join(lines)
+        result = subprocess.run(
+            ["git", "branch", "--show-current"],
+            cwd=str(project_root),
+            capture_output=True,
+            text=True,
+            timeout=2,
+        )
+        value = result.stdout.strip()
+        if result.returncode == 0 and value:
+            branch = value
+    except Exception:
+        pass
+    try:
+        result = subprocess.run(
+            ["git", "status", "--porcelain"],
+            cwd=str(project_root),
+            capture_output=True,
+            text=True,
+            timeout=2,
+        )
+        if result.returncode == 0:
+            dirty = bool(result.stdout.strip())
+    except Exception:
+        pass
+    return branch, dirty
+
+
+def _build_shell_status_data(project_root: Path) -> dict[str, object]:
+    """Build the in-shell dashboard payload without mutating project state."""
+    from safecode.agent.session import AgentSessionStore
+    from safecode.config import SafeCodeConfig, _read_toml, _user_config_path
+    from safecode.llm.provider_profiles import get_active_profile, get_active_profile_name
+    from safecode.memory.facade import MemoryFacade
+    from safecode.memory.facts import ProjectFactStore
+    from safecode.memory.session_store import SessionSummaryStore
+    from safecode.task.store import TaskStore
+    from safecode.cli_status import _build_status_data
+
+    config = SafeCodeConfig.load(project_root)
+    user_data = _read_toml(_user_config_path())
+    user_sandbox = user_data.get("sandbox", {}) if isinstance(user_data.get("sandbox", {}), dict) else {}
+
+    active_name = get_active_profile_name()
+    active_profile = get_active_profile()
+    credential_source = active_profile.api_key_source() if active_profile is not None else (
+        "mock" if config.llm.provider == "mock" else ("user-config [llm]" if config.llm.api_key else "missing")
+    )
+
+    task_data = _build_status_data(project_root, TaskStore(project_root))
+    agent = AgentSessionStore(project_root).load()
+    memory = MemoryFacade(project_root)
+    fact_store = ProjectFactStore(project_root / ".sac")
+    branch, dirty = _git_state(project_root)
+
+    pending_facts = len(fact_store.list_facts(status="pending"))
+    approved_facts = len(fact_store.list_facts(status="approved"))
+    recent_summaries = len(SessionSummaryStore(project_root / ".sac").load_recent(limit=3))
+    project_notes = memory.read_project_notes()
+    pinned = memory.read_pinned_files()
+
+    next_actions: list[str] = []
+    task_next = str(task_data.get("next_step") or "")
+    if task_next:
+        next_actions.append(task_next.replace("Run: ", ""))
+    if active_name is None and config.llm.provider != "mock":
+        next_actions.append("sac provider add deepseek --store keychain")
+    elif config.llm.provider != "mock" and credential_source == "missing":
+        next_actions.append(f"sac provider add {active_name or config.llm.provider} --store keychain")
+    if config.llm.provider != "mock" and not config.sandbox.network_enabled:
+        next_actions.append("sac setup --yes --network")
+    if pending_facts:
+        next_actions.append("sac memory list-facts --pending")
+    if agent is not None and agent.status in {"waiting_for_user", "active", "aborted"}:
+        next_actions.append(f"/timeline {agent.session_id}")
+
+    if not next_actions:
+        next_actions.append('Type a request, or run /overview to inspect the project.')
+
+    return {
+        "provider": {
+            "effective_provider": config.llm.provider,
+            "model": config.llm.model,
+            "active_profile": active_name,
+            "credential_source": credential_source,
+            "base_url": config.llm.base_url,
+        },
+        "task": task_data,
+        "agent_session": {
+            "session_id": agent.session_id if agent else None,
+            "goal": agent.goal if agent else None,
+            "status": agent.status if agent else None,
+            "current_step": agent.current_step if agent else None,
+            "plan_steps": len(agent.plan) if agent else 0,
+        },
+        "memory": {
+            "approved_facts": approved_facts,
+            "pending_facts": pending_facts,
+            "recent_summaries": recent_summaries,
+            "project_notes": bool(project_notes.strip()),
+            "pinned_files": len(pinned),
+        },
+        "safety": {
+            "policy": config.policy,
+            "effective_network": config.sandbox.network_enabled,
+            "user_network": bool(user_sandbox.get("network_enabled", False)),
+            "allowlist": list(config.sandbox.network_allowlist),
+        },
+        "workspace": {
+            "branch": branch,
+            "dirty": dirty,
+        },
+        "next_actions": next_actions[:5],
+    }
+
+
+def _render_shell_status(data: dict[str, object]) -> str:
+    """Render the in-shell dashboard as compact plain text/Markdown."""
+    provider = data["provider"] if isinstance(data.get("provider"), dict) else {}
+    task = data["task"] if isinstance(data.get("task"), dict) else {}
+    agent = data["agent_session"] if isinstance(data.get("agent_session"), dict) else {}
+    memory = data["memory"] if isinstance(data.get("memory"), dict) else {}
+    safety = data["safety"] if isinstance(data.get("safety"), dict) else {}
+    workspace = data["workspace"] if isinstance(data.get("workspace"), dict) else {}
+    next_actions = data.get("next_actions") if isinstance(data.get("next_actions"), list) else []
+
+    dirty = workspace.get("dirty")
+    dirty_label = "dirty" if dirty is True else ("clean" if dirty is False else "unknown")
+    network_label = "on" if safety.get("effective_network") else "off"
+    allowlist = safety.get("allowlist") or []
+    allowlist_label = ", ".join(str(item) for item in allowlist[:3]) if allowlist else "[]"
+    if len(allowlist) > 3:
+        allowlist_label += f", +{len(allowlist) - 3}"
+
+    lines = [
+        "# SafeCode Status",
+        "",
+        "Provider",
+        f"- effective: {provider.get('effective_provider', '(unknown)')} / {provider.get('model', '(unknown)')}",
+        f"- profile: {provider.get('active_profile') or '(none)'}",
+        f"- credential: {provider.get('credential_source', 'missing')}",
+        "",
+        "Task",
+        f"- task_id: {task.get('task_id') or '(none)'}",
+        f"- status: {task.get('status') or '(none)'}",
+        f"- pending patch: {'yes' if task.get('pending_patch') else 'no'}",
+    ]
+    if task.get("goal"):
+        lines.append(f"- goal: {str(task.get('goal'))[:120]}")
+    if task.get("last_test_command"):
+        lines.append(f"- last test: {task.get('last_test_command')} (exit {task.get('last_test_exit_code')})")
+
+    lines.extend([
+        "",
+        "Session",
+        f"- agent: {agent.get('session_id') or '(none)'}",
+        f"- state: {agent.get('status') or '(none)'}",
+    ])
+    if agent.get("session_id"):
+        lines.append(f"- step: {agent.get('current_step')}/{agent.get('plan_steps')}")
+
+    lines.extend([
+        "",
+        "Memory",
+        f"- approved facts: {memory.get('approved_facts', 0)}",
+        f"- pending facts: {memory.get('pending_facts', 0)}",
+        f"- recent summaries: {memory.get('recent_summaries', 0)}",
+        f"- project notes: {'yes' if memory.get('project_notes') else 'no'}",
+        f"- pinned files: {memory.get('pinned_files', 0)}",
+        "",
+        "Safety",
+        f"- policy: {safety.get('policy', '(unknown)')}",
+        f"- network: {network_label}",
+        f"- allowlist: {allowlist_label}",
+        "",
+        "Workspace",
+        f"- branch: {workspace.get('branch', '(unknown)')}",
+        f"- tree: {dirty_label}",
+        "",
+        "Next",
+    ])
+    for item in next_actions:
+        lines.append(f"- {item}")
+    return "\n".join(lines)
+
+
+def _slash_status(project_root: Path) -> str:
+    """Return the in-shell status dashboard."""
+    try:
+        return _render_shell_status(_build_shell_status_data(project_root))
     except Exception as exc:
         return f"Status unavailable: {exc}"
+
+
+def _format_card(title: str, rows: list[tuple[str, str]], *, next_step: str = "", details: list[str] | None = None) -> str:
+    """Render a compact product-style card."""
+    lines = [title, "-" * len(title)]
+    for label, value in rows:
+        lines.append(f"{label}: {value}")
+    if details:
+        lines.append("")
+        lines.append("Details:")
+        lines.extend(f"- {item}" for item in details)
+    if next_step:
+        lines.append("")
+        lines.append(f"Next: {next_step}")
+    return "\n".join(lines)
+
+
+def _slash_continue(project_root: Path) -> str:
+    """Take the next safe step, or explain the blocker without crossing approval gates."""
+    try:
+        data = _build_shell_status_data(project_root)
+        provider = data["provider"] if isinstance(data.get("provider"), dict) else {}
+        task = data["task"] if isinstance(data.get("task"), dict) else {}
+        agent = data["agent_session"] if isinstance(data.get("agent_session"), dict) else {}
+        safety = data["safety"] if isinstance(data.get("safety"), dict) else {}
+
+        effective_provider = str(provider.get("effective_provider") or "mock")
+        credential = str(provider.get("credential_source") or "missing")
+        if effective_provider != "mock" and credential == "missing":
+            profile = provider.get("active_profile") or effective_provider
+            return _format_card(
+                "Blocked: Provider credential missing",
+                [
+                    ("Provider", effective_provider),
+                    ("Credential", "missing"),
+                    ("Model", str(provider.get("model") or "(unknown)")),
+                ],
+                next_step=f"sac provider add {profile} --store keychain",
+                details=["SafeCode checks env vars, provider keychain, generic env vars, then user config."],
+            )
+
+        if effective_provider != "mock" and not safety.get("effective_network"):
+            return _format_card(
+                "Blocked: Provider network disabled",
+                [
+                    ("Provider", effective_provider),
+                    ("Network", "off"),
+                ],
+                next_step="sac setup --yes --network",
+            )
+
+        if task.get("pending_patch"):
+            return _format_card(
+                "Pending patch is ready",
+                [
+                    ("Pending patch", "yes"),
+                    ("Task", str(task.get("task_id") or "(none)")),
+                ],
+                next_step="/apply",
+                details=["SafeCode will show the diff and ask before modifying files."],
+            )
+
+        agent_id = agent.get("session_id")
+        agent_status = str(agent.get("status") or "")
+        if agent_id and agent_status == "waiting_for_user":
+            return _format_card(
+                "Blocked: Agent is waiting for you",
+                [
+                    ("Session", str(agent_id)),
+                    ("State", agent_status),
+                ],
+                next_step=f"/timeline {agent_id}",
+                details=["Answer the prompt, adjust the task, or use /apply if a patch is pending."],
+            )
+        if agent_id and agent_status == "aborted":
+            return _format_card(
+                "Blocked: Agent session aborted",
+                [
+                    ("Session", str(agent_id)),
+                    ("State", agent_status),
+                ],
+                next_step=f"/resume {agent_id}",
+            )
+        if agent_id and agent_status in {"active", ""}:
+            from safecode.agent.loop import AgentLoop
+
+            result = AgentLoop(project_root).run(None, max_steps=1)
+            observation = result.steps[-1].observation if result.steps else result.state.last_observation
+            lines = [
+                "Continued one safe agent step.",
+                f"session: {result.state.session_id}",
+                f"status: {result.state.status}",
+                f"step: {result.state.current_step}/{len(result.state.plan)}",
+                f"stopped_reason: {result.stopped_reason}",
+            ]
+            if observation:
+                lines.append(f"observation: {' '.join(observation.split())[:240]}")
+            lines.append("Next: /status")
+            return "\n".join(lines)
+
+        next_step = str(task.get("next_step") or "")
+        if next_step:
+            return _format_card(
+                "No active agent session",
+                [("Task", str(task.get("task_id") or "(none)"))],
+                next_step=next_step,
+            )
+        return _format_card(
+            "Nothing To Continue",
+            [("Task", "(none)"), ("Agent session", "(none)")],
+            next_step='Type a request, or run /overview to inspect the project.',
+        )
+    except Exception as exc:
+        return f"Continue unavailable: {exc}"
+
+
+def _slash_ready(project_root: Path, args: str = "") -> str:
+    """Return a readiness card; with --live, run the opt-in live smoke."""
+    args = args.strip()
+    if "--live" in args:
+        return _slash_smoke(project_root, "live")
+    try:
+        data = _build_shell_status_data(project_root)
+        provider = data["provider"] if isinstance(data.get("provider"), dict) else {}
+        safety = data["safety"] if isinstance(data.get("safety"), dict) else {}
+        memory = data["memory"] if isinstance(data.get("memory"), dict) else {}
+        effective_provider = str(provider.get("effective_provider") or "mock")
+        credential = str(provider.get("credential_source") or "missing")
+        network_ok = effective_provider == "mock" or bool(safety.get("effective_network"))
+        credential_ok = effective_provider == "mock" or credential != "missing"
+        verdict = "READY" if credential_ok and network_ok else "NEEDS_SETUP"
+        details: list[str] = []
+        next_step = "/status"
+        if not credential_ok:
+            profile = provider.get("active_profile") or effective_provider
+            details.append("Credential is missing.")
+            next_step = f"sac provider add {profile} --store keychain"
+        if not network_ok:
+            details.append("Network is disabled for the active real provider.")
+            next_step = "sac setup --yes --network"
+        if int(memory.get("pending_facts", 0) or 0):
+            details.append("Pending memory facts are waiting for review.")
+        return _format_card(
+            f"Readiness: {verdict}",
+            [
+                ("Provider", f"{effective_provider} / {provider.get('model', '(unknown)')}"),
+                ("Credential", credential),
+                ("Network", "ok" if network_ok else "blocked"),
+                ("Policy", str(safety.get("policy") or "(unknown)")),
+                ("Memory", f"{memory.get('approved_facts', 0)} approved, {memory.get('pending_facts', 0)} pending"),
+            ],
+            next_step=next_step,
+            details=details or ["Use /ready --live for an opt-in provider smoke."],
+        )
+    except Exception as exc:
+        return f"Ready check unavailable: {exc}"
+
+
+def _slash_memory(project_root: Path, args: str = "") -> str:
+    """In-shell memory UX: explain, review, teach, approve/reject, prune."""
+    try:
+        import shlex
+
+        from safecode.memory.facade import MemoryFacade
+        from safecode.memory.facts import ProjectFactStore
+        from safecode.memory.session_store import SessionSummaryStore
+        from safecode.memory.workspace_memory import WorkspaceMemoryStore
+
+        parts = shlex.split(args) if args.strip() else []
+        action = parts[0].lower() if parts else "show"
+        rest = parts[1:]
+        sac_dir = project_root / ".sac"
+        facts = ProjectFactStore(sac_dir)
+        memory = MemoryFacade(project_root)
+
+        if action in {"show", "explain"}:
+            approved = facts.list_facts(status="approved")
+            pending = facts.list_facts(status="pending")
+            sessions = SessionSummaryStore(sac_dir).load_recent(limit=3)
+            notes = memory.read_project_notes().strip()
+            return _format_card(
+                "Memory",
+                [
+                    ("Injected approved facts", str(len(approved))),
+                    ("Injected project notes", "yes" if notes else "no"),
+                    ("Injected recent sessions", str(len(sessions))),
+                    ("Stored pending facts", str(len(pending))),
+                    ("Pinned files", str(len(memory.read_pinned_files()))),
+                ],
+                next_step="/memory review" if pending else "/memory teach <note>",
+            )
+
+        if action == "review":
+            pending = facts.list_facts(status="pending")
+            approved = facts.list_facts(status="approved")
+            if not pending:
+                return "Memory Review\n-------------\nNo pending facts."
+            approved_by_key: dict[str, set[str]] = {}
+            for fact in approved:
+                approved_by_key.setdefault(fact.key, set()).add(fact.value)
+            lines = ["Memory Review", "-------------"]
+            for index, fact in enumerate(pending[:10], 1):
+                conflict = fact.key in approved_by_key and fact.value not in approved_by_key[fact.key]
+                suffix = "  [conflict]" if conflict else ""
+                lines.append(f"{index}. [{fact.fact_id[:8]}] {fact.key}: {fact.value[:90]}{suffix}")
+            lines.append("")
+            lines.append("Next: /memory approve <id>  or  /memory reject <id>")
+            return "\n".join(lines)
+
+        if action == "teach":
+            text = " ".join(rest).strip()
+            if not text:
+                return "Usage: /memory teach <non-secret project note>"
+            path = memory.add_note(text)
+            return _format_card(
+                "Memory Note Added",
+                [("Path", path.as_posix())],
+                next_step="/memory",
+            )
+
+        if action in {"approve", "reject"}:
+            if not rest:
+                return f"Usage: /memory {action} <fact-id>"
+            fact = facts.approve(rest[0]) if action == "approve" else facts.reject(rest[0])
+            verb = "Approved" if action == "approve" else "Rejected"
+            return _format_card(
+                f"Memory Fact {verb}",
+                [("Fact", f"{fact.key}: {fact.value[:120]}")],
+                next_step="/memory review",
+            )
+
+        if action == "prune":
+            removed = WorkspaceMemoryStore(project_root).clear_stale()
+            return _format_card(
+                "Memory Pruned",
+                [("Workspace entries removed", str(removed))],
+                next_step="/memory",
+            )
+
+        return "Usage: /memory [review|teach <text>|approve <id>|reject <id>|prune]"
+    except Exception as exc:
+        return f"Memory command failed: {exc}"
+
+
+def _slash_demo(project_root: Path) -> str:
+    """Return a safe first-run demo path."""
+    return "\n".join([
+        "Safe First-Run Demo",
+        "-------------------",
+        "1. /status",
+        "2. ask: what does this project do?",
+        "3. ask: propose a tiny docs-only improvement",
+        "4. /apply   # only if a patch is pending; diff is shown first",
+        "5. /undo    # verify rollback works",
+        "",
+        "No command in this demo auto-applies or commits changes.",
+    ])
+
+
+def _slash_smoke(project_root: Path, args: str = "") -> str:
+    """Run opt-in smoke commands from the shell."""
+    import subprocess
+
+    parts = args.strip().split()
+    if parts[:1] != ["live"]:
+        return "Usage: /smoke live"
+    try:
+        result = subprocess.run(
+            [sys.executable, "-m", "safecode.cli", "smoke", "live-provider", "--json"],
+            cwd=str(project_root),
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+    except subprocess.TimeoutExpired:
+        return _format_card(
+            "Live Smoke: TIMEOUT",
+            [("Timeout", "60s")],
+            next_step="/ready",
+            details=["The provider did not answer before the shell smoke timeout."],
+        )
+    except Exception as exc:
+        return _format_card(
+            "Live Smoke: ERROR",
+            [("Error", str(exc)[:160])],
+            next_step="/ready",
+        )
+    output = (result.stdout or result.stderr).strip()
+    title = "Live Smoke: PASS" if result.returncode == 0 else "Live Smoke: FAIL"
+    return _format_card(
+        title,
+        [("Exit code", str(result.returncode))],
+        next_step="/status",
+        details=[output[:1200] if output else "(no output)"],
+    )
 
 
 def _slash_timeline(project_root: Path, session_id: str = "") -> str:
@@ -352,7 +848,7 @@ def _slash_timeline(project_root: Path, session_id: str = "") -> str:
             selected = state.session_id if state is not None else AgentJournalStore(project_root).latest_session_id() or ""
         if not selected:
             return "No agent session timeline found."
-        return render_session_timeline(project_root, selected, limit=20)
+        return render_session_timeline(project_root, selected, limit=8)
     except Exception as exc:
         return f"Timeline unavailable: {exc}"
 
@@ -387,17 +883,31 @@ def _slash_sessions(project_root: Path) -> str:
 
 def _slash_resume(project_root: Path, session_id: str) -> str:
     """Passively resume an agent session from shell."""
-    if not session_id.strip():
-        return "Usage: /resume <session-id>"
     try:
+        from safecode.agent.session import AgentSessionStore
         from safecode.agent.loop import AgentLoop
+        from safecode.state.journal import AgentJournalStore
 
-        state = AgentLoop(project_root).resume_from(session_id.strip())
-        return (
-            f"Resumed agent session {state.session_id}\n"
-            f"status: {state.status}\n"
-            f"current_step: {state.current_step}/{len(state.plan)}\n"
-            "next: sac agent run --max-steps 1"
+        selected = session_id.strip()
+        if not selected:
+            current = AgentSessionStore(project_root).load()
+            selected = current.session_id if current is not None else AgentJournalStore(project_root).latest_session_id() or ""
+        if not selected:
+            return _format_card(
+                "Resume",
+                [("Session", "(none)")],
+                next_step='Type a request, or run /status.',
+            )
+        state = AgentLoop(project_root).resume_from(selected)
+        return _format_card(
+            "Resumed agent session",
+            [
+                ("Session", state.session_id),
+                ("Status", state.status),
+                ("Step", f"{state.current_step}/{len(state.plan)}"),
+                ("Goal", state.goal[:120]),
+            ],
+            next_step="/continue",
         )
     except Exception as exc:
         return f"Resume failed: {exc}"
@@ -411,17 +921,44 @@ def _slash_task(project_root: Path) -> str:
         store = TaskStore(project_root)
         current_id = store.current_id()
         if not current_id:
-            return "No current task. Run: sac task new \"<goal>\""
+            return _format_card(
+                "Task",
+                [("Current task", "(none)")],
+                next_step='Type a request, or run sac task new "<goal>".',
+            )
         state = store.load(current_id)
         if state is None:
             return f"Task {current_id!r} not found."
-        lines = [
-            f"task_id: {state.task_id}",
-            f"goal: {redact_secrets(state.goal)}",
-            f"status: {state.status}",
-            f"iterations: {len(state.iterations)}",
+        last_failure = ""
+        if state.iterations:
+            last = state.iterations[-1]
+            if last.failure_category:
+                last_failure = last.failure_category
+            elif last.test_exit_code not in (None, 0):
+                last_failure = f"test_exit_{last.test_exit_code}"
+        pending = (project_root / ".sac" / "pending_patch.json").exists()
+        if pending:
+            next_step = "/apply"
+        elif state.status == "interrupted":
+            next_step = "sac resume"
+        elif last_failure:
+            next_step = "sac fix"
+        elif state.status == "applied":
+            next_step = "sac commit --ai"
+        else:
+            next_step = "/continue"
+        rows = [
+            ("Task", state.task_id),
+            ("Goal", redact_secrets(state.goal)[:120]),
+            ("Status", state.status),
+            ("Iterations", str(len(state.iterations))),
+            ("Pending patch", "yes" if pending else "no"),
         ]
-        return "\n".join(lines)
+        if state.last_command:
+            rows.append(("Last command", redact_secrets(state.last_command.command)[:100]))
+        if last_failure:
+            rows.append(("Recent failure", redact_secrets(last_failure)))
+        return _format_card("Task", rows, next_step=next_step)
     except Exception as exc:
         return f"Task info unavailable: {exc}"
 
@@ -466,7 +1003,8 @@ def _slash_model(project_root: Path, args: str = "") -> str:
             # Show status + available aliases
             status = _render_model_status(SafeCodeConfig.load(project_root), path)
             alias_list = _render_model_list(project_root, path)
-            return status + "\n\n" + alias_list
+            readiness = _slash_ready(project_root)
+            return status + "\n\n" + alias_list + "\n\n" + readiness
 
         model = parts[0]
 
@@ -705,6 +1243,21 @@ def _handle_slash_command(
     if name == "/status":
         return _slash_status(project_root), "status", False
 
+    if name == "/continue":
+        return _slash_continue(project_root), "continue", False
+
+    if name in ("/ready", "/doctor"):
+        return _slash_ready(project_root, parts[1] if len(parts) > 1 else ""), "ready", False
+
+    if name == "/memory":
+        return _slash_memory(project_root, parts[1] if len(parts) > 1 else ""), "memory", False
+
+    if name == "/demo":
+        return _slash_demo(project_root), "demo", False
+
+    if name == "/smoke":
+        return _slash_smoke(project_root, parts[1] if len(parts) > 1 else ""), "smoke", False
+
     if name == "/timeline":
         return _slash_timeline(project_root, parts[1] if len(parts) > 1 else ""), "timeline", False
 
@@ -892,6 +1445,15 @@ def run_shell(
 
     if is_tty and not json_output:
         console.print(_SHELL_BANNER)
+        try:
+            data = _build_shell_status_data(project_root)
+            next_actions = data.get("next_actions") if isinstance(data, dict) else []
+            if isinstance(next_actions, list) and next_actions:
+                console.print(f"[dim]Start: /status    Continue: /continue    Next: {next_actions[0]}[/dim]")
+            else:
+                console.print("[dim]Start: /status    Continue: /continue[/dim]")
+        except Exception:
+            console.print("[dim]Start: /status    Continue: /continue[/dim]")
         _setup_readline()
 
     turn_count = 0
@@ -1044,7 +1606,7 @@ def _run_agentic_shell(
     if is_tty and not json_output:
         console.print(
             "[bold]SafeCode Shell[/bold] [dim](EXPERIMENTAL --agentic v6.7, conversational)[/dim]\n"
-            "Type your goal. Use /exit to quit, /mode, /clear, /compact, /history, /undo."
+            "Type your goal. Use /status, /continue, /exit, /mode, /clear, /compact, /history, /undo."
         )
         if plan_mode:
             console.print("[cyan]Plan mode active. Only read/search/reference tools are available.[/cyan]")
@@ -1106,7 +1668,7 @@ def _run_agentic_shell(
                 if is_tty:
                     console.print(f"[dim]Conversation compacted: {before} -> {after} messages.[/dim]")
                 continue
-            if goal.startswith(("/timeline", "/sessions", "/resume")):
+            if goal.startswith(("/status", "/continue", "/memory", "/ready", "/doctor", "/demo", "/smoke", "/timeline", "/sessions", "/resume")):
                 response, _intent, _exit = _handle_slash_command(goal, project_root, None, is_tty=is_tty)
                 if json_output:
                     print(render_json(CLIJSONResponse(command="shell --agentic slash", status="success", data={"response": response})))

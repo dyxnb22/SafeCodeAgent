@@ -21,10 +21,8 @@ from safecode.cli import app
 
 ROOT = Path(__file__).resolve().parents[1]
 TUTORIALS_DIR = ROOT / "docs" / "tutorials"
-PYTHON_TUTORIAL = TUTORIALS_DIR / "python-first-hour.md"
-TS_TUTORIAL = TUTORIALS_DIR / "typescript-first-hour.md"
-GO_TUTORIAL = TUTORIALS_DIR / "go-first-hour.md"
-MVP_GUIDE = ROOT / "docs" / "mvp-user-guide.md"
+STACK_TUTORIAL = TUTORIALS_DIR / "stack-first-hour.md"
+MVP_GUIDE = ROOT / "docs" / "user-guide.md"
 TROUBLESHOOTING = ROOT / "docs" / "troubleshooting.md"
 README = ROOT / "README.md"
 
@@ -53,8 +51,8 @@ _FORBIDDEN_AUTO_CLAIMS = [
     "automatically pushes",
 ]
 
-# All tutorials
-_ALL_TUTORIALS = [PYTHON_TUTORIAL, TS_TUTORIAL, GO_TUTORIAL]
+# Tutorials with task-first daily loop commands.
+_ALL_TUTORIALS = [STACK_TUTORIAL]
 
 
 # ---------------------------------------------------------------------------
@@ -63,14 +61,8 @@ _ALL_TUTORIALS = [PYTHON_TUTORIAL, TS_TUTORIAL, GO_TUTORIAL]
 
 
 class TestTutorialFilesExist:
-    def test_python_tutorial_exists(self):
-        assert PYTHON_TUTORIAL.is_file(), "docs/tutorials/python-first-hour.md must exist"
-
-    def test_typescript_tutorial_exists(self):
-        assert TS_TUTORIAL.is_file(), "docs/tutorials/typescript-first-hour.md must exist"
-
-    def test_go_tutorial_exists(self):
-        assert GO_TUTORIAL.is_file(), "docs/tutorials/go-first-hour.md must exist"
+    def test_stack_tutorial_exists(self):
+        assert STACK_TUTORIAL.is_file(), "docs/tutorials/stack-first-hour.md must exist"
 
 
 # ---------------------------------------------------------------------------
@@ -223,37 +215,33 @@ def test_tutorial_commands_exist_in_cli(tutorial_path: Path):
 # ---------------------------------------------------------------------------
 
 
-class TestPythonTutorial:
+class TestStackTutorial:
     def test_python_stack_requirements(self):
-        text = PYTHON_TUTORIAL.read_text(encoding="utf-8")
-        assert "pyproject.toml" in text, "Python tutorial must mention pyproject.toml"
-        assert "pytest" in text, "Python tutorial must mention pytest"
+        text = STACK_TUTORIAL.read_text(encoding="utf-8")
+        assert "pyproject.toml" in text, "Stack tutorial must mention pyproject.toml"
+        assert "pytest" in text, "Stack tutorial must mention pytest"
         for command in ("sac quickstart", "sac task new", "sac fix --watch"):
             assert command in text
         assert "never auto-applies" in text.lower() or "never auto-apply" in text.lower() or \
-               "It never auto-applies" in text, "Python tutorial must state fix --watch never auto-applies"
+               "It never auto-applies" in text, "Stack tutorial must state fix --watch never auto-applies"
 
-
-class TestTypescriptTutorial:
     def test_typescript_stack_requirements(self):
-        text = TS_TUTORIAL.read_text(encoding="utf-8")
-        assert "package.json" in text, "TypeScript tutorial must mention package.json"
+        text = STACK_TUTORIAL.read_text(encoding="utf-8")
+        assert "package.json" in text, "Stack tutorial must mention package.json"
         for command in ("sac fix", "sac task new", "sac profile detect"):
             assert command in text
         text = text.lower()
         for claim in ("sac push", "marketplace"):
-            assert claim not in text, f"TypeScript tutorial must not claim {claim!r}"
+            assert claim not in text, f"Stack tutorial must not claim {claim!r}"
 
-
-class TestGoTutorial:
     def test_go_stack_requirements(self):
-        text = GO_TUTORIAL.read_text(encoding="utf-8")
-        assert "go.mod" in text, "Go tutorial must mention go.mod"
+        text = STACK_TUTORIAL.read_text(encoding="utf-8")
+        assert "go.mod" in text, "Stack tutorial must mention go.mod"
         for command in ("sac fix", "sac task new", "sac profile detect"):
             assert command in text
         text = text.lower()
         for claim in ("sac push", "marketplace"):
-            assert claim not in text, f"Go tutorial must not claim {claim!r}"
+            assert claim not in text, f"Stack tutorial must not claim {claim!r}"
 
 
 # ---------------------------------------------------------------------------
@@ -262,7 +250,7 @@ class TestGoTutorial:
 
 
 class TestDocumentedCommandsExist:
-    """Commands mentioned in docs/mvp-user-guide.md must exist in CLI."""
+    """Commands mentioned in docs/user-guide.md must exist in CLI."""
 
     def _extract_sac_commands(self, path: Path) -> list[str]:
         text = path.read_text(encoding="utf-8")
@@ -279,7 +267,7 @@ class TestDocumentedCommandsExist:
                 subcmd = subcmd.lstrip("-")
                 if subcmd and subcmd.isalpha():
                     assert subcmd in top_level, \
-                        f"mvp-user-guide.md references unknown command: {cmd!r} (subcmd: {subcmd!r})"
+                        f"user-guide.md references unknown command: {cmd!r} (subcmd: {subcmd!r})"
 
 
 # ---------------------------------------------------------------------------
@@ -329,4 +317,4 @@ class TestVisibleCommandsDocumented:
         combined = readme_text + guide_text
         for cmd in visible:
             assert f"sac {cmd}" in combined, \
-                f"Visible command {cmd!r} is not documented in README or mvp-user-guide.md"
+                f"Visible command {cmd!r} is not documented in README or user-guide.md"

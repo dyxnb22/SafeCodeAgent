@@ -10,7 +10,7 @@ their stable paths. This page groups them as reference material.
 - [Public Contracts](../public-contracts.md): stable and experimental public surfaces.
 - [Versioning Policy](../versioning-policy.md): patch, minor, major, and contract-churn rules.
 - [Version Implementation Matrix](../version_implementation_matrix.md): detailed implementation ledger and acceptance commands.
-- [Tag + Version Plan Workflow](../version_skill_workflow.md): release planning and version-note workflow.
+- [Tag + Version Plan Workflow](../version-plans/README.md): release planning and version-note workflow.
 
 ## Configuration and Operations
 
@@ -20,11 +20,9 @@ their stable paths. This page groups them as reference material.
 
 ## Product and Security
 
-- [Why SafeCode Agent](../why-safecode.md): product rationale and safety loop.
-- [Comparison](../compare.md): comparison with raw LLM usage and autonomous coding agents.
+- [Why SafeCode Agent](../why-safecode.md): product rationale, comparison, and safety loop.
 - [Troubleshooting](../troubleshooting.md): diagnostics, blocked commands, rollback, and recovery.
 - [Threat Model](../security/threat-model-v3.6.md): personas, risks, and mitigations.
-- [Product Security Review v2.6](../security/product-security-review-v2.6.md): historical security review kept under security.
 
 ## Maintenance
 
