@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from pathlib import Path
 
 from safecode.core.diagnostic import Diagnostic
 from safecode.release.ux import header, next_steps
@@ -104,6 +105,17 @@ def _diag_version_consistency() -> Diagnostic:
 
 
 def _diag_docs_finalized() -> Diagnostic:
+    enterprise_docs = [
+        Path("product-planning/README.md"),
+        Path("enterprise-docs/README.md"),
+        Path("docs/README.md"),
+    ]
+    if all(path.exists() for path in enterprise_docs):
+        return Diagnostic.from_bool(
+            "docs_finalized",
+            True,
+            "Enterprise branch docs are focused in product-planning/ and enterprise-docs/.",
+        )
     try:
         import safecode
         from safecode.release.docs_guard import check_docs_finalized

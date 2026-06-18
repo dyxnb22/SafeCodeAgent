@@ -139,22 +139,3 @@ class TestLegacyExitCodeOptOut:
             result = runner.invoke(app, ["run", "git status", "--yes"])
         # git status exits 0 on success regardless of legacy flag
         assert result.exit_code == 0
-
-
-# ── Docs: opt-out documented ──────────────────────────────────────────────────
-
-
-class TestDocsLegacyOptOut:
-    def _docs_text(self) -> str:
-        path = Path("docs/install-update.md")
-        assert path.exists()
-        return path.read_text(encoding="utf-8")
-
-    def test_docs_mentions_exit_code_125(self):
-        assert "125" in self._docs_text()
-
-    def test_docs_mentions_exit_code_126(self):
-        assert "126" in self._docs_text()
-
-    def test_docs_mentions_legacy_env_var(self):
-        assert "SAFECODE_RUN_LEGACY_EXIT_CODE" in self._docs_text()

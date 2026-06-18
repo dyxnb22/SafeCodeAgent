@@ -89,27 +89,3 @@ class TestReleaseCommandsRemainCallable:
     def test_changelog_help_runs(self):
         result = CliRunner().invoke(app, ["release", "changelog", "--help"])
         assert result.exit_code == 0
-
-
-class TestInstallUpdateDocsMentionsPreferredFlow:
-    def test_docs_recommend_preflight_not_signoff_in_main_flow(self):
-        from pathlib import Path
-        docs = (Path(".") / "docs" / "install-update.md").read_text(encoding="utf-8")
-        assert "sac release preflight" in docs
-        # signoff must only appear in the advanced/internal section, not as a main-flow step
-        flow_section = docs.split("## Release Flow")[1]
-        # Extract just the first code block (the recommended path)
-        main_block_start = flow_section.find("```bash")
-        main_block_end = flow_section.find("```\n\n", main_block_start + 5)
-        main_code = flow_section[main_block_start:main_block_end]
-        assert "signoff" not in main_code
-
-    def test_docs_main_flow_is_bump_pytest_tag_preflight(self):
-        from pathlib import Path
-        docs = (Path(".") / "docs" / "install-update.md").read_text(encoding="utf-8")
-        flow_section = docs.split("## Release Flow")[1]
-        # bump appears before preflight in the main flow
-        bump_pos = flow_section.find("release bump")
-        preflight_pos = flow_section.find("release preflight")
-        assert bump_pos != -1 and preflight_pos != -1
-        assert bump_pos < preflight_pos

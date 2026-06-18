@@ -21,16 +21,16 @@ REQUIRED_SOURCE_FILES = [
     "src/safecode/shell/approvals.py",
     "src/safecode/shell/rendering.py",
     "src/safecode/memory/ledger.py",
-    "docs/architecture.md",
-    "docs/demo/claude-style-session.md",
+    "enterprise-docs/architecture.md",
+    "product-planning/README.md",
     "CHANGELOG.md",
 ]
 
 REQUIRED_SDIST_MEMBERS = [
     "README.md",
     "CHANGELOG.md",
-    "docs/architecture.md",
-    "docs/demo/claude-style-session.md",
+    "enterprise-docs/architecture.md",
+    "product-planning/README.md",
     "src/safecode/shell/runtime.py",
     "src/safecode/memory/ledger.py",
 ]

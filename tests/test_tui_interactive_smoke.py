@@ -168,8 +168,8 @@ class TestExistingTuiDashboardUnchanged:
 class TestTUIFrozenExperimental:
     """v3.9.2 decision: freeze sac tui interactive at v3.5.2 behavior (Option B).
 
-    The TUI is labeled EXPERIMENTAL in both help text and docs/public-contracts.md.
-    No Textual dependency introduced. Output remains Rich-based and deterministic.
+    The TUI is labeled EXPERIMENTAL in help text. No Textual dependency
+    introduced. Output remains Rich-based and deterministic.
     """
 
     def test_interactive_still_exits_zero(self, tmp_path, monkeypatch):
@@ -202,15 +202,6 @@ class TestTUIFrozenExperimental:
         all_imports = imports + from_imports
         assert not any("textual" in m.lower() for m in all_imports), (
             "Textual must not be imported in interactive.py (decision: freeze experimental)"
-        )
-
-    def test_public_contracts_labels_tui_frozen(self):
-        contracts = (
-            Path(__file__).parent.parent / "docs" / "public-contracts.md"
-        ).read_text(encoding="utf-8")
-        lower = contracts.lower()
-        assert "frozen" in lower or "freeze" in lower, (
-            "docs/public-contracts.md should document TUI as frozen experimental"
         )
 
     def test_non_tty_output_still_has_safecode_tui(self, tmp_path):

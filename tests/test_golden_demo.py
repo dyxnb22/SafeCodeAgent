@@ -16,7 +16,6 @@ _DEMO_FIXTURE_SRC = _DEMO_DIR / "src" / "calculator.py"
 _DEMO_FIXTURE_TEST = _DEMO_DIR / "tests" / "test_calculator.py"
 _DEMO_SCRIPT = _DEMO_DIR / "demo" / "run-demo.sh"
 _DEMO_TRANSCRIPT = _DEMO_DIR / "demo" / "expected-transcript.md"
-_PORTFOLIO_DOC = _ROOT / "docs" / "demo" / "portfolio-demo.md"
 _README = _ROOT / "README.md"
 
 
@@ -81,25 +80,10 @@ class TestExpectedTranscript:
         assert "diff" in text.lower() or "patch proposal" in text.lower()
 
 
-class TestPortfolioDoc:
-    def test_portfolio_doc_exists(self):
-        assert _PORTFOLIO_DOC.exists()
-
-    def test_portfolio_doc_contains_safety_gates(self):
-        text = _PORTFOLIO_DOC.read_text()
-        for word in ["checkpoint", "approval", "audit", "rollback", "diff"]:
-            assert word in text.lower(), f"Portfolio doc missing {word!r}"
-
-    def test_portfolio_doc_lists_key_source_files(self):
-        text = _PORTFOLIO_DOC.read_text()
-        assert "src/safecode/agent/orchestrator.py" in text
-        assert "src/safecode/agent/prompts.py" in text
-
-
 class TestReadmeLinks:
-    def test_readme_links_demo_and_safety_loop(self):
+    def test_readme_links_enterprise_planning_and_safety_invariants(self):
         text = _README.read_text()
-        assert "golden-demo" in text
-        assert "portfolio-demo.md" in text
-        assert "checkpoint" in text.lower()
-        assert "rollback" in text.lower()
+        assert "product-planning/README.md" in text
+        assert "enterprise-docs/architecture.md" in text
+        assert "model output is never execution authority" in text.lower()
+        assert "policy-gated" in text.lower()

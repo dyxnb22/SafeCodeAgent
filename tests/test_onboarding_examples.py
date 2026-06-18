@@ -1,5 +1,3 @@
-from pathlib import Path
-
 from typer.testing import CliRunner
 
 from safecode.cli import app
@@ -26,16 +24,3 @@ def test_demo_list_shows_safe_shell_workflow():
     result = CliRunner().invoke(app, ["demo", "list"])
     assert result.exit_code == 0
     assert "safe-shell-status" in result.output
-
-
-def test_tutorial_index_covers_focused_workflows():
-    text = Path("docs/tutorials/README.md").read_text(encoding="utf-8")
-    for workflow in [
-        "failing-test-repair",
-        "fastapi-health-endpoint",
-        "docs-safety-note",
-        "safe-shell-status",
-    ]:
-        assert workflow in text
-    assert "sac edit" in text
-    assert "sac run" in text

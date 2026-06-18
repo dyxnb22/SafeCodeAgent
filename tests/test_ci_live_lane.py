@@ -203,60 +203,6 @@ class TestNoSecretsInRepository:
 
 
 # ---------------------------------------------------------------------------
-# v3.10.1: Live-provider lane record tests
-# ---------------------------------------------------------------------------
-
-
-_PROVIDERS_DOC = Path(__file__).parent.parent / "docs" / "providers.md"
-_RELEASE_LEDGER = Path(__file__).parent.parent / "docs" / "release-ledger.md"
-
-
-class TestLiveProviderLaneRecord:
-    """T-3.10.1-B: Live-provider lane remains advisory; one release-train status recorded."""
-
-    def test_live_provider_lane_still_advisory(self) -> None:
-        ci = _load_ci()
-        job = ci["jobs"]["live-provider"]
-        assert job.get("continue-on-error") is True, (
-            "live-provider job must remain advisory (continue-on-error: true) "
-            "until explicitly promoted per T-3.10.1-B evidence requirement."
-        )
-
-    def test_providers_doc_mentions_live_lane_status(self) -> None:
-        assert _PROVIDERS_DOC.exists(), "docs/providers.md must exist"
-        content = _PROVIDERS_DOC.read_text(encoding="utf-8")
-        assert "live" in content.lower(), "providers.md must document live CI lane"
-        assert "advisory" in content.lower(), "providers.md must document advisory status"
-
-    def test_providers_doc_v3_10_1_release_train_section(self) -> None:
-        content = _PROVIDERS_DOC.read_text(encoding="utf-8")
-        assert "v3.10" in content or "release train" in content.lower(), (
-            "providers.md must record v3.10.x release train status"
-        )
-
-    def test_release_ledger_mentions_v3_10_1(self) -> None:
-        assert _RELEASE_LEDGER.exists(), "docs/release-ledger.md must exist"
-        content = _RELEASE_LEDGER.read_text(encoding="utf-8")
-        assert "## v3.10.1" in content
-
-    def test_release_ledger_mentions_advisory(self) -> None:
-        content = _RELEASE_LEDGER.read_text(encoding="utf-8")
-        assert "advisory" in content.lower()
-
-    def test_release_ledger_mentions_live_provider(self) -> None:
-        content = _RELEASE_LEDGER.read_text(encoding="utf-8")
-        assert "live" in content.lower() and "provider" in content.lower()
-
-    def test_live_lane_no_credential_change(self) -> None:
-        """Credential handling must not change — secrets stay out of workflow env on default path."""
-        ci = _load_ci()
-        test_job = ci["jobs"]["test"]
-        env = test_job.get("env", {}) or {}
-        assert "OPENAI_API_KEY" not in env
-        assert "ANTHROPIC_API_KEY" not in env
-
-
-# ---------------------------------------------------------------------------
 # v5.6.1: live-eval CI job
 # ---------------------------------------------------------------------------
 

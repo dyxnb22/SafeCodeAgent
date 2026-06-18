@@ -56,6 +56,9 @@ def test_top_level_examples_extra_declares_runtime_test_dependencies() -> None:
 @pytest.mark.slow
 @pytest.mark.subprocess
 def test_baseline_endpoint_tests_pass_with_examples_dependencies() -> None:
+    pytest.importorskip("fastapi")
+    pytest.importorskip("httpx")
+
     result = subprocess.run(
         [sys.executable, "-m", "pytest", "-q"],
         cwd=EXAMPLE,

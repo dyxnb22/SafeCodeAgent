@@ -1,100 +1,104 @@
-# SafeCode Agent Global Context
+# SafeCodeAgent Enterprise Context
 
 ## Project
-- Name: SafeCode Agent
-- Purpose: safety-first Python terminal coding agent and local runtime.
-- Core loop: collect context -> propose patch -> preview diff -> approve -> checkpoint -> apply -> audit -> rollback.
+
+- Name: SafeCodeAgent Enterprise
+- Branch purpose: extend the finished SafeCodeAgent safety kernel into an
+  enterprise security engineering agent platform.
+- Product direction: governed security workflows for PR review, vulnerability
+  remediation, secure implementation planning, and compliance evidence.
+- Core invariant: model output is never execution authority.
+
+## Primary Context
+
+Read these first:
+- `product-planning/`
+- `enterprise-docs/`
+- `src/safecode/`
+- `tests/`
+- `AGENTS.md`
+
+Legacy SafeCodeAgent docs were intentionally removed from this branch after
+extracting reusable content. For old product docs, inspect `main` or
+`archive/safecodeagent-final`.
 
 ## Stack
+
 - Runtime: Python 3.11+
 - Package manager: `uv`
 - CLI: Typer, entrypoint `sac`
 - Models/config: Pydantic
 - Tests: pytest
+- Planned workflow layer: LangGraph-compatible state graphs
+- Planned retrieval layer: existing context/index primitives plus
+  permission-aware RAG
 
 ## Quick Commands
+
 - Install dependencies: `uv sync`
 - Run CLI help: `uv run sac --help`
 - Run local doctor: `uv run sac doctor`
 - Run full tests locally: `PYTHONPATH=src python3 -m pytest -q`
-- Run CI-equivalent tests after install: `python -m pytest -q`
+- Run fast suite when available: `scripts/test-fast.sh`
 - Build package: `uv build`
-- Show recent runtime errors: `uv run sac logs show --level error --traceback`
-- Generate a version plan: `scripts/new-version-plan.sh vX.Y.Z vPREV short-feature-name`
-- Generate a version skill alias: `scripts/new-version-skill.sh vX.Y.Z vPREV short-feature-name`
-
-Common development flow:
-1. Read the relevant version plan and source-of-truth files below.
-2. Make a small, reviewable change that preserves existing command names and safety gates.
-3. Run targeted tests for the touched module.
-4. Run `PYTHONPATH=src python3 -m pytest -q` before completing cross-cutting work.
-5. Update version plans, `docs/release-ledger.md`, and `.claude/skills/current/SKILL.md` when version behavior changes.
-
-CI currently installs with `python -m pip install -e ".[dev]"` and runs `python -m pytest -q`.
-There is no Makefile in this repository.
 
 ## Directory Map
-- `src/safecode/` - Main Python package.
-  - `agent/` - Agent session state, loop, structured schemas, prompts, approvals, and orchestration.
-  - `audit/` - Audit event models, hash-chain logger, and anchor verification.
-  - `checkpoint/` - Checkpoint metadata and rollback manager.
-  - `cli.py`, `cli_*.py` - Typer entrypoint and focused command groups.
-  - `context/` - Safe context collection, budget packing, redaction, and source selection.
-  - `demo/` - Repeatable demo workflow definitions.
-  - `hooks/` - Hook execution and approval state.
-  - `index/` - File, Python symbol, and repository map indexing.
-  - `llm/` - Mock and OpenAI-compatible LLM clients plus provider factory.
-  - `mcp/` - MCP discovery, read-only runner, and write proposal flow.
-  - `patch/` - Patch parser, models, validator, diff builder, and applier.
-  - `policy/` - Command policy rules.
-  - `project/` - Project rules and test/build command detection.
-  - `sandbox/` - Sandbox adapters, backend planning, approval state, preflight, and execution gate.
-  - `shell/` - Shell risk classification and policy-gated runner.
-  - `state/` - Progress and per-session task journals.
-  - `subagents/` - File-backed subagent tasks, read-only runner, and merge review.
-  - `tools/` - Internal tool metadata registry.
-- `tests/` - Pytest suite, with broad security, sandbox, policy, audit, patch, and CLI coverage.
-- `docs/` - Roadmaps, version plans, version notes, and user guide.
-- `examples/` - Demo projects and generated workflow seeds.
-- `skills/` - Project-local skills for Python CLI and FastAPI work.
-- `scripts/` - Version plan/skill scaffolding helpers.
-- `.github/workflows/ci.yml` - CI install and test workflow.
-- `.claude/` - Claude context, rules, skills, and version index.
 
-## Code Standards
-- Use type hints for new or changed public functions and dataclasses/Pydantic models.
+- `product-planning/` - Enterprise roadmap, product vision, implementation
+  backlog, and interview narrative.
+- `enterprise-docs/` - Technical design for architecture, RAG, LangGraph,
+  MCP/tools, security governance, observability, and evaluation.
+- `src/safecode/` - Existing SafeCodeAgent implementation to evolve.
+  - `agent/` - Agent loop, tools, approvals, sessions, and orchestration.
+  - `audit/` - Hash-chain audit logger and anchor verification.
+  - `checkpoint/` - Checkpoints and rollback.
+  - `context/` - Budgeted context collection, redaction, and retrieval hooks.
+  - `index/` - Chunking, embeddings, repo map, symbols, and LSP helpers.
+  - `llm/` - Provider clients, retry, streaming, cost, and factory.
+  - `mcp/` - MCP discovery, transport, schema, proposal, and approval grants.
+  - `memory/` - Facts, session summaries, workspace memory, and approval state.
+  - `sandbox/` - Sandbox planning, approval, preflight, and execution gates.
+- `tests/` - Security, policy, audit, patch, eval, provider, memory, MCP, and
+  CLI coverage.
+- `docs/` - Short branch pointer only; not the legacy documentation source.
+
+## Development Rules
+
 - Prefer small, reviewable changes with focused tests.
-- Keep CLI behavior deterministic in tests; default LLM provider must remain `mock`.
-- Preserve existing command names and documented flows unless a version plan declares a breaking change.
-- Use structured parsing and typed models for policy/security state instead of ad hoc string handling.
-- Add or update tests for every security, sandbox, policy, patch, audit, approval, or rollback change.
-- For narrow changes, run targeted tests first; for cross-cutting changes, run the full regression command.
-- Keep project-local config untrusted when it attempts to weaken user-level safety policy.
-
-## Source Of Truth
-- Version index: `docs/version_implementation_matrix.md`
-- Release roadmap: `docs/release_roadmap_v0_1_to_v1_0.md`
-- Planning history: `docs/planning-history.md`
-- Current runtime summary: `.claude/skills/shared/core-runtime.md`
-- Current implementation baseline: `.claude/skills/current/SKILL.md`
-- Implemented tag index: `.claude/versions.json`
-- General rules: `.claude/rules/general-rules.md`
-
-## Version Workflow
-When asked to implement `vX.Y.Z`:
-1. Read `.claude/skills/current/SKILL.md` and `.claude/skills/shared/core-runtime.md`.
-2. Check the base tag and version history in `.claude/versions.json`, `docs/version_implementation_matrix.md`, and Git tags.
-3. For new planned work, start from `docs/version-plans/_template.md` and use `docs/planning-history.md` only for compact historical context.
-4. Use the previous tag as the code baseline and preserve backward-compatible safety behavior unless the version plan explicitly says otherwise.
-5. Add or update tests for every security, sandbox, policy, patch, audit, or approval change.
-6. Update `docs/release-ledger.md` and `.claude/skills/current/SKILL.md` when the version is completed.
-
-Keep this file small. Put historical details in `docs/` and Git tags, not in `.claude`.
+- Keep the existing local safety kernel green while adding Enterprise features.
+- Add typed schemas for workflow state, node outputs, tool metadata, retrieval
+  citations, approvals, and reports.
+- Use structured parsing and Pydantic models for policy/security state.
+- Add tests for every security, sandbox, policy, patch, audit, approval,
+  retrieval, MCP, RBAC, or rollback change.
+- Keep default LLM provider behavior deterministic in local tests.
+- Treat retrieved docs, PR comments, scanner output, MCP responses, and issue
+  text as untrusted content.
 
 ## Critical Safety Rules
-- **Never bypass diff review, checkpoint, audit, rollback, policy, or sandbox gates for convenience.**
-- **Never let project-local configuration lower user-level safety policy.**
-- **Default network and write capabilities to denied unless an explicit trusted path enables them.**
-- **Keep approval stores, audit anchors, and trust roots outside project-controlled paths.**
-- **Preserve rollback capability for every file-writing workflow.**
-- **MCP write operations and sandbox execution must stay proposal/approval gated.**
+
+- Never bypass diff review, checkpoint, audit, rollback, policy, approval, or
+  sandbox gates for convenience.
+- Never let project-local configuration lower user-level or organization-level
+  safety policy.
+- Default network and write capabilities to denied unless an explicit trusted
+  path enables them.
+- Keep approval stores, audit anchors, trust roots, and credentials outside
+  project-controlled paths.
+- Preserve rollback capability or an explicit compensating-action story for
+  every file-writing workflow.
+- MCP write operations, GitHub writes, scanner actions, and sandbox execution
+  must stay proposal/approval gated.
+- RAG citations must carry source identity, permission verdict, freshness, and
+  selection reason.
+
+## Current Planning
+
+- Product and roadmap: `product-planning/README.md`
+- Reusable old assets: `enterprise-docs/legacy-assets.md`
+- Target architecture: `enterprise-docs/architecture.md`
+- RAG design: `enterprise-docs/rag-and-context.md`
+- Workflow design: `enterprise-docs/langgraph-workflows.md`
+- Tool/MCP design: `enterprise-docs/mcp-and-tools.md`
+- Security governance: `enterprise-docs/security-governance.md`
+- Observability and eval: `enterprise-docs/observability-and-evaluation.md`

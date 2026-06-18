@@ -79,7 +79,7 @@ class TestChangelogMd:
         assert len(self._text()) > 100
 
 
-class TestReadmeHomebrewLanguage:
+class TestReadmeEnterpriseBranchContext:
     def _readme(self):
         return (_ROOT / "README.md").read_text()
 
@@ -102,17 +102,22 @@ class TestReadmeHomebrewLanguage:
         text = self._readme().lower()
         assert "homebrew tap: coming soon" not in text
 
-    def test_readme_mentions_pipx(self):
-        assert "pipx" in self._readme()
-
-    def test_readme_links_demo(self):
-        # v5.6.0: README references golden-demo (directory created in v5.6.2)
+    def test_readme_identifies_enterprise_branch(self):
         text = self._readme()
-        assert "golden-demo" in text or "portfolio-demo" in text or "fastapi-todo" in text
+        assert "SafeCodeAgent Enterprise" in text
+        assert "enterprise security engineering agent platform" in text
 
-    def test_readme_shows_safety_loop(self):
+    def test_readme_links_enterprise_docs(self):
         text = self._readme()
-        assert "checkpoint" in text.lower() and "rollback" in text.lower()
+        assert "product-planning/README.md" in text
+        assert "enterprise-docs/architecture.md" in text
+
+    def test_readme_shows_safety_invariants(self):
+        text = self._readme()
+        lower = text.lower()
+        assert "model output is never execution authority" in lower
+        assert "policy-gated" in lower
+        assert "recoverable" in lower
 
 
 # ---------------------------------------------------------------------------
@@ -139,24 +144,6 @@ class TestChangelogContent:
     def test_changelog_format_has_markers(self):
         text = self._text()
         assert "## [" in text  # version heading format
-
-
-class TestArchitectureAndPackagingDocs:
-    def test_architecture_doc_exists(self):
-        path = _ROOT / "docs" / "architecture.md"
-        assert path.exists()
-        text = path.read_text(encoding="utf-8")
-        assert "Session Kernel" in text
-        assert "Memory Ledger" in text
-        assert "Provider And Credentials" in text
-
-    def test_docs_index_links_architecture(self):
-        text = (_ROOT / "docs" / "README.md").read_text(encoding="utf-8")
-        assert "architecture.md" in text
-
-    def test_install_docs_include_package_verifier(self):
-        text = (_ROOT / "docs" / "install-update.md").read_text(encoding="utf-8")
-        assert "scripts/verify-package.py" in text
 
 
 class TestContributingContent:
