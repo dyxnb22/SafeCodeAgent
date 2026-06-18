@@ -2,37 +2,19 @@
 
 from __future__ import annotations
 
-from enum import Enum
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from safecode.enterprise.rag.models import Citation
 from safecode.enterprise.connectors.models import IssueEvidence, PullRequestEvidence
+from safecode.enterprise.rbac.models import RBACSubject, Role
 from safecode.enterprise.workflow.contracts import NodeCost, NodeOutput, RunCosts
 from safecode.enterprise.workflow.exceptions import InvalidStateSchemaVersionError
 from safecode.enterprise.workflow.types import RiskTier, TaskType, WorkflowStatus
 
 STATE_SCHEMA_VERSION = "1.2.0"
 SUPPORTED_STATE_SCHEMA_VERSIONS = frozenset({STATE_SCHEMA_VERSION})
-
-
-class Role(str, Enum):
-    viewer = "viewer"
-    developer = "developer"
-    security_reviewer = "security_reviewer"
-    maintainer = "maintainer"
-    platform_admin = "platform_admin"
-
-
-class RBACSubject(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    actor_id: str
-    tenant_id: str = "local"
-    roles: list[Role] = Field(default_factory=lambda: [Role.developer])
-    permission_scopes: list[str] = Field(default_factory=lambda: ["org"])
-    metadata: dict[str, str] = Field(default_factory=dict)
 
 
 class RunRequest(BaseModel):
