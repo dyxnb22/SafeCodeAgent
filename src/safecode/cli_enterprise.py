@@ -31,6 +31,7 @@ from safecode.enterprise.workflow.exceptions import (
 from safecode.enterprise.workflow.orchestrator import LocalOrchestrator, build_initial_state
 from safecode.enterprise.workflow.types import TaskType
 from safecode.enterprise.trace.timeline import build_timeline, serialize_timeline, write_timeline
+from safecode.enterprise.trace.render_markdown import render_markdown
 from safecode.enterprise.workflow.exceptions import CheckpointCorruptedError, InvalidRunIdError
 from safecode.enterprise.workflow.checkpoint import load_checkpoint
 
@@ -312,4 +313,25 @@ def trace_export(
         typer.echo(path.read_text(encoding="utf-8"))
     else:
         typer.echo(serialize_timeline(build_timeline(sac_root, run_id)))
+    raise typer.Exit(code=0)
+
+
+@trace_app.command("show")
+def trace_show(
+    run_id: str = typer.Argument(..., help="Run identifier."),
+    root: Path = typer.Option(None, "--root", help="Project root (defaults to cwd)."),
+    out: Optional[Path] = typer.Option(None, "--out", help="Optional output Markdown path."),
+) -> None:
+    """Render a Markdown dashboard for a workflow run."""
+    project_root = (root or Path.cwd()).resolve()
+    sac_root = project_root / ".sac"
+    try:
+        load_checkpoint(sac_root, run_id)
+    except (InvalidRunIdError, CheckpointCorruptedError, FileNotFoundError):
+        typer.echo("Run not found.", err=True)
+        raise typer.Exit(code=1)
+    markdown = render_markdown(build_timeline(sac_root, run_id))
+    if out is not None:
+        out.write_text(markdown, encoding="utf-8")
+    typer.echo(markdown)
     raise typer.Exit(code=0)
