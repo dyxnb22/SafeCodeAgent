@@ -35,6 +35,8 @@ async def run(state: EnterpriseRunState) -> NodePatch:
                 )
             )
             updates["pull_request_evidence"] = evidence
+        else:
+            updates["missing_evidence"] = True
     return build_patch(
         state,
         NODE_NAME,

@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 from pathlib import Path
+from typing import Optional
 
 import typer
 
@@ -76,8 +77,12 @@ def workflow_run(
     input_path: Path = typer.Option(..., "--input", help="Task input fixture path."),
     root: Path = typer.Option(None, "--root", help="Project root (defaults to cwd)."),
     actor: str = typer.Option("user:local", "--actor", help="Actor identifier."),
-    as_role: str | None = typer.Option(None, "--as-role", help="Override role when org policy allows."),
-    config_root: Path | None = typer.Option(None, "--config-root", help="Enterprise config root."),
+    as_role: Optional[str] = typer.Option(
+        None, "--as-role", help="Override role when org policy allows."
+    ),
+    config_root: Optional[Path] = typer.Option(
+        None, "--config-root", help="Enterprise config root."
+    ),
 ) -> None:
     """Start a local enterprise workflow run."""
     project_root = (root or Path.cwd()).resolve()

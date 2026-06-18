@@ -82,14 +82,15 @@
   "recent_maintenance": [
     {"id": "maintenance-agent-context-governance", "completed_at": "2026-06-18", "evidence": "77 governance tests and full regression: 5778 passed, 4 skipped"},
     {"id": "maintenance-v1.1-regression-cleanup", "completed_at": "2026-06-19", "evidence": "Reported 4 regressions independently passed; full regression: 5818 passed, 4 skipped"},
-    {"id": "maintenance-v1.2-closeout-cleanup", "completed_at": "2026-06-19", "evidence": "uv lock verified with enterprise extra; full regression: 5870 passed, 5 skipped"}
+    {"id": "maintenance-v1.2-closeout-cleanup", "completed_at": "2026-06-19", "evidence": "uv lock verified with enterprise extra; full regression: 5870 passed, 5 skipped"},
+    {"id": "maintenance-v1.3-v1.4-security-closeout", "completed_at": "2026-06-19", "evidence": "Missing PR fixture now marks evidence missing; CLI supports both declared and baseline Typer environments; full regression: 5932 passed, 5 skipped"}
   ],
   "blockers": [],
   "decisions_required": [],
   "last_verification": {
     "recorded_at": "2026-06-19",
     "command": "PYTHONPATH=src python3 -m pytest -q",
-    "result": "5928 passed, 8 skipped",
-    "scope": "v1.3 and v1.4 closeout with repository-wide regression"
+    "result": "5932 passed, 5 skipped",
+    "scope": "v1.3 and v1.4 security closeout with repository-wide regression"
   }
 }

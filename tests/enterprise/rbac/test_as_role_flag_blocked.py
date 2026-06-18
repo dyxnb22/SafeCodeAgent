@@ -54,4 +54,7 @@ def test_cli_workflow_run_rejects_as_role_without_policy(tmp_path: Path):
         env={"WORKFLOW_RUNTIME": "local"},
     )
     assert result.exit_code == 1
-    assert "allow_as_role_flag" in result.stderr
+    error_output = result.output
+    if result.stderr_bytes is not None:
+        error_output += result.stderr
+    assert "allow_as_role_flag" in error_output

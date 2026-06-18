@@ -40,3 +40,27 @@ def test_collect_context_attaches_pr_evidence(tmp_path: Path):
     )
     patch = asyncio.run(collect_run(state))
     assert patch.state_updates["pull_request_evidence"].title == "Security fix"
+    assert patch.state_updates["missing_evidence"] is False
+
+
+def test_collect_context_marks_missing_pr_fixture_as_missing_evidence(
+    tmp_path: Path,
+):
+    state = build_initial_state(
+        task_type=TaskType.pr_review,
+        input_ref="missing-pr.json",
+        actor_id="user:test",
+        repo_root=tmp_path,
+        run_id="run-prctx0002",
+        extra={},
+    )
+    state = state.model_copy(
+        update={
+            "request": state.request.model_copy(update={"input_kind": "pr_fixture"}),
+        }
+    )
+
+    patch = asyncio.run(collect_run(state))
+
+    assert patch.state_updates["missing_evidence"] is True
+    assert "pull_request_evidence" not in patch.state_updates
