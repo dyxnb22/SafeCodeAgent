@@ -7,12 +7,12 @@
     "milestone": "v1.2.1",
     "status": "in_progress",
     "active_task": {
-      "id": "v1.2.1-T1",
+      "id": "v1.2.1-T2",
       "kind": "delivery",
-      "title": "Enum and risk-tier types",
+      "title": "EnterpriseRunState model",
       "started_at": "2026-06-19"
     },
-    "next_delivery_task": "v1.2.1-T1"
+    "next_delivery_task": "v1.2.1-T2"
   },
   "stages": {
     "v1.0": "completed",
@@ -127,6 +127,11 @@
       "id": "v1.1.4-T3",
       "completed_at": "2026-06-18",
       "evidence": "ec030ba"
+    },
+    {
+      "id": "v1.2.1-T1",
+      "completed_at": "2026-06-19",
+      "evidence": "66b5b25"
     }
   ],
   "recent_maintenance": [
