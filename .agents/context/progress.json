@@ -5,8 +5,13 @@
   "current": {
     "stage": "v1.2",
     "milestone": "v1.2.1",
-    "status": "ready",
-    "active_task": null,
+    "status": "in_progress",
+    "active_task": {
+      "id": "v1.2.1-T1",
+      "kind": "delivery",
+      "title": "Enum and risk-tier types",
+      "started_at": "2026-06-19"
+    },
     "next_delivery_task": "v1.2.1-T1"
   },
   "stages": {
