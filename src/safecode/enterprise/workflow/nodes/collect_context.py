@@ -26,14 +26,15 @@ async def run(state: EnterpriseRunState) -> NodePatch:
             project_root = repo_root
         if repo_root not in fixture_path.parents and fixture_path != repo_root:
             raise ValueError("PR fixture path escapes repository root")
-        evidence = fetch_pr(
-            PullRequestConnectorSpec(
-                mode="fixture",
-                fixture_path=fixture_path.name,
-                project_root=str(project_root),
+        if fixture_path.is_file():
+            evidence = fetch_pr(
+                PullRequestConnectorSpec(
+                    mode="fixture",
+                    fixture_path=fixture_path.name,
+                    project_root=str(project_root),
+                )
             )
-        )
-        updates["pull_request_evidence"] = evidence
+            updates["pull_request_evidence"] = evidence
     return build_patch(
         state,
         NODE_NAME,
