@@ -1,0 +1,11 @@
+docs/archive/**
+archive/**
+**/version-notes/**
+**/version-plans/**
+**/.sac/eval/transcripts/**
+**/.sac/logs/**
+**/.sac/sessions/**
+**/.sac/checkpoints/**
+**/.pytest_cache/**
+**/__pycache__/**
+uv.lock
