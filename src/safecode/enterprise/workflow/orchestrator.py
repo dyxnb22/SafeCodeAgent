@@ -6,6 +6,7 @@ import os
 from datetime import datetime, timezone
 from pathlib import Path
 
+from safecode.enterprise.approvals.store import list_requests
 from safecode.enterprise.workflow.checkpoint import (
     CHECKPOINT_SCHEMA_VERSION,
     RunCheckpoint,
@@ -95,11 +96,42 @@ class LocalOrchestrator:
 
     async def resume(self, run_id: str) -> EnterpriseRunState:
         checkpoint = load_checkpoint(self.sac_root, run_id)
+        state = checkpoint.state
+        if state.status == WorkflowStatus.awaiting_approval:
+            requests = list_requests(self.sac_root, run_id)
+            if any(item.status == "rejected" for item in requests):
+                rejected = state.model_copy(
+                    update={
+                        "status": WorkflowStatus.rejected,
+                        "awaiting_human_approval": False,
+                        "updated_at": utc_now_iso(),
+                    }
+                )
+                save_checkpoint(
+                    self.sac_root,
+                    RunCheckpoint(
+                        schema_version=CHECKPOINT_SCHEMA_VERSION,
+                        run_id=rejected.run_id,
+                        completed_nodes=list(checkpoint.completed_nodes),
+                        next_node=None,
+                        state=rejected,
+                    ),
+                )
+                return rejected
+            if not any(item.status == "approved" for item in requests):
+                raise WorkflowInterrupted(f"awaiting approval for run {run_id}")
+            state = state.model_copy(
+                update={
+                    "awaiting_human_approval": False,
+                    "status": WorkflowStatus.running,
+                    "updated_at": utc_now_iso(),
+                }
+            )
         if self.runtime == "langgraph":
             from safecode.enterprise.workflow.graph import resume_langgraph_workflow
 
             return await resume_langgraph_workflow(self.sac_root, checkpoint)
-        return await self._run_local(checkpoint.state, completed_nodes=list(checkpoint.completed_nodes))
+        return await self._run_local(state, completed_nodes=list(checkpoint.completed_nodes))
 
     async def _run_local(
         self,
@@ -131,6 +163,27 @@ class LocalOrchestrator:
                     state=current,
                 ),
             )
+            if (
+                node_name == "approval_gate"
+                and current.awaiting_human_approval
+                and current.risk_tier is not None
+                and current.risk_tier.value in {"high", "critical"}
+            ):
+                from safecode.enterprise.approvals.store import Action, ApprovalRequest
+                from safecode.enterprise.workflow.interrupt import pause_for_approval
+
+                request = ApprovalRequest(
+                    request_id=f"approval-{current.run_id}",
+                    run_id=current.run_id,
+                    action=Action.file_write,
+                    risk_tier=current.risk_tier,
+                    requested_by_node=node_name,
+                    requesting_actor=current.actor_id,
+                    policy_snapshot_id=current.policy_snapshot_id,
+                    created_at=current.updated_at,
+                    preview="High-risk workflow action requires approval.",
+                )
+                pause_for_approval(self.sac_root, current, request)
             if current.status == WorkflowStatus.awaiting_approval:
                 raise WorkflowInterrupted(f"awaiting approval at node {node_name}")
         return current

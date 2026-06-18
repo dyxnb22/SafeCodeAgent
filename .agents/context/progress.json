@@ -7,7 +7,7 @@
     "milestone": "v1.2.4",
     "status": "ready",
     "active_task": null,
-    "next_delivery_task": "v1.2.4-T2"
+    "next_delivery_task": "v1.2.4-T3"
   },
   "stages": {
     "v1.0": "completed",
@@ -51,7 +51,8 @@
     {"id": "v1.2.2-T3", "completed_at": "2026-06-19", "evidence": "923b07a"},
     {"id": "v1.2.3-T1", "completed_at": "2026-06-19", "evidence": "f1d89a9"},
     {"id": "v1.2.3-T3", "completed_at": "2026-06-19", "evidence": "af6fc50"},
-    {"id": "v1.2.4-T1", "completed_at": "2026-06-19", "evidence": "tests/enterprise/approvals/test_request_store.py passed"}
+    {"id": "v1.2.4-T1", "completed_at": "2026-06-19", "evidence": "1267483"},
+    {"id": "v1.2.4-T2", "completed_at": "2026-06-19", "evidence": "tests/enterprise/workflow/test_approval_interrupt.py passed"}
   ],
   "recent_maintenance": [
     {"id": "maintenance-agent-context-governance", "completed_at": "2026-06-18", "evidence": "77 governance tests and full regression: 5778 passed, 4 skipped"},

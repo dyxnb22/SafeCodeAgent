@@ -30,14 +30,23 @@ def test_resume_skips_completed_nodes(tmp_path: Path):
         actor_id="user:test",
         repo_root=tmp_path,
         run_id="run-resume0001",
-        extra={"high_risk": "1"},
     )
-    with pytest.raises(WorkflowInterrupted):
-        asyncio.run(orchestrator.run(state))
-    checkpoint = load_checkpoint(sac_root, "run-resume0001")
-    completed_before = len(checkpoint.completed_nodes)
+    from safecode.enterprise.workflow.checkpoint import CHECKPOINT_SCHEMA_VERSION, RunCheckpoint
+
+    partial = list(WORKFLOW_NODE_ORDER[:3])
+    save_checkpoint(
+        sac_root,
+        RunCheckpoint(
+            schema_version=CHECKPOINT_SCHEMA_VERSION,
+            run_id=state.run_id,
+            completed_nodes=partial,
+            next_node=WORKFLOW_NODE_ORDER[3],
+            state=state.model_copy(update={"status": WorkflowStatus.running}),
+        ),
+    )
+    completed_before = len(partial)
     final = asyncio.run(orchestrator.resume("run-resume0001"))
-    assert final.status in {WorkflowStatus.succeeded, WorkflowStatus.awaiting_approval}
+    assert final.status == WorkflowStatus.succeeded
     assert len(load_checkpoint(sac_root, "run-resume0001").completed_nodes) >= completed_before
 
 
