@@ -16,8 +16,8 @@ compliance evidence, and auditable tool-using security operations.
 
 - Legacy implemented baseline: `v7.1.5`.
 - Enterprise planning and namespace stages: complete.
-- Current delivery stage: `v1.1 RAG Security Knowledge Base MVP`.
-- Next delivery task: `v1.1.1-T1 KnowledgeSource and SourceType`.
+- Current delivery stage: `v1.2 LangGraph Security Workflow MVP`.
+- Next delivery task: `v1.2.1-T1 Enum and risk-tier types`.
 - Machine-readable live status: `.agents/context/progress.json`.
 
 Do not infer current progress from prose in this file. Read `progress.json`.
@@ -85,7 +85,7 @@ regression analysis.
 | Stage | Capability | Status | Primary design |
 |---|---|---|---|
 | v1.0 | Enterprise branch, plans, namespace | Complete | `product-planning/` |
-| v1.1 | Permission-aware RAG knowledge base | Ready | `enterprise-docs/rag-implementation-plan.md` |
+| v1.1 | Permission-aware RAG knowledge base | Complete | `enterprise-docs/rag-implementation-plan.md` |
 | v1.2 | Typed workflow state and orchestration | Planned | `enterprise-docs/workflow-design.md` |
 | v1.3 | Native, connector, scanner, and MCP layer | Planned | `enterprise-docs/system-architecture-v1.md` |
 | v1.4 | Policy, RBAC, approval, and audit governance | Planned | `enterprise-docs/security-governance-plan.md` |

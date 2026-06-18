@@ -1,7 +1,7 @@
 {
   "suite": "retrieval_v1_1",
   "date": "2026-06-18",
-  "commit": "pending",
+  "commit": "ec030ba",
   "cases": [
     {
       "case_id": "retrieval.policy.sql_injection",
