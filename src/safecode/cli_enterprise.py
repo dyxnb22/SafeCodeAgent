@@ -13,9 +13,14 @@ from safecode.enterprise.rag.retriever import HybridRetriever
 from safecode.enterprise.workflow.checkpoint import gc_runs
 from safecode.enterprise.approvals.store import (
     decide_request,
+    list_pending_requests,
     list_requests,
     load_request,
+    request_evidence,
+    revoke_request,
 )
+from safecode.enterprise.approvals.cli_render import render_pending_requests
+from safecode.enterprise.rbac.models import resolve_subject
 from safecode.enterprise.workflow.exceptions import (
     ApprovalRequestNotFoundError,
     RequestAlreadyConsumedError,
@@ -71,6 +76,8 @@ def workflow_run(
     input_path: Path = typer.Option(..., "--input", help="Task input fixture path."),
     root: Path = typer.Option(None, "--root", help="Project root (defaults to cwd)."),
     actor: str = typer.Option("user:local", "--actor", help="Actor identifier."),
+    as_role: str | None = typer.Option(None, "--as-role", help="Override role when org policy allows."),
+    config_root: Path | None = typer.Option(None, "--config-root", help="Enterprise config root."),
 ) -> None:
     """Start a local enterprise workflow run."""
     project_root = (root or Path.cwd()).resolve()
@@ -79,6 +86,11 @@ def workflow_run(
         task_type = TaskType(task)
     except ValueError as exc:
         typer.echo("Unsupported task type.", err=True)
+        raise typer.Exit(code=1) from exc
+    try:
+        resolve_subject(actor, config_root=config_root, as_role=as_role)
+    except PermissionError as exc:
+        typer.echo(str(exc), err=True)
         raise typer.Exit(code=1) from exc
     state = build_initial_state(
         task_type=task_type,
@@ -141,9 +153,18 @@ def workflow_gc(
 def approval_list(
     run_id: str = typer.Argument(..., help="Run identifier."),
     root: Path = typer.Option(None, "--root", help="Project root (defaults to cwd)."),
+    pending: bool = typer.Option(False, "--pending", help="Show only pending requests."),
+    markdown: bool = typer.Option(False, "--markdown", help="Render pending requests as Markdown."),
 ) -> None:
     project_root = (root or Path.cwd()).resolve()
-    requests = list_requests(project_root / ".sac", run_id)
+    requests = (
+        list_pending_requests(project_root / ".sac", run_id)
+        if pending
+        else list_requests(project_root / ".sac", run_id)
+    )
+    if markdown:
+        typer.echo(render_pending_requests(requests))
+        raise typer.Exit(code=0)
     typer.echo(json.dumps([item.model_dump(mode="json") for item in requests], indent=2))
     raise typer.Exit(code=0)
 
@@ -169,6 +190,7 @@ def approval_approve(
     run_id: str = typer.Argument(..., help="Run identifier."),
     request_id: str = typer.Argument(..., help="Approval request identifier."),
     actor: str = typer.Option(..., "--actor", help="Human approver actor id."),
+    note: str = typer.Option("", "--note", help="Optional approval note."),
     root: Path = typer.Option(None, "--root", help="Project root (defaults to cwd)."),
 ) -> None:
     project_root = (root or Path.cwd()).resolve()
@@ -179,6 +201,7 @@ def approval_approve(
             request_id,
             decision="approved",
             decision_actor=actor,
+            decision_note=note,
         )
     except RequestAlreadyConsumedError:
         typer.echo("Approval request already consumed.", err=True)
@@ -192,6 +215,7 @@ def approval_reject(
     run_id: str = typer.Argument(..., help="Run identifier."),
     request_id: str = typer.Argument(..., help="Approval request identifier."),
     actor: str = typer.Option(..., "--actor", help="Human approver actor id."),
+    reason: str = typer.Option("", "--reason", help="Rejection reason."),
     root: Path = typer.Option(None, "--root", help="Project root (defaults to cwd)."),
 ) -> None:
     project_root = (root or Path.cwd()).resolve()
@@ -202,9 +226,58 @@ def approval_reject(
             request_id,
             decision="rejected",
             decision_actor=actor,
+            decision_note=reason,
         )
     except RequestAlreadyConsumedError:
         typer.echo("Approval request already consumed.", err=True)
+        raise typer.Exit(code=1)
+    typer.echo(json.dumps({"request_id": request.request_id, "status": request.status}))
+    raise typer.Exit(code=0)
+
+
+@approval_app.command("request-evidence")
+def approval_request_evidence(
+    run_id: str = typer.Argument(..., help="Run identifier."),
+    request_id: str = typer.Argument(..., help="Approval request identifier."),
+    actor: str = typer.Option(..., "--actor", help="Human approver actor id."),
+    note: str = typer.Option(..., "--note", help="Evidence request note."),
+    root: Path = typer.Option(None, "--root", help="Project root (defaults to cwd)."),
+) -> None:
+    project_root = (root or Path.cwd()).resolve()
+    try:
+        request = request_evidence(
+            project_root / ".sac",
+            run_id,
+            request_id,
+            decision_actor=actor,
+            decision_note=note,
+        )
+    except (RequestAlreadyConsumedError, ValueError) as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
+    typer.echo(json.dumps({"request_id": request.request_id, "status": request.status}))
+    raise typer.Exit(code=0)
+
+
+@approval_app.command("revoke")
+def approval_revoke(
+    run_id: str = typer.Argument(..., help="Run identifier."),
+    request_id: str = typer.Argument(..., help="Approval request identifier."),
+    actor: str = typer.Option(..., "--actor", help="Human approver actor id."),
+    reason: str = typer.Option("", "--reason", help="Optional revoke reason."),
+    root: Path = typer.Option(None, "--root", help="Project root (defaults to cwd)."),
+) -> None:
+    project_root = (root or Path.cwd()).resolve()
+    try:
+        request = revoke_request(
+            project_root / ".sac",
+            run_id,
+            request_id,
+            decision_actor=actor,
+            decision_note=reason,
+        )
+    except RequestAlreadyConsumedError:
+        typer.echo("Approval request cannot be revoked.", err=True)
         raise typer.Exit(code=1)
     typer.echo(json.dumps({"request_id": request.request_id, "status": request.status}))
     raise typer.Exit(code=0)
