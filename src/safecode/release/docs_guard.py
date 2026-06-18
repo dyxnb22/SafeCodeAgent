@@ -89,13 +89,13 @@ def check_docs_finalized(
         project_root: repo root; defaults to cwd.
         notes_dir: legacy path to version-notes directory; used only as a fallback.
         release_ledger_path: path to release ledger; defaults to project_root/docs/release-ledger.md.
-        skill_path: path to SKILL.md; defaults to project_root/.claude/skills/current/SKILL.md.
+        skill_path: path to SKILL.md; defaults to project_root/.agents/skills/current/SKILL.md.
         release_commands_documented: inject True/False for testing; if None, auto-detects.
     """
     root = project_root or Path.cwd()
     nd = notes_dir or (root / "docs" / "version-notes")
     ledger = release_ledger_path or (root / "docs" / "release-ledger.md")
-    sp = skill_path or (root / ".claude" / "skills" / "current" / "SKILL.md")
+    sp = skill_path or (root / ".agents" / "skills" / "current" / "SKILL.md")
 
     if release_ledger_path is not None:
         has_note = _ledger_entry_exists(version, ledger)

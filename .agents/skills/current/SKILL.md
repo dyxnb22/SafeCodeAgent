@@ -1,54 +1,40 @@
 ---
 name: SafeCodeAgent Enterprise Baseline
 description: >
-  Current branch context for evolving SafeCodeAgent into an enterprise security
-  engineering agent platform.
+  Current branch context and task router for SafeCodeAgent Enterprise delivery.
 ---
 
 # SafeCodeAgent Enterprise Baseline
 
-This branch starts from the completed SafeCodeAgent safety-first coding agent
-and redirects development toward Enterprise workflows.
-
 Implemented. Git baseline: tag `v7.1.5`.
+
+This branch extends the completed SafeCodeAgent safety kernel into a governed
+enterprise security engineering agent platform.
+
+## Mandatory Entry Context
+
+Read these files before Enterprise implementation work:
+
+1. `AGENTS.md`
+2. `.agents/context/project-context.md`
+3. `.agents/context/progress.json`
+
+Use the task-to-context routing table in `project-context.md` to select only the
+authoritative documents needed for the active task. Then inspect affected code,
+callers, and tests. Do not treat the compact context as implementation truth.
 
 ## Product Goal
 
-Build a governed agent platform for:
-- PR security review
-- vulnerability remediation
-- secure implementation planning
-- compliance evidence
-- auditable tool-using security workflows
+Build governed workflows for PR security review, vulnerability remediation,
+secure implementation planning, compliance evidence, and auditable tool use.
 
-## Reusable Kernel
+## Reusable Safety Kernel
 
-Keep these SafeCodeAgent primitives:
-- policy-gated file writes
-- checkpoint and rollback
-- hash-chain audit logs
-- native read/write/command tools
-- MCP proposal and approval flow
-- sandbox proposal/preflight/approval/execution lifecycle
-- redacted memory and approved facts
-- context budget and hybrid retrieval hooks
-- provider clients with structured output validation
-- eval fixtures, live smoke, and dashboard artifacts
+Preserve policy-gated writes and commands, checkpoint and rollback, hash-chain
+audit, MCP proposal and approval, sandbox lifecycle gates, redacted approved
+memory, context budgets, provider validation, and deterministic eval fixtures.
 
-## New Enterprise Direction
-
-Planned layers:
-- permission-aware RAG over code, policy, docs, historical fixes, and findings
-- LangGraph-compatible workflow state and human interrupts
-- role agents with typed outputs
-- MCP/native tool governance
-- RBAC, organization policy, and approval tiers
-- trace, cost, retrieval, approval, and validation observability
-- enterprise eval suites for security workflows
-
-## Current Source Of Truth
-
-Authoritative delivery planning:
+## Authoritative Delivery Planning
 
 - `product-planning/version-roadmap.md`
 - `product-planning/milestone-acceptance.md`
@@ -64,22 +50,17 @@ Authoritative delivery planning:
 - `enterprise-docs/evaluation-plan.md`
 - `enterprise-docs/agentops-observability-plan.md`
 
-Planning indexes:
+Indexes: `product-planning/README.md` and `enterprise-docs/README.md`.
 
-- `product-planning/README.md`
-- `enterprise-docs/README.md`
+Foundation overviews are background only. Legacy product docs live on `main`
+and `archive/safecodeagent-final`; do not recreate them here.
 
-Foundation overview, not delivery source of truth:
+## Task Discipline
 
-- `product-planning/roadmap.md`
-- `product-planning/implementation-backlog.md`
-- `enterprise-docs/legacy-assets.md`
-- `enterprise-docs/architecture.md`
-- `enterprise-docs/rag-and-context.md`
-- `enterprise-docs/langgraph-workflows.md`
-- `enterprise-docs/mcp-and-tools.md`
-- `enterprise-docs/security-governance.md`
-- `enterprise-docs/observability-and-evaluation.md`
-
-Do not use old version notes as active planning. Legacy docs are available on
-`main` and `archive/safecodeagent-final`.
+- Verify the active task and next task against `progress.json`.
+- Read the exact backlog and acceptance entries before implementation.
+- Apply the impact check from `project-context.md` before code changes.
+- Update progress for every progress-bearing task using the protocol in
+  `AGENTS.md`.
+- Resolve context, plan, code, or test conflicts explicitly; never silently
+  select the interpretation that is easiest to implement.

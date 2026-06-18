@@ -150,7 +150,7 @@ def collect_release_metadata(
             package_version,
         )
 
-    sk_path = skill_path or (root / ".claude" / "skills" / "current" / "SKILL.md")
+    sk_path = skill_path or (root / ".agents" / "skills" / "current" / "SKILL.md")
     skill_ok = _skill_mentions_version(sk_path, package_version)
 
     issues: list[str] = []

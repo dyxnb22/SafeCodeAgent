@@ -55,7 +55,7 @@ class TestVersionsJsonStaleness:
             current_tag="v2.7.0",
             latest_tags=["v2.7.0"],
         )
-        _write_skill_md(tmp_path / ".claude" / "skills" / "current" / "SKILL.md", "v2.7.0")
+        _write_skill_md(tmp_path / ".agents" / "skills" / "current" / "SKILL.md", "v2.7.0")
 
         result = check_versions_governance(
             tmp_path,
@@ -74,7 +74,7 @@ class TestVersionsJsonStaleness:
             current_tag="v2.7.1",
             latest_tags=["v2.7.0", "v2.7.1"],
         )
-        _write_skill_md(tmp_path / ".claude" / "skills" / "current" / "SKILL.md", "v2.7.1")
+        _write_skill_md(tmp_path / ".agents" / "skills" / "current" / "SKILL.md", "v2.7.1")
 
         result = check_versions_governance(
             tmp_path,
@@ -85,7 +85,7 @@ class TestVersionsJsonStaleness:
         assert result.versions_json_ok
 
     def test_missing_versions_json_fails(self, tmp_path: Path) -> None:
-        _write_skill_md(tmp_path / ".claude" / "skills" / "current" / "SKILL.md", "v2.7.0")
+        _write_skill_md(tmp_path / ".agents" / "skills" / "current" / "SKILL.md", "v2.7.0")
 
         result = check_versions_governance(tmp_path, git_tags=["v2.7.0"])
 
@@ -103,7 +103,7 @@ class TestSkillBaselineTags:
             current_tag="v2.7.0",
             latest_tags=["v2.7.0"],
         )
-        _write_skill_md(tmp_path / ".claude" / "skills" / "current" / "SKILL.md", "v2.7.0")
+        _write_skill_md(tmp_path / ".agents" / "skills" / "current" / "SKILL.md", "v2.7.0")
 
         result = check_versions_governance(tmp_path, git_tags=["v2.7.0"])
 
@@ -118,7 +118,7 @@ class TestSkillBaselineTags:
         )
         # Two different baseline tags → contradiction
         _write_skill_md(
-            tmp_path / ".claude" / "skills" / "current" / "SKILL.md",
+            tmp_path / ".agents" / "skills" / "current" / "SKILL.md",
             "v2.7.0",
             "v2.7.1",
         )
@@ -147,8 +147,8 @@ class TestSkillBaselineTags:
             current_tag="v2.7.0",
             latest_tags=["v2.7.0"],
         )
-        (tmp_path / ".claude" / "skills" / "current").mkdir(parents=True)
-        (tmp_path / ".claude" / "skills" / "current" / "SKILL.md").write_text(
+        (tmp_path / ".agents" / "skills" / "current").mkdir(parents=True)
+        (tmp_path / ".agents" / "skills" / "current" / "SKILL.md").write_text(
             "# Baseline\n\nNo tag here.\n", encoding="utf-8"
         )
 

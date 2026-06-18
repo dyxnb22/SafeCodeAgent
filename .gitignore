@@ -3,6 +3,17 @@
 .pytest_cache/
 __pycache__/
 *.py[cod]
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+junit*.xml
+pytest-report*.xml
+*.log
+*.tmp
+*.bak
+*.orig
+*.rej
 
 # SafeCode Agent runtime state for the current working project.
 .sac/

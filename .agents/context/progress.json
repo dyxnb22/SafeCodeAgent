@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "updated_at": "2026-06-18",
+  "implemented_baseline_tag": "v7.1.5",
+  "current": {
+    "stage": "v1.1",
+    "milestone": "v1.1.1",
+    "status": "ready",
+    "active_task": null,
+    "next_delivery_task": "v1.1.1-T1"
+  },
+  "stages": {
+    "v1.0": "completed",
+    "v1.1": "ready",
+    "v1.2": "planned",
+    "v1.3": "planned",
+    "v1.4": "planned",
+    "v1.5": "planned",
+    "v1.6": "planned",
+    "v1.7": "planned",
+    "v1.8": "planned",
+    "v1.9": "planned",
+    "v2.0": "planned"
+  },
+  "completed_delivery_tasks": [
+    {
+      "id": "v1.0.1-T1",
+      "completed_at": "2026-06-18",
+      "evidence": "enterprise-v1.0.1-sot"
+    },
+    {
+      "id": "v1.0.2-T1",
+      "completed_at": "2026-06-18",
+      "evidence": "enterprise-v1.0.2-t1"
+    },
+    {
+      "id": "v1.0.3-T1",
+      "completed_at": "2026-06-18",
+      "evidence": "enterprise-v1.0.3-t1"
+    },
+    {
+      "id": "v1.0.4-T1",
+      "completed_at": "2026-06-18",
+      "evidence": "enterprise-v1.0.4-t1"
+    }
+  ],
+  "recent_maintenance": [
+    {
+      "id": "maintenance-agent-context-governance",
+      "completed_at": "2026-06-18",
+      "evidence": "77 governance tests and full regression: 5778 passed, 4 skipped"
+    }
+  ],
+  "blockers": [],
+  "decisions_required": [
+    {
+      "id": "rag-markdown-record-granularity",
+      "required_before": "v1.1.1-T3",
+      "summary": "Align per-file versus per-H1 Markdown RawRecord behavior in authoritative plans."
+    }
+  ],
+  "last_verification": {
+    "recorded_at": "2026-06-18",
+    "command": "PYTHONPATH=src python3 -m pytest -q",
+    "result": "5778 passed, 4 skipped",
+    "scope": "cross-agent governance and context-layer update"
+  }
+}

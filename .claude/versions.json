@@ -9,11 +9,13 @@
   "latest_tags": [
     "v7.1.5"
   ],
-  "active_docs": [
-    "product-planning/",
-    "enterprise-docs/",
+  "active_rule_entrypoints": [
     "AGENTS.md",
-    ".claude/CLAUDE.md"
+    "CLAUDE.md",
+    ".cursor/rules/00-project-governance.mdc"
   ],
-  "note": "Detailed SafeCodeAgent version history was removed from this branch to reduce stale context. Inspect main or archive/safecodeagent-final for legacy release archaeology."
+  "canonical_skill": ".agents/skills/current/SKILL.md",
+  "canonical_project_context": ".agents/context/project-context.md",
+  "canonical_progress": ".agents/context/progress.json",
+  "note": "Machine-readable release metadata only. Repository rules live in AGENTS.md."
 }

@@ -17,7 +17,7 @@ class _Env:
         self.version = version
         self.notes_dir = tmp_path / "docs" / "version-notes"
         self.notes_dir.mkdir(parents=True)
-        self.skill_dir = tmp_path / ".claude" / "skills" / "current"
+        self.skill_dir = tmp_path / ".agents" / "skills" / "current"
         self.skill_dir.mkdir(parents=True)
         self.readme = tmp_path / "README.md"
         self.install_doc = tmp_path / "docs" / "install-update.md"

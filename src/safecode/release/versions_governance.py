@@ -2,7 +2,7 @@
 
 Verifies that:
 1. .claude/versions.json current_implemented_tag matches the latest git tag.
-2. .claude/skills/current/SKILL.md has exactly one unambiguous baseline tag.
+2. .agents/skills/current/SKILL.md has exactly one unambiguous baseline tag.
 
 When stale, the suggested next step is ``sac release sync-versions-json``.
 """
@@ -76,7 +76,7 @@ def check_versions_governance(
             versions_json_ok = True
 
     # ── 2. SKILL.md baseline tag check ───────────────────────────────────
-    skill_path = root / ".claude" / "skills" / "current" / "SKILL.md"
+    skill_path = root / ".agents" / "skills" / "current" / "SKILL.md"
     skill_baseline_tags: list[str] = []
     skill_ok = False
 
