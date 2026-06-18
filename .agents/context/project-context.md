@@ -17,7 +17,7 @@ compliance evidence, and auditable tool-using security operations.
 - Legacy implemented baseline: `v7.1.5`.
 - Enterprise planning and namespace stages: complete.
 - Current delivery stage: `v1.5 AgentOps Observability and Trace Dashboard`.
-- Next delivery task: `v1.5.1-T1 TraceEvent schema and emitter`.
+- Next delivery task: `v1.5.1-T2 Wire emitter into workflow nodes and approval engine`.
 - Machine-readable live status: `.agents/context/progress.json`.
 
 Do not infer current progress from prose in this file. Read `progress.json`.

@@ -15,14 +15,18 @@ from safecode.enterprise.trace.events import (
     make_event_id,
     utc_now_iso,
 )
-from safecode.enterprise.workflow.checkpoint import run_dir
 from safecode.enterprise.workflow.contracts import NodeCost
+from safecode.enterprise.workflow.exceptions import InvalidRunIdError
 from safecode.enterprise.workflow.ids import validate_run_id
 
 
 def trace_file_path(sac_root: Path, run_id: str) -> Path:
     validate_run_id(run_id)
-    return run_dir(sac_root, run_id) / "trace.jsonl"
+    root = (sac_root / "enterprise" / "runs").resolve()
+    target = (root / run_id).resolve()
+    if target.parent != root:
+        raise InvalidRunIdError(f"run path escapes runs root: {run_id!r}")
+    return target / "trace.jsonl"
 
 
 def _redact_payload_value(value: object) -> tuple[object, bool, str | None]:
@@ -76,6 +80,20 @@ def _atomic_append_line(path: Path, line: str) -> None:
     tmp_path.unlink(missing_ok=True)
 
 
+def _load_max_seq(path: Path) -> int:
+    if not path.is_file():
+        return 0
+    max_seq = 0
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        record = json.loads(line)
+        seq = record.get("seq")
+        if isinstance(seq, int):
+            max_seq = max(max_seq, seq)
+    return max_seq
+
+
 def _load_event_ids(path: Path) -> set[str]:
     if not path.is_file():
         return set()
@@ -99,6 +117,12 @@ class TraceEmitter:
         self.run_id = run_id
         self._path = trace_file_path(sac_root, run_id)
         self._seen_ids = _load_event_ids(self._path)
+        self._next_seq = _load_max_seq(self._path) + 1
+
+    def allocate_seq(self) -> int:
+        seq = self._next_seq
+        self._next_seq += 1
+        return seq
 
     @property
     def path(self) -> Path:

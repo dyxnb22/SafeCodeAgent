@@ -7,6 +7,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from safecode.enterprise.approvals.store import list_requests
+from safecode.enterprise.trace.events import TraceEventType
+from safecode.enterprise.trace.session import TraceSession
 from safecode.enterprise.workflow.checkpoint import (
     CHECKPOINT_SCHEMA_VERSION,
     RunCheckpoint,
@@ -140,13 +142,32 @@ class LocalOrchestrator:
         completed_nodes: list[str],
     ) -> EnterpriseRunState:
         current = state
+        trace = TraceSession(self.sac_root, current)
         start_index = len(completed_nodes)
+        if start_index == 0:
+            trace.emit(
+                TraceEventType.workflow_start,
+                node_id="orchestrator",
+                payload={"task_type": current.task_type.value},
+            )
         for node_name in WORKFLOW_NODE_ORDER[start_index:]:
             if node_name in completed_nodes:
                 continue
+            trace.emit(TraceEventType.node_start, node_id=node_name)
             runner = NODE_RUNNERS[node_name]
             patch = await runner(current)
             current = apply_patch(current, patch)
+            node_output = current.node_outputs.get(node_name)
+            trace.emit(
+                TraceEventType.node_end,
+                node_id=node_name,
+                payload={
+                    "summary": node_output.summary if node_output else patch.node_name,
+                    "status": patch.status,
+                },
+                cost=patch.cost,
+                duration_ms=patch.duration_ms,
+            )
             completed_nodes = [*completed_nodes, node_name]
             next_node = (
                 WORKFLOW_NODE_ORDER[len(completed_nodes)]
@@ -186,4 +207,9 @@ class LocalOrchestrator:
                 pause_for_approval(self.sac_root, current, request)
             if current.status == WorkflowStatus.awaiting_approval:
                 raise WorkflowInterrupted(f"awaiting approval at node {node_name}")
+        trace.emit(
+            TraceEventType.workflow_end,
+            node_id="orchestrator",
+            payload={"status": current.status.value},
+        )
         return current

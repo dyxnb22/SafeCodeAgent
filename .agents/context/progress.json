@@ -7,7 +7,7 @@
     "milestone": "v1.5.1",
     "status": "in_progress",
     "active_task": null,
-    "next_delivery_task": "v1.5.1-T2"
+    "next_delivery_task": "v1.5.2-T1"
   },
   "stages": {
     "v1.0": "completed",
@@ -78,7 +78,8 @@
     {"id": "v1.4.4-T1", "completed_at": "2026-06-19", "evidence": "c10c353"},
     {"id": "v1.4.5-T1", "completed_at": "2026-06-19", "evidence": "2c69862"},
     {"id": "v1.4.5-T2", "completed_at": "2026-06-19", "evidence": "c2381e6"},
-    {"id": "v1.5.1-T1", "completed_at": "2026-06-19", "evidence": "4cb8e40"}
+    {"id": "v1.5.1-T1", "completed_at": "2026-06-19", "evidence": "7536fe6"},
+    {"id": "v1.5.1-T2", "completed_at": "2026-06-19", "evidence": "7ed55e9"}
   ],
   "recent_maintenance": [
     {"id": "maintenance-agent-context-governance", "completed_at": "2026-06-18", "evidence": "77 governance tests and full regression: 5778 passed, 4 skipped"},

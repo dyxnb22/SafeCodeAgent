@@ -14,6 +14,8 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 from safecode.context.redactor import redact_secrets
+from safecode.enterprise.trace.events import TraceEventType
+from safecode.enterprise.trace.session import emit_standalone_trace
 from safecode.enterprise.workflow.exceptions import (
     ApprovalRequestExistsError,
     ApprovalRequestNotFoundError,
@@ -123,6 +125,21 @@ def save_request(sac_root: Path, request: ApprovalRequest) -> ApprovalRequest:
     redacted = request.model_copy(update={"preview": redact_secrets(request.preview)[:4096]})
     redacted = redacted.model_copy(update={"request_hash": request_hash(redacted)})
     _atomic_write(path, json.loads(redacted.model_dump_json()))
+    emit_standalone_trace(
+        sac_root,
+        run_id=redacted.run_id,
+        tenant_id="local",
+        event_type=TraceEventType.approval_requested,
+        node_id=redacted.requested_by_node,
+        actor_id=redacted.requesting_actor,
+        policy_snapshot_id=redacted.policy_snapshot_id,
+        payload={
+            "request_id": redacted.request_id,
+            "action": redacted.action.value,
+            "risk_tier": redacted.risk_tier.value,
+            "status": redacted.status,
+        },
+    )
     return redacted
 
 
@@ -224,6 +241,20 @@ def consume_grant(sac_root: Path, run_id: str, grant_id: str) -> Grant:
         grants_dir(sac_root, run_id) / f"{grant_id}.json",
         json.loads(updated.model_dump_json()),
     )
+    emit_standalone_trace(
+        sac_root,
+        run_id=run_id,
+        tenant_id="local",
+        event_type=TraceEventType.approval_consumed,
+        node_id="approval_store",
+        actor_id=None,
+        policy_snapshot_id=updated.policy_snapshot_id,
+        payload={
+            "grant_id": grant_id,
+            "request_id": updated.request_id,
+            "action": updated.action.value,
+        },
+    )
     return updated
 
 
@@ -256,6 +287,27 @@ def decide_request(
         approvals_dir(sac_root, run_id) / f"{request_id}.json",
         json.loads(updated.model_dump_json()),
     )
+    if decision in {"approved", "rejected"}:
+        event_type = (
+            TraceEventType.approval_decided
+            if decision == "approved"
+            else TraceEventType.approval_rejected
+        )
+        emit_standalone_trace(
+            sac_root,
+            run_id=run_id,
+            tenant_id="local",
+            event_type=event_type,
+            node_id="approval_store",
+            actor_id=decision_actor,
+            policy_snapshot_id=updated.policy_snapshot_id,
+            payload={
+                "request_id": request_id,
+                "action": updated.action.value,
+                "decision": decision,
+                "status": updated.status,
+            },
+        )
     return updated
 
 

@@ -11,6 +11,8 @@ from safecode.enterprise.policy.models import PolicySnapshot
 from safecode.enterprise.rbac.models import RBACSubject
 from safecode.enterprise.rbac.permissions import ApprovalContext, rbac_tier_for_action
 from safecode.enterprise.tools.registry import ToolSpec
+from safecode.enterprise.trace.events import TraceEventType
+from safecode.enterprise.trace.session import TraceSession
 from safecode.enterprise.workflow.state import ApprovalDecision, ApprovalDecisionInputs
 from safecode.enterprise.workflow.types import RiskTier
 
@@ -91,6 +93,53 @@ def decide(
             tool_spec_value=tool_spec_value,
         ),
     )
+
+
+def trace_decision(
+    session: TraceSession,
+    *,
+    action: Action,
+    decision: ApprovalDecision,
+    node_id: str = "approval_engine",
+) -> None:
+    """Record an approval-engine evaluation in the run trace."""
+    event_type = (
+        TraceEventType.policy_block
+        if decision.decision == "BLOCK"
+        else TraceEventType.approval_decided
+    )
+    session.emit(
+        event_type,
+        node_id=node_id,
+        payload={
+            "action": action.value,
+            "decision": decision.decision,
+            "reason": decision.reason,
+        },
+        audit=False,
+    )
+
+
+def decide_with_trace(
+    session: TraceSession,
+    action: Action,
+    *,
+    policy_snapshot: PolicySnapshot,
+    subject: RBACSubject,
+    tool_spec: ToolSpec | ApprovalTier | None = None,
+    risk_tier: RiskTier = RiskTier.low,
+    context: ApprovalContext | None = None,
+) -> ApprovalDecision:
+    decision = decide(
+        action,
+        policy_snapshot=policy_snapshot,
+        subject=subject,
+        tool_spec=tool_spec,
+        risk_tier=risk_tier,
+        context=context,
+    )
+    trace_decision(session, action=action, decision=decision)
+    return decision
 
 
 def decide_with_overrides(
