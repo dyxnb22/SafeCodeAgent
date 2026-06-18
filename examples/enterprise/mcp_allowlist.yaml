@@ -1,0 +1,9 @@
+# Enterprise MCP allowlist (v1.3.5)
+version: 1
+tools:
+  internal-docs:search:
+    category: read_local
+    approval_tier: CONFIRM
+  internal-docs:get_page:
+    category: read_local
+    approval_tier: CONFIRM
