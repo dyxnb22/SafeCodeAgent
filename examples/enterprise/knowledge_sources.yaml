@@ -1,0 +1,37 @@
+sources:
+  - source_id: policy-secure-sql-001
+    source_type: security_policy
+    name: "Secure SQL"
+    path_or_uri: examples/enterprise/policies/secure-sql.md
+    owner: appsec-team
+    permission_scope: ["org", "appsec"]
+    refresh_cadence: static
+    parser: markdown
+    metadata: { cwe: "CWE-89" }
+
+  - source_id: code-app
+    source_type: code
+    name: "Application code"
+    path_or_uri: examples/enterprise/sample_app/
+    owner: developers
+    permission_scope: ["org"]
+    refresh_cadence: on_demand
+    parser: code
+
+  - source_id: scanner-semgrep-baseline
+    source_type: scanner_finding
+    name: "Baseline Semgrep findings"
+    path_or_uri: examples/enterprise/scanner_findings/semgrep_baseline.json
+    owner: appsec-team
+    permission_scope: ["org", "appsec"]
+    refresh_cadence: on_demand
+    parser: semgrep
+
+  - source_id: runbook-secret-leak
+    source_type: runbook
+    name: "Secret leak runbook"
+    path_or_uri: examples/enterprise/runbooks/secret-leak.md
+    owner: secops
+    permission_scope: ["org", "secops"]
+    refresh_cadence: static
+    parser: markdown

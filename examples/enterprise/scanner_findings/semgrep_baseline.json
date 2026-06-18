@@ -1,0 +1,15 @@
+{
+  "results": [
+    {
+      "check_id": "python.lang.security.audit.sql-injection",
+      "path": "examples/enterprise/sample_app/app.py",
+      "start": {"line": 4, "col": 5},
+      "end": {"line": 6, "col": 40},
+      "extra": {
+        "message": "Possible SQL injection via string formatting",
+        "severity": "ERROR",
+        "metadata": {"cwe": ["CWE-89"]}
+      }
+    }
+  ]
+}

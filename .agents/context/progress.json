@@ -7,7 +7,7 @@
     "milestone": "v1.1.1",
     "status": "in_progress",
     "active_task": null,
-    "next_delivery_task": "v1.1.1-T2"
+    "next_delivery_task": "v1.1.1-T3"
   },
   "stages": {
     "v1.0": "completed",
@@ -46,7 +46,12 @@
     {
       "id": "v1.1.1-T1",
       "completed_at": "2026-06-18",
-      "evidence": "tests/enterprise/rag/test_source_registry_models.py: 4 passed"
+      "evidence": "578d182"
+    },
+    {
+      "id": "v1.1.1-T2",
+      "completed_at": "2026-06-18",
+      "evidence": "tests/enterprise/rag/test_source_registry.py: 5 passed"
     }
   ],
   "recent_maintenance": [
