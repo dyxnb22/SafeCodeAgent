@@ -37,6 +37,7 @@ from safecode.shell.runtime import run_agentic_shell
 from safecode.cli_model import register as _register_model
 from safecode.cli_init import register as _register_init
 from safecode.cli_provider import provider_app
+from safecode.cli_enterprise import enterprise_app
 from safecode.config import SafeCodeConfig, _stricter_policy
 from safecode.setup import write_setup
 
@@ -355,6 +356,7 @@ app.add_typer(testgen_app, name="test-gen", hidden=True)
 app.add_typer(lsp_app, name="lsp", hidden=True)
 app.add_typer(session_app, name="session", hidden=True)
 app.add_typer(format_app, name="format", hidden=True)
+app.add_typer(enterprise_app, name="enterprise", hidden=True)
 
 
 @app.command("why", hidden=True)
