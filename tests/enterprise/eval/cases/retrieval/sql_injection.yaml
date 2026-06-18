@@ -1,0 +1,16 @@
+case_id: retrieval.policy.sql_injection
+suite: retrieval
+goal: "Retrieve the SQL injection policy when query mentions sqli"
+query: "fix sql injection in users db parameterized"
+actor_scope: ["org", "appsec"]
+expected_source_ids:
+  - policy-secure-sql-001
+forbidden_source_ids:
+  - runbook-secret-leak
+k: 5
+filters:
+  source_types: ["security_policy", "code"]
+metrics:
+  recall_at_k: 1.0
+  mrr: 1.0
+  grounding: 1.0
