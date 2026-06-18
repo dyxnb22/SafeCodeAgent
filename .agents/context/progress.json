@@ -13,7 +13,7 @@
     "v1.0": "completed",
     "v1.1": "completed",
     "v1.2": "completed",
-    "v1.3": "planned",
+    "v1.3": "ready",
     "v1.4": "planned",
     "v1.5": "planned",
     "v1.6": "planned",
@@ -63,8 +63,8 @@
   "decisions_required": [],
   "last_verification": {
     "recorded_at": "2026-06-19",
-    "command": "PYTHONPATH=src pytest -q tests/enterprise",
-    "result": "pending full suite",
-    "scope": "v1.2.4 closeout"
+    "command": "PYTHONPATH=src python3 -m pytest -q",
+    "result": "5862 passed, 8 skipped, 5 failed",
+    "scope": "v1.2 LangGraph Security Workflow MVP closeout"
   }
 }
