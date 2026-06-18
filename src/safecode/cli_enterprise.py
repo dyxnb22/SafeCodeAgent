@@ -11,7 +11,17 @@ import typer
 from safecode.enterprise.rag.index_builder import build_chunks_from_manifest
 from safecode.enterprise.rag.retriever import HybridRetriever
 from safecode.enterprise.workflow.checkpoint import gc_runs
-from safecode.enterprise.workflow.exceptions import WorkflowError, WorkflowInterrupted
+from safecode.enterprise.approvals.store import (
+    decide_request,
+    list_requests,
+    load_request,
+)
+from safecode.enterprise.workflow.exceptions import (
+    ApprovalRequestNotFoundError,
+    RequestAlreadyConsumedError,
+    WorkflowError,
+    WorkflowInterrupted,
+)
 from safecode.enterprise.workflow.orchestrator import LocalOrchestrator, build_initial_state
 from safecode.enterprise.workflow.types import TaskType
 
@@ -19,7 +29,9 @@ RAG_MAX_CITATIONS = 8
 
 enterprise_app = typer.Typer(help="Enterprise security workflow commands.")
 workflow_app = typer.Typer(help="Enterprise workflow orchestration.")
+approval_app = typer.Typer(help="Enterprise approval inbox.")
 enterprise_app.add_typer(workflow_app, name="workflow")
+enterprise_app.add_typer(approval_app, name="approval")
 
 
 @enterprise_app.command("retrieve")
@@ -122,4 +134,77 @@ def workflow_gc(
     project_root = (root or Path.cwd()).resolve()
     removed = gc_runs(project_root / ".sac", older_than_days=days)
     typer.echo(json.dumps({"removed": removed}))
+    raise typer.Exit(code=0)
+
+
+@approval_app.command("list")
+def approval_list(
+    run_id: str = typer.Argument(..., help="Run identifier."),
+    root: Path = typer.Option(None, "--root", help="Project root (defaults to cwd)."),
+) -> None:
+    project_root = (root or Path.cwd()).resolve()
+    requests = list_requests(project_root / ".sac", run_id)
+    typer.echo(json.dumps([item.model_dump(mode="json") for item in requests], indent=2))
+    raise typer.Exit(code=0)
+
+
+@approval_app.command("show")
+def approval_show(
+    run_id: str = typer.Argument(..., help="Run identifier."),
+    request_id: str = typer.Argument(..., help="Approval request identifier."),
+    root: Path = typer.Option(None, "--root", help="Project root (defaults to cwd)."),
+) -> None:
+    project_root = (root or Path.cwd()).resolve()
+    try:
+        request = load_request(project_root / ".sac", run_id, request_id)
+    except ApprovalRequestNotFoundError:
+        typer.echo("Approval request not found.", err=True)
+        raise typer.Exit(code=1)
+    typer.echo(request.model_dump_json(indent=2))
+    raise typer.Exit(code=0)
+
+
+@approval_app.command("approve")
+def approval_approve(
+    run_id: str = typer.Argument(..., help="Run identifier."),
+    request_id: str = typer.Argument(..., help="Approval request identifier."),
+    actor: str = typer.Option(..., "--actor", help="Human approver actor id."),
+    root: Path = typer.Option(None, "--root", help="Project root (defaults to cwd)."),
+) -> None:
+    project_root = (root or Path.cwd()).resolve()
+    try:
+        request = decide_request(
+            project_root / ".sac",
+            run_id,
+            request_id,
+            decision="approved",
+            decision_actor=actor,
+        )
+    except RequestAlreadyConsumedError:
+        typer.echo("Approval request already consumed.", err=True)
+        raise typer.Exit(code=1)
+    typer.echo(json.dumps({"request_id": request.request_id, "status": request.status}))
+    raise typer.Exit(code=0)
+
+
+@approval_app.command("reject")
+def approval_reject(
+    run_id: str = typer.Argument(..., help="Run identifier."),
+    request_id: str = typer.Argument(..., help="Approval request identifier."),
+    actor: str = typer.Option(..., "--actor", help="Human approver actor id."),
+    root: Path = typer.Option(None, "--root", help="Project root (defaults to cwd)."),
+) -> None:
+    project_root = (root or Path.cwd()).resolve()
+    try:
+        request = decide_request(
+            project_root / ".sac",
+            run_id,
+            request_id,
+            decision="rejected",
+            decision_actor=actor,
+        )
+    except RequestAlreadyConsumedError:
+        typer.echo("Approval request already consumed.", err=True)
+        raise typer.Exit(code=1)
+    typer.echo(json.dumps({"request_id": request.request_id, "status": request.status}))
     raise typer.Exit(code=0)

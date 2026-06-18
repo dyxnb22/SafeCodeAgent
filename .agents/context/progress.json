@@ -3,16 +3,16 @@
   "updated_at": "2026-06-19",
   "implemented_baseline_tag": "v7.1.5",
   "current": {
-    "stage": "v1.2",
-    "milestone": "v1.2.4",
+    "stage": "v1.3",
+    "milestone": "v1.3.1",
     "status": "ready",
     "active_task": null,
-    "next_delivery_task": "v1.2.4-T3"
+    "next_delivery_task": "v1.3.1-T1"
   },
   "stages": {
     "v1.0": "completed",
     "v1.1": "completed",
-    "v1.2": "ready",
+    "v1.2": "completed",
     "v1.3": "planned",
     "v1.4": "planned",
     "v1.5": "planned",
@@ -52,7 +52,8 @@
     {"id": "v1.2.3-T1", "completed_at": "2026-06-19", "evidence": "f1d89a9"},
     {"id": "v1.2.3-T3", "completed_at": "2026-06-19", "evidence": "af6fc50"},
     {"id": "v1.2.4-T1", "completed_at": "2026-06-19", "evidence": "1267483"},
-    {"id": "v1.2.4-T2", "completed_at": "2026-06-19", "evidence": "tests/enterprise/workflow/test_approval_interrupt.py passed"}
+    {"id": "v1.2.4-T2", "completed_at": "2026-06-19", "evidence": "55d1c4c"},
+    {"id": "v1.2.4-T3", "completed_at": "2026-06-19", "evidence": "tests/enterprise/cli/test_cli_approval_flow.py passed"}
   ],
   "recent_maintenance": [
     {"id": "maintenance-agent-context-governance", "completed_at": "2026-06-18", "evidence": "77 governance tests and full regression: 5778 passed, 4 skipped"},
@@ -62,8 +63,8 @@
   "decisions_required": [],
   "last_verification": {
     "recorded_at": "2026-06-19",
-    "command": "PYTHONPATH=src pytest -q tests/enterprise/workflow/test_optional_extra_import.py",
-    "result": "1 passed",
-    "scope": "v1.2.3-T1 optional extra dependency"
+    "command": "PYTHONPATH=src pytest -q tests/enterprise",
+    "result": "pending full suite",
+    "scope": "v1.2.4 closeout"
   }
 }
