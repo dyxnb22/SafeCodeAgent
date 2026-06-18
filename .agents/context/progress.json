@@ -3,15 +3,15 @@
   "updated_at": "2026-06-18",
   "implemented_baseline_tag": "v7.1.5",
   "current": {
-    "stage": "v1.1",
-    "milestone": "v1.1.1",
-    "status": "in_progress",
+    "stage": "v1.2",
+    "milestone": "v1.2.1",
+    "status": "ready",
     "active_task": null,
-    "next_delivery_task": "v1.1.1-T3"
+    "next_delivery_task": "v1.2.1-T1"
   },
   "stages": {
     "v1.0": "completed",
-    "v1.1": "ready",
+    "v1.1": "completed",
     "v1.2": "planned",
     "v1.3": "planned",
     "v1.4": "planned",
@@ -51,7 +51,77 @@
     {
       "id": "v1.1.1-T2",
       "completed_at": "2026-06-18",
-      "evidence": "tests/enterprise/rag/test_source_registry.py: 5 passed"
+      "evidence": "5006faa"
+    },
+    {
+      "id": "v1.1.1-T3",
+      "completed_at": "2026-06-18",
+      "evidence": "449920d"
+    },
+    {
+      "id": "v1.1.1-T4",
+      "completed_at": "2026-06-18",
+      "evidence": "806d643"
+    },
+    {
+      "id": "v1.1.1-T5",
+      "completed_at": "2026-06-18",
+      "evidence": "93b253c"
+    },
+    {
+      "id": "v1.1.1-T6",
+      "completed_at": "2026-06-18",
+      "evidence": "c02025b"
+    },
+    {
+      "id": "v1.1.2-T1",
+      "completed_at": "2026-06-18",
+      "evidence": "tests/enterprise/rag/test_chunk_model.py: passed"
+    },
+    {
+      "id": "v1.1.2-T2",
+      "completed_at": "2026-06-18",
+      "evidence": "tests/enterprise/rag/test_chunker.py: passed"
+    },
+    {
+      "id": "v1.1.2-T3",
+      "completed_at": "2026-06-18",
+      "evidence": "tests/enterprise/rag/test_permission_scope.py: passed"
+    },
+    {
+      "id": "v1.1.3-T1",
+      "completed_at": "2026-06-18",
+      "evidence": "tests/enterprise/rag/test_lexical_scorer.py: passed"
+    },
+    {
+      "id": "v1.1.3-T2",
+      "completed_at": "2026-06-18",
+      "evidence": "tests/enterprise/rag/test_semantic_scorer.py: passed"
+    },
+    {
+      "id": "v1.1.3-T3",
+      "completed_at": "2026-06-18",
+      "evidence": "tests/enterprise/rag/test_hybrid_retriever.py: passed"
+    },
+    {
+      "id": "v1.1.3-T4",
+      "completed_at": "2026-06-18",
+      "evidence": "tests/enterprise/cli/test_cli_retrieve.py: passed"
+    },
+    {
+      "id": "v1.1.4-T1",
+      "completed_at": "2026-06-18",
+      "evidence": "tests/enterprise/eval/cases/retrieval/: 4 cases"
+    },
+    {
+      "id": "v1.1.4-T2",
+      "completed_at": "2026-06-18",
+      "evidence": "tests/enterprise/eval/test_retrieval_quality.py: passed"
+    },
+    {
+      "id": "v1.1.4-T3",
+      "completed_at": "2026-06-18",
+      "evidence": "tests/enterprise/eval/baselines/retrieval_v1_1.json"
     }
   ],
   "recent_maintenance": [
@@ -65,8 +135,8 @@
   "decisions_required": [],
   "last_verification": {
     "recorded_at": "2026-06-18",
-    "command": "PYTHONPATH=src python3 -m pytest -q",
-    "result": "5778 passed, 4 skipped",
-    "scope": "cross-agent governance and context-layer update"
+    "command": "PYTHONPATH=src python3 -m pytest -q tests/enterprise",
+    "result": "66 passed",
+    "scope": "v1.1 RAG Security Knowledge Base MVP"
   }
 }
