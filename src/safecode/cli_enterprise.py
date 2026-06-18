@@ -30,14 +30,19 @@ from safecode.enterprise.workflow.exceptions import (
 )
 from safecode.enterprise.workflow.orchestrator import LocalOrchestrator, build_initial_state
 from safecode.enterprise.workflow.types import TaskType
+from safecode.enterprise.trace.timeline import build_timeline, serialize_timeline, write_timeline
+from safecode.enterprise.workflow.exceptions import CheckpointCorruptedError, InvalidRunIdError
+from safecode.enterprise.workflow.checkpoint import load_checkpoint
 
 RAG_MAX_CITATIONS = 8
 
 enterprise_app = typer.Typer(help="Enterprise security workflow commands.")
 workflow_app = typer.Typer(help="Enterprise workflow orchestration.")
 approval_app = typer.Typer(help="Enterprise approval inbox.")
+trace_app = typer.Typer(help="Enterprise trace export and dashboard.")
 enterprise_app.add_typer(workflow_app, name="workflow")
 enterprise_app.add_typer(approval_app, name="approval")
+enterprise_app.add_typer(trace_app, name="trace")
 
 
 @enterprise_app.command("retrieve")
@@ -285,4 +290,26 @@ def approval_revoke(
         typer.echo("Approval request cannot be revoked.", err=True)
         raise typer.Exit(code=1)
     typer.echo(json.dumps({"request_id": request.request_id, "status": request.status}))
+    raise typer.Exit(code=0)
+
+
+@trace_app.command("export")
+def trace_export(
+    run_id: str = typer.Argument(..., help="Run identifier."),
+    root: Path = typer.Option(None, "--root", help="Project root (defaults to cwd)."),
+    json_output: bool = typer.Option(True, "--json/--no-json", help="Write timeline JSON."),
+) -> None:
+    """Export a canonical run timeline JSON artifact."""
+    project_root = (root or Path.cwd()).resolve()
+    sac_root = project_root / ".sac"
+    try:
+        load_checkpoint(sac_root, run_id)
+    except (InvalidRunIdError, CheckpointCorruptedError, FileNotFoundError):
+        typer.echo("Run not found.", err=True)
+        raise typer.Exit(code=1)
+    if json_output:
+        path = write_timeline(sac_root, run_id)
+        typer.echo(path.read_text(encoding="utf-8"))
+    else:
+        typer.echo(serialize_timeline(build_timeline(sac_root, run_id)))
     raise typer.Exit(code=0)

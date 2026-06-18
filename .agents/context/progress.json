@@ -6,7 +6,12 @@
     "stage": "v1.5",
     "milestone": "v1.5.1",
     "status": "in_progress",
-    "active_task": null,
+    "active_task": {
+      "id": "v1.5.2-T2",
+      "kind": "delivery",
+      "title": "trace export CLI",
+      "started_at": "2026-06-19"
+    },
     "next_delivery_task": "v1.5.2-T2"
   },
   "stages": {
@@ -80,7 +85,8 @@
     {"id": "v1.4.5-T2", "completed_at": "2026-06-19", "evidence": "c2381e6"},
     {"id": "v1.5.1-T1", "completed_at": "2026-06-19", "evidence": "7536fe6"},
     {"id": "v1.5.1-T2", "completed_at": "2026-06-19", "evidence": "3fed594"},
-    {"id": "v1.5.2-T1", "completed_at": "2026-06-19", "evidence": "50e6cfd"}
+    {"id": "v1.5.2-T1", "completed_at": "2026-06-19", "evidence": "ca780fc"},
+    {"id": "v1.5.2-T2", "completed_at": "2026-06-19", "evidence": "pending"}
   ],
   "recent_maintenance": [
     {"id": "maintenance-agent-context-governance", "completed_at": "2026-06-18", "evidence": "77 governance tests and full regression: 5778 passed, 4 skipped"},
