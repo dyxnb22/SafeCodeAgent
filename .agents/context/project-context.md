@@ -17,7 +17,7 @@ compliance evidence, and auditable tool-using security operations.
 - Legacy implemented baseline: `v7.1.5`.
 - Enterprise planning and namespace stages: complete.
 - Current delivery stage: `v1.2 LangGraph Security Workflow MVP`.
-- Next delivery task: `v1.2.1-T1 Enum and risk-tier types`.
+- Next delivery task: `v1.2.3-T3 Runtime flag`.
 - Machine-readable live status: `.agents/context/progress.json`.
 
 Do not infer current progress from prose in this file. Read `progress.json`.
