@@ -775,15 +775,141 @@ Each item below is a coarse task. Before implementation, it will be
 expanded into the same shape as v1.1–v1.4 tasks.
 
 ### v1.5 AgentOps Observability
-- v1.5.1-T1 — TraceEvent schema and emitter (`src/safecode/enterprise/trace/events.py`,
-  `emitter.py`).
-- v1.5.1-T2 — Wire emitter into all workflow nodes and approval engine.
-- v1.5.2-T1 — Run timeline serializer
-  (`src/safecode/enterprise/trace/timeline.py`).
-- v1.5.2-T2 — `sac enterprise trace export` CLI.
-- v1.5.3-T1 — Markdown dashboard renderer.
-- v1.5.3-T2 — `sac enterprise trace show` CLI.
-- v1.5.4-T1 — Strict redaction default and debug-mode policy bit.
+
+### v1.5.1-T1 — TraceEvent schema and emitter
+- **Dependencies:** v1.2.1-T2 (`NodeCost`, `TraceEventDraft`), v1.4.5-T1
+  (`AuditEventKind` vocabulary overlap).
+- **Files/Modules:**
+  - `src/safecode/enterprise/trace/__init__.py`
+  - `src/safecode/enterprise/trace/events.py`
+  - `src/safecode/enterprise/trace/emitter.py`
+- **Tests:**
+  - `tests/enterprise/trace/test_event_schema.py`
+  - `tests/enterprise/trace/test_emitter_idempotency.py`
+- **Acceptance:**
+  - `TraceEvent`, `TraceEventType`, and `TraceContext` match
+    `enterprise-docs/agentops-observability-plan.md`.
+  - Every event has `run_id`, `node_id`, `timestamp`, `type`,
+    `payload`, and `redaction_applied`.
+  - Emitter writes append-only `.sac/enterprise/runs/<run_id>/trace.jsonl`.
+  - `event_id` is deterministic; re-emit is a no-op.
+  - String payload fields are secret-redacted and capped at 2 KB.
+- **Security constraints:**
+  - Redaction runs before persistence via `src/safecode/context/redactor.py`.
+  - Run directories are isolated under `runs_root`; path traversal rejected.
+  - Atomic append (temp + rename) prevents partial events.
+- **Non-goals:** OpenTelemetry export; timeline/dashboard (later tasks).
+- **Estimate:** 0.75 PR-day.
+
+### v1.5.1-T2 — Wire emitter into workflow nodes and approval engine
+- **Dependencies:** v1.5.1-T1, v1.2.2-T1, v1.4.3-T1, v1.4.5-T2.
+- **Files/Modules:**
+  - `src/safecode/enterprise/workflow/orchestrator.py` (extend)
+  - `src/safecode/enterprise/workflow/nodes/_helpers.py` (extend)
+  - `src/safecode/enterprise/workflow/nodes/*.py` (extend)
+  - `src/safecode/enterprise/approvals/engine.py` (extend)
+  - `src/safecode/enterprise/approvals/store.py` (extend)
+- **Tests:**
+  - `tests/enterprise/trace/test_workflow_emits_trace.py`
+  - `tests/enterprise/trace/test_approval_emits_trace.py`
+- **Acceptance:**
+  - Orchestrator owns monotonic `seq` per run.
+  - Each workflow node emits `node.start` and `node.end`.
+  - Approval engine emits `approval.requested`, `approval.decided`,
+    and `approval.consumed` where applicable.
+  - Overlapping audit events share `event_id` with trace events.
+- **Security constraints:**
+  - Trace payloads never include raw secrets or full file contents.
+  - Emitter is optional in tests via injection; production path always emits.
+- **Non-goals:** Timeline assembly; CLI.
+- **Estimate:** 0.75 PR-day.
+
+### v1.5.2-T1 — Run timeline serializer
+- **Dependencies:** v1.5.1-T2, v1.2.4-T1, v1.4.3-T2.
+- **Files/Modules:**
+  - `src/safecode/enterprise/trace/timeline.py`
+- **Tests:**
+  - `tests/enterprise/trace/test_timeline_round_trip.py`
+  - `tests/enterprise/trace/test_timeline_redaction.py`
+- **Acceptance:**
+  - Joins `trace.jsonl`, state checkpoint, and approval records into
+    `timeline.json` per `agentops-observability-plan.md`.
+  - `timeline_schema_version` present; two serializations are
+    byte-identical.
+  - Sensitive fields absent or marked `"redacted": true`.
+- **Security constraints:**
+  - Serializer reads only on-disk artifacts; no network.
+  - Timeline never rehydrates excluded strict-profile fields.
+- **Non-goals:** Binary export; live streaming.
+- **Estimate:** 0.75 PR-day.
+
+### v1.5.2-T2 — `sac enterprise trace export` CLI
+- **Dependencies:** v1.5.2-T1.
+- **Files/Modules:**
+  - `src/safecode/cli_enterprise.py` (extend)
+- **Tests:**
+  - `tests/enterprise/cli/test_cli_trace_export.py`
+- **Acceptance:**
+  - `sac enterprise trace export <run_id> --json` writes timeline JSON.
+  - Missing run fails closed with non-zero exit.
+- **Security constraints:**
+  - Export applies redaction profile (default strict).
+  - No stdout leak of secrets on error paths.
+- **Non-goals:** Zip bundles (v1.9).
+- **Estimate:** 0.25 PR-day.
+
+### v1.5.3-T1 — Markdown dashboard renderer
+- **Dependencies:** v1.5.2-T1.
+- **Files/Modules:**
+  - `src/safecode/enterprise/trace/render_markdown.py`
+- **Tests:**
+  - `tests/enterprise/trace/test_render_markdown_sections.py`
+- **Acceptance:**
+  - Sections: Summary, Timeline, Citations, Tool Calls, Approvals,
+    Validation, Cost, Safety Invariants, Failures.
+  - Citations include path, line range, score, permission verdict.
+  - Renderer reads only `timeline.json`, not raw `trace.jsonl`.
+- **Security constraints:**
+  - No raw prompts or full file contents in Markdown output.
+- **Non-goals:** Web UI; HTML renderer (v1.7+).
+- **Estimate:** 0.5 PR-day.
+
+### v1.5.3-T2 — `sac enterprise trace show` CLI
+- **Dependencies:** v1.5.3-T1.
+- **Files/Modules:**
+  - `src/safecode/cli_enterprise.py` (extend)
+- **Tests:**
+  - `tests/enterprise/cli/test_cli_trace_show.py`
+- **Acceptance:**
+  - `sac enterprise trace show <run_id>` prints Markdown to stdout.
+  - Optional `--out` writes file; unknown run exits non-zero.
+- **Security constraints:**
+  - Uses strict profile by default.
+- **Non-goals:** `--format html` (later).
+- **Estimate:** 0.25 PR-day.
+
+### v1.5.4-T1 — Strict redaction default and debug-mode policy bit
+- **Dependencies:** v1.5.1-T1, v1.4.1-T1.
+- **Files/Modules:**
+  - `src/safecode/enterprise/trace/redaction.py`
+  - `src/safecode/enterprise/policy/models.py` (extend)
+  - `src/safecode/enterprise/trace/emitter.py` (extend)
+  - `src/safecode/enterprise/trace/timeline.py` (extend)
+- **Tests:**
+  - `tests/enterprise/trace/test_redaction_strict_default.py`
+  - `tests/enterprise/trace/test_redaction_debug_requires_policy.py`
+- **Acceptance:**
+  - `trace.export_profile` defaults to `strict`.
+  - Strict: no field > 2 KB verbatim; raw prompts and full file
+    contents excluded.
+  - Debug requires `allow_debug_traces=true`; otherwise
+    `DebugTraceNotAllowed`.
+- **Security constraints:**
+  - Tool inputs always redacted regardless of profile.
+  - Eval lane forces strict (hook only; full eval in v1.6).
+  - Write-time and export-time redaction both enforced.
+- **Non-goals:** Customer-supplied redaction patterns (v1.9).
+- **Estimate:** 0.75 PR-day.
 
 ### v1.6 Evaluation and Regression
 - v1.6.1-T1 — EvaluationCase and EvaluationResult models.
