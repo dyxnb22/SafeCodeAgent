@@ -3,6 +3,7 @@
 from datetime import date
 import json
 from pathlib import Path
+import re
 import subprocess
 
 import pytest
@@ -123,6 +124,20 @@ def test_progress_state_is_valid_and_matches_backlog() -> None:
         assert task["id"] in backlog
         date.fromisoformat(task["completed_at"])
         assert task["evidence"].strip()
+
+    backlog_task_ids = set(
+        re.findall(r"^### (v\d+\.\d+\.\d+-T\d+)\b", backlog, re.MULTILINE)
+    )
+    for stage, status in progress["stages"].items():
+        if status != "completed":
+            continue
+        expected = {
+            task_id for task_id in backlog_task_ids if task_id.startswith(f"{stage}.")
+        }
+        assert expected <= set(completed_ids), (
+            f"completed stage {stage} is missing task evidence: "
+            f"{sorted(expected - set(completed_ids))}"
+        )
 
     assert len(progress["recent_maintenance"]) <= 10
     for task in progress["recent_maintenance"]:

@@ -50,21 +50,23 @@
     {"id": "v1.2.2-T2", "completed_at": "2026-06-19", "evidence": "714437a"},
     {"id": "v1.2.2-T3", "completed_at": "2026-06-19", "evidence": "923b07a"},
     {"id": "v1.2.3-T1", "completed_at": "2026-06-19", "evidence": "f1d89a9"},
+    {"id": "v1.2.3-T2", "completed_at": "2026-06-19", "evidence": "8596bbd"},
     {"id": "v1.2.3-T3", "completed_at": "2026-06-19", "evidence": "af6fc50"},
     {"id": "v1.2.4-T1", "completed_at": "2026-06-19", "evidence": "1267483"},
     {"id": "v1.2.4-T2", "completed_at": "2026-06-19", "evidence": "55d1c4c"},
-    {"id": "v1.2.4-T3", "completed_at": "2026-06-19", "evidence": "tests/enterprise/cli/test_cli_approval_flow.py passed"}
+    {"id": "v1.2.4-T3", "completed_at": "2026-06-19", "evidence": "fc50b33"}
   ],
   "recent_maintenance": [
     {"id": "maintenance-agent-context-governance", "completed_at": "2026-06-18", "evidence": "77 governance tests and full regression: 5778 passed, 4 skipped"},
-    {"id": "maintenance-v1.1-regression-cleanup", "completed_at": "2026-06-19", "evidence": "Reported 4 regressions independently passed; full regression: 5818 passed, 4 skipped"}
+    {"id": "maintenance-v1.1-regression-cleanup", "completed_at": "2026-06-19", "evidence": "Reported 4 regressions independently passed; full regression: 5818 passed, 4 skipped"},
+    {"id": "maintenance-v1.2-closeout-cleanup", "completed_at": "2026-06-19", "evidence": "uv lock verified with enterprise extra; full regression: 5870 passed, 5 skipped"}
   ],
   "blockers": [],
   "decisions_required": [],
   "last_verification": {
     "recorded_at": "2026-06-19",
     "command": "PYTHONPATH=src python3 -m pytest -q",
-    "result": "5862 passed, 8 skipped, 5 failed",
-    "scope": "v1.2 LangGraph Security Workflow MVP closeout"
+    "result": "5870 passed, 5 skipped",
+    "scope": "v1.2 closeout, enterprise lockfile, and repository-wide regression"
   }
 }
