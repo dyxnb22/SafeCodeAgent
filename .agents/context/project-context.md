@@ -17,7 +17,7 @@ compliance evidence, and auditable tool-using security operations.
 - Legacy implemented baseline: `v7.1.5`.
 - Enterprise planning and namespace stages: complete.
 - Current delivery stage: `v1.3 Tool/MCP Enterprise Connector Layer`.
-- Next delivery task: `v1.3.1-T1 ToolSpec and ToolRegistry`.
+- Next delivery task: `v1.3.1-T2 Native tool spec wrappers`.
 - Machine-readable live status: `.agents/context/progress.json`.
 
 Do not infer current progress from prose in this file. Read `progress.json`.
