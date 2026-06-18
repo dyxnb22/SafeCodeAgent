@@ -203,10 +203,12 @@ class AgentOrchestrator:
         llm_client: object | None = None,
         config: SafeCodeConfig | None = None,
         on_step: Callable[[dict[str, Any]], None] | None = None,
+        pending_patch_path: Path | None = None,
     ) -> None:
         self.project_root = project_root
         self.config = config or SafeCodeConfig.load(project_root)
         self.on_step = on_step
+        self._pending_patch_path_override = pending_patch_path
         self.context_collector = ContextCollector(project_root, self.config)
         self.llm_client = llm_client if llm_client is not None else create_llm_client(self.config)
         self.audit_logger = AuditLogger(project_root, self.config)
@@ -630,7 +632,7 @@ class AgentOrchestrator:
 
     def _pending_patch_path(self) -> Path:
         """Return the project pending patch path."""
-        return self.project_root / ".sac" / "pending_patch.json"
+        return self._pending_patch_path_override or self.project_root / ".sac" / "pending_patch.json"
 
     def _load_pending_patch(self, pending_patch_path: Path) -> PatchProposal:
         """Load a pending patch proposal from disk."""

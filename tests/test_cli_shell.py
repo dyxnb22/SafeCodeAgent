@@ -120,6 +120,7 @@ class TestShellTTYBehaviour:
         """In-shell /continue advances one safe mock-backed agent step."""
         from typer.testing import CliRunner
         from safecode.agent.session import AgentSessionStore
+        from safecode.shell.session import ShellSessionManager
         from safecode.cli import app
 
         monkeypatch.chdir(tmp_path)
@@ -130,15 +131,17 @@ class TestShellTTYBehaviour:
 
         assert result.exit_code == 0
         assert "Continued one safe agent step" in result.output
-        updated = AgentSessionStore(tmp_path).load()
+        session_id = ShellSessionManager(tmp_path / ".sac").latest_id()
+        updated = AgentSessionStore(tmp_path, session_id=session_id).load()
         assert updated is not None
-        assert updated.session_id == state.session_id
+        assert updated.session_id == session_id
         assert updated.current_step == 1
 
     def test_non_tty_continue_does_not_apply_pending_patch(self, tmp_path, monkeypatch):
         """In-shell /continue must not cross the patch approval gate."""
         from typer.testing import CliRunner
         from safecode.cli import app
+        from safecode.shell.session import ShellSessionManager
 
         monkeypatch.chdir(tmp_path)
         pending = tmp_path / ".sac" / "pending_patch.json"
@@ -149,9 +152,11 @@ class TestShellTTYBehaviour:
         result = runner.invoke(app, ["shell", "--non-tty"], input="/continue\n/exit\n")
 
         assert result.exit_code == 0
-        assert "Pending patch is ready" in result.output
-        assert "Next: /apply" in result.output
-        assert pending.exists()
+        assert "Next: run sac interactively" in result.output
+        assert not pending.exists()
+        session_id = ShellSessionManager(tmp_path / ".sac").latest_id()
+        assert session_id is not None
+        assert (tmp_path / ".sac" / "sessions" / session_id / "pending_patch.json").exists()
 
     def test_non_tty_ready_reports_readiness_card(self, tmp_path, monkeypatch):
         from typer.testing import CliRunner
@@ -209,6 +214,16 @@ class TestShellTTYBehaviour:
         assert "/status" in result.output
         assert "/apply" in result.output
 
+    def test_slash_smoke_live_sets_explicit_opt_in(self, tmp_path):
+        from safecode import cli_shell
+
+        completed = MagicMock(returncode=0, stdout='{"status":"pass"}', stderr="")
+        with patch("subprocess.run", return_value=completed) as run:
+            output = cli_shell._slash_smoke(tmp_path, "live")
+
+        assert "Live Smoke: PASS" in output
+        assert run.call_args.kwargs["env"]["SAFECODE_LIVE_SMOKE"] == "1"
+
     def test_non_tty_task(self, tmp_path, monkeypatch):
         """Non-TTY /task returns task details."""
         from typer.testing import CliRunner
@@ -223,7 +238,8 @@ class TestShellTTYBehaviour:
         """Plain (non-slash) input is accepted and stored as a shell turn."""
         from typer.testing import CliRunner
         from safecode.cli import app
-        from safecode.shell_session.store import ShellSessionStore
+        from safecode.agent.conversation import ConversationBuffer
+        from safecode.shell.session import ShellSessionManager
 
         monkeypatch.chdir(tmp_path)
         runner = CliRunner()
@@ -232,16 +248,11 @@ class TestShellTTYBehaviour:
         )
         assert result.exit_code == 0
 
-        # A session file should exist
-        store = ShellSessionStore(tmp_path)
-        sessions = store.list_sessions()
-        assert len(sessions) >= 1, "At least one session must be persisted"
-
-        session = store.load(sessions[0])
+        manager = ShellSessionManager(tmp_path / ".sac")
+        session = manager.load(manager.latest_id())
         assert session is not None
-        # The natural-language turn must be recorded
-        nl_turns = [t for t in session.turns if not t.user_input.startswith("/")]
-        assert len(nl_turns) >= 1
+        conversation = ConversationBuffer.load(session.session_id, tmp_path / ".sac")
+        assert conversation.turn_count() >= 1
 
     def test_non_tty_unknown_slash(self, tmp_path, monkeypatch):
         """Unknown slash command returns a helpful message."""
@@ -285,7 +296,7 @@ class TestShellTTYBehaviour:
 
 class TestShellSessionPersistence:
     def test_session_persisted_to_dot_sac(self, tmp_path, monkeypatch):
-        """Shell session files are written under .sac/shell/."""
+        """Unified session manifests are written under .sac/sessions/."""
         from typer.testing import CliRunner
         from safecode.cli import app
 
@@ -293,9 +304,9 @@ class TestShellSessionPersistence:
         runner = CliRunner()
         runner.invoke(app, ["shell", "--non-tty"], input="/help\n/exit\n")
 
-        shell_dir = tmp_path / ".sac" / "shell"
-        assert shell_dir.exists(), ".sac/shell/ must be created"
-        sessions = list(shell_dir.glob("*.json"))
+        shell_dir = tmp_path / ".sac" / "sessions"
+        assert shell_dir.exists(), ".sac/sessions/ must be created"
+        sessions = list(shell_dir.glob("*/manifest.json"))
         assert len(sessions) >= 1, "At least one session file must be written"
 
     def test_session_file_is_valid_json(self, tmp_path, monkeypatch):
@@ -307,8 +318,8 @@ class TestShellSessionPersistence:
         runner = CliRunner()
         runner.invoke(app, ["shell", "--non-tty"], input="/help\n/exit\n")
 
-        shell_dir = tmp_path / ".sac" / "shell"
-        for f in shell_dir.glob("*.json"):
+        shell_dir = tmp_path / ".sac" / "sessions"
+        for f in shell_dir.glob("*/manifest.json"):
             data = json.loads(f.read_text())
             assert "session_id" in data
             assert "payload_version" in data
@@ -372,7 +383,7 @@ class TestShellTaskAndAuditWiring:
     def test_shell_binds_to_current_task(self, tmp_path, monkeypatch):
         """Shell session picks up the CURRENT task id."""
         from safecode.task.store import TaskStore
-        from safecode.shell_session.store import ShellSessionStore
+        from safecode.shell.session import ShellSessionManager
         from typer.testing import CliRunner
         from safecode.cli import app
 
@@ -385,10 +396,8 @@ class TestShellTaskAndAuditWiring:
         runner = CliRunner()
         runner.invoke(app, ["shell", "--non-tty"], input="/exit\n")
 
-        shell_store = ShellSessionStore(tmp_path)
-        sessions = shell_store.list_sessions()
-        assert sessions, "Session must be created"
-        session = shell_store.load(sessions[-1])
+        shell_store = ShellSessionManager(tmp_path / ".sac")
+        session = shell_store.load(shell_store.latest_id())
         assert session is not None
         assert session.task_id == task.task_id, "Session must bind to current task"
 
@@ -551,7 +560,7 @@ class TestShellSessionState:
 
 
 class TestShellAgenticMode:
-    """Verify --agentic routes to AgentLoop.run() and default behavior is unchanged."""
+    """Verify both the compatibility flag and default shell use AgentLoop."""
 
     def test_agentic_flag_in_help(self, tmp_path, monkeypatch):
         """sac shell --help must document the --agentic flag."""
@@ -588,7 +597,7 @@ class TestShellAgenticMode:
         class FakeLoop:
             def __init__(self, project_root, llm_client=None, *, auto_edit=False,
                          full_auto=False, command_delay_ms=500, no_clarify=False,
-                         plan_mode=False):
+                         plan_mode=False, session_id=None):
                 self._native_write_count = 0
 
             def session_cost(self):
@@ -614,7 +623,7 @@ class TestShellAgenticMode:
             def last_typed_result(self):
                 return None
 
-        with patch("safecode.cli_shell.AgentLoop", FakeLoop):
+        with patch("safecode.shell.runtime.AgentLoop", FakeLoop):
             result = CliRunner().invoke(
                 app, ["shell", "--agentic", "--non-tty"], input="add a feature\n"
             )
@@ -635,8 +644,8 @@ class TestShellAgenticMode:
         )
         assert result.exit_code == 0
 
-    def test_without_agentic_uses_existing_router(self, tmp_path, monkeypatch):
-        """Without --agentic, shell uses the existing v4.9 intent router (not AgentLoop)."""
+    def test_slash_only_session_lazily_skips_agent_loop(self, tmp_path, monkeypatch):
+        """Slash-only sessions do not create a provider client."""
         from typer.testing import CliRunner
         from safecode.cli import app
         from unittest.mock import patch
@@ -648,27 +657,27 @@ class TestShellAgenticMode:
         class FakeLoop:
             def __init__(self, project_root, llm_client=None, *, auto_edit=False,
                          full_auto=False, command_delay_ms=500, no_clarify=False,
-                         plan_mode=False):
+                         plan_mode=False, session_id=None):
                 agent_loop_called.append(True)
                 self._native_write_count = 0
 
             def session_cost(self):
                 return None
 
-            def run(self, goal, max_steps=8, *, on_step=None):
-                pass
+            def run(self, goal, max_steps=8, *, on_step=None, conversation=None):
+                raise AssertionError("slash command should not run the loop")
 
             @property
             def last_typed_result(self):
                 return None
 
-        with patch("safecode.cli_shell.AgentLoop", FakeLoop):
+        with patch("safecode.shell.runtime.AgentLoop", FakeLoop):
             result = CliRunner().invoke(
                 app, ["shell", "--non-tty"], input="/help\n/exit\n"
             )
 
         assert result.exit_code == 0
-        assert not agent_loop_called, "AgentLoop must not be called without --agentic"
+        assert not agent_loop_called, "Slash-only sessions must initialize AgentLoop lazily"
 
     def test_agentic_eof_input_exits_cleanly(self, tmp_path, monkeypatch):
         """--agentic on EOF returns exit code 0."""

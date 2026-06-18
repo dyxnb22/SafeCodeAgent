@@ -1,1 +1,1 @@
-"""Controlled shell execution."""
+"""Shell execution, policy, and interactive runtime primitives."""

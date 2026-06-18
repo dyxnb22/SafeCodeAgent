@@ -140,16 +140,39 @@ eval snapshots and the v7.1.5 targeted audit run.
 ## Core commands
 
 **Shell (conversational REPL) [EXPERIMENTAL]:**
+The unified session runtime is the default; the CLI contract remains experimental.
 ```bash
-sac shell                              # intent-routed suggest mode
-sac shell --agentic --mode plan        # read-only planning (no writes)
-sac shell --agentic --mode build       # agent can propose + auto-apply
-sac shell --agentic --full-auto        # auto-apply AUTO and CONFIRM tiers
+sac                                    # resume the latest conversation
+sac --new                              # start a separate conversation
+sac --resume <session-id>              # resume a selected conversation
+sac shell --mode plan                  # EXPERIMENTAL read-only planning (no writes)
+sac shell --mode build                 # agent can propose changes with approval
+sac shell --full-auto                  # auto-apply AUTO and CONFIRM tiers
 ```
 
 Inside the shell, start with `/status`; use `/continue` for the next safe step,
-`/ready` for setup checks, and `/memory` to inspect what will enter context.
-See [docs/tutorials/ai-shell-first-hour.md](docs/tutorials/ai-shell-first-hour.md) for a step-by-step guide.
+`/ready` checks setup, `/memory` inspects stored context, and `/memory why`
+explains exactly which memory sources are injected and why.
+Use `/sessions`, `/new`, `/resume <id>`, and `/rename <title>` to manage
+isolated conversations. Agent state and pending patches are stored per session.
+See [docs/tutorials/ai-shell-first-hour.md](docs/tutorials/ai-shell-first-hour.md)
+for a step-by-step guide and
+[docs/demo/claude-style-session.md](docs/demo/claude-style-session.md) for a
+real-use transcript.
+
+```mermaid
+flowchart LR
+    User["User: sac / slash commands"] --> Runtime["Unified shell runtime"]
+    Runtime --> Manifest["Session manifest<br/>.sac/sessions/id/manifest.json"]
+    Runtime --> Conversation["Conversation buffer<br/>conversation.jsonl"]
+    Runtime --> Agent["AgentLoop"]
+    Agent --> Ledger["Context ledger<br/>facts / notes / recent sessions"]
+    Agent --> Tools["Read tools / search / command gate"]
+    Agent --> Approval["Approval boundary<br/>diff + approve/reject/explain"]
+    Approval --> Patch["Session pending patch<br/>.sac/sessions/id/pending_patch.json"]
+    Approval --> Runner["Approved command runner"]
+    Agent --> State["Agent state<br/>agent.json"]
+```
 
 **Agent run (non-interactive):**
 ```bash
@@ -297,8 +320,8 @@ See [docs/user-guide.md](docs/user-guide.md) for the complete first-run guide.
 `--auto-edit` / `--full-auto` reduce confirmation prompts without disabling safety:
 
 ```bash
-sac shell --agentic --auto-edit   # auto-apply AUTO tier (single-file, small diffs)
-sac shell --agentic --full-auto   # auto-apply AUTO + CONFIRM tier; GATE always stops
+sac shell --auto-edit             # auto-apply AUTO tier (single-file, small diffs)
+sac shell --full-auto             # auto-apply AUTO + CONFIRM tier; GATE always stops
 ```
 
 Both modes still checkpoint every write, maintain the audit log, and support rollback.

@@ -214,7 +214,7 @@ class TestAgenticShellCostOutput:
         class FakeLoop:
             def __init__(self, project_root, llm_client=None, *, auto_edit=False,
                          full_auto=False, command_delay_ms=500, no_clarify=False,
-                         plan_mode=False):
+                         plan_mode=False, session_id=None):
                 from uuid import uuid4
                 from safecode.llm.cost import SessionCostAccumulator
                 sac_dir = project_root / ".sac"
@@ -248,7 +248,7 @@ class TestAgenticShellCostOutput:
             def last_typed_result(self):
                 return None
 
-        with patch("safecode.cli_shell.AgentLoop", FakeLoop):
+        with patch("safecode.shell.runtime.AgentLoop", FakeLoop):
             result = CliRunner().invoke(
                 app, ["shell", "--agentic", "--non-tty", "--json"],
                 input="test\n",

@@ -125,8 +125,12 @@ def provider_add(
             console.print(f"[green]API key stored in system keychain for '{name}'.[/green]")
             resolved_key = None  # Don't also write to user config
         else:
-            console.print("[yellow]Keychain unavailable; falling back to user config.[/yellow]")
-            store_mode = "user-config"
+            console.print(
+                "[red]Keychain unavailable; API key was not persisted.[/red]\n"
+                "Next: install a keyring backend, set the provider API key in the environment, "
+                "or explicitly use --store user-config."
+            )
+            raise typer.Exit(code=1)
 
     # Build profile from preset
     if name == "deepseek":
@@ -150,11 +154,19 @@ def provider_add(
     # Write profile and set as active
     from safecode.config import _user_config_path
     path = _user_config_path().expanduser()
-    save_profile(profile, path)
-    set_active_provider(name, path)
+    try:
+        save_profile(profile, path)
+        set_active_provider(name, path)
+    except OSError as exc:
+        console.print(f"[red]Could not write provider config: {exc}[/red]")
+        raise typer.Exit(code=1) from exc
 
     # Also update user-level network allowlist so the provider host is allowed.
-    _ensure_network_allowlist(profile.network_allowlist, path)
+    try:
+        _ensure_network_allowlist(profile.network_allowlist, path)
+    except OSError as exc:
+        console.print(f"[red]Could not update network allowlist: {exc}[/red]")
+        raise typer.Exit(code=1) from exc
 
     console.print(f"[green]Provider '{name}' configured.[/green]")
     console.print(f"  Config: {path}")

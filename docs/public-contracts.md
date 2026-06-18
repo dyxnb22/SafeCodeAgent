@@ -42,7 +42,8 @@ are explicitly EXPERIMENTAL:
 - `sac shell` — interactive AI shell REPL.
 - `sac shell /overview` — bounded project context builder.
 - `sac shell /status`, `/task`, `/apply`, `/commit`, `/debug` — slash commands.
-- Natural-language intent router (routes to existing primitives).
+- Natural-language AgentLoop conversation with persistent session manifests.
+- Conversation-local agent state and pending patches under `.sac/sessions/<id>/`.
 - Shell session state under `.sac/shell/`.
 - `sac smoke ai-shell` — deterministic AI shell smoke suite.
 
@@ -57,7 +58,7 @@ surfaces remain explicitly EXPERIMENTAL:
 
 - DeepSeek provider preset and live-provider smoke.
 - Agentic typed step, validation, resume, and smoke surfaces.
-- `sac agent run` and `sac shell --agentic` behavior.
+- `sac agent run`; `sac shell --agentic` remains a deprecated no-op alias for the default shell kernel.
 - `sac demo agent-loop`, `examples/fastapi-todo/`, and recorded demo transcript.
 
 No v4.10-v4.12 surface is a stable contract. The train preserves approval,

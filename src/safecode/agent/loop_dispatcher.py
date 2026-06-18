@@ -273,7 +273,7 @@ class _DispatcherMixin:
         overwriting. If proposal generation fails, record the error without modifying
         any business/source files.
         """
-        pending_patch_path = self.project_root / ".sac" / "pending_patch.json"
+        pending_patch_path = self.pending_patch_path
 
         if pending_patch_path.exists():
             observation = (
@@ -311,7 +311,11 @@ class _DispatcherMixin:
             return AgentStepResult(state=saved, observation=observation, stopped_for_approval=True)
 
         try:
-            edit_result = AgentOrchestrator(self.project_root, llm_client=self.llm_client).edit(state.goal)
+            edit_result = AgentOrchestrator(
+                self.project_root,
+                llm_client=self.llm_client,
+                pending_patch_path=self.pending_patch_path,
+            ).edit(state.goal)
         except Exception as exc:
             observation = f"Patch proposal failed: {exc}"
             failed_patch_action = PatchPendingAction(
@@ -362,7 +366,11 @@ class _DispatcherMixin:
         )
         if auto_apply_condition:
             try:
-                orch = AgentOrchestrator(self.project_root, llm_client=self.llm_client)
+                orch = AgentOrchestrator(
+                    self.project_root,
+                    llm_client=self.llm_client,
+                    pending_patch_path=self.pending_patch_path,
+                )
                 apply_result = orch.apply(edit_result.proposal)
                 tier_label = tier.value
                 observation = (

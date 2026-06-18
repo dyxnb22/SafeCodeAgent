@@ -1,4 +1,4 @@
-"""EXPERIMENTAL: sac shell — interactive AI shell for SafeCode Agent (v4.9+).
+"""Interactive AI shell commands and legacy intent-router compatibility.
 
 Start the AI shell from a project directory:
 
@@ -77,7 +77,8 @@ Advanced:
   /exit             exit the shell
 
 Model changes via /model are persisted globally (saved to user config).
-Natural language input is routed by the intent router (v4.9.1+).
+Natural language input uses the unified AgentLoop runtime. The intent router
+below remains only for compatibility with direct legacy callers.
 Mutation actions (apply, commit) always require explicit confirmation.
 """
 
@@ -110,8 +111,9 @@ def _setup_readline() -> None:
     except ImportError:
         return
 
-    hist_dir = os.path.expanduser("~/.safecode")
-    hist_file = os.path.join(hist_dir, "shell_history")
+    configured_history = os.getenv("SAFECODE_SHELL_HISTORY", "").strip()
+    hist_file = configured_history or os.path.expanduser("~/.safecode/shell_history")
+    hist_dir = os.path.dirname(hist_file)
     try:
         os.makedirs(hist_dir, exist_ok=True)
     except OSError:
@@ -805,12 +807,15 @@ def _slash_smoke(project_root: Path, args: str = "") -> str:
     if parts[:1] != ["live"]:
         return "Usage: /smoke live"
     try:
+        env = os.environ.copy()
+        env["SAFECODE_LIVE_SMOKE"] = "1"
         result = subprocess.run(
             [sys.executable, "-m", "safecode.cli", "smoke", "live-provider", "--json"],
             cwd=str(project_root),
             capture_output=True,
             text=True,
             timeout=60,
+            env=env,
         )
     except subprocess.TimeoutExpired:
         return _format_card(
@@ -1356,69 +1361,6 @@ def _handle_slash_command(
     return f"Unknown slash command: {name!r}. Type /help for available commands.", "unknown_slash", False
 
 
-def _handle_natural_language(
-    user_input: str,
-    project_root: Path,
-    task_id: Optional[str],
-    *,
-    is_tty: bool,
-) -> tuple[str, str, bool]:
-    """Route natural language input via the intent router (v4.9.1+).
-
-    Returns (response, intent, exit_shell).
-    """
-    try:
-        from safecode.shell_session.router import route_input
-        return route_input(user_input, project_root, task_id, is_tty=is_tty)
-    except ImportError:
-        return (
-            "Intent routing not available. Use /help for slash commands or run `sac ask` directly.",
-            "ask_stub",
-            False,
-        )
-
-
-def _process_input(
-    user_input: str,
-    project_root: Path,
-    task_id: Optional[str],
-    *,
-    is_tty: bool,
-) -> tuple[str, str, bool]:
-    """Dispatch one shell input. Returns (response, intent, exit_shell)."""
-    if user_input.startswith("/"):
-        return _handle_slash_command(user_input, project_root, task_id, is_tty=is_tty)
-    return _handle_natural_language(user_input, project_root, task_id, is_tty=is_tty)
-
-
-def _write_shell_audit_event(
-    project_root: Path,
-    session_id: str,
-    turn_index: int,
-    intent: str,
-    task_id: Optional[str],
-) -> None:
-    """Write one audit event for a shell turn. Silently ignores failures."""
-    try:
-        from safecode.audit.logger import AuditLogger
-        from safecode.audit.models import AuditEvent
-        from safecode.utils.time import utc_now_iso
-
-        event = AuditEvent(
-            type="shell_turn",
-            timestamp=utc_now_iso(),
-            message=f"shell turn intent={intent}",
-            metadata={
-                "session_id": session_id,
-                "turn_index": str(turn_index),
-                "intent": intent,
-            },
-        )
-        AuditLogger(project_root).write(event, task_id=task_id)
-    except Exception:
-        pass
-
-
 def run_shell(
     project_root: Path,
     *,
@@ -1426,380 +1368,42 @@ def run_shell(
     is_tty: bool = True,
     json_output: bool = False,
 ) -> int:
-    """Core shell loop. Returns exit code."""
-    from safecode.shell_session.store import ShellSessionStore
-    from safecode.shell_session.state import ShellTurn, _MAX_TURNS
-    from safecode.task.store import TaskStore
-    from safecode.utils.time import utc_now_iso
+    """Compatibility entrypoint for the unified conversational runtime."""
+    from safecode.shell.runtime import run_agentic_shell
 
-    store = ShellSessionStore(project_root)
-    task_store = TaskStore(project_root)
-
-    # Load or create session
-    session = None
-    if session_id:
-        session = store.load(session_id)
-    if session is None:
-        current_task_id = task_store.current_id()
-        session = store.create(task_id=current_task_id)
-
-    if is_tty and not json_output:
-        console.print(_SHELL_BANNER)
-        try:
-            data = _build_shell_status_data(project_root)
-            next_actions = data.get("next_actions") if isinstance(data, dict) else []
-            if isinstance(next_actions, list) and next_actions:
-                console.print(f"[dim]Start: /status    Continue: /continue    Next: {next_actions[0]}[/dim]")
-            else:
-                console.print("[dim]Start: /status    Continue: /continue[/dim]")
-        except Exception:
-            console.print("[dim]Start: /status    Continue: /continue[/dim]")
-        _setup_readline()
-
-    turn_count = 0
-    while True:
-        # v5.2.1: build task status string for prompt
-        _task_str = ""
-        try:
-            _current_tid = task_store.current_id()
-            if _current_tid:
-                _task_state = task_store.load(_current_tid)
-                if _task_state:
-                    _iters = len(_task_state.iterations)
-                    _task_str = f"task:{_task_state.status[:4]} · {_iters}i"
-        except Exception:
-            pass
-
-        line = _read_line(is_tty=is_tty, turn=turn_count, prompt_override=_shell_prompt(turn_count, task_str=_task_str) if _task_str else None)
-        if line is None:
-            break
-
-        user_input = line.strip()
-        if not user_input:
-            continue
-
-        try:
-            response, intent, exit_shell = _process_input(
-                user_input, project_root, session.task_id, is_tty=is_tty
-            )
-        except KeyboardInterrupt:
-            if is_tty:
-                console.print("\n[yellow]Interrupted. Type /exit to quit.[/yellow]")
-                continue
-            break
-
-        # Record turn (bounded)
-        turn = ShellTurn(
-            turn_index=session.next_turn_index(),
-            user_input=user_input,
-            shell_response=response,
-            intent=intent,
-            task_id=session.task_id,
-        )
-        all_turns = list(session.turns) + [turn]
-        session = session.model_copy(update={
-            "turns": all_turns[-_MAX_TURNS:],
-            "updated_at": utc_now_iso(),
-        })
-        try:
-            store.save(session)
-        except Exception:
-            pass
-
-        # Audit event per turn
-        _write_shell_audit_event(
-            project_root,
-            session.session_id,
-            turn.turn_index,
-            intent,
-            session.task_id,
-        )
-
-        if json_output:
-            print(render_json(CLIJSONResponse(
-                command="shell turn",
-                status="success",
-                data={
-                    "session_id": session.session_id,
-                    "turn": turn.turn_index,
-                    "intent": intent,
-                    "response": response,
-                },
-            )))
-        else:
-            _maybe_render_markdown(response, is_tty=is_tty)
-
-        turn_count += 1
-
-        if exit_shell:
-            break
-
-    return 0
-
+    return run_agentic_shell(
+        project_root,
+        session_id=session_id,
+        is_tty=is_tty,
+        json_output=json_output,
+    )
 
 def _run_agentic_shell(
     project_root: Path,
     *,
+    session_id: Optional[str] = None,
     is_tty: bool = True,
     json_output: bool = False,
     auto_edit: bool = False,
     full_auto: bool = False,
     command_delay_ms: int = 500,
     mode: str = "build",
+    new_session: bool = False,
 ) -> int:
-    """[EXPERIMENTAL] Drive AgentLoop.run() from a single user input line.
+    """Compatibility wrapper for the unified conversational shell runtime."""
+    from safecode.shell.runtime import run_agentic_shell
 
-    Reads one line of user input as the goal, runs the AgentLoop, and renders
-    the result. Uses Rich Status panel for real-time step progress in TTY mode.
-
-    With --auto-edit, edit_file and write_file execute without prompting.
-    With --full-auto, run_command also executes (policy gates still apply).
-    run_command and GitHub write tools always require approval in plain agentic mode.
-    """
-    from safecode.cli_shared_json import CLIJSONResponse, render_json
-    from safecode.agent.step_model import APPROVAL_REQUIRED_KINDS
-
-    plan_mode = mode == "plan"
-    if plan_mode:
-        mode_label = "plan"
-    elif full_auto:
-        mode_label = "full-auto"
-    elif auto_edit:
-        mode_label = "auto-edit"
-    else:
-        mode_label = "v4.18"
-
-    if is_tty:
-        console.print(f"[bold]SafeCode Shell[/bold] [dim](EXPERIMENTAL --agentic mode {mode_label})[/dim]")
-        if full_auto:
-            console.print(
-                "[yellow]Full-auto mode: edit_file/write_file/run_command execute automatically. "
-                f"Command grace period: {command_delay_ms}ms (Ctrl-C to abort). "
-                "High-risk commands still blocked. Use sac rollback --last to undo.[/yellow]"
-            )
-        elif auto_edit:
-            console.print(
-                "[yellow]Auto-edit mode: edit_file/write_file execute without prompting. "
-                "Use sac rollback --last to undo.[/yellow]"
-            )
-        console.print("Enter your goal (one line), or Ctrl-C to exit.")
-
-    # v6.7.0: multi-turn conversational REPL with persistent ConversationBuffer.
-    from safecode.agent.conversation import ConversationBuffer
-    from safecode.config import SafeCodeConfig
-
-    config = SafeCodeConfig.load(project_root)
-    sac_dir = project_root / config.sac_dir
-    import uuid
-    shell_session_id = uuid.uuid4().hex
-    conversation = ConversationBuffer.load(shell_session_id, sac_dir)
-
-    loop = AgentLoop(
+    return run_agentic_shell(
         project_root,
+        session_id=session_id,
+        is_tty=is_tty,
+        json_output=json_output,
         auto_edit=auto_edit,
         full_auto=full_auto,
         command_delay_ms=command_delay_ms,
-        no_clarify=True,  # clarification handled interactively in the REPL itself
-        plan_mode=plan_mode,
+        mode=mode,
+        new_session=new_session,
     )
-
-    if is_tty and not json_output:
-        console.print(
-            "[bold]SafeCode Shell[/bold] [dim](EXPERIMENTAL --agentic v6.7, conversational)[/dim]\n"
-            "Type your goal. Use /status, /continue, /exit, /mode, /clear, /compact, /history, /undo."
-        )
-        if plan_mode:
-            console.print("[cyan]Plan mode active. Only read/search/reference tools are available.[/cyan]")
-        elif full_auto:
-            console.print("[yellow]Full-auto mode active. High-risk commands still blocked.[/yellow]")
-        elif auto_edit:
-            console.print("[yellow]Auto-edit mode active. Use sac rollback --last to undo.[/yellow]")
-
-    turn_count = 0
-    while True:
-        turn_count += 1
-        prompt = _shell_prompt(turn_count)
-        line = _read_line(is_tty=is_tty, turn=turn_count, prompt_override=prompt)
-        if line is None:
-            break
-        goal = line.strip()
-        if not goal:
-            continue
-
-        # Slash commands in agentic mode
-        if goal.startswith("/"):
-            if goal in ("/exit", "/quit"):
-                if is_tty:
-                    console.print("[dim]Exiting agentic shell.[/dim]")
-                break
-            if goal == "/clear":
-                conversation = ConversationBuffer.load(uuid.uuid4().hex, sac_dir)
-                if is_tty:
-                    console.print("[dim]Conversation cleared.[/dim]")
-                continue
-            if goal == "/undo":
-                try:
-                    from safecode.checkpoint.manager import CheckpointManager
-                    meta = CheckpointManager(project_root).rollback_last()
-                    paths = [op.path for op in meta.file_operations]
-                    msg = f"Rolled back: {', '.join(paths)}"
-                except Exception as exc:
-                    msg = f"Rollback failed: {exc}"
-                if is_tty:
-                    console.print(msg)
-                continue
-            if goal == "/history":
-                if conversation.is_empty():
-                    msg = "No conversation history yet."
-                else:
-                    msgs = conversation.to_messages()
-                    lines_h = [f"Conversation ({len(msgs)} messages, {conversation.turn_count()} turns):"]
-                    for m in msgs[-10:]:
-                        snippet = str(m.get("content", ""))[:80].replace("\n", " ")
-                        lines_h.append(f"  [{m.get('role','?')}] {snippet}")
-                    msg = "\n".join(lines_h)
-                if is_tty:
-                    console.print(msg)
-                continue
-            if goal == "/compact":
-                before = len(conversation.to_messages())
-                conversation.compact_now()
-                after = len(conversation.to_messages())
-                if is_tty:
-                    console.print(f"[dim]Conversation compacted: {before} -> {after} messages.[/dim]")
-                continue
-            if goal.startswith(("/status", "/continue", "/memory", "/ready", "/doctor", "/demo", "/smoke", "/timeline", "/sessions", "/resume")):
-                response, _intent, _exit = _handle_slash_command(goal, project_root, None, is_tty=is_tty)
-                if json_output:
-                    print(render_json(CLIJSONResponse(command="shell --agentic slash", status="success", data={"response": response})))
-                    break
-                if is_tty:
-                    console.print(response)
-                continue
-            if goal.startswith("/mode"):
-                parts = goal.split(None, 1)
-                if len(parts) == 1:
-                    msg = f"Current mode: {'plan' if plan_mode else 'build'}"
-                else:
-                    requested = parts[1].strip().lower()
-                    if requested not in {"plan", "build"}:
-                        msg = "Usage: /mode plan|build"
-                    else:
-                        plan_mode = requested == "plan"
-                        loop = AgentLoop(
-                            project_root,
-                            auto_edit=False if plan_mode else auto_edit,
-                            full_auto=False if plan_mode else full_auto,
-                            command_delay_ms=command_delay_ms,
-                            no_clarify=True,
-                            plan_mode=plan_mode,
-                        )
-                        msg = (
-                            "Switched to plan mode. Writes and commands are unavailable."
-                            if plan_mode
-                            else "Switched to build mode. Approval settings restored."
-                        )
-                if is_tty:
-                    console.print(msg)
-                elif json_output:
-                    print(render_json(CLIJSONResponse(command="shell --agentic /mode", status="success", data={"message": msg, "mode": "plan" if plan_mode else "build"})))
-                    break
-                continue
-            # Unknown slash command — fall through as a question
-            if is_tty:
-                console.print(f"[yellow]Unknown command: {goal!r}. Use /exit, /clear, /undo, /history.[/yellow]")
-            continue
-
-        # Append user turn to conversation buffer
-        conversation.append_user(goal)
-
-        step_updates: list[str] = []
-
-        def on_step(result, _su=step_updates):
-            obs = result.observation[:120]
-            _su.append(obs)
-            if is_tty and not json_output and auto_edit:
-                action = result.state.pending_action or {}
-                write_calls = int(action.get("write_calls", "0") or "0") if action.get("type") == "native_turn" else 0
-                if write_calls:
-                    console.print(f"  [green]✓[/green] {write_calls} file(s) edited")
-
-        try:
-            if is_tty and not json_output:
-                from rich.status import Status
-                with Status("[bold blue]Thinking...", spinner="dots"):
-                    result = loop.run(goal, max_steps=8, on_step=on_step, conversation=conversation)
-            else:
-                result = loop.run(goal, max_steps=8, on_step=on_step, conversation=conversation)
-        except (FileNotFoundError, ValueError) as exc:
-            errmsg = str(exc)
-            conversation.append_assistant(f"Error: {errmsg}")
-            if json_output:
-                print(render_json(CLIJSONResponse(command="shell --agentic", status="error", error=errmsg)))
-                return 1
-            if is_tty:
-                console.print(f"[red]{errmsg}[/red]")
-            continue
-
-        # Build assistant reply from step observations
-        observations = [s.observation for s in result.steps if s.observation]
-        for step in result.steps:
-            action = step.state.pending_action or {}
-            if action.get("type") == "native_turn" and step.observation:
-                conversation.append_tool_result("native_turn", step.observation)
-        agent_reply = "\n".join(observations) if observations else f"Done ({result.stopped_reason})"
-        conversation.append_assistant(agent_reply)
-
-        if json_output:
-            status = result.stopped_reason if result.stopped_reason in ("completed", "approval_required") else "stopped"
-            data: dict = {
-                "session_id": result.state.session_id,
-                "stopped_reason": result.stopped_reason,
-                "steps_count": len(result.steps),
-                "status": result.state.status,
-                "step_updates": step_updates,
-                "turn": turn_count,
-                "conversation_turns": conversation.turn_count(),
-                "mode": "plan" if plan_mode else "build",
-            }
-            last_typed = loop.last_typed_result
-            if last_typed is not None:
-                data["last_typed_result"] = last_typed.model_dump()
-            session_cost_json = loop.session_cost()
-            if session_cost_json and (session_cost_json.prompt_tokens or session_cost_json.completion_tokens):
-                data["cost"] = {
-                    "input_tokens": session_cost_json.prompt_tokens,
-                    "output_tokens": session_cost_json.completion_tokens,
-                    "cache_read_tokens": session_cost_json.cache_read_tokens,
-                    "estimated_usd": round(
-                        (session_cost_json.prompt_tokens / 1_000_000) * 3.0
-                        + (session_cost_json.completion_tokens / 1_000_000) * 15.0
-                        + (session_cost_json.cache_read_tokens / 1_000_000) * 0.30,
-                        4,
-                    ),
-                }
-            print(render_json(CLIJSONResponse(command="shell --agentic", status=status, data=data)))
-            # In JSON mode stop after one turn (caller drives the loop)
-            break
-
-        # TTY display
-        for idx, step_result in enumerate(result.steps, start=1):
-            if step_result.observation:
-                console.print(f"[dim]Step {idx}:[/dim] {step_result.observation}")
-
-        session_cost = loop.session_cost()
-        cost_parts: list[str] = []
-        if session_cost and (session_cost.prompt_tokens or session_cost.completion_tokens):
-            cost_str = _format_cost(session_cost.prompt_tokens, session_cost.completion_tokens, session_cost.cache_read_tokens)
-            if cost_str:
-                cost_parts.append(cost_str)
-        if loop._native_write_count:
-            cost_parts.append(f"{loop._native_write_count} file(s) edited")
-        if cost_parts or result.stopped_reason not in ("completed", "max_steps_reached"):
-            console.print(f"[dim]{result.stopped_reason}" + (f" · {' · '.join(cost_parts)}" if cost_parts else "") + "[/dim]")
-
-    return 0
-
 
 def register(app: typer.Typer) -> None:
     """Register sac shell on the given Typer app."""
@@ -1807,13 +1411,14 @@ def register(app: typer.Typer) -> None:
     @app.command("shell", hidden=True)
     def shell_command(
         session: Optional[str] = typer.Option(None, "--session", help="Resume an existing session by ID."),
+        new_session: bool = typer.Option(False, "--new", help="Start a new conversation."),
         model: str = typer.Option("", "--model", help="One-shot model override for this shell session (e.g. pro or deepseek:pro)."),
         json_output: bool = typer.Option(False, "--json", help="Output each turn as JSON (non-TTY friendly)."),
         non_tty: bool = typer.Option(False, "--non-tty", help="Force non-TTY (script/deterministic) mode."),
         agentic: bool = typer.Option(
             False,
             "--agentic",
-            help="[EXPERIMENTAL] Route user input directly to AgentLoop.run() instead of the intent router.",
+            help="Deprecated compatibility flag; AgentLoop is now the default shell kernel.",
         ),
         auto_edit: bool = typer.Option(
             False,
@@ -1841,14 +1446,13 @@ def register(app: typer.Typer) -> None:
             help="[EXPERIMENTAL] Agentic mode: plan (read-only tools) or build (normal approval flow).",
         ),
     ) -> None:
-        """[EXPERIMENTAL] Start an interactive AI shell session.
+        """Start the persistent conversational AI shell.
 
         Ask natural-language questions, run /status, /apply, /debug, and more.
         All mutation paths require explicit approval. No auto-apply ever.
 
-        With --agentic, user input becomes the goal for an AgentLoop.run() invocation
-        (the same loop sac agent run drives). Existing shell behavior is unchanged
-        without --agentic.
+        Natural-language input is handled by AgentLoop. --agentic is accepted
+        as a no-op compatibility flag.
 
         With --mode plan, only read/search/reference native tools are registered.
 
@@ -1881,23 +1485,17 @@ def register(app: typer.Typer) -> None:
                     console.print(f"[yellow]{suggestion}[/yellow]")
                 console.print(f"[dim]Session model override: {resolved}[/dim]")
 
-        if full_auto or auto_edit or agentic:
-            code = _run_agentic_shell(
-                project_root,
-                is_tty=is_tty,
-                json_output=json_output,
-                auto_edit=auto_edit,
-                full_auto=full_auto,
-                command_delay_ms=delay_ms,
-                mode=mode_value,
-            )
-        else:
-            code = run_shell(
-                project_root,
-                session_id=session,
-                is_tty=is_tty,
-                json_output=json_output,
-            )
+        code = _run_agentic_shell(
+            project_root,
+            session_id=session,
+            is_tty=is_tty,
+            json_output=json_output,
+            auto_edit=auto_edit,
+            full_auto=full_auto,
+            command_delay_ms=delay_ms,
+            mode=mode_value,
+            new_session=new_session,
+        )
         raise typer.Exit(code=code)
 
     return shell_command

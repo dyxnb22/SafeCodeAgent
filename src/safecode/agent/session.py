@@ -37,18 +37,30 @@ class AgentSessionState(BaseModel):
 
 
 class AgentSessionStore:
-    """Store one current agent session under ``.sac/session.json``."""
+    """Store agent state globally or under one unified shell session."""
 
-    def __init__(self, project_root: Path) -> None:
+    def __init__(self, project_root: Path, session_id: str | None = None) -> None:
         self.project_root = project_root
-        self.path = project_root / ".sac" / "session.json"
+        self.session_id = session_id
+        self.legacy_path = project_root / ".sac" / "session.json"
+        self.path = (
+            project_root / ".sac" / "sessions" / session_id / "agent.json"
+            if session_id
+            else self.legacy_path
+        )
 
-    def start(self, goal: str, plan: list[str] | None = None) -> AgentSessionState:
+    def start(
+        self,
+        goal: str,
+        plan: list[str] | None = None,
+        *,
+        session_id: str | None = None,
+    ) -> AgentSessionState:
         """Create or replace the current session."""
         planned_steps = list(plan or [])
         now = utc_now_iso()
         state = AgentSessionState(
-            session_id=uuid4().hex,
+            session_id=session_id or self.session_id or uuid4().hex,
             goal=goal,
             plan=planned_steps,
             current_step=0,
@@ -64,10 +76,17 @@ class AgentSessionStore:
 
     def load(self) -> AgentSessionState | None:
         """Load the current session, returning None if missing, invalid, or unsupported version."""
-        if not self.path.exists():
+        path = self.path
+        if not path.exists() and self.session_id and self.legacy_path.exists():
+            legacy = self._load_path(self.legacy_path)
+            if legacy is not None and legacy.session_id == self.session_id:
+                return self.save(legacy)
             return None
+        return self._load_path(path)
+
+    def _load_path(self, path: Path) -> AgentSessionState | None:
         try:
-            data = json.loads(self.path.read_text(encoding="utf-8"))
+            data = json.loads(path.read_text(encoding="utf-8"))
             data = migrate_record(data, "AgentSessionState")
             return AgentSessionState(**data)
         except SchemaVersionError:
@@ -77,7 +96,7 @@ class AgentSessionStore:
 
     def load_by_id(self, session_id: str) -> AgentSessionState | None:
         """Load the current session only if its session_id matches."""
-        state = self.load()
+        state = AgentSessionStore(self.project_root, session_id=session_id).load()
         if state is None:
             return None
         return state if state.session_id == session_id else None

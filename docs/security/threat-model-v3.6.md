@@ -321,7 +321,7 @@ paths to the same approval-gated edit/apply/run/commit surfaces.
 
 | Surface | Threat-model note |
 |---|---|
-| `sac shell` | Local REPL only; no hosted service behavior; session state is stored under `.sac/shell/`; corrupt or future-version session files fail safe. |
+| `sac shell` | Local REPL only; no hosted service behavior; manifests, redacted conversations, agent state, and pending patches are isolated under `.sac/sessions/<id>/`; corrupt or future-version manifests fail safe. |
 | Natural-language router | Ambiguous input defaults to read-only ask; write-class intents require explicit confirmation; non-TTY mutation requests print CLI instructions instead of mutating. |
 | `/overview` | Read-only bounded local context builder; no embeddings, vector database, RAG service, or network dependency; secrets are redacted and paths remain under project root. |
 | `/apply` and `/commit` | Delegate to existing apply/commit gates; require TTY confirmation; never auto-apply or auto-commit. |

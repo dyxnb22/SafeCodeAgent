@@ -33,7 +33,7 @@ from safecode.cli_shell import register as _register_shell
 from safecode.cli_lsp import lsp_app
 from safecode.cli_session import session_app
 from safecode.cli_format import format_app
-from safecode.cli_shell import run_shell
+from safecode.shell.runtime import run_agentic_shell
 from safecode.cli_model import register as _register_model
 from safecode.cli_init import register as _register_init
 from safecode.cli_provider import provider_app
@@ -172,6 +172,8 @@ app = typer.Typer(
 def callback(
     ctx: Context,
     model: str = typer.Option("", "--model", help="One-shot model override for this invocation (e.g. pro or deepseek:pro)."),
+    resume: str = typer.Option("", "--resume", help="Resume a conversation by session ID."),
+    new: bool = typer.Option(False, "--new", help="Start a new conversation instead of resuming the latest."),
 ) -> None:
     """Enter the interactive shell when `sac` is invoked without a subcommand."""
     if model:
@@ -182,7 +184,12 @@ def callback(
             console.print(f"[red]{exc}[/red]")
             raise typer.Exit(code=1) from exc
     if ctx.invoked_subcommand is None:
-        code = run_shell(Path.cwd(), is_tty=sys.stdin.isatty() and sys.stdout.isatty())
+        code = run_agentic_shell(
+            Path.cwd(),
+            session_id=resume or None,
+            new_session=new,
+            is_tty=sys.stdin.isatty() and sys.stdout.isatty(),
+        )
         raise typer.Exit(code=code)
 
 

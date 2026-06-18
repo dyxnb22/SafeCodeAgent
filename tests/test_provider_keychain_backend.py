@@ -6,6 +6,13 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+
+
+@pytest.fixture(autouse=True)
+def enable_keychain_for_backend_tests(monkeypatch):
+    monkeypatch.delenv("SAFECODE_DISABLE_KEYCHAIN", raising=False)
+
+
 from typer.testing import CliRunner
 
 from safecode.cli import app
@@ -97,6 +104,26 @@ class TestProviderAddRequiresStore:
         assert "sk-keychain-only" not in content
         assert "api_key" not in content
 
+    def test_api_key_with_store_keychain_fails_closed_when_unavailable(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.chdir(tmp_path)
+        user_config = tmp_path / "user_config.toml"
+        monkeypatch.setenv("SAFECODE_USER_CONFIG", str(user_config))
+
+        with patch("safecode.security.keychain.store_api_key", return_value=False):
+            result = runner.invoke(
+                app,
+                ["provider", "add", "deepseek", "--api-key", "sk-keychain-only",
+                 "--store", "keychain"],
+                catch_exceptions=False,
+            )
+
+        assert result.exit_code == 1
+        assert "Keychain unavailable" in result.stdout
+        assert "Traceback" not in result.stdout
+        assert not user_config.exists()
+
 
 class TestProviderAddNoApiKey:
     def test_provider_add_without_api_key_works(
@@ -159,9 +186,22 @@ class TestKeychainBackend:
     def test_keychain_unavailable_graceful(self) -> None:
         from safecode.security.keychain import store_api_key, get_api_key, has_keychain_backend
         with patch("safecode.security.keychain._get_keyring", return_value=None):
-            assert has_keychain_backend() is False
-            assert store_api_key("deepseek", "sk-test") is False
-            assert get_api_key("deepseek") is None
+            with patch("safecode.security.keychain._macos_security_available", return_value=False):
+                assert has_keychain_backend() is False
+                assert store_api_key("deepseek", "sk-test") is False
+                assert get_api_key("deepseek") is None
+
+    def test_macos_security_fallback(self) -> None:
+        from safecode.security.keychain import get_api_key, has_keychain_backend, store_api_key
+
+        with patch("safecode.security.keychain._get_keyring", return_value=None):
+            with patch("safecode.security.keychain._macos_security_available", return_value=True):
+                with patch("safecode.security.keychain._macos_store_api_key", return_value=True) as store:
+                    with patch("safecode.security.keychain._macos_get_api_key", return_value="sk-test"):
+                        assert has_keychain_backend() is True
+                        assert store_api_key("deepseek", "sk-test") is True
+                        assert get_api_key("deepseek") == "sk-test"
+                    store.assert_called_once_with("deepseek", "sk-test")
 
 
 class TestKeychainEdgeCases:

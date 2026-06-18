@@ -106,7 +106,11 @@ class _PlannerMixin:
 
     def _start_planned_session(self: "AgentLoop", goal: str) -> AgentSessionState:
         """Create a session using the current LLM planning contract."""
-        return self.store.start(goal, plan=self._plan_steps(goal))
+        return self.store.start(
+            goal,
+            plan=self._plan_steps(goal),
+            session_id=getattr(self, "shell_session_id", None),
+        )
 
     def _plan_steps(self: "AgentLoop", goal: str) -> list[str]:
         """Return LLM-planned steps with a deterministic fallback."""
@@ -267,25 +271,10 @@ class _PlannerMixin:
     def _prepend_session_memory(self: "AgentLoop", goal: str | None) -> str | None:
         """Load approved facts, project notes, and recent session summaries; prepend to goal."""
         try:
-            from safecode.memory.session_store import SessionSummaryStore
-            from safecode.memory.summary import format_memory_context
-            from safecode.memory.facts import ProjectFactStore
-            from safecode.memory.facade import MemoryFacade
-            blocks: list[str] = []
-            facts_ctx = ProjectFactStore(self._sac_dir).approved_context()
-            if facts_ctx:
-                blocks.append(facts_ctx)
-            notes = MemoryFacade(self.project_root).read_project_notes()
-            if notes and notes.strip():
-                notes_trimmed = notes.strip()[:800]
-                blocks.append(f"## Project Notes\n{notes_trimmed}")
-            summaries = SessionSummaryStore(self._sac_dir).load_recent(limit=3)
-            session_ctx = format_memory_context(summaries)
-            if session_ctx:
-                blocks.append(session_ctx)
-            if not blocks:
+            from safecode.memory.ledger import ContextLedger
+            prefix = ContextLedger(self.project_root).injected_context()
+            if not prefix:
                 return goal
-            prefix = "\n\n".join(blocks)
             return f"{prefix}\n\n{goal}" if goal else prefix
         except Exception:
             return goal

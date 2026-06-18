@@ -906,7 +906,17 @@ def _check_live_smoke_preconditions(project_root: Path) -> tuple[bool, str]:
     from safecode.doctor import Doctor
     key_env, key_source = Doctor._resolve_provider_key_env(provider, config)
     if key_source == "missing":
-        return False, f"Required API key env var not set: {key_env}"
+        try:
+            from safecode.security.keychain import get_api_key
+            if get_api_key(provider):
+                key_source = "keychain"
+        except Exception:
+            pass
+    if key_source == "missing":
+        return False, (
+            f"Provider credential missing. Set {key_env} or store the key with "
+            f"'sac provider add {provider} --store keychain'."
+        )
 
     return True, "all preconditions met"
 
@@ -950,12 +960,21 @@ def _run_live_smoke_scenario_propose_patch(config, project_root: Path) -> dict:
 
 
 def _collect_secret_values() -> list[str]:
-    """Collect actual API key env var values so they can be redacted from output."""
+    """Collect effective API key values so they can be redacted from output."""
     _KEY_ENVS = (
         "DEEPSEEK_API_KEY", "OPENAI_API_KEY", "SAFECODE_LLM_API_KEY",
         "ANTHROPIC_API_KEY",
     )
-    return [v for k in _KEY_ENVS if (v := os.environ.get(k, "")) and len(v) >= 8]
+    secrets = [v for k in _KEY_ENVS if (v := os.environ.get(k, "")) and len(v) >= 8]
+    try:
+        from safecode.llm.provider_profiles import get_active_profile
+        profile = get_active_profile()
+        key = profile.effective_api_key() if profile is not None else None
+        if key and len(key) >= 8 and key not in secrets:
+            secrets.append(key)
+    except Exception:
+        pass
+    return secrets
 
 
 def _redact_scenario_strings(scenario: dict, secrets: list[str]) -> dict:
@@ -1008,7 +1027,8 @@ def smoke_live_provider(
 
     Runs one safe ask and one safe edit/propose-patch round-trip.
     Never applies patches, commits, runs project commands, or writes source files.
-    Output redacts secrets. Requires a non-mock provider and a valid API key env var.
+    Output redacts secrets. Requires a non-mock provider and a valid credential
+    from the provider environment variable, system keychain, or trusted user config.
     """
     project_root = Path.cwd()
     allowed, reason = _check_live_smoke_preconditions(project_root)

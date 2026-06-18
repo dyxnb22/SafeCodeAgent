@@ -192,7 +192,8 @@ class TestNativeStepStopForUser:
 
         loop = AgentLoop(tmp_path, llm_client=mock_llm)
         result = loop.native_step("test goal")
-        assert result.stopped_for_approval is True
+        assert result.stopped_for_approval is False
+        assert result.state.status == "completed"
         assert "All done!" in result.observation
 
 

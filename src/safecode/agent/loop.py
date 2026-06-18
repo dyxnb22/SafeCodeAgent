@@ -110,6 +110,7 @@ class AgentLoop(_PlannerMixin, _BudgetMixin, _JournalMixin, _DispatcherMixin):
         command_delay_ms: int = 500,
         no_clarify: bool = False,
         plan_mode: bool = False,
+        session_id: str | None = None,
     ) -> None:
         from uuid import uuid4
         from safecode.llm.cost import SessionCostAccumulator
@@ -118,7 +119,13 @@ class AgentLoop(_PlannerMixin, _BudgetMixin, _JournalMixin, _DispatcherMixin):
         self.config = SafeCodeConfig.load(project_root)
         self.context_collector = ContextCollector(project_root, self.config)
         self._sac_dir = project_root / self.config.sac_dir
-        self._cost_session_id = uuid4().hex
+        self.shell_session_id = session_id
+        self.pending_patch_path = (
+            self._sac_dir / "sessions" / session_id / "pending_patch.json"
+            if session_id
+            else self._sac_dir / "pending_patch.json"
+        )
+        self._cost_session_id = session_id or uuid4().hex
         if llm_client is not None:
             self.llm_client = llm_client
         else:
@@ -128,7 +135,7 @@ class AgentLoop(_PlannerMixin, _BudgetMixin, _JournalMixin, _DispatcherMixin):
                 sac_dir=self._sac_dir,
             )
         self._cost_accumulator = SessionCostAccumulator(self._sac_dir, self._cost_session_id)
-        self.store = AgentSessionStore(project_root)
+        self.store = AgentSessionStore(project_root, session_id=session_id)
         self.journal = AgentJournalStore(project_root)
         # Stuck-loop state (owned by _BudgetMixin methods)
         self._last_tool_intent_identity: tuple[str, str, str, str] | None = None
@@ -308,17 +315,18 @@ class AgentLoop(_PlannerMixin, _BudgetMixin, _JournalMixin, _DispatcherMixin):
                 return AgentStepResult(state=saved, observation=observation)
 
         if isinstance(raw_result, AgentStopForUserResponse):
+            requires_approval = raw_result.requires_approval
             stop_action = StopForUserAction(
                 reason=raw_result.reason,
                 message=raw_result.message,
-                requires_approval=raw_result.requires_approval,
+                requires_approval=requires_approval,
             )
-            pending_action = stop_action.to_dict()
+            pending_action = stop_action.to_dict() if requires_approval else None
             updated = state.model_copy(
                 update={
                     "pending_action": pending_action,
                     "last_observation": raw_result.message,
-                    "status": "waiting_for_user",
+                    "status": "waiting_for_user" if requires_approval else "completed",
                     "last_error": None,
                 }
             )
@@ -327,18 +335,69 @@ class AgentLoop(_PlannerMixin, _BudgetMixin, _JournalMixin, _DispatcherMixin):
                 step_index=saved.current_step,
                 pending_action=pending_action,
                 observation=raw_result.message,
-                stopped_for_approval=True,
+                stopped_for_approval=requires_approval,
                 session_id=saved.session_id,
             )
-            return AgentStepResult(state=saved, observation=raw_result.message, stopped_for_approval=True)
+            return AgentStepResult(
+                state=saved,
+                observation=raw_result.message,
+                stopped_for_approval=requires_approval,
+            )
 
         # raw_result is list[AgentNativeToolCallResponse] — dispatch via MultiToolTurnRunner.
         native_calls = [
             NativeToolCall(tool_name=c.tool_name, input=c.input, call_id=c.call_id)
             for c in raw_result
         ]
+        command_call = next(
+            (call for call in native_calls if call.tool_name == "run_command"),
+            None,
+        )
+        if command_call is not None and not self.full_auto:
+            command = str(command_call.input.get("command", ""))
+            redacted_command = redact_secrets(command)
+            if redacted_command != command:
+                observation = "Command proposal blocked because it appears to contain a secret."
+                pending_action = None
+                status = "active"
+                stopped = False
+            else:
+                observation = f"Command requires approval: {command}"
+                pending_action = {
+                    "type": "command",
+                    "route": "native.run_command",
+                    "tool_name": "run_command",
+                    "command": command,
+                    "cwd": str(command_call.input.get("cwd", "")),
+                    "timeout_seconds": int(command_call.input.get("timeout_seconds", 60)),
+                    "requires_approval": True,
+                    "reason": "command_awaiting_user_approval",
+                }
+                status = "waiting_for_user"
+                stopped = True
+            saved = self.store.save(state.model_copy(update={
+                "pending_action": pending_action,
+                "last_observation": observation,
+                "status": status,
+                "last_error": None,
+            }))
+            self._classify_and_record(
+                step_index=saved.current_step,
+                pending_action=pending_action,
+                observation=observation,
+                stopped_for_approval=stopped,
+                session_id=saved.session_id,
+            )
+            return AgentStepResult(
+                state=saved,
+                observation=observation,
+                stopped_for_approval=stopped,
+            )
+
+        final_response: AgentStopForUserResponse | None = None
 
         def _llm_next_fn(obs_text: str, ctx: dict):
+            nonlocal final_response
             enriched = {**ctx, "tool_results": obs_text}
             next_raw = self.llm_client.choose_tool_native(
                 state.goal, enriched, tool_specs,
@@ -350,6 +409,8 @@ class AgentLoop(_PlannerMixin, _BudgetMixin, _JournalMixin, _DispatcherMixin):
                     NativeToolCall(tool_name=c.tool_name, input=c.input, call_id=c.call_id)
                     for c in next_raw
                 ]
+            if isinstance(next_raw, AgentStopForUserResponse):
+                final_response = next_raw
             return None
 
         runner = MultiToolTurnRunner(dispatcher)
@@ -361,24 +422,46 @@ class AgentLoop(_PlannerMixin, _BudgetMixin, _JournalMixin, _DispatcherMixin):
 
         if turn_result.observations:
             self._session_observations.extend(turn_result.observations)
+            if conversation is not None:
+                for record, tool_observation in zip(
+                    turn_result.tool_calls,
+                    turn_result.observations,
+                    strict=False,
+                ):
+                    conversation.append_tool_result(record.tool_name, tool_observation)
 
-        observation = turn_result.context_block() or f"Native turn: {turn_result.stopped_reason}"
-        pending_action: dict[str, object] = {
-            "type": "native_turn",
-            "route": "native.dispatch",
-            "stopped_reason": turn_result.stopped_reason,
-            "tool_calls_count": str(len(turn_result.tool_calls)),
-            "cap_hit": str(turn_result.cap_hit).lower(),
-            "write_calls": str(write_calls),
-        }
-        stopped_for_approval = turn_result.stopped_reason in {"stop_for_user", "error"} and not self.auto_edit
+        if final_response is not None:
+            observation = final_response.message
+            stopped_for_approval = final_response.requires_approval
+            pending_action = (
+                StopForUserAction(
+                    reason=final_response.reason,
+                    message=final_response.message,
+                    requires_approval=True,
+                ).to_dict()
+                if stopped_for_approval
+                else None
+            )
+            next_status = "waiting_for_user" if stopped_for_approval else "completed"
+        else:
+            observation = turn_result.context_block() or f"Native turn: {turn_result.stopped_reason}"
+            pending_action = {
+                "type": "native_turn",
+                "route": "native.dispatch",
+                "stopped_reason": turn_result.stopped_reason,
+                "tool_calls_count": str(len(turn_result.tool_calls)),
+                "cap_hit": str(turn_result.cap_hit).lower(),
+                "write_calls": str(write_calls),
+            }
+            stopped_for_approval = turn_result.stopped_reason in {"stop_for_user", "error"} and not self.auto_edit
+            next_status = "waiting_for_user" if stopped_for_approval else "active"
 
         updated = state.model_copy(
             update={
                 "current_step": state.current_step + 1,
                 "pending_action": pending_action,
                 "last_observation": observation,
-                "status": "active",
+                "status": next_status,
                 "last_error": None,
             }
         )

@@ -193,7 +193,7 @@ class TestFullAutoCLIFlags:
         class FakeLoop:
             def __init__(self, project_root, llm_client=None, *, auto_edit=False,
                          full_auto=False, command_delay_ms=500, no_clarify=False,
-                         plan_mode=False):
+                         plan_mode=False, session_id=None):
                 captured["full_auto"] = full_auto
                 captured["command_delay_ms"] = command_delay_ms
                 self._native_write_count = 0
@@ -220,7 +220,7 @@ class TestFullAutoCLIFlags:
             def last_typed_result(self):
                 return None
 
-        with patch("safecode.cli_shell.AgentLoop", FakeLoop):
+        with patch("safecode.shell.runtime.AgentLoop", FakeLoop):
             result = CliRunner().invoke(
                 app, ["shell", "--full-auto", "--non-tty", "--command-delay-ms", "0"],
                 input="run the tests\n",
@@ -244,7 +244,7 @@ class TestFullAutoCLIFlags:
         class FakeLoop:
             def __init__(self, project_root, llm_client=None, *, auto_edit=False,
                          full_auto=False, command_delay_ms=500, no_clarify=False,
-                         plan_mode=False):
+                         plan_mode=False, session_id=None):
                 captured["command_delay_ms"] = command_delay_ms
                 self._native_write_count = 0
 
@@ -270,7 +270,7 @@ class TestFullAutoCLIFlags:
             def last_typed_result(self):
                 return None
 
-        with patch("safecode.cli_shell.AgentLoop", FakeLoop):
+        with patch("safecode.shell.runtime.AgentLoop", FakeLoop):
             CliRunner().invoke(
                 app, ["shell", "--full-auto", "--non-tty", "--command-delay-ms", "9999"],
                 input="test\n",

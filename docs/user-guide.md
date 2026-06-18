@@ -513,7 +513,7 @@ When you ask the agent to edit a specific file, SafeCode automatically traces
 its import graph and pre-loads the most relevant related files into context:
 
 ```
-sac shell --agentic
+sac
 sac[0]> refactor the auth module in src/auth/login.py
 # → SafeCode detects 'src/auth/login.py' in your goal
 # → Automatically loads src/auth/session.py, src/auth/models.py (first-degree imports)
@@ -637,8 +637,8 @@ sac[0]> /status
 ```
 
 Use `/continue` when you want SafeCode to take the next safe step. It will not
-apply a pending patch or commit changes automatically; those approval gates still
-use `/apply` and `/commit`.
+commit changes automatically. If a patch or command is waiting for approval, the
+shell shows the diff or command and asks for Approve, Reject, or Explain.
 
 The most useful shell controls are deliberately small:
 
@@ -646,12 +646,31 @@ The most useful shell controls are deliberately small:
 |---|---|
 | `/status` | See provider/model, current task, active session, memory, safety, git state, and next step. |
 | `/continue` | Advance one safe agent step, or get a precise blocker such as missing credential, network off, pending patch, or user input needed. |
+| `/approval` or `/explain approval` | Explain the current approval gate and preview the pending diff if one exists. |
 | `/ready` | Check whether the active provider/model/network/memory setup is ready. Add `--live` only when you want an opt-in live provider smoke. |
 | `/memory` | Inspect approved facts, project notes, recent summaries, pending facts, and pinned files that may enter context. |
+| `/memory why` | Explain which context sources are injected, which are withheld, and why. |
 | `/memory review` | Review pending learned facts before they become active context. |
 | `/memory teach <text>` | Add a non-secret project note that should be visible in future sessions. |
+| `/sessions` | List recent conversations and show the active one. |
+| `/new` | Start a separate conversation with isolated agent and patch state. |
+| `/resume <id>` | Switch to a selected conversation without executing it. |
+| `/rename <title>` | Give the current conversation a useful title. |
+| `/files` | Show files recorded as changed in this conversation. |
+| `/tests` | Show test observations recorded in this conversation. |
+| `/diff` | Preview the current conversation's pending patch. |
 | `/demo` | Show a safe first-run path that exercises status, ask, apply, and undo without auto-committing. |
-| `/resume` | Resume the current or most recent agent session context passively; follow with `/continue` when you want action. |
+
+Each conversation owns `.sac/sessions/<id>/manifest.json`, `agent.json`,
+`conversation.jsonl`, and any `pending_patch.json`. This prevents switching or
+running multiple conversations from overwriting another conversation's state.
+If a legacy `.sac/pending_patch.json` exists, the interactive shell adopts it
+into the active conversation before approval so old `sac edit/apply` workflows
+do not collide with the conversational runtime.
+
+Pressing Ctrl-C during a shell step marks both the shell manifest and the agent
+state as interrupted, preserves the conversation, and lets you re-enter `sac`
+or use `/continue` later.
 
 ### Shell prompt
 
@@ -837,7 +856,7 @@ registers all eligible MCP tools so they appear in the model's tool list.
 
 5. Start the agentic shell — the agent calls `mcp_sqlite_list_tables` naturally:
    ```bash
-   sac shell --agentic
+   sac
    ```
 
 ### Write Tool Approval Flow
