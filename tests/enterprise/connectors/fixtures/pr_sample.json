@@ -1,0 +1,21 @@
+{
+  "title": "Fix SQL injection in login",
+  "body": "Parameterize user input.\nAuthorization: Bearer ghp_1234567890123456789012345678901234",
+  "author": "dev@example.com",
+  "base_ref": "main",
+  "head_ref": "feature/sql-fix",
+  "labels": ["security", "bug"],
+  "reviewers": ["reviewer@example.com"],
+  "files": [
+    {"path": "app/db.py", "status": "modified"},
+    {"path": "tests/test_db.py", "status": "added"}
+  ],
+  "hunks": [
+    {
+      "file_path": "app/db.py",
+      "start_line": 10,
+      "end_line": 12,
+      "patch": "@@ -10,3 +10,3 @@\n-query = f\"SELECT * FROM users WHERE id={user_id}\"\n+query = \"SELECT * FROM users WHERE id=?\""
+    }
+  ]
+}
