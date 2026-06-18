@@ -20,6 +20,7 @@ from safecode.enterprise.workflow.exceptions import (
     ApprovalRequestTamperedError,
     InvalidRunIdError,
     RequestAlreadyConsumedError,
+    WorkflowError,
 )
 from safecode.enterprise.workflow.ids import validate_run_id
 from safecode.enterprise.workflow.types import RiskTier
@@ -146,20 +147,102 @@ def list_requests(sac_root: Path, run_id: str) -> list[ApprovalRequest]:
     return items
 
 
+class Grant(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    grant_id: str
+    run_id: str
+    request_id: str
+    action: Action
+    policy_snapshot_id: str
+    created_at: str
+    consumed_at: str | None = None
+    revoked_at: str | None = None
+    grant_hash: str = ""
+
+
+class GrantAlreadyConsumedError(WorkflowError):
+    """Raised when a grant is consumed more than once."""
+
+
+def grant_hash(grant: Grant) -> str:
+    payload = grant.model_copy(update={"grant_hash": ""}).model_dump_json()
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+_GRANT_ID_RE = re.compile(r"^grant-[a-zA-Z0-9_-]{8,64}$")
+
+
+def validate_grant_id(grant_id: str) -> str:
+    if not isinstance(grant_id, str) or not _GRANT_ID_RE.match(grant_id):
+        raise InvalidRunIdError(f"invalid grant_id: {grant_id!r}")
+    if ".." in grant_id or "/" in grant_id or "\\" in grant_id:
+        raise InvalidRunIdError(f"invalid grant_id path characters: {grant_id!r}")
+    return grant_id
+
+
+def grants_dir(sac_root: Path, run_id: str) -> Path:
+    validate_run_id(run_id)
+    root = (sac_root / "enterprise" / "runs").resolve()
+    directory = (root / run_id / "grants").resolve()
+    if root not in directory.parents:
+        raise InvalidRunIdError(f"grant path escapes runs root for {run_id!r}")
+    return directory
+
+
+def save_grant(sac_root: Path, grant: Grant) -> Grant:
+    validate_grant_id(grant.grant_id)
+    directory = grants_dir(sac_root, grant.run_id)
+    path = directory / f"{grant.grant_id}.json"
+    if path.exists():
+        raise ApprovalRequestExistsError(f"grant exists: {grant.grant_id}")
+    stored = grant.model_copy(update={"grant_hash": grant_hash(grant)})
+    _atomic_write(path, json.loads(stored.model_dump_json()))
+    return stored
+
+
+def load_grant(sac_root: Path, run_id: str, grant_id: str) -> Grant:
+    validate_grant_id(grant_id)
+    path = grants_dir(sac_root, run_id) / f"{grant_id}.json"
+    if not path.is_file():
+        raise ApprovalRequestNotFoundError(f"grant not found: {grant_id}")
+    grant = Grant.model_validate_json(path.read_text(encoding="utf-8"))
+    if grant.grant_hash != grant_hash(grant):
+        raise ApprovalRequestTamperedError(f"grant tampered: {grant_id}")
+    return grant
+
+
+def consume_grant(sac_root: Path, run_id: str, grant_id: str) -> Grant:
+    grant = load_grant(sac_root, run_id, grant_id)
+    if grant.revoked_at is not None:
+        raise GrantAlreadyConsumedError(f"grant revoked: {grant_id}")
+    if grant.consumed_at is not None:
+        raise GrantAlreadyConsumedError(f"grant already consumed: {grant_id}")
+    updated = grant.model_copy(update={"consumed_at": _utc_now()})
+    updated = updated.model_copy(update={"grant_hash": grant_hash(updated)})
+    _atomic_write(
+        grants_dir(sac_root, run_id) / f"{grant_id}.json",
+        json.loads(updated.model_dump_json()),
+    )
+    return updated
+
+
 def decide_request(
     sac_root: Path,
     run_id: str,
     request_id: str,
     *,
-    decision: Literal["approved", "rejected"],
+    decision: Literal["approved", "rejected", "evidence_requested", "revoked"],
     decision_actor: str,
     decision_note: str = "",
 ) -> ApprovalRequest:
     if decision_actor.startswith("model:"):
         raise PermissionError("model actors cannot approve their own requests")
     request = load_request(sac_root, run_id, request_id)
-    if request.status != "pending":
+    if request.status not in {"pending", "evidence_requested"} and decision in {"approved", "rejected"}:
         raise RequestAlreadyConsumedError(f"approval request already decided: {request_id}")
+    if decision == "revoked" and request.status not in {"pending", "evidence_requested", "approved"}:
+        raise RequestAlreadyConsumedError(f"approval request cannot be revoked: {request_id}")
     updated = request.model_copy(
         update={
             "status": decision,
@@ -174,3 +257,45 @@ def decide_request(
         json.loads(updated.model_dump_json()),
     )
     return updated
+
+
+def request_evidence(
+    sac_root: Path,
+    run_id: str,
+    request_id: str,
+    *,
+    decision_actor: str,
+    decision_note: str,
+) -> ApprovalRequest:
+    if not decision_note.strip():
+        raise ValueError("evidence request requires a note")
+    return decide_request(
+        sac_root,
+        run_id,
+        request_id,
+        decision="evidence_requested",
+        decision_actor=decision_actor,
+        decision_note=decision_note,
+    )
+
+
+def revoke_request(
+    sac_root: Path,
+    run_id: str,
+    request_id: str,
+    *,
+    decision_actor: str,
+    decision_note: str = "",
+) -> ApprovalRequest:
+    return decide_request(
+        sac_root,
+        run_id,
+        request_id,
+        decision="revoked",
+        decision_actor=decision_actor,
+        decision_note=decision_note,
+    )
+
+
+def list_pending_requests(sac_root: Path, run_id: str) -> list[ApprovalRequest]:
+    return [item for item in list_requests(sac_root, run_id) if item.status == "pending"]
