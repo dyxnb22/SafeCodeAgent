@@ -8,6 +8,19 @@ Format: `[vX.Y.Z] — YYYY-MM-DD — short-description`
 
 ## Unreleased
 
+- Unified bare `sac` around the Claude-style conversational shell runtime:
+  session manifests, agent state, conversation history, pending patches, and
+  approval blockers are now scoped under `.sac/sessions/<id>/`.
+- Added `/approval` / `/explain approval`, clearer resume text, interruption
+  persistence, legacy pending-patch adoption, and a compact first screen.
+- Added the typed context ledger and `/memory why` explanation path so memory
+  injection is inspectable.
+- Hardened provider credential storage: `--store keychain` fails closed when
+  unavailable and supports macOS Keychain through the system `security` CLI
+  fallback.
+- Added `docs/architecture.md`, `docs/demo/claude-style-session.md`, and
+  `scripts/verify-package.py` for portfolio, release, and packaging readiness.
+
 ## [v6.0.0] — 2026-06-16 — major-contract-cut
 
 - Promoted trust mode schema (`suggest`, `auto-edit`, `full-auto`) to stable

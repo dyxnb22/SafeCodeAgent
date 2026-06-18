@@ -13,6 +13,8 @@ class TestBareSacShell:
     def test_sac_no_args_help_shows_daily_commands(self) -> None:
         result = runner.invoke(app, ["--help"], catch_exceptions=False)
         assert result.exit_code == 0
+        assert "Run bare" in result.stdout
+        assert "conversational session" in result.stdout
         assert "init" in result.stdout
         assert "ask" in result.stdout
         assert "edit" in result.stdout
@@ -41,3 +43,9 @@ class TestBareSacShell:
                      "profile", "resume"]:
             result = runner.invoke(app, [cmd, "--help"], catch_exceptions=False)
             assert result.exit_code == 0, f"{cmd} --help should exit 0"
+
+    def test_shell_help_points_to_bare_sac(self) -> None:
+        result = runner.invoke(app, ["shell", "--help"], catch_exceptions=False)
+        assert result.exit_code == 0
+        assert "Bare" in result.stdout
+        assert "--new" in result.stdout

@@ -158,7 +158,8 @@ isolated conversations. Agent state and pending patches are stored per session.
 See [docs/tutorials/ai-shell-first-hour.md](docs/tutorials/ai-shell-first-hour.md)
 for a step-by-step guide and
 [docs/demo/claude-style-session.md](docs/demo/claude-style-session.md) for a
-real-use transcript.
+real-use transcript. For the maintainable architecture view, see
+[docs/architecture.md](docs/architecture.md).
 
 ```mermaid
 flowchart LR

@@ -43,6 +43,20 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/safecode"]
 
+[tool.hatch.build.targets.sdist]
+include = [
+    "src/safecode",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE",
+    "SECURITY.md",
+    "CONTRIBUTING.md",
+    "docs",
+    "examples",
+    "scripts",
+    "tests",
+]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 markers = [

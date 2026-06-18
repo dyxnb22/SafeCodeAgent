@@ -7,6 +7,24 @@ git pull --ff-only
 scripts/test-fast.sh                         # fast local feedback
 PYTHONPATH=src python3 -m pytest -q          # full release gate
 PYTHONPATH=src python3 -m pytest -q -n auto  # optional parallel full run
+python3 scripts/verify-package.py            # packaging inputs and artifacts when build is installed
+```
+
+For a clean installation rehearsal:
+
+```bash
+python3 -m pip install build                  # once, if the build module is missing
+python3 -m build --sdist --wheel
+python3 -m pipx install --force .
+mkdir -p /tmp/safecode-empty && cd /tmp/safecode-empty && sac --help
+```
+
+Also check a plain directory and a git repository:
+
+```bash
+tmp=$(mktemp -d)
+(cd "$tmp" && sac --help)
+(cd "$tmp" && git init && sac --help)
 ```
 
 ## First Setup
@@ -57,6 +75,7 @@ Recommended main path for each release:
 sac release bump X.Y.Z         # update canonical version files; does not commit or tag
 scripts/test-fast.sh
 PYTHONPATH=src python3 -m pytest -q
+python3 scripts/verify-package.py
 git add -p                      # stage only version + release-ledger changes
 git commit -m "Implement vX.Y.Z <summary>"
 git tag -a vX.Y.Z -m "vX.Y.Z <summary>"

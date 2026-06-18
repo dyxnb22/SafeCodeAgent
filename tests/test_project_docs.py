@@ -141,6 +141,24 @@ class TestChangelogContent:
         assert "## [" in text  # version heading format
 
 
+class TestArchitectureAndPackagingDocs:
+    def test_architecture_doc_exists(self):
+        path = _ROOT / "docs" / "architecture.md"
+        assert path.exists()
+        text = path.read_text(encoding="utf-8")
+        assert "Session Kernel" in text
+        assert "Memory Ledger" in text
+        assert "Provider And Credentials" in text
+
+    def test_docs_index_links_architecture(self):
+        text = (_ROOT / "docs" / "README.md").read_text(encoding="utf-8")
+        assert "architecture.md" in text
+
+    def test_install_docs_include_package_verifier(self):
+        text = (_ROOT / "docs" / "install-update.md").read_text(encoding="utf-8")
+        assert "scripts/verify-package.py" in text
+
+
 class TestContributingContent:
     def _text(self):
         return (_ROOT / "CONTRIBUTING.md").read_text()

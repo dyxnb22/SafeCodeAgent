@@ -26,61 +26,13 @@ from safecode.agent.loop import AgentLoop
 from safecode.cli_shared import console
 from safecode.cli_shared_json import CLIJSONResponse, render_json
 from safecode.context.redactor import redact_secrets
+from safecode.shell.legacy_commands import SHELL_HELP as _SHELL_HELP
+from safecode.shell.legacy_commands import SLASH_COMMANDS as _SLASH_COMMANDS
 
 _SHELL_BANNER = (
     "[bold]SafeCode Shell[/bold] [dim](EXPERIMENTAL v4.17)[/dim]\n"
     "Type a request, or use /status for the workspace dashboard. /help lists commands."
 )
-
-_SHELL_HELP = """\
-Slash commands
-==============
-
-Start here:
-  /status           workspace dashboard and next safe step
-  /continue         take one safe step, or explain the blocker
-
-Work:
-  Type a request    ask, inspect, edit, or fix using natural language
-  /apply            apply pending patch (shows diff and asks first)
-  /commit           commit current task locally (asks first)
-  /undo             roll back the most recent write-tool checkpoint
-
-Inspect:
-  /task             show current task card
-  /timeline         show latest high-signal agent timeline
-  /sessions         show recent shell and agent sessions
-  /history          show recent shell turns
-  /debug            show last failure debug info
-
-Configure:
-  /ready            check provider/model/network/memory readiness
-  /ready --live     opt-in live provider smoke
-  /model            show current model, aliases, and readiness
-  /model <alias>    switch model: /model flash  /model pro
-  /provider status  show provider profile status
-
-Memory:
-  /memory           show what will enter context
-  /memory review    review pending learned facts
-  /memory teach <text>
-                    add a non-secret project note
-  /memory prune     remove stale workspace memory
-
-Advanced:
-  /demo             show a safe first-run demo path
-  /smoke live       run the live-provider smoke (opt-in network)
-  /tools            list native tools and approval flags
-  /cost             show session token/cost estimate
-  /mode plan|build  switch agentic shell mode
-  /clear            reset shell context and agent session history
-  /exit             exit the shell
-
-Model changes via /model are persisted globally (saved to user config).
-Natural language input uses the unified AgentLoop runtime. The intent router
-below remains only for compatibility with direct legacy callers.
-Mutation actions (apply, commit) always require explicit confirmation.
-"""
 
 _SHELL_PROMPT = "sac> "
 
@@ -94,14 +46,6 @@ def _shell_prompt(turn: int, cost_str: str = "", task_str: str = "") -> str:
         parts.append(cost_str)
     inner = " · ".join(parts)
     return f"sac[{inner}]> "
-
-_SLASH_COMMANDS = [
-    "/status", "/continue", "/timeline", "/sessions", "/resume", "/task", "/overview", "/model", "/provider",
-    "/memory", "/ready", "/doctor", "/demo", "/smoke",
-    "/apply", "/commit", "/debug", "/clear", "/undo", "/history", "/tools",
-    "/cost", "/mode", "/help", "/exit", "/quit",
-]
-
 
 def _setup_readline() -> None:
     """Configure readline with history, tab completion, and dedup."""
@@ -1410,8 +1354,8 @@ def register(app: typer.Typer) -> None:
 
     @app.command("shell", hidden=True)
     def shell_command(
-        session: Optional[str] = typer.Option(None, "--session", help="Resume an existing session by ID."),
-        new_session: bool = typer.Option(False, "--new", help="Start a new conversation."),
+        session: Optional[str] = typer.Option(None, "--session", help="Resume an existing conversation by ID. Bare `sac --resume <id>` is preferred."),
+        new_session: bool = typer.Option(False, "--new", help="Start a new conversation. Bare `sac --new` is preferred."),
         model: str = typer.Option("", "--model", help="One-shot model override for this shell session (e.g. pro or deepseek:pro)."),
         json_output: bool = typer.Option(False, "--json", help="Output each turn as JSON (non-TTY friendly)."),
         non_tty: bool = typer.Option(False, "--non-tty", help="Force non-TTY (script/deterministic) mode."),

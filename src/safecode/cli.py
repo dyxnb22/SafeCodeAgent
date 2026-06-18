@@ -162,9 +162,13 @@ def run_setup_wizard(project_root: Path, *, is_tty: bool | None = None) -> int:
 
 app = typer.Typer(
     name="sac",
-    help="SafeCode Agent: safety-first terminal coding assistant.",
+    help=(
+        "SafeCode Agent: safety-first terminal coding assistant. "
+        "Run bare `sac` to enter the conversational session."
+    ),
     no_args_is_help=False,
     invoke_without_command=True,
+    pretty_exceptions_enable=False,
 )
 
 
