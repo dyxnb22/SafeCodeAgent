@@ -1,0 +1,80 @@
+{
+  "api_path_prefix": "/v2",
+  "cli_server_controls": {
+    "env_vars": [
+      "SAFECODE_ENTERPRISE_TOKEN"
+    ],
+    "flags": [
+      "--server-url",
+      "--token-stdin"
+    ],
+    "rejected_flags_in_server_mode": [
+      "--actor"
+    ]
+  },
+  "console_routes": [
+    "/login",
+    "/t/{tenantId}/runs",
+    "/t/{tenantId}/runs/{runId}",
+    "/t/{tenantId}/runs/{runId}/evidence",
+    "/t/{tenantId}/approvals",
+    "/t/{tenantId}/eval"
+  ],
+  "contract": "EnterpriseGA_V3_0",
+  "contract_status": "supported",
+  "decision_refs": [
+    "D29"
+  ],
+  "ga_version": "3.0.0",
+  "migration_from": "v2.0.0-rc",
+  "openapi_info_version": "3.0.0",
+  "openapi_x_contract_status": "supported",
+  "operator_console_contract": "OperatorConsoleV2_3",
+  "operator_console_digest": "8e3d78c87720d810ac55b7691e310227a3b308cb7065e056e4167cfc8c5b3c71",
+  "service_plane_paths": [
+    "/healthz",
+    "/readyz",
+    "/version",
+    "/v2/runs",
+    "/v2/runs/{run_id}",
+    "/v2/runs/{run_id}/resume",
+    "/v2/runs/{run_id}/cancel",
+    "/v2/runs/{run_id}/timeline",
+    "/v2/runs/{run_id}/trace",
+    "/v2/approvals",
+    "/v2/approvals/{approval_id}/decide",
+    "/v2/approvals/{approval_id}/revoke",
+    "/v2/evidence/{run_id}",
+    "/v2/eval/baselines",
+    "/v2/webhooks/github",
+    "/v2/ci/callback"
+  ],
+  "supported_surfaces": [
+    "enterprise_cli",
+    "team_server_api_v2",
+    "operator_console",
+    "trace_event",
+    "timeline",
+    "evidence_export",
+    "eval_baseline",
+    "workflow_state"
+  ],
+  "team_server_contract": "TeamServerV2_1",
+  "team_server_digest": "1d0d2dc5c74a11496b5696398086a375ac8bb2eb16da7ed0729cc3e0fb8987b6",
+  "v2_0_rc_contract_digests": {
+    "enterprise_cli": "f209d4ff009ab009c75401a7b69851f952233e858cdd5a52476fcc6c8fa86090",
+    "eval_baseline": "08170a5a40a11903795dad6737ebde9045e421f2d940e16f04645b8fed7c39c4",
+    "evidence_export": "d616c9cee68ff96fd80ac8d93feee577f814c91bb29b630054f1ebb5af1ee57e",
+    "timeline": "2e17108d59a0a24afdf4cb8bf1aeb13577b6a883c91f2bfc3941c514e0a1d03c",
+    "trace_event": "68977323147c81aee7b4940f15d4d330663db61f52bb0ef9503af82a9ee28a94",
+    "workflow_state": "d26edc1c8a98228dde2feb56ff6d2f15653ef03ac4cf58d088ef1719fc0798c1"
+  },
+  "v2_0_rc_contracts": [
+    "enterprise_cli",
+    "eval_baseline",
+    "evidence_export",
+    "timeline",
+    "trace_event",
+    "workflow_state"
+  ]
+}

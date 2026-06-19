@@ -89,8 +89,8 @@ def test_version_returns_contract_metadata(tmp_path: Path) -> None:
     assert response.status_code == 200
     payload = response.json()
     assert payload["service"] == "safecode-enterprise-team-server"
-    assert payload["api_version"] == "2.1.0-planned"
-    assert payload["contract_status"] == "planned"
+    assert payload["api_version"] == "3.0.0"
+    assert payload["contract_status"] == "supported"
 
 
 def test_server_mode_subject_resolver_fails_closed() -> None:

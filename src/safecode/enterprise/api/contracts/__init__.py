@@ -8,7 +8,7 @@ from typing import Any
 
 import yaml
 
-CONTRACT_STATUS = "planned"
+CONTRACT_STATUS = "supported"
 OPENAPI_RELATIVE_PATH = Path("contracts") / "openapi.yaml"
 OPENAPI_PATH = Path(__file__).resolve().parent / "openapi.yaml"
 

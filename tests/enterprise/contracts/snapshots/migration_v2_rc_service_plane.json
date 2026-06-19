@@ -1,0 +1,18 @@
+{
+  "service_plane_paths": [
+    "/healthz",
+    "/readyz",
+    "/version",
+    "/v2/runs",
+    "/v2/runs/{run_id}",
+    "/v2/runs/{run_id}/resume",
+    "/v2/runs/{run_id}/cancel",
+    "/v2/runs/{run_id}/timeline",
+    "/v2/runs/{run_id}/trace",
+    "/v2/approvals",
+    "/v2/approvals/{approval_id}/decide",
+    "/v2/approvals/{approval_id}/revoke",
+    "/v2/evidence/{run_id}",
+    "/v2/eval/baselines"
+  ]
+}

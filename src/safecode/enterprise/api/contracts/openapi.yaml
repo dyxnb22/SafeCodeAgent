@@ -1,11 +1,11 @@
 openapi: 3.1.0
 info:
   title: SafeCodeAgent Enterprise Team Server API
-  version: 2.1.0-planned
+  version: 3.0.0
   description: |
-    Planned Team Server surface for SafeCodeAgent Enterprise (v2.1).
-    Handlers are not registered until later v2.1 milestones.
-  x-contract-status: planned
+    Supported Team Server surface for SafeCodeAgent Enterprise GA (v3.0).
+    HTTP routes remain under the `/v2` path prefix per decision D29.
+  x-contract-status: supported
 
 servers:
   - url: https://team-server.example
@@ -497,7 +497,7 @@ components:
           maxLength: 32
         contract_status:
           type: string
-          enum: [planned]
+          enum: [planned, supported]
 
     ProblemDetails:
       type: object

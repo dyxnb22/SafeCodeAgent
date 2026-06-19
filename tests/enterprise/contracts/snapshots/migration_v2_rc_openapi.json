@@ -1,0 +1,19 @@
+{
+  "operation_ids": [
+    "cancelRun",
+    "decideApproval",
+    "exportEvidence",
+    "getHealthz",
+    "getReadyz",
+    "getRun",
+    "getRunTimeline",
+    "getRunTrace",
+    "getVersion",
+    "listApprovals",
+    "listEvalBaselines",
+    "listRuns",
+    "resumeRun",
+    "revokeApprovalGrant",
+    "startRun"
+  ]
+}

@@ -12,7 +12,7 @@
     ]
   },
   "contract": "TeamServerV2_1",
-  "contract_status": "planned",
+  "contract_status": "supported",
   "http_error_content_type": "application/problem+json",
   "openapi_digest": "c4b83c0ee912a8b01d53076cd7c822b9ec159a6142f80df1f4e57dcde91a7141",
   "operation_ids": [

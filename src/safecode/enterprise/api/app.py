@@ -27,7 +27,7 @@ from safecode.enterprise.worker.queue import IdempotencyConflictError
 from safecode.enterprise.workflow.exceptions import CheckpointCorruptedError
 
 SERVICE_NAME = "safecode-enterprise-team-server"
-API_VERSION = "2.1.0-planned"
+API_VERSION = "3.0.0"
 
 
 @dataclass(frozen=True)

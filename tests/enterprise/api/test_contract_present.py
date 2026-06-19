@@ -73,9 +73,9 @@ def test_service_plane_paths_are_present(path: str) -> None:
     assert path in document["paths"]
 
 
-def test_contract_status_is_planned_not_delivered() -> None:
+def test_contract_status_is_supported_at_ga() -> None:
     document = load_openapi_contract()
-    assert document["info"]["x-contract-status"] == CONTRACT_STATUS == "planned"
+    assert document["info"]["x-contract-status"] == CONTRACT_STATUS == "supported"
     serialized = json.dumps(document)
     assert "delivered" not in serialized.lower()
 
