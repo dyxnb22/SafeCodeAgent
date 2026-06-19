@@ -15,11 +15,11 @@
     "next_delivery_task": null
   },
   "portfolio_track": {
-    "stage": "v3.3",
-    "milestone": "v3.3.1",
-    "status": "ready",
+    "stage": "v3.4",
+    "milestone": "v3.4.4",
+    "status": "completed",
     "active_task": null,
-    "next_delivery_task": "v3.3.1-T1"
+    "next_delivery_task": null
   },
   "stages": {
     "v1.0": "completed",
@@ -186,10 +186,17 @@
     {"id": "v3.1.2-T1", "completed_at": "2026-06-19", "evidence": "f4a54177"},
     {"id": "v3.1.2-T2", "completed_at": "2026-06-19", "evidence": "98af1780"},
     {"id": "v3.2.1-T1", "completed_at": "2026-06-19", "evidence": "b2b167bd"},
-    {"id": "v3.2.2-T1", "completed_at": "2026-06-19", "evidence": "ca8bb321"}
+    {"id": "v3.2.2-T1", "completed_at": "2026-06-19", "evidence": "ca8bb321"},
+    {"id": "v3.3.1-T1", "completed_at": "2026-06-19", "evidence": "ac5f868e"},
+    {"id": "v3.3.2-T1", "completed_at": "2026-06-19", "evidence": "6b63f426"},
+    {"id": "v3.3.3-T1", "completed_at": "2026-06-19", "evidence": "f6be3bfe"},
+    {"id": "v3.4.1-T1", "completed_at": "2026-06-19", "evidence": "1cd0b5e9"},
+    {"id": "v3.4.2-T1", "completed_at": "2026-06-19", "evidence": "18d533df"},
+    {"id": "v3.4.3-T1", "completed_at": "2026-06-19", "evidence": "ccd3bea7"},
+    {"id": "v3.4.4-T1", "completed_at": "2026-06-19", "evidence": "portfolio-v3.4-final-closeout"}
   ],
   "recent_maintenance": [
-    {"id": "maintenance-portfolio-v3.1-v3.2-closeout", "completed_at": "2026-06-19", "evidence": "v3.1.1-T1..v3.2.2-T1 delivered; offline pr-review demo and transcript snapshots; v3.0 GA blockers G1/G2/G3 remain pending"},
+    {"id": "maintenance-portfolio-v3.4-final-closeout", "completed_at": "2026-06-19", "evidence": "v3.3.1-T1..v3.4.4-T1 delivered; portfolio_track completed; v3.0 GA blockers G1/G2/G3 remain pending"},
     {"id": "maintenance-post-ga-portfolio-planning", "completed_at": "2026-06-19", "evidence": "Added v3.1-v3.4 portfolio roadmap, backlog, acceptance, external gates, and portfolio_track planning state; v3.0 GA blockers remain pending"},
     {"id": "maintenance-v2.5-production-hardening-closeout", "completed_at": "2026-06-19", "evidence": "v2.5.1..v2.5.6 delivered; 6342 passed excluding postgres_integration; full regression closeout"},
     {"id": "maintenance-v2.1.6-oidc-subject", "completed_at": "2026-06-19", "evidence": "v2.1.6-T1..T2 delivered; 408 enterprise passed excluding postgres_integration; full regression 6158 passed, 8 skipped"},
@@ -209,7 +216,7 @@
   "last_verification": {
     "recorded_at": "2026-06-19",
     "command": "PYTHONPATH=src python3 -m pytest -q",
-    "result": "6413 passed, 29 skipped",
-    "scope": "portfolio v3.1-v3.2 batch closeout; v3.0 GA external gates G1/G2/G3 pending"
+    "result": "6421 passed, 29 skipped",
+    "scope": "portfolio v3.4 final closeout; enterprise GA external gates G1/G2/G3 pending"
   }
 }

@@ -1,8 +1,7 @@
 # SafeCodeAgent Enterprise
 
-**Enterprise secure-change agent platform** — a governed security engineering
-agent for PR review, vulnerability remediation, secure planning, evidence export,
-and approval-gated workflows.
+**Enterprise secure-change agent platform** — a governed enterprise security engineering agent platform for PR review, vulnerability remediation, secure
+planning, evidence export, and approval-gated workflows.
 
 SafeCodeAgent Enterprise extends the completed SafeCodeAgent safety kernel
 (policy-gated writes, checkpoint/rollback, hash-chain audit, sandbox gates)
@@ -30,7 +29,9 @@ typed connectors/MCP, trace observability, and deterministic evaluation.
 - **Approval workflow** — scoped, single-use grants bound to proposal snapshots;
   models never self-approve.
 
-Critical invariant: **model output is never execution authority.**
+Critical invariant: **model output is never execution authority.** Writes and
+commands stay policy-gated, auditable, and recoverable via checkpoint and
+rollback.
 
 ---
 
@@ -121,7 +122,7 @@ PYTHONPATH=src python3 -m pytest -q
 ```
 
 **Last local verification (2026-06-19):** enterprise suite
-`663 passed, 23 skipped`; full regression `6413 passed, 29 skipped`.
+`671 passed, 23 skipped`; full regression `6421 passed, 29 skipped`.
 Counts are manually recorded from local runs, not CI badges.
 
 ---

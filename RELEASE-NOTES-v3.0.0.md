@@ -10,6 +10,10 @@
 **Enterprise stages delivered:** v1.0 through v2.5; v3.0 gates pending
 **Candidate contract snapshot:** `tests/enterprise/contracts/snapshots/ga_v3_0.json`
 
+**Portfolio track:** `v3.1`–`v3.4` portfolio final is complete (case study,
+offline demo, README, link hygiene). Portfolio final is presentation readiness
+only and does not satisfy enterprise GA external gates.
+
 ---
 
 ## Highlights
