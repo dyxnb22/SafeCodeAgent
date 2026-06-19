@@ -1,19 +1,48 @@
-"""Run read endpoints (v2.1.4-T2)."""
+"""Run read and command endpoints (v2.1.4-T2, v2.1.5-T1)."""
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Response
+from pydantic import BaseModel, ConfigDict, Field
 
+from safecode.enterprise.persistence.local_backend import LocalBackend
+from safecode.enterprise.api.app import AppState
 from safecode.enterprise.api.read_service import (
     get_run,
     list_runs,
     run_detail_payload,
 )
-from safecode.enterprise.api.routes._deps import get_backend, require_tenant
+from safecode.enterprise.api.routes._deps import (
+    get_app_state,
+    get_backend,
+    get_subject,
+    require_idempotency_key,
+    require_tenant,
+    require_tenant_header,
+)
+from safecode.enterprise.rbac.models import RBACSubject
+from safecode.enterprise.worker.commands import cancel_run, command_queue_for, resume_run, start_run
+from safecode.enterprise.worker.models import RunAccepted
 
 router = APIRouter(prefix="/v2/runs", tags=["runs"])
+
+
+class StartRunRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    task_type: str
+    input_ref: str | None = Field(default=None, max_length=512)
+
+
+def _accepted_response(accepted: RunAccepted) -> dict[str, str]:
+    return {
+        "run_id": accepted.run_id,
+        "status": accepted.status,
+        "status_url": accepted.status_url,
+    }
 
 
 @router.get("")
@@ -49,6 +78,39 @@ def list_runs_endpoint(
     return payload
 
 
+def _project_root(state: AppState, backend: object) -> Path:
+    if state.project_root is not None:
+        return state.project_root
+    if isinstance(backend, LocalBackend):
+        return backend.sac_root.parent
+    return backend.artifacts_root.parent  # type: ignore[attr-defined]
+
+
+@router.post("", status_code=202)
+def start_run_endpoint(
+    body: StartRunRequest,
+    response: Response,
+    tenant_id: Annotated[str, Depends(require_tenant_header)],
+    idempotency_key: Annotated[str, Depends(require_idempotency_key)],
+    backend: Annotated[object, Depends(get_backend)],
+    subject: Annotated[RBACSubject, Depends(get_subject)],
+    state: Annotated[AppState, Depends(get_app_state)],
+) -> dict[str, str]:
+    queue = command_queue_for(backend)
+    accepted = start_run(
+        backend,
+        queue,
+        tenant_id=tenant_id,
+        idempotency_key=idempotency_key,
+        task_type=body.task_type,
+        input_ref=body.input_ref,
+        subject=subject,
+        project_root=_project_root(state, backend),
+    )
+    response.status_code = 202
+    return _accepted_response(accepted)
+
+
 @router.get("/{run_id}")
 def get_run_endpoint(
     run_id: str,
@@ -57,3 +119,43 @@ def get_run_endpoint(
 ) -> dict[str, str]:
     summary = get_run(backend, tenant_id=tenant_id, run_id=run_id)
     return run_detail_payload(summary, tenant_id=tenant_id)
+
+
+@router.post("/{run_id}/resume", status_code=202)
+def resume_run_endpoint(
+    run_id: str,
+    response: Response,
+    tenant_id: Annotated[str, Depends(require_tenant_header)],
+    idempotency_key: Annotated[str, Depends(require_idempotency_key)],
+    backend: Annotated[object, Depends(get_backend)],
+) -> dict[str, str]:
+    queue = command_queue_for(backend)
+    accepted = resume_run(
+        backend,
+        queue,
+        tenant_id=tenant_id,
+        idempotency_key=idempotency_key,
+        run_id=run_id,
+    )
+    response.status_code = 202
+    return _accepted_response(accepted)
+
+
+@router.post("/{run_id}/cancel", status_code=202)
+def cancel_run_endpoint(
+    run_id: str,
+    response: Response,
+    tenant_id: Annotated[str, Depends(require_tenant_header)],
+    idempotency_key: Annotated[str, Depends(require_idempotency_key)],
+    backend: Annotated[object, Depends(get_backend)],
+) -> dict[str, str]:
+    queue = command_queue_for(backend)
+    accepted = cancel_run(
+        backend,
+        queue,
+        tenant_id=tenant_id,
+        idempotency_key=idempotency_key,
+        run_id=run_id,
+    )
+    response.status_code = 202
+    return _accepted_response(accepted)

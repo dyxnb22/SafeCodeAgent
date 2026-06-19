@@ -13,9 +13,15 @@ from safecode.enterprise.api.dependencies import (
     SubjectResolver,
     import_fastapi,
 )
-from safecode.enterprise.api.exceptions import TenantScopeDeniedError
+from safecode.enterprise.api.exceptions import (
+    ApprovalForbiddenError,
+    ApprovalRequestNotFoundError,
+    IdempotencyKeyRequiredError,
+    TenantScopeDeniedError,
+)
 from safecode.enterprise.api.settings import TeamServerSettings
 from safecode.enterprise.persistence.exceptions import TenantBoundaryError
+from safecode.enterprise.worker.queue import IdempotencyConflictError
 from safecode.enterprise.workflow.exceptions import CheckpointCorruptedError
 
 SERVICE_NAME = "safecode-enterprise-team-server"
@@ -28,6 +34,7 @@ class AppState:
     backend: PersistenceBackend
     subject_resolver: SubjectResolver
     eval_baselines_root: Path | None = None
+    project_root: Path | None = None
 
 
 def create_app(
@@ -36,6 +43,7 @@ def create_app(
     backend: PersistenceBackend,
     subject_resolver: SubjectResolver,
     eval_baselines_root: Path | None = None,
+    project_root: Path | None = None,
 ) -> Any:
     FastAPI = import_fastapi()
     from fastapi.responses import JSONResponse
@@ -54,6 +62,7 @@ def create_app(
         backend=backend,
         subject_resolver=subject_resolver,
         eval_baselines_root=eval_baselines_root,
+        project_root=project_root,
     )
     app.include_router(runs_router)
     app.include_router(traces_router)
@@ -122,6 +131,71 @@ def create_app(
                 "type": "about:blank",
                 "title": "Forbidden",
                 "status": 403,
+                "detail": str(exc),
+            },
+            media_type="application/problem+json",
+        )
+
+    @app.exception_handler(ApprovalForbiddenError)
+    def approval_forbidden(_request, exc: ApprovalForbiddenError) -> JSONResponse:
+        return JSONResponse(
+            status_code=403,
+            content={
+                "type": "about:blank",
+                "title": "Forbidden",
+                "status": 403,
+                "detail": str(exc),
+            },
+            media_type="application/problem+json",
+        )
+
+    @app.exception_handler(ApprovalRequestNotFoundError)
+    def approval_not_found(_request, exc: ApprovalRequestNotFoundError) -> JSONResponse:
+        return JSONResponse(
+            status_code=404,
+            content={
+                "type": "about:blank",
+                "title": "Not Found",
+                "status": 404,
+                "detail": str(exc),
+            },
+            media_type="application/problem+json",
+        )
+
+    @app.exception_handler(IdempotencyKeyRequiredError)
+    def idempotency_required(_request, exc: IdempotencyKeyRequiredError) -> JSONResponse:
+        return JSONResponse(
+            status_code=400,
+            content={
+                "type": "about:blank",
+                "title": "Bad Request",
+                "status": 400,
+                "detail": str(exc),
+            },
+            media_type="application/problem+json",
+        )
+
+    @app.exception_handler(IdempotencyConflictError)
+    def idempotency_conflict(_request, exc: IdempotencyConflictError) -> JSONResponse:
+        return JSONResponse(
+            status_code=409,
+            content={
+                "type": "about:blank",
+                "title": "Conflict",
+                "status": 409,
+                "detail": str(exc),
+            },
+            media_type="application/problem+json",
+        )
+
+    @app.exception_handler(ValueError)
+    def invalid_command(_request, exc: ValueError) -> JSONResponse:
+        return JSONResponse(
+            status_code=400,
+            content={
+                "type": "about:blank",
+                "title": "Bad Request",
+                "status": 400,
                 "detail": str(exc),
             },
             media_type="application/problem+json",

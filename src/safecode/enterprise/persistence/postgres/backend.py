@@ -31,6 +31,8 @@ from safecode.enterprise.persistence.postgres import audit as pg_audit
 from safecode.enterprise.persistence.postgres.evidence import export_run_evidence_from_pg
 from safecode.enterprise.persistence.postgres.migrate import apply_migrations
 from safecode.enterprise.persistence.postgres.unit_of_work import UnitOfWork
+from safecode.enterprise.worker.postgres_queue import PostgresCommandQueue
+from safecode.enterprise.worker.lease import PostgresRunLeaseStore
 from safecode.enterprise.persistence.protocols import (
     ApprovalDecision,
     assert_tenant_match,
@@ -819,6 +821,14 @@ class PostgresBackend:
             self.approvals,
             self.trace,
         )
+
+    @property
+    def commands(self) -> PostgresCommandQueue:
+        return PostgresCommandQueue(self._uow)
+
+    @property
+    def leases(self) -> PostgresRunLeaseStore:
+        return PostgresRunLeaseStore(self._uow)
 
     def probe(self) -> bool:
         return self._uow.probe()

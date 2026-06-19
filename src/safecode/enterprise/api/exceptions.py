@@ -11,3 +11,15 @@ class SettingsValidationError(Exception):
 
 class TenantScopeDeniedError(Exception):
     """Raised when the authenticated subject cannot access the requested tenant."""
+
+
+class IdempotencyKeyRequiredError(Exception):
+    """Raised when a command endpoint lacks a valid Idempotency-Key header."""
+
+
+class ApprovalForbiddenError(Exception):
+    """Raised when the subject cannot decide an approval request."""
+
+
+class ApprovalRequestNotFoundError(Exception):
+    """Raised when an approval request is missing within tenant scope."""

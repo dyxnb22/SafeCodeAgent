@@ -38,6 +38,8 @@ from safecode.enterprise.trace.emitter import TraceEmitter
 from safecode.enterprise.trace.events import TraceEvent, TraceEventType
 from safecode.enterprise.trace.session import project_root_for_sac
 from safecode.enterprise.trace.timeline import write_timeline
+from safecode.enterprise.worker.queue import LocalCommandQueue
+from safecode.enterprise.worker.lease import LocalRunLeaseStore
 from safecode.enterprise.workflow.checkpoint import (
     RunCheckpoint,
     gc_runs,
@@ -410,6 +412,14 @@ class LocalBackend:
     @property
     def trace(self) -> LocalTraceStore:
         return LocalTraceStore(self.sac_root)
+
+    @property
+    def commands(self) -> LocalCommandQueue:
+        return LocalCommandQueue(self.sac_root)
+
+    @property
+    def leases(self) -> LocalRunLeaseStore:
+        return LocalRunLeaseStore(self.sac_root)
 
     def probe(self) -> bool:
         """Return whether the local backend storage is usable."""

@@ -20,6 +20,7 @@ class WorkflowStatus(str, Enum):
     failed = "failed"
     rejected = "rejected"
     blocked = "blocked"
+    cancelled = "cancelled"
 
 
 class RiskTier(str, Enum):
