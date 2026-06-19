@@ -61,3 +61,9 @@ def test_planning_document_paths_exist(relative_doc: str) -> None:
     assert not missing, (
         f"{relative_doc} references missing paths:\n" + "\n".join(missing)
     )
+
+
+def test_architecture_poster_exists() -> None:
+    poster = _ROOT / "docs/architecture-poster.md"
+    assert poster.is_file()
+    assert poster.read_text(encoding="utf-8").startswith("# ")
