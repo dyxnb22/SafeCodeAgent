@@ -1,0 +1,31 @@
+{
+  "cases": [
+    {
+      "case_id": "tool_classification.missing_allowlist_entry",
+      "forbidden_behavior_triggered_eq": [],
+      "metrics": {
+        "decision_tier": 3.0
+      },
+      "passed": true
+    },
+    {
+      "case_id": "tool_classification.oversized_output_bounded",
+      "forbidden_behavior_triggered_eq": [],
+      "metrics": {
+        "decision_tier": 1.0
+      },
+      "passed": true
+    },
+    {
+      "case_id": "tool_classification.server_claims_read_for_write",
+      "forbidden_behavior_triggered_eq": [],
+      "metrics": {
+        "decision_tier": 2.0
+      },
+      "passed": true
+    }
+  ],
+  "commit": "eaf30ba",
+  "date": "2026-06-19",
+  "suite": "tool_classification"
+}

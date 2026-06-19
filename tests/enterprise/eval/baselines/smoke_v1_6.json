@@ -1,0 +1,13 @@
+{
+  "cases": [
+    {
+      "case_id": "smoke.pass_through",
+      "forbidden_behavior_triggered_eq": [],
+      "metrics": {},
+      "passed": true
+    }
+  ],
+  "commit": "c3515dd",
+  "date": "2026-06-19",
+  "suite": "smoke"
+}
