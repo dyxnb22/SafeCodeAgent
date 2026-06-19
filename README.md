@@ -1,55 +1,161 @@
 # SafeCodeAgent Enterprise
 
-This branch evolves the finished SafeCodeAgent safety-first coding agent into an
-enterprise security engineering agent platform.
+**Enterprise secure-change agent platform** — a governed security engineering
+agent for PR review, vulnerability remediation, secure planning, evidence export,
+and approval-gated workflows.
 
-SafeCodeAgent itself is complete and preserved on `main` and
-`archive/safecodeagent-final`. This branch is for the next product direction:
-RAG-grounded security workflows, LangGraph-style orchestration, MCP/tool
-integrations, human approval, policy governance, observability, and evaluation.
+SafeCodeAgent Enterprise extends the completed SafeCodeAgent safety kernel
+(policy-gated writes, checkpoint/rollback, hash-chain audit, sandbox gates)
+into a workflow-first platform with permission-aware RAG, RBAC, human approval,
+typed connectors/MCP, trace observability, and deterministic evaluation.
 
-## What This Branch Is For
+> **Current status:** `v3.0` **candidate** — portfolio track complete for
+> presentation; **enterprise GA external gates pending** (independent security
+> review, production-like deployment evidence, stable live-provider run).
+> Portfolio final ≠ enterprise GA. Live state:
+> [`.agents/context/progress.json`](.agents/context/progress.json).
 
-- PR security review with policy and code citations.
-- Vulnerability remediation from scanner findings to proposed fixes.
-- Secure implementation planning from tickets or requirements.
-- Auditable agent runs with tool calls, approvals, validation, cost, and traces.
-- Enterprise integration with GitHub, CI, scanners, ticketing, and knowledge
-  sources through governed tools and MCP connectors.
+---
 
-## Start Here
+## What It Does
 
-- Product direction: `product-planning/README.md`
-- Roadmap: `product-planning/roadmap.md`
-- Implementation backlog: `product-planning/implementation-backlog.md`
-- Technical architecture: `enterprise-docs/architecture.md`
-- Reusable SafeCodeAgent assets: `enterprise-docs/legacy-assets.md`
-- RAG design: `enterprise-docs/rag-and-context.md`
-- LangGraph workflow design: `enterprise-docs/langgraph-workflows.md`
-- Tool and MCP design: `enterprise-docs/mcp-and-tools.md`
-- Security governance: `enterprise-docs/security-governance.md`
-- Observability and evaluation: `enterprise-docs/observability-and-evaluation.md`
+- **PR security review** — ingest PR evidence, retrieve policy/code citations,
+  analyze risk, propose reports, gate high-risk writes behind human approval.
+- **Vulnerability remediation** — ingest scanner findings, plan patches, validate
+  proposals, and refuse execution without grants.
+- **Secure implementation planning** — ticket/issue grounding with governed
+  tool proposals.
+- **Evidence export** — compliance bundles with timeline, checkpoint, and audit
+  chain verification.
+- **Approval workflow** — scoped, single-use grants bound to proposal snapshots;
+  models never self-approve.
 
-## Legacy Docs
+Critical invariant: **model output is never execution authority.**
 
-The legacy SafeCodeAgent docs were intentionally removed from this branch after
-extracting useful Enterprise development context. This keeps agent and IDE
-context focused and avoids spending tokens on completed-product history.
+---
 
-For old SafeCodeAgent docs, inspect:
+## 30-Second Quickstart
 
-- `main`
-- `archive/safecodeagent-final`
+From a clean checkout (offline, no provider keys required):
+
+```bash
+uv sync
+PYTHONPATH=src python3 -m pytest tests/enterprise/cli/test_demo_command.py -q
+uv run sac demo --list
+uv run sac demo pr-review --offline
+```
+
+The demo uses `examples/enterprise/fixtures/pr_sql_injection/` and writes
+disposable state under your project `.sac` directory only when run from that
+root.
+
+---
+
+## Demo
+
+Offline PR review transcript (deterministic, redacted snapshot):
+
+- [examples/enterprise/demos/v3.2/transcripts/pr-review.txt](examples/enterprise/demos/v3.2/transcripts/pr-review.txt)
+
+Run live:
+
+```bash
+uv run sac demo pr-review --offline
+```
+
+Case study walkthrough:
+[product-planning/case-study-secure-change-platform.md](product-planning/case-study-secure-change-platform.md)
+
+---
+
+## Architecture
+
+High-level poster (implemented planes, honest GA status):
+
+- [docs/architecture-poster.md](docs/architecture-poster.md)
+
+Normative post-RC architecture:
+
+- [enterprise-docs/platform-architecture-v2.md](enterprise-docs/platform-architecture-v2.md)
+
+Implemented v1 architecture overview:
+
+- [enterprise-docs/system-architecture-v1.md](enterprise-docs/system-architecture-v1.md)
+
+---
+
+## Security and Governance
+
+External GA gates (cannot be closed by repository-local agents):
+
+- [enterprise-docs/security/external-gates.md](enterprise-docs/security/external-gates.md)
+
+`v3.0` candidate security review (not external sign-off):
+
+- [enterprise-docs/security/security-review-v3.0.md](enterprise-docs/security/security-review-v3.0.md)
+
+Governance design:
+
+- [enterprise-docs/security-governance-plan.md](enterprise-docs/security-governance-plan.md)
+
+Release notes (candidate, not GA approved):
+
+- [RELEASE-NOTES-v3.0.0.md](RELEASE-NOTES-v3.0.0.md)
+
+---
+
+## Interview Materials
+
+- [product-planning/case-study-secure-change-platform.md](product-planning/case-study-secure-change-platform.md) — 15-minute secure-change walkthrough with code/test citations
+- [product-planning/interview-master-narrative.md](product-planning/interview-master-narrative.md) — talking points and demo flows
+
+---
+
+## Tests
+
+Closest offline verification:
+
+```bash
+PYTHONPATH=src python3 -m pytest tests/enterprise -q
+PYTHONPATH=src python3 -m pytest -q
+```
+
+**Last local verification (2026-06-19):** enterprise suite
+`663 passed, 23 skipped`; full regression `6413 passed, 29 skipped`.
+Counts are manually recorded from local runs, not CI badges.
+
+---
+
+## Links Map
+
+| Topic | Entry |
+|-------|-------|
+| Portfolio roadmap | [product-planning/post-ga-portfolio-roadmap.md](product-planning/post-ga-portfolio-roadmap.md) |
+| PR-sized tasks | [product-planning/execution-backlog.md](product-planning/execution-backlog.md) |
+| Planning index | [product-planning/README.md](product-planning/README.md) |
+| Technical docs | [enterprise-docs/README.md](enterprise-docs/README.md) |
+| Platform architecture v2 | [enterprise-docs/platform-architecture-v2.md](enterprise-docs/platform-architecture-v2.md) |
+| Progress state | [.agents/context/progress.json](.agents/context/progress.json) |
+
+### Foundation / Background Docs
+
+These predate the executable enterprise delivery track but remain useful context:
+
+- [product-planning/roadmap.md](product-planning/roadmap.md) — phase narrative (foundation)
+- [product-planning/implementation-backlog.md](product-planning/implementation-backlog.md) — coarse themes (foundation)
+- [enterprise-docs/architecture.md](enterprise-docs/architecture.md) — early architecture notes (foundation)
+- [enterprise-docs/legacy-assets.md](enterprise-docs/legacy-assets.md) — reusable kernel mapping (foundation)
+
+Legacy SafeCodeAgent product docs live on `main` and `archive/safecodeagent-final`.
+
+---
 
 ## Development
 
 ```bash
 uv sync
 uv run sac --help
-PYTHONPATH=src python3 -m pytest -q
+uv run sac enterprise --help
 ```
 
-Critical invariant: model output is never execution authority. Writes, command
-execution, MCP writes, GitHub writes, sandbox execution, network actions, and
-approval-sensitive operations must stay policy-gated, auditable, and
-recoverable.
+Repository rules for agents: [AGENTS.md](AGENTS.md).
