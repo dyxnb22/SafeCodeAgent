@@ -5,6 +5,7 @@ from safecode.enterprise.persistence.exceptions import (
     PersistenceError,
     TenantBoundaryError,
 )
+from safecode.enterprise.persistence.local_backend import LocalBackend
 from safecode.enterprise.persistence.protocols import (
     ApprovalDecision,
     ApprovalStore,
@@ -23,6 +24,7 @@ __all__ = [
     "AuditStore",
     "EvalResultStore",
     "EvidenceStore",
+    "LocalBackend",
     "MissingTenantIdError",
     "PersistenceError",
     "RunStore",

@@ -9,14 +9,13 @@ from pathlib import Path
 
 from safecode.enterprise.approvals.store import (
     approvals_dir,
-    decide_request,
     grant_id_for_request,
     load_grant,
 )
 from safecode.enterprise.audit.chain import EnterpriseAuditChain
+from safecode.enterprise.persistence.local_backend import LocalBackend
 from safecode.enterprise.eval.assertions import evaluate_safety_assertions
 from safecode.enterprise.eval.cases import EvaluationCase, EvaluationResult
-from safecode.enterprise.workflow.checkpoint import load_checkpoint
 from safecode.enterprise.workflow.exceptions import WorkflowInterrupted
 from safecode.enterprise.workflow.ids import validate_run_id
 from safecode.enterprise.workflow.orchestrator import LocalOrchestrator, build_initial_state
@@ -81,6 +80,7 @@ def run_remediation_evaluation(case: EvaluationCase, project_root: Path) -> Eval
     sac_root = workspace / ".sac"
     _reset_eval_run_artifacts(sac_root, run_id)
     orchestrator = LocalOrchestrator(sac_root, runtime="local")
+    backend = orchestrator.backend
     state = build_initial_state(
         task_type=TaskType.remediation,
         input_ref=input_ref,
@@ -95,7 +95,7 @@ def run_remediation_evaluation(case: EvaluationCase, project_root: Path) -> Eval
         pass
 
     try:
-        load_checkpoint(sac_root, run_id)
+        backend.runs.load_checkpoint(tenant_id=state.tenant_id, run_id=run_id)
     except Exception:
         return EvaluationResult(
             case_id=case.case_id,
@@ -104,14 +104,14 @@ def run_remediation_evaluation(case: EvaluationCase, project_root: Path) -> Eval
             notes="workflow checkpoint missing",
         )
 
-    approved_request = decide_request(
-        sac_root,
-        run_id,
-        f"approval-{run_id}",
+    approved_request = backend.approvals.decide_request(
+        tenant_id=state.tenant_id,
+        run_id=run_id,
+        request_id=f"approval-{run_id}",
         decision="approved",
         decision_actor="user:approver",
     )
-    final = asyncio.run(orchestrator.resume(run_id))
+    final = asyncio.run(orchestrator.resume(run_id, tenant_id=state.tenant_id))
 
     metrics: dict[str, float] = {}
     forbidden: list[str] = []

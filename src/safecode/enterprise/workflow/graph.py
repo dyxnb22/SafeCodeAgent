@@ -4,12 +4,8 @@ from __future__ import annotations
 
 from typing import Any, TypedDict
 
-from safecode.enterprise.workflow.checkpoint import (
-    CHECKPOINT_SCHEMA_VERSION,
-    RunCheckpoint,
-    load_checkpoint,
-    save_checkpoint,
-)
+from safecode.enterprise.persistence.local_backend import LocalBackend
+from safecode.enterprise.workflow.checkpoint import CHECKPOINT_SCHEMA_VERSION, RunCheckpoint
 from safecode.enterprise.workflow.exceptions import LangGraphUnavailableError
 from safecode.enterprise.workflow.nodes.registry import NODE_RUNNERS, WORKFLOW_NODE_ORDER
 from safecode.enterprise.workflow.orchestrator import LocalOrchestrator
@@ -101,13 +97,15 @@ def build_state_graph():
     return graph.compile()
 
 
-async def run_langgraph_workflow(sac_root, state: EnterpriseRunState) -> EnterpriseRunState:
+async def run_langgraph_workflow(
+    backend: LocalBackend, state: EnterpriseRunState
+) -> EnterpriseRunState:
     compiled = build_state_graph()
     result = await compiled.ainvoke({"enterprise_state": state.model_dump(mode="python")})
     final = EnterpriseRunState.model_validate(result["enterprise_state"])
-    save_checkpoint(
-        sac_root,
-        RunCheckpoint(
+    backend.runs.save_checkpoint(
+        tenant_id=final.tenant_id,
+        checkpoint=RunCheckpoint(
             schema_version=CHECKPOINT_SCHEMA_VERSION,
             run_id=final.run_id,
             completed_nodes=list(WORKFLOW_NODE_ORDER),
@@ -118,6 +116,8 @@ async def run_langgraph_workflow(sac_root, state: EnterpriseRunState) -> Enterpr
     return final
 
 
-async def resume_langgraph_workflow(sac_root, checkpoint: RunCheckpoint) -> EnterpriseRunState:
-    local = LocalOrchestrator(sac_root, runtime="local")
-    return await local.resume(checkpoint.run_id)
+async def resume_langgraph_workflow(
+    backend: LocalBackend, checkpoint: RunCheckpoint
+) -> EnterpriseRunState:
+    local = LocalOrchestrator(backend.sac_root, runtime="local", backend=backend)
+    return await local.resume(checkpoint.run_id, tenant_id=checkpoint.state.tenant_id)

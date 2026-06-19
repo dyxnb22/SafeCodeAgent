@@ -7,15 +7,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from safecode.enterprise.approvals.binding import workflow_approval_binding
-from safecode.enterprise.approvals.store import load_request, validate_approved_request
+from safecode.enterprise.persistence.local_backend import LocalBackend
 from safecode.enterprise.policy.resolver import resolve_policy
 from safecode.enterprise.trace.events import TraceEventType
 from safecode.enterprise.trace.session import TraceSession
 from safecode.enterprise.workflow.checkpoint import (
     CHECKPOINT_SCHEMA_VERSION,
     RunCheckpoint,
-    load_checkpoint,
-    save_checkpoint,
+    load_checkpoint as legacy_load_checkpoint,
 )
 from safecode.enterprise.workflow.exceptions import (
     InvalidWorkflowRuntimeError,
@@ -91,23 +90,39 @@ def workflow_runtime() -> str:
 class LocalOrchestrator:
     """Runs workflow nodes in declared order with checkpoint persistence."""
 
-    def __init__(self, sac_root: Path, *, runtime: str | None = None) -> None:
+    def __init__(
+        self,
+        sac_root: Path,
+        *,
+        runtime: str | None = None,
+        backend: LocalBackend | None = None,
+    ) -> None:
         self.sac_root = sac_root
+        self.backend = backend or LocalBackend(sac_root)
         self.runtime = runtime or workflow_runtime()
 
     async def run(self, state: EnterpriseRunState) -> EnterpriseRunState:
         if self.runtime == "langgraph":
             from safecode.enterprise.workflow.graph import run_langgraph_workflow
 
-            return await run_langgraph_workflow(self.sac_root, state)
+            return await run_langgraph_workflow(self.backend, state)
         return await self._run_local(state, completed_nodes=[])
 
-    async def resume(self, run_id: str) -> EnterpriseRunState:
-        checkpoint = load_checkpoint(self.sac_root, run_id)
+    async def resume(self, run_id: str, *, tenant_id: str | None = None) -> EnterpriseRunState:
+        resolved_tenant = tenant_id
+        if resolved_tenant is None:
+            resolved_tenant = legacy_load_checkpoint(self.sac_root, run_id).state.tenant_id
+        checkpoint = self.backend.runs.load_checkpoint(
+            tenant_id=resolved_tenant, run_id=run_id
+        )
         state = checkpoint.state
         if state.status == WorkflowStatus.awaiting_approval:
             request_id = f"approval-{run_id}"
-            request = load_request(self.sac_root, run_id, request_id)
+            request = self.backend.approvals.load_request(
+                tenant_id=state.tenant_id,
+                run_id=run_id,
+                request_id=request_id,
+            )
             if request.status == "rejected":
                 rejected = state.model_copy(
                     update={
@@ -116,9 +131,9 @@ class LocalOrchestrator:
                         "updated_at": utc_now_iso(),
                     }
                 )
-                save_checkpoint(
-                    self.sac_root,
-                    RunCheckpoint(
+                self.backend.runs.save_checkpoint(
+                    tenant_id=rejected.tenant_id,
+                    checkpoint=RunCheckpoint(
                         schema_version=CHECKPOINT_SCHEMA_VERSION,
                         run_id=rejected.run_id,
                         completed_nodes=list(checkpoint.completed_nodes),
@@ -130,11 +145,10 @@ class LocalOrchestrator:
             if request.status != "approved":
                 raise WorkflowInterrupted(f"awaiting approval for run {run_id}")
             action, target = workflow_approval_binding(state)
-            validate_approved_request(
-                self.sac_root,
-                run_id,
-                request_id,
+            self.backend.approvals.validate_approved_request(
                 tenant_id=state.tenant_id,
+                run_id=run_id,
+                request_id=request_id,
                 action=action,
                 policy_snapshot_id=state.policy_snapshot_id,
                 target=target,
@@ -149,7 +163,7 @@ class LocalOrchestrator:
         if self.runtime == "langgraph":
             from safecode.enterprise.workflow.graph import resume_langgraph_workflow
 
-            return await resume_langgraph_workflow(self.sac_root, checkpoint)
+            return await resume_langgraph_workflow(self.backend, checkpoint)
         return await self._run_local(state, completed_nodes=list(checkpoint.completed_nodes))
 
     async def _run_local(
@@ -191,9 +205,9 @@ class LocalOrchestrator:
                 if len(completed_nodes) < len(WORKFLOW_NODE_ORDER)
                 else None
             )
-            save_checkpoint(
-                self.sac_root,
-                RunCheckpoint(
+            self.backend.runs.save_checkpoint(
+                tenant_id=current.tenant_id,
+                checkpoint=RunCheckpoint(
                     schema_version=CHECKPOINT_SCHEMA_VERSION,
                     run_id=current.run_id,
                     completed_nodes=completed_nodes,
@@ -219,7 +233,7 @@ class LocalOrchestrator:
                     created_at=current.updated_at,
                     preview="High-risk workflow action requires approval.",
                 )
-                pause_for_approval(self.sac_root, current, request)
+                pause_for_approval(self.backend, current, request)
             if current.status == WorkflowStatus.awaiting_approval:
                 raise WorkflowInterrupted(f"awaiting approval at node {node_name}")
         trace.emit(

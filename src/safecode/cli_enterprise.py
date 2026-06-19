@@ -13,15 +13,7 @@ import typer
 
 from safecode.enterprise.rag.index_builder import build_chunks_from_manifest
 from safecode.enterprise.rag.retriever import HybridRetriever
-from safecode.enterprise.workflow.checkpoint import gc_runs
-from safecode.enterprise.approvals.store import (
-    decide_request,
-    list_pending_requests,
-    list_requests,
-    load_request,
-    request_evidence,
-    revoke_request,
-)
+from safecode.enterprise.persistence.local_backend import LocalBackend
 from safecode.enterprise.approvals.cli_render import render_pending_requests
 from safecode.enterprise.rbac.models import resolve_subject
 from safecode.enterprise.workflow.exceptions import (
@@ -32,17 +24,16 @@ from safecode.enterprise.workflow.exceptions import (
 )
 from safecode.enterprise.workflow.orchestrator import LocalOrchestrator, build_initial_state
 from safecode.enterprise.workflow.types import TaskType
-from safecode.enterprise.trace.timeline import build_timeline, serialize_timeline, write_timeline
+from safecode.enterprise.trace.timeline import build_timeline, serialize_timeline
 from safecode.enterprise.trace.render_markdown import render_markdown
 from safecode.enterprise.trace.redaction import DebugTraceNotAllowed, resolve_export_profile
 from safecode.enterprise.policy.resolver import resolve_policy
 from safecode.enterprise.workflow.exceptions import CheckpointCorruptedError, InvalidRunIdError
-from safecode.enterprise.workflow.checkpoint import load_checkpoint
 from safecode.enterprise.eval.dashboard import render_dashboard, write_dashboard
 from safecode.enterprise.eval.loader import discover_cases
 from safecode.enterprise.eval.ratchet import baseline_path_for_suite, check_ratchet, write_baseline
-from safecode.enterprise.eval.runner import run_suite, write_results
-from safecode.enterprise.evidence.export import export_run_evidence, verify_export_bundle
+from safecode.enterprise.eval.runner import run_suite
+from safecode.enterprise.evidence.export import verify_export_bundle
 
 RAG_MAX_CITATIONS = 8
 _EVAL_CASES_ROOT = Path("tests/enterprise/eval/cases")
@@ -174,6 +165,7 @@ def workflow_resume(
 def workflow_gc(
     older_than: str = typer.Option(..., "--older-than", help="Retention window like 7d."),
     root: Path = typer.Option(None, "--root", help="Project root (defaults to cwd)."),
+    tenant: str = typer.Option("local", "--tenant", help="Tenant identifier."),
 ) -> None:
     """Remove stale workflow run directories under .sac/enterprise/runs."""
     if not older_than.endswith("d"):
@@ -181,7 +173,8 @@ def workflow_gc(
         raise typer.Exit(code=1)
     days = int(older_than[:-1])
     project_root = (root or Path.cwd()).resolve()
-    removed = gc_runs(project_root / ".sac", older_than_days=days)
+    backend = LocalBackend(project_root / ".sac")
+    removed = backend.runs.gc_runs(tenant_id=tenant, older_than_days=days)
     typer.echo(json.dumps({"removed": removed}))
     raise typer.Exit(code=0)
 
@@ -190,14 +183,16 @@ def workflow_gc(
 def approval_list(
     run_id: str = typer.Argument(..., help="Run identifier."),
     root: Path = typer.Option(None, "--root", help="Project root (defaults to cwd)."),
+    tenant: str = typer.Option("local", "--tenant", help="Tenant identifier."),
     pending: bool = typer.Option(False, "--pending", help="Show only pending requests."),
     markdown: bool = typer.Option(False, "--markdown", help="Render pending requests as Markdown."),
 ) -> None:
     project_root = (root or Path.cwd()).resolve()
+    backend = LocalBackend(project_root / ".sac")
     requests = (
-        list_pending_requests(project_root / ".sac", run_id)
+        backend.approvals.list_pending_requests(tenant_id=tenant, run_id=run_id)
         if pending
-        else list_requests(project_root / ".sac", run_id)
+        else backend.approvals.list_requests(tenant_id=tenant, run_id=run_id)
     )
     if markdown:
         typer.echo(render_pending_requests(requests))
@@ -211,10 +206,14 @@ def approval_show(
     run_id: str = typer.Argument(..., help="Run identifier."),
     request_id: str = typer.Argument(..., help="Approval request identifier."),
     root: Path = typer.Option(None, "--root", help="Project root (defaults to cwd)."),
+    tenant: str = typer.Option("local", "--tenant", help="Tenant identifier."),
 ) -> None:
     project_root = (root or Path.cwd()).resolve()
+    backend = LocalBackend(project_root / ".sac")
     try:
-        request = load_request(project_root / ".sac", run_id, request_id)
+        request = backend.approvals.load_request(
+            tenant_id=tenant, run_id=run_id, request_id=request_id
+        )
     except ApprovalRequestNotFoundError:
         typer.echo("Approval request not found.", err=True)
         raise typer.Exit(code=1)
@@ -229,13 +228,15 @@ def approval_approve(
     actor: str = typer.Option(..., "--actor", help="Human approver actor id."),
     note: str = typer.Option("", "--note", help="Optional approval note."),
     root: Path = typer.Option(None, "--root", help="Project root (defaults to cwd)."),
+    tenant: str = typer.Option("local", "--tenant", help="Tenant identifier."),
 ) -> None:
     project_root = (root or Path.cwd()).resolve()
+    backend = LocalBackend(project_root / ".sac")
     try:
-        request = decide_request(
-            project_root / ".sac",
-            run_id,
-            request_id,
+        request = backend.approvals.decide_request(
+            tenant_id=tenant,
+            run_id=run_id,
+            request_id=request_id,
             decision="approved",
             decision_actor=actor,
             decision_note=note,
@@ -254,13 +255,15 @@ def approval_reject(
     actor: str = typer.Option(..., "--actor", help="Human approver actor id."),
     reason: str = typer.Option("", "--reason", help="Rejection reason."),
     root: Path = typer.Option(None, "--root", help="Project root (defaults to cwd)."),
+    tenant: str = typer.Option("local", "--tenant", help="Tenant identifier."),
 ) -> None:
     project_root = (root or Path.cwd()).resolve()
+    backend = LocalBackend(project_root / ".sac")
     try:
-        request = decide_request(
-            project_root / ".sac",
-            run_id,
-            request_id,
+        request = backend.approvals.decide_request(
+            tenant_id=tenant,
+            run_id=run_id,
+            request_id=request_id,
             decision="rejected",
             decision_actor=actor,
             decision_note=reason,
@@ -279,13 +282,15 @@ def approval_request_evidence(
     actor: str = typer.Option(..., "--actor", help="Human approver actor id."),
     note: str = typer.Option(..., "--note", help="Evidence request note."),
     root: Path = typer.Option(None, "--root", help="Project root (defaults to cwd)."),
+    tenant: str = typer.Option("local", "--tenant", help="Tenant identifier."),
 ) -> None:
     project_root = (root or Path.cwd()).resolve()
+    backend = LocalBackend(project_root / ".sac")
     try:
-        request = request_evidence(
-            project_root / ".sac",
-            run_id,
-            request_id,
+        request = backend.approvals.request_evidence(
+            tenant_id=tenant,
+            run_id=run_id,
+            request_id=request_id,
             decision_actor=actor,
             decision_note=note,
         )
@@ -303,13 +308,15 @@ def approval_revoke(
     actor: str = typer.Option(..., "--actor", help="Human approver actor id."),
     reason: str = typer.Option("", "--reason", help="Optional revoke reason."),
     root: Path = typer.Option(None, "--root", help="Project root (defaults to cwd)."),
+    tenant: str = typer.Option("local", "--tenant", help="Tenant identifier."),
 ) -> None:
     project_root = (root or Path.cwd()).resolve()
+    backend = LocalBackend(project_root / ".sac")
     try:
-        request = revoke_request(
-            project_root / ".sac",
-            run_id,
-            request_id,
+        request = backend.approvals.revoke_request(
+            tenant_id=tenant,
+            run_id=run_id,
+            request_id=request_id,
             decision_actor=actor,
             decision_note=reason,
         )
@@ -324,6 +331,7 @@ def approval_revoke(
 def trace_export(
     run_id: str = typer.Argument(..., help="Run identifier."),
     root: Path = typer.Option(None, "--root", help="Project root (defaults to cwd)."),
+    tenant: str = typer.Option("local", "--tenant", help="Tenant identifier."),
     json_output: bool = typer.Option(True, "--json/--no-json", help="Write timeline JSON."),
     profile: str = typer.Option("strict", "--profile", help="Trace export profile."),
     config_root: Optional[Path] = typer.Option(
@@ -332,9 +340,9 @@ def trace_export(
 ) -> None:
     """Export a canonical run timeline JSON artifact."""
     project_root = (root or Path.cwd()).resolve()
-    sac_root = project_root / ".sac"
+    backend = LocalBackend(project_root / ".sac")
     try:
-        load_checkpoint(sac_root, run_id)
+        backend.runs.load_checkpoint(tenant_id=tenant, run_id=run_id)
     except (InvalidRunIdError, CheckpointCorruptedError, FileNotFoundError):
         typer.echo("Run not found.", err=True)
         raise typer.Exit(code=1)
@@ -344,10 +352,10 @@ def trace_export(
         typer.echo(str(exc), err=True)
         raise typer.Exit(code=1) from exc
     if json_output:
-        path = write_timeline(sac_root, run_id)
+        path = backend.trace.write_timeline(tenant_id=tenant, run_id=run_id)
         typer.echo(path.read_text(encoding="utf-8"))
     else:
-        typer.echo(serialize_timeline(build_timeline(sac_root, run_id)))
+        typer.echo(serialize_timeline(build_timeline(backend.sac_root, run_id)))
     raise typer.Exit(code=0)
 
 
@@ -355,6 +363,7 @@ def trace_export(
 def trace_show(
     run_id: str = typer.Argument(..., help="Run identifier."),
     root: Path = typer.Option(None, "--root", help="Project root (defaults to cwd)."),
+    tenant: str = typer.Option("local", "--tenant", help="Tenant identifier."),
     out: Optional[Path] = typer.Option(None, "--out", help="Optional output Markdown path."),
     profile: str = typer.Option("strict", "--profile", help="Trace export profile."),
     config_root: Optional[Path] = typer.Option(
@@ -363,9 +372,9 @@ def trace_show(
 ) -> None:
     """Render a Markdown dashboard for a workflow run."""
     project_root = (root or Path.cwd()).resolve()
-    sac_root = project_root / ".sac"
+    backend = LocalBackend(project_root / ".sac")
     try:
-        load_checkpoint(sac_root, run_id)
+        backend.runs.load_checkpoint(tenant_id=tenant, run_id=run_id)
     except (InvalidRunIdError, CheckpointCorruptedError, FileNotFoundError):
         typer.echo("Run not found.", err=True)
         raise typer.Exit(code=1)
@@ -374,7 +383,7 @@ def trace_show(
     except DebugTraceNotAllowed as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(code=1) from exc
-    markdown = render_markdown(build_timeline(sac_root, run_id))
+    markdown = render_markdown(build_timeline(backend.sac_root, run_id))
     if out is not None:
         out.write_text(markdown, encoding="utf-8")
     typer.echo(markdown)
@@ -458,7 +467,10 @@ def eval_run(
         raise typer.Exit(code=1)
 
     run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    results_path = write_results(all_results, sac_root, run_id)
+    backend = LocalBackend(sac_root)
+    results_path = backend.eval_results.write_results(
+        tenant_id="local", run_id=run_id, results=all_results
+    )
     dashboard_path = write_dashboard(sac_root, render_dashboard(all_results))
     passed = all(item.passed for item in all_results)
     typer.echo(
@@ -496,9 +508,9 @@ def evidence_export(
 ) -> None:
     """Export a compliance evidence zip for a completed workflow run."""
     project_root = _project_root(root)
-    sac_root = project_root / ".sac"
+    backend = LocalBackend(project_root / ".sac")
     try:
-        bundle_path = export_run_evidence(sac_root, run_id, tenant_id=tenant)
+        bundle_path = backend.evidence.export_run_evidence(tenant_id=tenant, run_id=run_id)
     except Exception as exc:
         typer.echo(f"Evidence export failed: {exc}", err=True)
         raise typer.Exit(code=1) from exc
