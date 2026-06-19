@@ -59,6 +59,8 @@ Executable planning (new, authoritative for delivery):
   post-RC `v2.1` / `v2.2` plans.
 - `interview-master-narrative.md` — structured interview material
   organized by talking points and demo flows.
+- `case-study-secure-change-platform.md` — PR secure-change walkthrough
+  with implementation and test citations for portfolio interviews.
 - `decision-log.md` — durable record of architectural decisions
   with rationale, alternatives, and revisit triggers.
 - `claude-code-execution-guide.md` — operating contract for any AI

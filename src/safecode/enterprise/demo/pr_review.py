@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import asyncio
+import shutil
 from pathlib import Path
 
-from safecode.enterprise.approvals.store import decide_request
+from safecode.enterprise.approvals.store import approvals_dir, decide_request
 from safecode.enterprise.audit.chain import EnterpriseAuditChain
 from safecode.enterprise.workflow.checkpoint import load_checkpoint
 from safecode.enterprise.workflow.exceptions import WorkflowInterrupted
@@ -18,9 +19,21 @@ DEMO_RUN_ID = "run-demoprreview"
 FIXTURE_REF = "examples/enterprise/fixtures/pr_sql_injection"
 
 
+def reset_demo_run_state(project_root: Path, *, run_id: str = DEMO_RUN_ID) -> None:
+    """Remove disposable demo run state so offline demos can be repeated."""
+    sac_root = project_root.resolve() / ".sac"
+    run_dir = sac_root / "enterprise" / "runs" / run_id
+    if run_dir.exists():
+        shutil.rmtree(run_dir)
+    approval_dir = approvals_dir(sac_root, run_id)
+    if approval_dir.exists():
+        shutil.rmtree(approval_dir)
+
+
 def run_pr_review_offline_demo(project_root: Path) -> str:
     """Run the offline PR review demo and return a human-readable transcript."""
     root = project_root.resolve()
+    reset_demo_run_state(root)
     sac_root = root / ".sac"
     orchestrator = LocalOrchestrator(sac_root, runtime="local")
     state = build_initial_state(

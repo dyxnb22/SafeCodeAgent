@@ -12,6 +12,7 @@ PRODUCT_PLANNING_DOCS = [
     "product-planning/milestone-acceptance.md",
     "product-planning/execution-backlog.md",
     "product-planning/interview-master-narrative.md",
+    "product-planning/case-study-secure-change-platform.md",
     "product-planning/decision-log.md",
     "product-planning/claude-code-execution-guide.md",
 ]
@@ -38,6 +39,7 @@ PRODUCT_PLANNING_README_FILES = [
     "milestone-acceptance.md",
     "execution-backlog.md",
     "interview-master-narrative.md",
+    "case-study-secure-change-platform.md",
     "decision-log.md",
     "claude-code-execution-guide.md",
 ]

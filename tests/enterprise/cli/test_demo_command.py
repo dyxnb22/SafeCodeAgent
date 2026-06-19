@@ -50,3 +50,20 @@ def test_unknown_demo_command_fails() -> None:
     runner = CliRunner()
     result = runner.invoke(demo_app, ["unknown-demo", "--offline"])
     assert result.exit_code != 0
+
+
+def test_pr_review_offline_demo_is_repeatable_in_tmp_path(tmp_path: Path) -> None:
+    root = _seed_demo_root(tmp_path)
+    repo_sac = _ROOT / ".sac"
+    repo_sac_exists_before = repo_sac.exists()
+    runner = CliRunner()
+    outputs: list[str] = []
+    for _ in range(2):
+        result = runner.invoke(demo_app, [*_COMMAND, "--root", str(root)])
+        assert result.exit_code == 0, result.stdout + result.stderr
+        outputs.append(result.stdout)
+    from safecode.enterprise.demo.redactor import redact_transcript
+
+    assert redact_transcript(outputs[0]) == redact_transcript(outputs[1])
+    assert (root / ".sac").exists()
+    assert repo_sac_exists_before == repo_sac.exists()
