@@ -39,3 +39,4 @@ class QueueJob(BaseModel):
     status: QueueJobStatus
     payload: dict[str, str] = Field(default_factory=dict)
     created_at: str
+    attempts: int = 0

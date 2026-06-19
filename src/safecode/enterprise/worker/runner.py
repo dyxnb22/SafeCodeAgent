@@ -10,11 +10,13 @@ from safecode.enterprise.persistence.local_backend import LocalBackend
 from safecode.enterprise.persistence.postgres.backend import PostgresBackend
 from safecode.enterprise.worker.lease import LocalRunLeaseStore, RunLeaseStore
 from safecode.enterprise.worker.models import QueueJob
-from safecode.enterprise.worker.queue import CommandQueue, LocalCommandQueue
+from safecode.enterprise.worker.queue import CommandQueue, LocalCommandQueue, MAX_QUEUE_ATTEMPTS
 from safecode.enterprise.worker.status import is_terminal
 from safecode.enterprise.workflow.exceptions import WorkflowInterrupted
 from safecode.enterprise.workflow.orchestrator import LocalOrchestrator
 from safecode.enterprise.workflow.types import WorkflowStatus
+
+MAX_ATTEMPTS = MAX_QUEUE_ATTEMPTS
 
 
 PersistenceBackend = LocalBackend | PostgresBackend
@@ -70,8 +72,13 @@ class WorkerRunner:
         try:
             self._execute(job)
             self.queue.complete_job(job.job_id)
+        except ValueError as exc:
+            if str(exc).startswith("unsupported queue command"):
+                self.queue.dlq_job(job.job_id, message=str(exc), poison=True)
+            else:
+                self._handle_failure(job, exc)
         except Exception as exc:
-            self.queue.fail_job(job.job_id, message=str(exc))
+            self._handle_failure(job, exc)
         finally:
             self.leases.release(
                 tenant_id=job.tenant_id,
@@ -79,6 +86,13 @@ class WorkerRunner:
                 worker_id=self.worker_id,
             )
         return True
+
+    def _handle_failure(self, job: QueueJob, exc: Exception) -> None:
+        if job.attempts + 1 >= MAX_ATTEMPTS:
+            self.queue.dlq_job(job.job_id, message=str(exc), poison=False)
+            return
+        if not self.queue.retry_job(job.job_id, message=str(exc)):
+            self.queue.dlq_job(job.job_id, message=str(exc), poison=False)
 
     def _requeue(self, job: QueueJob) -> None:
         self.queue.enqueue_job(

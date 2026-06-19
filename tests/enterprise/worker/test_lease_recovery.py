@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from unittest.mock import patch
 
 from safecode.enterprise.persistence.local_backend import LocalBackend
 from safecode.enterprise.worker.lease import LocalRunLeaseStore
@@ -80,3 +82,42 @@ def test_worker_skips_when_lease_unavailable(tmp_path: Path) -> None:
     pending = backend.sac_root / "enterprise" / "worker" / "queue" / "pending.jsonl"
     assert pending.is_file()
     assert pending.read_text(encoding="utf-8").strip()
+
+
+def test_worker_recovery_requeues_after_retryable_failure(tmp_path: Path) -> None:
+    backend = _backend(tmp_path)
+    state = __import__(
+        "safecode.enterprise.workflow.orchestrator", fromlist=["build_initial_state"]
+    ).build_initial_state(
+        task_type=__import__(
+            "safecode.enterprise.workflow.types", fromlist=["TaskType"]
+        ).TaskType.pr_review,
+        input_ref="fixture.json",
+        actor_id="user:test",
+        repo_root=tmp_path,
+        run_id="run-worker002",
+        tenant_id="tenant-a",
+    )
+    from safecode.enterprise.workflow.checkpoint import CHECKPOINT_SCHEMA_VERSION, RunCheckpoint
+
+    backend.runs.save_checkpoint(
+        tenant_id="tenant-a",
+        checkpoint=RunCheckpoint(
+            schema_version=CHECKPOINT_SCHEMA_VERSION,
+            run_id="run-worker002",
+            completed_nodes=[],
+            next_node="classify_request",
+            state=state,
+        ),
+    )
+    backend.commands.enqueue_job(
+        tenant_id="tenant-a", run_id="run-worker002", command="start"
+    )
+    runner = WorkerRunner(backend, worker_id="worker-a", project_root=tmp_path)
+    with patch.object(WorkerRunner, "_execute", side_effect=RuntimeError("retry me")):
+        assert runner.process_once() is True
+    pending = backend.sac_root / "enterprise" / "worker" / "queue" / "pending.jsonl"
+    assert pending.is_file()
+    line = json.loads(pending.read_text(encoding="utf-8").splitlines()[0])
+    assert line["attempts"] == 1
+    assert "retry me" in line["payload"]["last_error"]

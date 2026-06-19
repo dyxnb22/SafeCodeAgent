@@ -37,6 +37,7 @@ _OWNED_TABLES = (
     "knowledge_chunks",
     "knowledge_vectors",
     "memory_facts",
+    "dlq",
 )
 
 

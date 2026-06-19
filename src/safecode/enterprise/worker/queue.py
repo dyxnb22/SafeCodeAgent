@@ -11,8 +11,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
+from safecode.context.redactor import redact_secrets
 from safecode.enterprise.persistence.protocols import validate_tenant_id
 from safecode.enterprise.worker.models import QueueJob, RunCommandKind, RunCommandRecord
+
+MAX_QUEUE_ATTEMPTS = 3
 
 
 class IdempotencyConflictError(Exception):
@@ -65,6 +68,10 @@ class CommandQueue(Protocol):
 
     def fail_job(self, job_id: str, *, message: str) -> None: ...
 
+    def retry_job(self, job_id: str, *, message: str) -> bool: ...
+
+    def dlq_job(self, job_id: str, *, message: str, poison: bool = False) -> None: ...
+
 
 def _commands_root(sac_root: Path) -> Path:
     return sac_root / "enterprise" / "worker" / "run_commands"
@@ -72,6 +79,14 @@ def _commands_root(sac_root: Path) -> Path:
 
 def _queue_root(sac_root: Path) -> Path:
     return sac_root / "enterprise" / "worker" / "queue"
+
+
+def _dlq_path(sac_root: Path) -> Path:
+    return _queue_root(sac_root) / "dlq.jsonl"
+
+
+def _redact_queue_error(message: str) -> str:
+    return redact_secrets(message)[:512]
 
 
 def _command_path(sac_root: Path, tenant_id: str, idempotency_key: str) -> Path:
@@ -189,15 +204,21 @@ class LocalCommandQueue:
             encoding="utf-8",
         )
 
-    def complete_job(self, job_id: str) -> None:
+    def _load_active_jobs(self) -> list[QueueJob]:
         active_path = _queue_root(self.sac_root) / "active.jsonl"
         if not active_path.is_file():
-            return
-        jobs = [
+            return []
+        return [
             QueueJob.model_validate(json.loads(line))
             for line in active_path.read_text(encoding="utf-8").splitlines()
             if line.strip()
         ]
+
+    def complete_job(self, job_id: str) -> None:
+        active_path = _queue_root(self.sac_root) / "active.jsonl"
+        if not active_path.is_file():
+            return
+        jobs = self._load_active_jobs()
         completed = _queue_root(self.sac_root) / "completed.jsonl"
         kept: list[QueueJob] = []
         for job in jobs:
@@ -212,20 +233,17 @@ class LocalCommandQueue:
         self._rewrite_active(kept)
 
     def fail_job(self, job_id: str, *, message: str) -> None:
+        redacted = _redact_queue_error(message)
         active_path = _queue_root(self.sac_root) / "active.jsonl"
         if not active_path.is_file():
             return
-        jobs = [
-            QueueJob.model_validate(json.loads(line))
-            for line in active_path.read_text(encoding="utf-8").splitlines()
-            if line.strip()
-        ]
+        jobs = self._load_active_jobs()
         failed_path = _queue_root(self.sac_root) / "failed.jsonl"
         kept: list[QueueJob] = []
         for job in jobs:
             if job.job_id == job_id:
                 finished = job.model_copy(
-                    update={"status": "failed", "payload": {**job.payload, "error": message[:512]}}
+                    update={"status": "failed", "payload": {**job.payload, "error": redacted}}
                 )
                 with failed_path.open("a", encoding="utf-8") as handle:
                     handle.write(
@@ -234,3 +252,57 @@ class LocalCommandQueue:
             else:
                 kept.append(job)
         self._rewrite_active(kept)
+
+    def retry_job(self, job_id: str, *, message: str) -> bool:
+        redacted = _redact_queue_error(message)
+        jobs = self._load_active_jobs()
+        selected: QueueJob | None = None
+        kept: list[QueueJob] = []
+        for job in jobs:
+            if job.job_id == job_id:
+                selected = job
+            else:
+                kept.append(job)
+        if selected is None:
+            return False
+        next_attempts = selected.attempts + 1
+        if next_attempts >= MAX_QUEUE_ATTEMPTS:
+            return False
+        self._rewrite_active(kept)
+        retried = selected.model_copy(
+            update={
+                "status": "pending",
+                "attempts": next_attempts,
+                "payload": {**selected.payload, "last_error": redacted},
+            }
+        )
+        pending_path = _queue_root(self.sac_root) / "pending.jsonl"
+        pending_path.parent.mkdir(parents=True, exist_ok=True)
+        with pending_path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(json.loads(retried.model_dump_json()), sort_keys=True) + "\n")
+        return True
+
+    def dlq_job(self, job_id: str, *, message: str, poison: bool = False) -> None:
+        redacted = _redact_queue_error(message)
+        jobs = self._load_active_jobs()
+        kept: list[QueueJob] = []
+        selected: QueueJob | None = None
+        for job in jobs:
+            if job.job_id == job_id:
+                selected = job
+            else:
+                kept.append(job)
+        if selected is None:
+            return
+        self._rewrite_active(kept)
+        dlq_record = {
+            **json.loads(selected.model_dump_json()),
+            "status": "failed",
+            "poison": poison,
+            "error": redacted,
+            "dlq_at": _utc_now(),
+        }
+        dlq_path = _dlq_path(self.sac_root)
+        dlq_path.parent.mkdir(parents=True, exist_ok=True)
+        with dlq_path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(dlq_record, sort_keys=True) + "\n")

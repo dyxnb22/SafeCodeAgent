@@ -10,7 +10,9 @@ from safecode.enterprise.persistence.protocols import validate_tenant_id
 from safecode.enterprise.worker.models import QueueJob, RunCommandKind, RunCommandRecord
 from safecode.enterprise.worker.queue import (
     IdempotencyConflictError,
+    MAX_QUEUE_ATTEMPTS,
     _job_id,
+    _redact_queue_error,
     _utc_now,
     _validate_idempotency_key,
 )
@@ -170,6 +172,7 @@ class PostgresCommandQueue:
             conn.commit()
 
     def fail_job(self, job_id: str, *, message: str) -> None:
+        redacted = _redact_queue_error(message)
         with self.uow.connection() as conn:
             conn.execute(
                 """
@@ -179,6 +182,66 @@ class PostgresCommandQueue:
                     completed_at = NOW()
                 WHERE job_id = %s
                 """,
-                (json.dumps({"error": message[:512]}), job_id),
+                (json.dumps({"error": redacted}), job_id),
             )
+            conn.commit()
+
+    def retry_job(self, job_id: str, *, message: str) -> bool:
+        redacted = _redact_queue_error(message)
+        with self.uow.connection() as conn:
+            row = conn.execute(
+                "SELECT attempts FROM enterprise.queue WHERE job_id = %s",
+                (job_id,),
+            ).fetchone()
+            if row is None:
+                return False
+            next_attempts = int(row[0]) + 1
+            if next_attempts >= MAX_QUEUE_ATTEMPTS:
+                return False
+            conn.execute(
+                """
+                UPDATE enterprise.queue
+                SET status = 'pending',
+                    attempts = %s,
+                    payload = payload || %s::jsonb
+                WHERE job_id = %s
+                """,
+                (next_attempts, json.dumps({"last_error": redacted}), job_id),
+            )
+            conn.commit()
+        return True
+
+    def dlq_job(self, job_id: str, *, message: str, poison: bool = False) -> None:
+        redacted = _redact_queue_error(message)
+        with self.uow.connection() as conn:
+            row = conn.execute(
+                """
+                SELECT job_id, tenant_id, run_id, command, payload, attempts, created_at
+                FROM enterprise.queue
+                WHERE job_id = %s
+                """,
+                (job_id,),
+            ).fetchone()
+            if row is None:
+                return
+            conn.execute(
+                """
+                INSERT INTO enterprise.dlq (
+                    job_id, tenant_id, run_id, command, payload, attempts,
+                    poison, error_message, created_at
+                ) VALUES (%s, %s, %s, %s, %s::jsonb, %s, %s, %s, %s)
+                """,
+                (
+                    row[0],
+                    row[1],
+                    row[2],
+                    row[3],
+                    json.dumps(dict(row[4] or {})),
+                    int(row[5]),
+                    poison,
+                    redacted,
+                    row[6],
+                ),
+            )
+            conn.execute("DELETE FROM enterprise.queue WHERE job_id = %s", (job_id,))
             conn.commit()
