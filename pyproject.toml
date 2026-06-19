@@ -76,4 +76,5 @@ markers = [
     "subprocess: tests that spawn Python, pytest, git, shell, or demo subprocesses",
     "eval: tests that exercise eval harnesses or replay fixtures",
     "timeout: tests that intentionally wait for timeout handling",
+    "postgres_integration: tests requiring a real PostgreSQL instance",
 ]
