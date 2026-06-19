@@ -30,6 +30,12 @@ _OWNED_TABLES = (
     "eval_results",
     "evidence_index",
     "trace_events",
+    "run_commands",
+    "queue",
+    "run_leases",
+    "webhook_events",
+    "knowledge_chunks",
+    "knowledge_vectors",
 )
 
 
@@ -105,7 +111,7 @@ def test_migrations_apply_idempotently_to_real_postgres() -> None:
     finally:
         pool.close()
 
-    assert [row[0] for row in rows] == ["001_initial.sql"]
+    assert [row[0] for row in rows] == [version for version, _ in list_migration_files()]
     table_names = {row[0] for row in tables}
     for table_name in _OWNED_TABLES:
         assert table_name in table_names

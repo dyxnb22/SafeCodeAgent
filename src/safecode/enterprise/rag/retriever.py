@@ -13,6 +13,7 @@ from safecode.enterprise.rag.models import Chunk, Citation
 from safecode.enterprise.rag.permission_scope import actor_can_access_chunk
 from safecode.enterprise.rag.semantic import DeterministicEmbeddingBackend, score_chunks as semantic_scores
 from safecode.enterprise.rag.source_registry import SourceType
+from safecode.enterprise.rag.vector_store import KnowledgeVectorStore
 from safecode.index.embedding_backend import EmbeddingBackend
 
 _MAX_EXCERPT_CHARS = 1024
@@ -35,7 +36,28 @@ class HybridRetriever:
     lexical_weight: float = _DEFAULT_LEXICAL_WEIGHT
     semantic_weight: float = _DEFAULT_SEMANTIC_WEIGHT
     embedding_backend: EmbeddingBackend = field(default_factory=DeterministicEmbeddingBackend)
+    vector_store: KnowledgeVectorStore | None = None
+    actor_tenant: str = "local"
     denied_events: list[dict[str, str]] = field(default_factory=list)
+
+    @classmethod
+    def from_vector_store(
+        cls,
+        store: KnowledgeVectorStore,
+        tenant_id: str,
+        *,
+        lexical_weight: float = _DEFAULT_LEXICAL_WEIGHT,
+        semantic_weight: float = _DEFAULT_SEMANTIC_WEIGHT,
+        embedding_backend: EmbeddingBackend | None = None,
+    ) -> HybridRetriever:
+        return cls(
+            chunks=store.list_chunks(tenant_id),
+            lexical_weight=lexical_weight,
+            semantic_weight=semantic_weight,
+            embedding_backend=embedding_backend or DeterministicEmbeddingBackend(),
+            vector_store=store,
+            actor_tenant=tenant_id,
+        )
 
     def retrieve(
         self,
@@ -43,15 +65,24 @@ class HybridRetriever:
         k: int,
         actor_scope: list[str],
         *,
-        actor_tenant: str = "local",
+        actor_tenant: str | None = None,
         filters: RetrievalFilters | None = None,
     ) -> list[Citation]:
-        allowed = self._filter_candidates(actor_scope, actor_tenant, filters)
+        effective_tenant = actor_tenant if actor_tenant is not None else self.actor_tenant
+        allowed = self._filter_candidates(actor_scope, effective_tenant, filters)
         if not allowed:
             return []
 
         lex = lexical_scores(query, allowed)
-        sem = semantic_scores(query, allowed, backend=self.embedding_backend)
+        if self.vector_store is not None:
+            sem = self.vector_store.semantic_scores(
+                self.actor_tenant,
+                query,
+                [chunk.chunk_id for chunk in allowed],
+                backend=self.embedding_backend,
+            )
+        else:
+            sem = semantic_scores(query, allowed, backend=self.embedding_backend)
         ranked: list[tuple[float, Chunk, str]] = []
         for chunk in allowed:
             combined = (self.lexical_weight * lex.get(chunk.chunk_id, 0.0)) + (
