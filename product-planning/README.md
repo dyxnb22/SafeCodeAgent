@@ -1,8 +1,9 @@
 # SafeCodeAgent Enterprise Planning
 
 **Implementation status (v3.0 candidate + portfolio track):** v1.0–v2.5 are
-implemented; v3.0 is a candidate blocked on external GA gates; v3.1–v3.4 are
-the planned portfolio hardening track. See `.agents/context/progress.json` for
+implemented; v3.0 is a candidate blocked on external GA gates; portfolio
+`v3.1`–`v3.4` hardening is complete for presentation (see root `README.md`
+and `docs/architecture-poster.md`). See `.agents/context/progress.json` for
 live delivery state.
 SafeCodeAgent Enterprise turns the finished SafeCodeAgent terminal coding agent
 into an enterprise security engineering agent platform.
@@ -36,12 +37,12 @@ changes, verify, ask for approval at risk boundaries, and leave an audit trail.
 
 ## Planning Files
 
-Foundation (set the direction and shape):
+Foundation (set the direction and shape; background only):
 
 - `product-vision.md` — target users, scenarios, and positioning.
-- `roadmap.md` — MVP / Beta / Enterprise phase narrative.
-- `implementation-backlog.md` — coarse-grained engineering themes.
-- `interview-talking-points.md` — short technical narrative.
+- `roadmap.md` — MVP / Beta / Enterprise phase narrative (foundation).
+- `implementation-backlog.md` — coarse-grained engineering themes (foundation).
+- `interview-talking-points.md` — short technical narrative (foundation).
 
 Executable planning (new, authoritative for delivery):
 
@@ -65,5 +66,11 @@ Executable planning (new, authoritative for delivery):
   with rationale, alternatives, and revisit triggers.
 - `claude-code-execution-guide.md` — operating contract for any AI
   agent (Claude Code, Codex) executing tasks on this branch.
+
+Portfolio review assets:
+
+- `../README.md` — recruiter-facing entry point and quickstart.
+- `../docs/architecture-poster.md` — lightweight architecture poster.
+- `case-study-secure-change-platform.md` — secure-change interview walkthrough.
 
 Technical design lives in `../enterprise-docs/`.
