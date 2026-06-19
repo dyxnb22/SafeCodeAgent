@@ -1,6 +1,8 @@
 # Decision Log
 
-**Implementation status (v1.9):** Executable contracts through v1.9 are implemented; see `.agents/context/progress.json` for live stage state.
+**Implementation status (v2.0 RC):** Decisions D1–D18 are in effect through
+v2.0 RC. Decisions D19–D29 are post-RC and govern v2.1+ planning. See
+`.agents/context/progress.json` for live stage state.
 This file is the durable record of architectural and product
 decisions for SafeCodeAgent Enterprise. Every entry follows the
 same shape and is written as if a future contributor will read it
@@ -456,6 +458,331 @@ file to list the superseding entry. Do not edit history.
   no programmatic path for the model to call them.
 - **Revisit trigger:** None expected. Even with a trust framework
   later, the rule remains.
+
+---
+
+## D19 — PostgreSQL+pgvector is the persistent storage and vector store for v2.1+
+
+- **Date:** 2026-06-19.
+- **Decision:** Team Server and later deployment profiles use a single
+  PostgreSQL instance for relational state and (from v2.4) a `pgvector`
+  extension on the same instance for vector retrieval. No Qdrant,
+  Milvus, Pinecone, or other vector store is introduced. No second
+  relational store is introduced for OLTP traffic.
+- **Rationale:** One database minimizes operational moving parts on
+  on-prem deployments, lets approval consumption and audit append run
+  in the same transactional boundary as the SQL state they reference,
+  and keeps retrieval-row ACLs in the same enforcement layer as
+  approvals and audit. `pgvector` is mature enough for the v2.4
+  workload sizes and avoids a separate cluster, separate auth, separate
+  backup story.
+- **Alternatives considered:**
+  - Qdrant or Milvus as a dedicated vector store. Rejected because they
+    add a second cluster with its own identity, ACL, backup, and
+    upgrade lifecycle for a feature that is not on the v2.1 critical
+    path; v2.4 can revisit once the workload profile is known.
+  - SQLite as the relational backend. Rejected because v2.1 needs
+    `SERIALIZABLE` semantics for grant consumption under multiple
+    workers, and SQLite's concurrency story does not support a real
+    worker pool.
+  - File-based persistent index. Rejected because tenant ACL is much
+    weaker outside the database transaction.
+- **Consequences:**
+  - v2.1.3 lands the PostgreSQL backend; v2.4.1 adds `pgvector` on the
+    same instance.
+  - The legacy local file backend remains, but only for `local` mode
+    (CLI) and tests.
+  - Vector index size is bounded by what the operator allocates; the
+    v2.4 plan documents the ratio of vector dimensions to row count to
+    keep performance predictable.
+- **Revisit trigger:** if v2.4 retrieval workloads exceed the
+  documented pgvector envelope, or if a hosted profile demands a
+  separately-managed vector store, file a new decision proposing a
+  vector-store interface and migration plan rather than retrofitting a
+  parallel store ad hoc.
+
+---
+
+## D20 — A single durable worker implementation backed by PostgreSQL queue tables
+
+- **Date:** 2026-06-19.
+- **Decision:** v2.1 introduces one worker implementation that pulls
+  jobs from PostgreSQL queue tables using `SELECT ... FOR UPDATE SKIP
+  LOCKED`. No Celery, Temporal, Dramatiq, or Redis is introduced.
+- **Rationale:** The workload is per-run, low-frequency, and must share
+  the transactional boundary with grant consumption and audit append.
+  Introducing a separate broker adds an additional clock, identity,
+  and failure surface without paying for itself at v2.1's scale. The
+  in-database queue keeps worker recovery, lease, and idempotency in
+  the same backup and migration story as the rest of the data.
+- **Alternatives considered:**
+  - Celery + Redis. Rejected because Redis becomes the durable state of
+    record for in-flight runs and forces a second backup story; broker
+    crashes do not currently appear in our threat model.
+  - Temporal. Rejected because Temporal needs its own cluster and
+    introduces a third identity boundary; benefits do not justify the
+    cost at v2.1 scale.
+  - Dramatiq. Rejected for the same reason as Celery + Redis with
+    less ecosystem leverage.
+- **Consequences:**
+  - v2.1.5-T3 implements the lease and heartbeat in PostgreSQL with
+    indexes on expiry.
+  - v2.5.2 hardens the worker (DLQ, poison handling) inside the same
+    in-database model.
+  - We accept slightly higher write amplification on PostgreSQL in
+    exchange for one operational surface.
+- **Revisit trigger:** if the worker throughput requirement grows
+  beyond what the in-database queue holds under load tests in v2.5.5,
+  file a new decision proposing a broker, including a migration plan
+  for the existing queue tables.
+
+---
+
+## D21 — FastAPI is the service boundary; CLI is a thin client in `server` mode
+
+- **Date:** 2026-06-19.
+- **Decision:** The v2.1+ service surface is FastAPI with Pydantic
+  schemas and OpenAPI. The CLI keeps its existing local-mode behavior
+  and gains a `server` mode that calls the same endpoints with the
+  same JSON contracts. The API is the authoritative surface; the CLI
+  never invents API behavior.
+- **Rationale:** FastAPI maps cleanly to the typed contracts the
+  enterprise code already uses; OpenAPI gives us a frozen surface for
+  v2.3 and v3.0 consumers; sharing one schema between CLI and API
+  avoids divergence. Choosing one framework here means we are not
+  comparing FastAPI vs. Litestar vs. Flask later — that decision is
+  taken now.
+- **Alternatives considered:**
+  - Litestar / Flask / Starlette. Rejected because FastAPI is the
+    closest fit to our existing Pydantic-first model and is already a
+    well-known operational target.
+  - gRPC. Rejected because the consumer set is browser-based UI plus
+    CLI and CI; HTTP/JSON is easier to debug and trace.
+- **Consequences:**
+  - v2.1.4 / v2.1.5 build under FastAPI; v2.1.7 freezes the API
+    surface; v2.3 is built against the same endpoints.
+  - CLI is a thin client in `server` mode; behavior parity is tested
+    in v2.1.5-T4.
+- **Revisit trigger:** if a real-time use case (e.g. streaming trace
+  events to a UI without polling) cannot be served acceptably over
+  HTTP/JSON, evaluate a parallel WebSocket or Server-Sent-Events
+  endpoint behind the same auth boundary; do not abandon REST.
+
+---
+
+## D22 — `local` vs `server` runtime modes are an explicit setting, not auto-detected
+
+- **Date:** 2026-06-19.
+- **Decision:** A single `runtime_mode` setting (`local` or `server`)
+  controls whether the CLI and the workflow use the file backend
+  in-process or the v2.1 API + PostgreSQL backend. Auto-detection is
+  not allowed. There is no third mode.
+- **Rationale:** Auto-detection invites silent identity and policy
+  switches. Explicit mode means a user knows which authentication is
+  active, which storage is authoritative, and which audit chain
+  records the run.
+- **Alternatives considered:**
+  - Auto-detect by environment. Rejected for the reason above.
+  - Three modes (local / shared file / server). Rejected: shared file
+    is not safe under multiple workers; we explicitly do not support
+    it.
+- **Consequences:**
+  - The CLI prints the active mode in every run header.
+  - Tests have a deterministic mode and never inherit the host's
+    setting.
+- **Revisit trigger:** none expected. If a customer profile genuinely
+  requires a hybrid mode, the decision is reopened with a concrete
+  threat model.
+
+---
+
+## D23 — Identity for v2.1+ is OIDC bearer tokens; `--actor` is ignored in `server` mode
+
+- **Date:** 2026-06-19.
+- **Decision:** Authenticated identity in `server` mode comes from an
+  OIDC provider's bearer token. The CLI `--actor` flag is honored in
+  `local` mode only and is silently ignored in `server` mode. The
+  `RBACSubject` is built from the validated claim set.
+- **Rationale:** v2.0 RC explicitly noted that trusting `--actor` is
+  acceptable only for single-user local use. The team-server profile
+  needs a verifiable identity; OIDC fits broadly without requiring a
+  specific provider.
+- **Alternatives considered:**
+  - Static API keys. Rejected because keys are easy to leak and hard
+    to rotate without a central revocation surface.
+  - SAML. Rejected because the cost of supporting SAML for a CLI / UI
+    workload is high and OIDC covers the common operator use cases.
+- **Consequences:**
+  - v2.1.6 implements OIDC validation and subject mapping.
+  - The CLI documents the new `--token` flag; tokens never appear in
+    logs or trace events.
+  - SSO is layered on top of OIDC; the choice of provider is the
+    operator's.
+- **Revisit trigger:** if a regulated profile requires mTLS or SAML
+  alongside OIDC, file a new decision and add the second boundary; do
+  not weaken OIDC defaults.
+
+---
+
+## D24 — GitHub App credentials are loaded from environment / vault, never from the repo
+
+- **Date:** 2026-06-19.
+- **Decision:** The v2.2 GitHub App private key is loaded from a
+  vault-backed secret (or, in local development, an environment
+  variable). The key never appears in committed files, logs, traces,
+  evidence bundles, or any persisted location. Rotation requires
+  reloading the secret.
+- **Rationale:** GitHub Apps are the right identity model for repo-
+  scoped governed access; the private key is the high-value secret.
+  Treating it as code-adjacent material is the trivially-broken case
+  to avoid.
+- **Alternatives considered:**
+  - Per-user PATs. Rejected because PATs do not give us per-install
+    permissions and rotation is harder to automate.
+  - Repo-stored encrypted key. Rejected because it widens the blast
+    radius if the repo is compromised.
+- **Consequences:**
+  - v2.2.1 enforces the credential boundary; a test asserts the secret
+    never appears in any captured output.
+  - Webhook signature secrets follow the same pattern.
+- **Revisit trigger:** if GitHub introduces a workload-identity model
+  (e.g. OIDC federation) that removes the need for a private key,
+  file a decision migrating to it.
+
+---
+
+## D25 — LangGraph stays optional and behind the same runtime swap; v2.x does not depend on it for storage or persistence
+
+- **Date:** 2026-06-19.
+- **Decision:** v2.1 introduces durable storage but does *not* adopt
+  LangGraph's hosted or persistent checkpointers as the workflow
+  state-of-record. LangGraph remains an optional runtime, controlled
+  by `WORKFLOW_RUNTIME`, that operates on top of the existing
+  enterprise `EnterpriseRunState` and the persistence layer added in
+  v2.1.2. Removing LangGraph still leaves a fully functional product.
+- **Rationale:** Coupling state durability to a single library would
+  make every later persistence decision LangGraph-shaped. Keeping the
+  state in our own typed contract preserves the ability to swap the
+  runtime if needed.
+- **Alternatives considered:**
+  - Adopt LangGraph's `Checkpointer` as the canonical backend.
+    Rejected: ties our migration story to a moving target.
+  - Drop LangGraph entirely now. Rejected: the abstraction still pays
+    for itself on workflow visualization and conditional edges.
+- **Consequences:**
+  - v2.1.2 protocols define the state contract; LangGraph reads and
+    writes through them.
+  - The `local` runtime remains the deterministic default in CI.
+- **Revisit trigger:** if LangGraph stabilizes a checkpointer API that
+  encodes everything we already require *and* lowers our maintenance
+  burden, file a decision to consume it.
+
+---
+
+## D26 — Web operator console is a separate React/Next.js application against the v2.1 API; no embedded UI
+
+- **Date:** 2026-06-19.
+- **Decision:** The v2.3 operator console is a separate React/Next.js
+  application that consumes the v2.1 API. The FastAPI service does
+  not serve a UI bundle directly. The UI repository / package is
+  decoupled from the Python release lifecycle.
+- **Rationale:** Mixing a Python release with a frontend build couples
+  unrelated cadences. Separation also gives the UI its own type-safe
+  schema generation from OpenAPI without pulling JavaScript tooling
+  into the Python package.
+- **Alternatives considered:**
+  - Server-side rendered templates from FastAPI. Rejected: limited
+    interactivity for a console with timelines and patch viewers.
+  - Embed the UI assets in the Python package. Rejected: bloats the
+    Python wheel and ties the UI release to the Python release.
+- **Consequences:**
+  - v2.3 ships in its own surface; the contract snapshot covers the
+    UI/API boundary, not the UI internals.
+  - CORS and CSRF defaults must be explicit in the API.
+- **Revisit trigger:** if a hosted SaaS profile justifies bundling for
+  operations, file a decision proposing a packaged distribution
+  instead of changing the contract.
+
+---
+
+## D27 — Multi-agent expansion criteria (v2.x edition)
+
+- **Date:** 2026-06-19.
+- **Decision:** D5 stays in force: roles are typed prompt + schema
+  bundles owned by nodes. v2.x may introduce additional roles only
+  when (a) the output schema differs, (b) the data scope differs
+  (different tenant or permission set), or (c) the specialization is
+  justified by a concrete evaluation result. "We should add an agent"
+  is not a justification.
+- **Rationale:** Multi-agent chat between LLMs remains expensive,
+  non-deterministic, and weakly justified for the workflows in scope.
+  v2.4's `secure_planning` workflow may introduce a planning role
+  with its own schema, but it must reuse the existing approval and
+  retrieval gates.
+- **Alternatives considered:**
+  - Full multi-agent chat. Rejected, as in D5.
+  - Specialist agents per workflow stage. Rejected because we already
+    have typed nodes serving that purpose.
+- **Consequences:**
+  - v2.4.5 plans a `planning` role with its own typed output schema.
+  - Any new role added later requires a matching eval case.
+- **Revisit trigger:** a real workflow where concurrent agents with
+  distinct schemas demonstrably outperform sequential nodes on an
+  audit-friendly metric.
+
+---
+
+## D28 — Long-term memory admission, revocation, and expiry are first-class governance actions
+
+- **Date:** 2026-06-19.
+- **Decision:** Every fact admitted to v2.4's long-term memory
+  requires an approval grant tied to the active policy snapshot, an
+  explicit expiry, and an auditable revocation path. Untrusted text
+  is never injected into the model without redaction and provenance.
+- **Rationale:** Memory is a persistent attack surface. Without
+  explicit admission and revocation, retrieved or learned content
+  becomes implicit instructions over time. Tying admission to the
+  approval engine reuses the v1.4 invariants we already trust.
+- **Alternatives considered:**
+  - Free-form memory writes by the agent. Rejected: violates the
+    prompt-injection boundary by design.
+  - Memory writes gated only by RBAC. Rejected: RBAC does not
+    track per-fact provenance and expiry.
+- **Consequences:**
+  - v2.4.6 implements admission/revocation/expiry under the existing
+    approval engine.
+  - Each fact carries the policy snapshot at admission time and a
+    revisit / expiry date.
+- **Revisit trigger:** if memory is shown to be a frequent attack
+  vector despite the gate, narrow the policy default rather than
+  weaken the gate.
+
+---
+
+## D29 — API versioning is path-prefix `/v2`; v2.0 RC contracts remain valid through v2.x
+
+- **Date:** 2026-06-19.
+- **Decision:** All v2.1+ HTTP endpoints live under the `/v2` path
+  prefix. CLI and trace / evidence / eval JSON schemas remain
+  backwards compatible with v2.0 RC throughout the v2.x line; new
+  fields are additive and snapshot-tested. Breaking schema changes
+  are deferred to v3.0 GA with documented migration tests.
+- **Rationale:** A stable contract is the only way the operator
+  console and any third-party consumer can be developed without
+  blocking on the agent service. Lifting the v2.0 RC freeze without
+  notice would invalidate the security review we just filed.
+- **Alternatives considered:**
+  - No version prefix. Rejected: forces a v3 to require a full URL
+    rewrite.
+  - Per-endpoint versioning. Rejected: high maintenance, fragmented
+    documentation.
+- **Consequences:**
+  - v2.1.7 snapshot tests cover the `/v2` surface.
+  - v2.0 contract tests stay in place; any change requires a new
+    decision plus a migration test before merging.
+- **Revisit trigger:** if a security finding forces a breaking
+  schema change, document the deviation in this log and update
+  contract tests in the same PR.
 
 ---
 

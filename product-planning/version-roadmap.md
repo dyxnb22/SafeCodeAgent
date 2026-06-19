@@ -1,6 +1,9 @@
 # SafeCodeAgent Enterprise Version Roadmap
 
-**Implementation status (v1.9):** Executable contracts through v1.9 are implemented; see `.agents/context/progress.json` for live stage state.
+**Implementation status (v2.0 RC):** Stages v1.0–v2.0 are implemented and
+contract-frozen. Stages v2.1–v3.0 are planned (post-RC). See
+`.agents/context/progress.json` for live stage state.
+
 This roadmap is the authoritative breakdown of work for the
 `dev/enterprise-agent-platform` branch. It uses two-level versions:
 
@@ -37,6 +40,12 @@ stage before `v2.0` may require a hosted service that is not optional.
 | v1.8 | Vulnerability Remediation Workflow | Semgrep finding → fix patch proposal with checkpoint → validation → approval | v1.3, v1.4, v1.7 |
 | v1.9 | Enterprise Beta Hardening | Multi-project run with policy precedence, compliance evidence export, performance budget | v1.4, v1.7, v1.8 |
 | v2.0 | Enterprise Release Candidate | Public contract snapshot, external-style security review, deployment-profile docs, RC tag | v1.9 |
+| v2.1 | Team Server Foundation | FastAPI Enterprise API + PostgreSQL persistence + durable worker behind the existing CLI surface; authenticated subject boundary | v2.0 |
+| v2.2 | Real GitHub Secure Change Workflow | GitHub App webhook ingest → real PR read → governed comment / branch / PR create → sandboxed Semgrep + pip-audit + pytest → CI check callback, end-to-end PR review and remediation | v2.1 |
+| v2.3 | Operator Console | React/Next.js read-and-approve UI over the v2.1 API; OIDC login, tenant-aware navigation, run / approval / evidence / eval / cost views | v2.1 |
+| v2.4 | Enterprise Knowledge, Tickets, and Memory | PostgreSQL+pgvector persistent retrieval with incremental ingest, ACL/tenant sync, reranker, governed long-term memory, live Jira connector, secure-planning workflow | v2.1 |
+| v2.5 | Production Hardening | OpenTelemetry export, durable worker recovery + DLQ, concurrency / rate / cost budgets, backups + restore, schema migration tooling, load + threat model, on-prem deploy automation | v2.2, v2.3, v2.4 |
+| v3.0 | Enterprise GA | Supported public contracts, migration compatibility, signed security review, production deployment evidence, flagship demos, GA release notes | v2.5 |
 
 ---
 
@@ -1215,6 +1224,491 @@ release dashboard.
 
 ---
 
+## v2.1 Team Server Foundation
+
+**Why now:** v2.0 RC ships a local-first single-operator agent.
+A genuine enterprise platform needs a service boundary, durable
+persistence, authenticated identity, and concurrency-safe approval
+flow. v2.1 introduces those without changing any workflow behavior
+already implemented in v1.7/v1.8 and without adding a UI.
+
+**Dependencies:** v2.0.
+
+**Completion demo:** the same `pr_review` and `remediation` fixtures
+run end-to-end against a FastAPI server backed by PostgreSQL with a
+durable worker; the CLI keeps working through a thin client mode;
+approvals survive worker restart; tenant boundary is enforced at the
+service layer; OpenAPI-typed REST contracts are frozen.
+
+**Blocks if missing:** v2.2 (no place to handle webhooks), v2.3
+(no API for the operator console), v2.4 (no place to host the
+persistent index), v2.5 (nothing to harden).
+
+**Non-goals:** UI, webhook handlers, live GitHub writes, pgvector,
+real Jira API, OpenTelemetry export.
+
+### v2.1.1 Service Contracts and Configuration
+
+- **Goal:** declare the v2.1 API and persistence contracts before
+  any implementation lands; pick a single, justified storage and
+  worker stack and freeze it in the decision log.
+- **Scope:** OpenAPI surface, settings module, deployment configs,
+  and the storage / worker decisions referenced from
+  `decision-log.md` and `platform-architecture-v2.md`.
+- **Tasks:** see backlog tasks `v2.1.1-T1`–`v2.1.1-T3`.
+- **Directories/modules:** `src/safecode/enterprise/api/contracts/`
+  (planned), `src/safecode/enterprise/api/settings.py` (planned),
+  `enterprise-docs/platform-architecture-v2.md`.
+- **Acceptance:**
+  - OpenAPI surface fully specifies runs, approvals, evidence,
+    eval, traces, and health endpoints as `planned` contracts.
+  - Settings module captures DSN, auth issuer, runtime mode, and
+    worker mode without consuming live config in tests.
+  - Storage and worker choices recorded in `decision-log.md` with
+    rejected alternatives.
+- **Risks:** API drift between server and CLI. Mitigation: API
+  contracts and CLI/JSON contracts are pinned by snapshot tests in
+  v2.1.7.
+- **Non-goals:** any FastAPI route handler implementation.
+
+### v2.1.2 Persistence Protocols and Local Backend
+
+- **Goal:** factor an explicit repository protocol layer so file-
+  backed state and database-backed state share one contract; keep
+  the local filesystem backend as the default for CLI and tests.
+- **Scope:** repository protocols for runs, checkpoints, approvals,
+  grants, audit, evidence, eval, plus the existing
+  `.sac/enterprise/` adapter that implements them.
+- **Tasks:** see backlog tasks `v2.1.2-T1`–`v2.1.2-T3`.
+- **Directories/modules:** `src/safecode/enterprise/persistence/`
+  (planned).
+- **Acceptance:**
+  - Every existing workflow / approval / evidence write path goes
+    through a protocol method.
+  - Local file backend round-trips every entity unchanged from
+    v2.0 behavior.
+  - No production module references file paths directly outside
+    the local backend.
+- **Risks:** silent contract leak when refactoring storage.
+  Mitigation: snapshot tests on entity shapes; no schema change
+  vs v2.0.
+- **Non-goals:** the PostgreSQL backend (`v2.1.3`).
+
+### v2.1.3 PostgreSQL Schema and Adapter
+
+- **Goal:** introduce a PostgreSQL backend behind the v2.1.2
+  protocol, with deterministic schema migrations and a test harness
+  that does not require a live database in unit tests.
+- **Scope:** PostgreSQL schema, migrations, repository adapter, and
+  the in-memory fake used by deterministic tests.
+- **Tasks:** see backlog tasks `v2.1.3-T1`–`v2.1.3-T4`.
+- **Directories/modules:** `src/safecode/enterprise/persistence/
+  postgres/` (planned), `tests/enterprise/persistence/` (planned).
+- **Acceptance:**
+  - Schema versioned; migrations idempotent.
+  - Adapter passes the same protocol contract tests as the local
+    backend.
+  - Tenant id is enforced as a non-null column on every owned
+    table.
+  - Default `psycopg` driver vendored only via existing dependency
+    surface; no new top-level dependency without backlog approval.
+- **Risks:** transactional boundaries differ from filesystem;
+  approval consumption and audit chain must remain atomic.
+  Mitigation: explicit `SERIALIZABLE` for the approval-consume
+  path; protocol contract tests enforce single-use semantics.
+- **Non-goals:** any service code; pgvector (`v2.4`).
+
+### v2.1.4 FastAPI Read API
+
+- **Goal:** expose read-only enterprise endpoints so the CLI, the
+  v2.3 console, and integration tests can list runs, approvals,
+  traces, evidence bundles, and eval baselines.
+- **Scope:** the read surface only; no command endpoints, no
+  writes that mutate workflow state.
+- **Tasks:** see backlog tasks `v2.1.4-T1`–`v2.1.4-T2`.
+- **Directories/modules:** `src/safecode/enterprise/api/` (planned).
+- **Acceptance:**
+  - All read endpoints reject unauthenticated requests.
+  - Tenant scoping enforced at handler level; no cross-tenant read.
+  - Health and readiness endpoints return deterministic JSON.
+- **Risks:** read endpoints leaking redacted-only fields.
+  Mitigation: handlers consume the same redaction profile as
+  trace export.
+- **Non-goals:** command endpoints (`v2.1.5`).
+
+### v2.1.5 FastAPI Command API and Worker Lease
+
+- **Goal:** start, resume, and approve runs through the API, with
+  durable worker leasing that guarantees one writer per run.
+- **Scope:** workflow run command endpoints, approval submission
+  endpoints, idempotency keys, and the lease/heartbeat protocol.
+- **Tasks:** see backlog tasks `v2.1.5-T1`–`v2.1.5-T4`.
+- **Directories/modules:** `src/safecode/enterprise/api/`,
+  `src/safecode/enterprise/worker/` (planned).
+- **Acceptance:**
+  - Submitting the same run twice with the same idempotency key
+    yields one execution.
+  - Worker crash releases the lease within a bounded interval;
+    another worker resumes from the last checkpoint.
+  - Approval submission and consumption emit the same audit events
+    as the CLI flow.
+- **Risks:** lost-update races on approval store. Mitigation:
+  v2.1.3 transactional boundary plus the existing single-use
+  semantics; tests cover the race directly.
+- **Non-goals:** webhook ingestion (`v2.2`).
+
+### v2.1.6 Authenticated Subject Boundary
+
+- **Goal:** stop trusting the `--actor` flag once the API is
+  reachable; resolve `RBACSubject` from an authenticated principal
+  for any service-mode request.
+- **Scope:** OIDC discovery + JWT validation, subject mapping into
+  the existing RBAC model, optional bearer authentication for the
+  CLI in server mode.
+- **Tasks:** see backlog tasks `v2.1.6-T1`–`v2.1.6-T2`.
+- **Directories/modules:** `src/safecode/enterprise/auth/`
+  (planned).
+- **Acceptance:**
+  - Service-mode requests without a valid token fail closed.
+  - Subject identifiers always include `tenant_id`.
+  - Local CLI mode still works without auth and is the documented
+    fallback.
+- **Risks:** offline CLI breakage if auth is forced. Mitigation:
+  explicit `runtime_mode` setting; `local` mode skips auth.
+- **Non-goals:** identity provider provisioning; SSO at the org
+  level (`v2.5`).
+
+### v2.1.7 Contracts, Deployment, and Closeout
+
+- **Goal:** freeze the v2.1 public contracts, document deployment
+  and rollback, ship the demo, and update the project context for
+  post-RC navigation.
+- **Scope:** API snapshot tests, migration runbook, deployment
+  README updates, and the v2.1 demo bundle.
+- **Tasks:** see backlog tasks `v2.1.7-T1`–`v2.1.7-T3`.
+- **Acceptance:**
+  - API snapshot tests pass for the v2.1 surface; intentional
+    changes update the snapshot in the same PR.
+  - Migration runbook describes upgrade and rollback for a Team
+    Server installation.
+  - Demo bundle proves a clean end-to-end PR review run on the
+    server profile.
+- **Risks:** CLI/API divergence post-v2.1. Mitigation: same JSON
+  schema serves both surfaces; CLI is a thin client when running
+  in `server` mode.
+- **Non-goals:** UI (`v2.3`).
+
+---
+
+## v2.2 Real GitHub Secure Change Workflow
+
+**Why now:** v2.1 provides a durable service surface. v2.2 turns
+fixture-driven `pr_review` and `remediation` into a real,
+governed workflow with live GitHub authentication, webhook
+ingestion, governed write actions, and sandboxed CI / scanner
+execution.
+
+**Dependencies:** v2.1.
+
+**Completion demo:** a GitHub App installs into a sample
+repository; a PR triggers a webhook; the workflow runs end-to-end
+through the v2.1 API, posts a draft comment behind approval, and
+optionally pushes a remediation branch and opens a PR; CI re-runs
+Semgrep, pip-audit, and pytest in the existing sandbox; results
+post back through the API.
+
+**Blocks if missing:** every "real" demo; v2.3 (the UI has no
+live runs to display); v2.4 (live Jira is the same identity
+boundary).
+
+**Non-goals:** GitLab/Bitbucket, GitHub Enterprise Cloud SLO,
+incident workflows.
+
+### v2.2.1 GitHub App Identity and Webhook Ingest
+
+- **Goal:** authenticate as a GitHub App, validate webhook
+  signatures, and persist the triggering event behind the v2.1
+  API.
+- **Scope:** App credential boundary (private key not in repo),
+  signed-webhook handler, idempotent event store.
+- **Acceptance:**
+  - Webhook signature verification fails closed when the secret
+    is missing or wrong.
+  - The same delivery id is never processed twice.
+  - Tokens never appear in logs or trace events.
+
+### v2.2.2 Real PR Read and Sandboxed Repository Fetch
+
+- **Goal:** replace fixture-mode `PullRequestEvidence` with a
+  live GitHub read path that the v1.7/v1.8 workflows can already
+  consume.
+- **Scope:** evidence model unchanged; new adapter; sandboxed
+  shallow checkout for the fetched ref.
+- **Acceptance:**
+  - Identical PR fixture and live response produce equivalent
+    evidence objects.
+  - Out-of-tenant repository access fails closed.
+
+### v2.2.3 Governed PR Comment, Branch Push, and PR Open
+
+- **Goal:** wire the governed write surface (comment / branch /
+  PR open) through the approval engine, the audit log, and the
+  v2.1 API.
+- **Scope:** write actions remain `GATE` or `BLOCK` per the
+  governance matrix; protected branches stay `BLOCK`.
+- **Acceptance:**
+  - No write occurs without a single-use grant bound to the
+    current policy snapshot.
+  - Protected-branch push attempts always fail closed.
+  - Audit chain includes the GitHub api response identifier.
+
+### v2.2.4 CI / Scanner Sandbox Execution and Callback
+
+- **Goal:** run Semgrep, pip-audit, and pytest under the existing
+  sandbox lifecycle, then post their structured results back into
+  the workflow without trusting CI string output as instructions.
+- **Scope:** CI runner adapter, structured result schema, callback
+  endpoint.
+- **Acceptance:**
+  - CI output validated against a typed schema before influencing
+    workflow decisions.
+  - Sandbox proposal required for every command execution.
+
+### v2.2.5 End-to-End PR Review and Remediation Flagship
+
+- **Goal:** make a clean end-to-end PR security review and a
+  remediation PR demonstrable against a real fork; ship the demo
+  bundle and the network-denied deterministic integration tests.
+- **Scope:** integration suites, demo recordings, runbook.
+- **Acceptance:**
+  - Default test lane works fully offline.
+  - Live lane is opt-in and never blocks merges.
+
+---
+
+## v2.3 Operator Console
+
+**Why now:** with the API and live workflows in place, an
+operator who is not the engineer running the CLI needs a view of
+runs, approvals, citations, patches, validation, costs, and
+evals. Building it earlier would have produced a UI of mock data.
+
+**Dependencies:** v2.1 (API), v2.2 (real runs to display).
+
+**Completion demo:** an OIDC user logs in, sees their tenant's
+runs, opens a run timeline with citations and tool calls,
+approves a pending action, and downloads the evidence bundle.
+
+**Non-goals:** policy editing UI, workflow authoring UI, billing.
+
+### v2.3.1 Console Shell and Authentication
+
+- **Goal:** boot a React/Next.js application against the v2.1
+  API with OIDC login and tenant-aware navigation.
+- **Acceptance:** unauthenticated users cannot reach data routes;
+  cross-tenant URLs fail closed.
+
+### v2.3.2 Run List, Timeline, and Trace Viewer
+
+- **Goal:** browse runs and inspect a single run timeline and
+  trace with the same redaction profiles used by the CLI.
+- **Acceptance:** sensitive fields hidden by default; "debug"
+  profile gated by policy bit.
+
+### v2.3.3 Approval Inbox and Patch Review
+
+- **Goal:** review pending approvals, inspect proposed patches and
+  comments, and approve / reject through the API.
+- **Acceptance:** model-driven actions cannot bypass the
+  approval verb; UI submits the same single-use grant the CLI
+  produces.
+
+### v2.3.4 Evidence, Eval, and Cost Views
+
+- **Goal:** surface evidence bundles, eval dashboard data, and
+  cost budgets so operators can answer "did the agent stay in
+  budget and produce auditable artifacts".
+- **Acceptance:** read-only; no UI surface for ratchet bypass.
+
+### v2.3.5 Operator Console Acceptance and Demo
+
+- **Goal:** ship the demo and pin the UI / API contract.
+- **Acceptance:** demo bundle works against the v2.2 deployment
+  profile; contract snapshot covers the UI/API boundary.
+
+---
+
+## v2.4 Enterprise Knowledge, Tickets, and Memory
+
+**Why now:** until v2.3, retrieval uses the v1.1 in-process
+embedding store. To support real enterprises with large
+knowledge bases, incremental ingestion, and access-controlled
+sources, we need persistent hybrid retrieval, a real Jira
+connector, and governed long-term memory. We also need the
+secure-planning workflow that consumes them.
+
+**Dependencies:** v2.1 (persistence and identity), v2.2 (real
+GitHub identity model).
+
+**Completion demo:** policy documents and code are ingested
+incrementally into PostgreSQL+pgvector; a Jira ticket triggers a
+`secure_planning` workflow that retrieves cited evidence,
+proposes a plan, asks for approval, and records the plan with
+provenance and expiry. Long-term memory facts are admitted,
+revoked, and audited.
+
+**Non-goals:** crawler scheduling outside the connectors,
+LLM-based reranking that requires live providers.
+
+### v2.4.1 Persistent Hybrid Retrieval (PostgreSQL+pgvector)
+
+- **Goal:** move the v1.1 in-process semantic store onto a
+  pgvector-backed persistent index without changing the public
+  retrieval contract.
+- **Acceptance:** existing retrieval eval suites pass; tenant
+  filter enforced in SQL, not in application code only.
+
+### v2.4.2 Incremental Ingest, Freshness, and ACL Sync
+
+- **Goal:** ingest only the changed slice of a source on each
+  refresh, with deterministic chunk-id stability and ACL/tenant
+  sync.
+- **Acceptance:** re-ingesting an unchanged source is a no-op;
+  ACL changes propagate before the next retrieval round.
+
+### v2.4.3 Reranker and Query Rewriting
+
+- **Goal:** add a deterministic reranker and a small query
+  rewriting layer that improve retrieval precision without
+  depending on a live LLM.
+- **Acceptance:** reranker uses the same mock embeddings in
+  tests; ratchet enforced.
+
+### v2.4.4 Real Jira Connector
+
+- **Goal:** replace the fixture-mode Jira loader with a live
+  connector using the v2.1 auth boundary and the existing
+  approval gate.
+- **Acceptance:** read uses tenant-scoped credentials; write
+  remains GATE; offline fallback preserved.
+
+### v2.4.5 Secure-Planning Workflow
+
+- **Goal:** wire the `secure_planning` task end-to-end through
+  retrieval, reasoning, approval, and audit.
+- **Acceptance:** planning artifact contains citations,
+  alternatives, and a revisit trigger; no proposal-only
+  shortcuts.
+
+### v2.4.6 Governed Long-Term Memory
+
+- **Goal:** admit, revoke, and expire memory facts under the
+  same approval engine and audit chain; never inject untrusted
+  text into the model.
+- **Acceptance:** every fact has provenance, approver, expiry,
+  and revocation trail.
+
+---
+
+## v2.5 Production Hardening
+
+**Why now:** v2.1 through v2.4 add features; v2.5 closes the
+operability gap before GA.
+
+**Dependencies:** v2.2, v2.3, v2.4.
+
+**Completion demo:** OpenTelemetry traces exported to a local
+collector; deliberate worker kill is recovered; a deliberately
+bad payload lands in the dead-letter queue; load test holds
+the latency budget; backup and restore round-trip; on-prem
+deploy automation reproduces the same stack.
+
+**Non-goals:** chaos engineering, geo-redundancy, multi-region
+HA.
+
+### v2.5.1 OpenTelemetry Export
+
+- **Goal:** add a parallel OTel exporter behind the existing
+  trace emitter; redaction policy unchanged.
+- **Acceptance:** exporter can be disabled by config without
+  losing local trace files.
+
+### v2.5.2 Worker Recovery and Dead-Letter Behavior
+
+- **Goal:** make the worker resilient to crashes, deadlocks,
+  and poison messages.
+- **Acceptance:** poisoned message reaches the DLQ; healthy
+  workers continue.
+
+### v2.5.3 Concurrency, Locking, Rate Limits, and Cost Budgets
+
+- **Goal:** make the API safe under load.
+- **Acceptance:** documented limits; tests cover boundary
+  conditions; cost budget enforced against `RunCosts`.
+
+### v2.5.4 Backup, Restore, and Schema Migrations
+
+- **Goal:** every persistence layer (Postgres tables, pgvector,
+  filesystem evidence) has a documented and tested backup /
+  restore path and a forward migration strategy.
+- **Acceptance:** a v2.1.3 schema upgrade is reversible; restore
+  verifies audit chain and evidence hashes.
+
+### v2.5.5 Load and Threat Model
+
+- **Goal:** establish a stable load and threat model and use it
+  in CI ratchet.
+- **Acceptance:** ratchet on key endpoints; threat model
+  captures the v2.0 RC findings and the v2.1+ new boundaries.
+
+### v2.5.6 On-Prem Deploy Automation and Upgrade/Rollback
+
+- **Goal:** make on-prem installation reproducible.
+- **Acceptance:** a single command brings up the stack; an
+  upgrade and rollback are tested.
+
+---
+
+## v3.0 Enterprise GA
+
+**Why last:** GA is a sign-off, not a feature dump.
+
+**Dependencies:** v2.5.
+
+**Completion demo:** a customer-facing GA build with supported
+contracts, the v2.0 RC contract still honored where compatible,
+a signed external security review, production deployment
+evidence, the flagship workflows, and release notes.
+
+### v3.0.1 GA Contract and Migration Compatibility
+
+- **Goal:** publish the supported public contracts and the
+  upgrade path from v2.0 RC.
+- **Acceptance:** contract changes have migration tests.
+
+### v3.0.2 Signed Security Review
+
+- **Goal:** a real (third-party or formally-tracked internal)
+  security review with no open high/critical findings.
+- **Acceptance:** review filed; findings tracked or accepted.
+
+### v3.0.3 Production Deployment Evidence
+
+- **Goal:** at least one production-like deployment with
+  observed metrics, audit chain, and incident handling.
+- **Acceptance:** evidence captured under the deployment-profile
+  rules; no debug artifacts.
+
+### v3.0.4 Flagship Demos and GA Release Notes
+
+- **Goal:** demo bundles for PR review, remediation, secure
+  planning, evidence export, and operator workflows; release
+  notes that are accurate at GA.
+- **Acceptance:** demos repeat the v2.2 acceptance against GA
+  contracts; release notes link the v2.0 → v3.0 migration.
+
+---
+
 ## Cross-Stage Invariants
 
 These hold for every sub-plan and override anything that contradicts
@@ -1233,3 +1727,12 @@ them.
    coverage on enterprise modules below the previous PR.
 8. Public CLI surface remains compatible across patches within a
    stage version. Breaking changes require a new stage version.
+9. Post-v2.0 stages may add a service surface but must not remove
+   the local-first CLI path; the CLI either runs in `local` mode
+   (file backend) or in `server` mode (thin client over the v2.1
+   API).
+10. v2.1+ stages compose the v2.0 safety kernel and the
+    `safecode.enterprise` modules; no v2.0 contract is silently
+    weakened to make a v2.1+ feature easier to implement. Any
+    change to a frozen contract requires a new decision log entry
+    and a snapshot update in the same PR.

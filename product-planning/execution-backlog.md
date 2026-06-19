@@ -1,6 +1,9 @@
 # Execution Backlog
 
-**Implementation status (v1.9):** Executable contracts through v1.9 are implemented; see `.agents/context/progress.json` for live stage state.
+**Implementation status (v2.0 RC):** Stages v1.0–v2.0 are delivered. Post-RC
+stages v2.1–v3.0 are planned; v2.1 is detailed at PR-level, v2.2 at PR-level,
+and v2.3–v3.0 remain mid-grain pending its predecessor. See
+`.agents/context/progress.json` for live stage state.
 This file is the line-by-line backlog the implementation team (Claude
 Code, Codex, or human contributors) will draw from to execute
 `version-roadmap.md`. Tasks here are sized for a single small PR each.
@@ -1363,6 +1366,655 @@ expanded into the same shape as v1.1–v1.4 tasks.
   - Release notes reference security review doc.
 - **Non-goals:** Git tag push (operator action).
 - **Estimate:** 0.5 PR-day.
+
+---
+
+## v2.1 Team Server Foundation (planned)
+
+Sub-plan ordering matches `version-roadmap.md`. Every v2.1 task is sized for a
+single PR, lists files / contracts / persistence impact / security boundary /
+positive and negative tests / acceptance / non-goals / rollback or compatibility
+notes. The estimates are PR-days.
+
+### v2.1.1-T1 — API and configuration contracts
+- **Version:** v2.1.1
+- **Title:** Land OpenAPI + settings + runtime-mode contracts for Team Server
+- **Description:** Define the planned-status v2.1 service surface (OpenAPI spec,
+  settings module, runtime-mode flag) before any handler ships. No live
+  endpoints, no FastAPI handlers, no PostgreSQL access; this PR only freezes the
+  contracts the rest of v2.1 will implement against.
+- **Dependencies:** none beyond v2.0 RC.
+- **Files/Modules:**
+  - `enterprise-docs/platform-architecture-v2.md` (cross-link)
+  - `src/safecode/enterprise/api/__init__.py` (planned skeleton; empty package)
+  - `src/safecode/enterprise/api/contracts/openapi.yaml` (planned)
+  - `src/safecode/enterprise/api/contracts/__init__.py` (planned)
+  - `src/safecode/enterprise/api/settings.py` (planned, pydantic-settings only)
+  - `tests/enterprise/api/test_contract_present.py` (planned)
+- **Public contract:** new OpenAPI document, marked
+  `x-status: planned`. Pinned by a snapshot test created later in v2.1.7-T1.
+- **Persistence / migration impact:** none.
+- **Security boundary:** introduces `runtime_mode` setting (`local` or
+  `server`) and the auth provider configuration shape. Defaults to `local`
+  so the CLI behavior is unchanged.
+- **Positive tests:**
+  - Settings parse a documented `.env.example` and produce a deterministic
+    `RuntimeConfig`.
+  - OpenAPI document parses with `yaml.safe_load` and has no `x-status:
+    delivered` keys yet.
+- **Negative tests:**
+  - Missing required setting in `server` mode raises a typed validation error.
+  - Conflicting auth and runtime mode combinations raise typed errors.
+- **Acceptance:**
+  - OpenAPI surface enumerates every endpoint listed in
+    `platform-architecture-v2.md` § Service plane.
+  - `runtime_mode` defaults to `local`; CLI behavior unchanged.
+  - No live FastAPI app started.
+- **Non-goals:** Any handler, any storage, any auth.
+- **Estimate:** 0.75 PR-day.
+- **Rollback / compatibility:** purely additive; revert restores v2.0 behavior.
+
+### v2.1.1-T2 — Storage and worker decision (no code)
+- **Version:** v2.1.1
+- **Title:** Record the PostgreSQL+pgvector and durable-worker choices
+- **Description:** Add the two architecture decisions to `decision-log.md`
+  (`D19` and `D20`), update `platform-architecture-v2.md` data and workflow
+  planes to reference them, and add a small dependency note to the planning
+  README. This PR is documentation only.
+- **Dependencies:** v2.1.1-T1.
+- **Files/Modules:**
+  - `product-planning/decision-log.md` (extend)
+  - `enterprise-docs/platform-architecture-v2.md` (extend)
+- **Public contract:** none.
+- **Persistence / migration impact:** none.
+- **Security boundary:** none directly; decisions inform later boundaries.
+- **Tests:** none; planning-doc PR.
+- **Acceptance:**
+  - `D19` (PostgreSQL+pgvector) and `D20` (durable worker) are present with
+    rationale, alternatives, consequences, and revisit triggers.
+  - Architecture doc references the decisions where the planes are introduced.
+- **Non-goals:** code; dependency changes.
+- **Estimate:** 0.5 PR-day.
+- **Rollback / compatibility:** doc-only; revert restores prior state.
+
+### v2.1.1-T3 — Deployment scaffolding stub (planning only)
+- **Version:** v2.1.1
+- **Title:** Document the v2.1 deployment shape without committing infra files
+- **Description:** Extend `deployment-profiles.md` Team Server section with a
+  concrete component list (FastAPI, worker, PostgreSQL, optional pgvector
+  later) plus a reference to the dev profile. No `docker-compose.yaml` lands
+  yet; that file is added in v2.1.7-T1 when contracts are stable.
+- **Dependencies:** v2.1.1-T2.
+- **Files/Modules:**
+  - `enterprise-docs/deployment-profiles.md` (extend)
+- **Public contract:** none.
+- **Persistence / migration impact:** none.
+- **Security boundary:** unchanged.
+- **Tests:** existing doc presence test extended for the new section.
+- **Acceptance:** profile lists every component the rest of v2.1 will need.
+- **Non-goals:** committed infra manifests.
+- **Estimate:** 0.25 PR-day.
+- **Rollback / compatibility:** doc-only; revert restores prior state.
+
+### v2.1.2-T1 — Repository protocols
+- **Version:** v2.1.2
+- **Title:** Factor `Protocol` interfaces for runs, approvals, audit, evidence
+- **Description:** Add typed `Protocol` classes describing every persistence
+  surface currently spread across `.sac/enterprise/` writers. No behavior
+  change; existing file-backed code remains the only implementation.
+- **Dependencies:** v2.1.1-T1.
+- **Files/Modules:**
+  - `src/safecode/enterprise/persistence/__init__.py` (planned)
+  - `src/safecode/enterprise/persistence/protocols.py` (planned)
+  - `tests/enterprise/persistence/test_protocols.py` (planned)
+- **Public contract:** internal-only protocol shapes.
+- **Persistence / migration impact:** none.
+- **Security boundary:** protocols mandate `tenant_id` on every read and write.
+- **Positive tests:** protocol classes are subclassable; concrete v2.0
+  writers satisfy them via structural typing (`runtime_checkable`).
+- **Negative tests:** missing `tenant_id` arguments raise typed errors.
+- **Acceptance:** every write path used in v1.7 / v1.8 / v1.9 / v2.0 has a
+  corresponding protocol method.
+- **Non-goals:** any change to behavior or file layout.
+- **Estimate:** 0.75 PR-day.
+- **Rollback / compatibility:** additive.
+
+### v2.1.2-T2 — Local backend adapter behind protocols
+- **Version:** v2.1.2
+- **Title:** Wrap existing `.sac/enterprise/` writers in the protocol surface
+- **Description:** Add a `LocalBackend` class that implements every protocol
+  using the existing on-disk layout; route v1.7 / v1.8 / v1.9 / v2.0 callers
+  through the backend without changing observable behavior.
+- **Dependencies:** v2.1.2-T1.
+- **Files/Modules:**
+  - `src/safecode/enterprise/persistence/local_backend.py` (planned)
+  - Callers across `workflow`, `approvals`, `evidence`, `audit`, `eval`
+    routed through the backend instance.
+- **Public contract:** unchanged; the same JSON shapes persist on disk.
+- **Persistence / migration impact:** no schema change; same paths.
+- **Security boundary:** all backend methods accept and enforce `tenant_id`.
+- **Positive tests:** the full enterprise suite still passes; a contract
+  test asserts equivalence with the v2.0 baseline JSON snapshots.
+- **Negative tests:** writing to a path outside the run root fails closed.
+- **Acceptance:** zero diff in evidence bundles for the v2.0 fixtures.
+- **Non-goals:** PostgreSQL.
+- **Estimate:** 1.25 PR-days.
+- **Rollback / compatibility:** revert removes the backend indirection.
+
+### v2.1.2-T3 — Backend-agnostic contract suite
+- **Version:** v2.1.2
+- **Title:** Reusable protocol contract tests for any backend
+- **Description:** Add a parametrized suite that any backend (local file,
+  later PostgreSQL) must pass. Exercises run lifecycle, approval lifecycle,
+  audit append, evidence pack, single-use grant.
+- **Dependencies:** v2.1.2-T2.
+- **Files/Modules:**
+  - `tests/enterprise/persistence/test_backend_contract.py` (planned)
+- **Public contract:** none.
+- **Persistence / migration impact:** none.
+- **Security boundary:** tenant isolation tested per backend.
+- **Acceptance:** local backend passes; harness ready for v2.1.3.
+- **Non-goals:** none.
+- **Estimate:** 0.5 PR-day.
+- **Rollback / compatibility:** test-only.
+
+### v2.1.3-T1 — PostgreSQL schema and migrations
+- **Version:** v2.1.3
+- **Title:** Define schema, indexes, and migrations under `safecode.enterprise.persistence.postgres`
+- **Description:** Add the declarative SQL schema (runs, checkpoints,
+  approvals, grants, audit_chain, evidence_index, eval_results) plus
+  idempotent migrations. No data writes yet from production code.
+- **Dependencies:** v2.1.2-T3, decision `D19`.
+- **Files/Modules:**
+  - `src/safecode/enterprise/persistence/postgres/__init__.py` (planned)
+  - `src/safecode/enterprise/persistence/postgres/schema.sql` (planned)
+  - `src/safecode/enterprise/persistence/postgres/migrations/` (planned)
+  - `tests/enterprise/persistence/postgres/test_schema_round_trip.py` (planned)
+- **Public contract:** SQL DDL; pinned by a snapshot test.
+- **Persistence / migration impact:** introduces `enterprise` schema; no
+  data migrated from filesystem in this task.
+- **Security boundary:** every owned table requires non-null `tenant_id`.
+- **Positive tests:** schema applies on an in-memory PG fake; migrations
+  idempotent.
+- **Negative tests:** missing `tenant_id` column fails the schema test.
+- **Acceptance:** schema covers every persistence protocol method.
+- **Non-goals:** runtime adapter (`v2.1.3-T2`); pgvector (`v2.4`).
+- **Estimate:** 1.0 PR-day.
+- **Rollback / compatibility:** schema file additive; no caller depends on it.
+
+### v2.1.3-T2 — PostgreSQL repository adapter
+- **Version:** v2.1.3
+- **Title:** Implement persistence protocols against PostgreSQL
+- **Description:** Add `PostgresBackend` that satisfies the v2.1.2 protocols
+  using `psycopg` connections and a session-scoped unit of work. Tests use
+  an in-memory PG fake to keep determinism; integration tests are opt-in.
+- **Dependencies:** v2.1.3-T1.
+- **Files/Modules:**
+  - `src/safecode/enterprise/persistence/postgres/backend.py` (planned)
+  - `src/safecode/enterprise/persistence/postgres/unit_of_work.py` (planned)
+  - `tests/enterprise/persistence/postgres/test_backend_contract.py` (planned)
+- **Public contract:** internal.
+- **Persistence / migration impact:** first runtime writer for the schema.
+- **Security boundary:** every query parameterizes `tenant_id`; reads
+  outside the scoped tenant fail closed.
+- **Positive tests:** v2.1.2-T3 contract suite passes against the fake.
+- **Negative tests:** cross-tenant read raises typed `TenantBoundaryError`.
+- **Acceptance:** contract parity with the local backend.
+- **Non-goals:** any service code.
+- **Estimate:** 1.25 PR-days.
+- **Rollback / compatibility:** removing the file restores the local-only
+  state.
+
+### v2.1.3-T3 — Atomic approval consumption
+- **Version:** v2.1.3
+- **Title:** Enforce single-use grant semantics under concurrent writers
+- **Description:** Use `SERIALIZABLE` (or explicit row locks) for grant
+  consumption so two workers cannot double-spend a grant.
+- **Dependencies:** v2.1.3-T2.
+- **Files/Modules:**
+  - `src/safecode/enterprise/persistence/postgres/backend.py` (extend)
+  - `tests/enterprise/persistence/postgres/test_grant_concurrency.py` (planned)
+- **Public contract:** internal.
+- **Persistence / migration impact:** none.
+- **Security boundary:** preserves the M2 binding from
+  `security-review-v2-0.md` under concurrency.
+- **Positive tests:** N concurrent workers see exactly one successful
+  consumption; others get `GrantAlreadyConsumedError`.
+- **Negative tests:** retried consume of a closed grant fails closed.
+- **Acceptance:** concurrency test reliably reproduces the race and never
+  leaks a second use.
+- **Non-goals:** distributed locking; cluster-aware leases.
+- **Estimate:** 0.75 PR-day.
+- **Rollback / compatibility:** isolation level can revert; tests fail
+  loud rather than silently weakening.
+
+### v2.1.3-T4 — Audit chain durability under PostgreSQL
+- **Version:** v2.1.3
+- **Title:** Persist the audit hash chain to PostgreSQL with verification
+- **Description:** Append the existing audit events to a row-per-event
+  table while preserving the legacy hash chain. Verification runs against
+  both local file and PG backends.
+- **Dependencies:** v2.1.3-T2.
+- **Files/Modules:**
+  - `src/safecode/enterprise/persistence/postgres/audit.py` (planned)
+  - `tests/enterprise/persistence/postgres/test_audit_chain.py` (planned)
+- **Public contract:** internal.
+- **Persistence / migration impact:** dedicated table; chain unchanged.
+- **Security boundary:** tampering invalidates the chain on read.
+- **Acceptance:** chain verifies on both backends; tampering test
+  passes.
+- **Non-goals:** external anchors.
+- **Estimate:** 0.75 PR-day.
+
+### v2.1.4-T1 — FastAPI app skeleton and health endpoints
+- **Version:** v2.1.4
+- **Title:** Boot FastAPI app with health, readiness, and version endpoints
+- **Description:** Add an application factory wired to the v2.1 settings,
+  with no business endpoints. Establishes the dependency-injection pattern
+  for backends and identity.
+- **Dependencies:** v2.1.3-T2, v2.1.1-T1.
+- **Files/Modules:**
+  - `src/safecode/enterprise/api/app.py` (planned)
+  - `src/safecode/enterprise/api/dependencies.py` (planned)
+  - `tests/enterprise/api/test_health.py` (planned)
+- **Public contract:** `/healthz`, `/readyz`, `/version`.
+- **Persistence / migration impact:** readiness check probes the active
+  backend.
+- **Security boundary:** unauthenticated probes only; no business data.
+- **Positive tests:** health returns deterministic body; readiness depends
+  on backend probe.
+- **Negative tests:** broken backend produces `503`.
+- **Acceptance:** app boots in test client against the local backend.
+- **Non-goals:** business endpoints.
+- **Estimate:** 0.5 PR-day.
+
+### v2.1.4-T2 — Read endpoints (runs, approvals, traces, evidence, eval)
+- **Version:** v2.1.4
+- **Title:** GET endpoints for the operator surface
+- **Description:** Add read-only endpoints that return tenant-scoped lists
+  and details for runs, approvals, traces, evidence bundles, and eval
+  baselines. Handlers share the existing redaction profile.
+- **Dependencies:** v2.1.4-T1.
+- **Files/Modules:**
+  - `src/safecode/enterprise/api/routes/runs.py` (planned)
+  - `src/safecode/enterprise/api/routes/approvals.py` (planned)
+  - `src/safecode/enterprise/api/routes/traces.py` (planned)
+  - `src/safecode/enterprise/api/routes/evidence.py` (planned)
+  - `src/safecode/enterprise/api/routes/eval.py` (planned)
+  - `tests/enterprise/api/test_read_endpoints.py` (planned)
+- **Public contract:** OpenAPI documents finalized for GET endpoints.
+- **Persistence / migration impact:** read-only.
+- **Security boundary:** authenticated subject required; tenant-scoped
+  query parameters; no debug profile exposed by default.
+- **Positive tests:** valid token returns expected list and details.
+- **Negative tests:** missing / cross-tenant tokens fail closed; debug
+  fields absent without policy bit.
+- **Acceptance:** every read endpoint covered by positive and negative
+  cases.
+- **Non-goals:** writes, approvals, command endpoints.
+- **Estimate:** 1.0 PR-day.
+
+### v2.1.5-T1 — Command endpoints for runs
+- **Version:** v2.1.5
+- **Title:** POST endpoints to start, resume, and cancel runs
+- **Description:** Add command endpoints that hand off to the durable
+  worker queue with explicit idempotency keys.
+- **Dependencies:** v2.1.4-T2.
+- **Files/Modules:**
+  - `src/safecode/enterprise/api/routes/runs.py` (extend)
+  - `src/safecode/enterprise/worker/__init__.py` (planned)
+  - `src/safecode/enterprise/worker/queue.py` (planned)
+  - `tests/enterprise/api/test_run_commands.py` (planned)
+- **Public contract:** API extensions; OpenAPI updated.
+- **Persistence / migration impact:** new `run_commands` and `queue` tables.
+- **Security boundary:** idempotency key required; only the owning tenant
+  may start or cancel a run; protected actions still routed through the
+  approval engine.
+- **Positive tests:** same idempotency key returns the same run_id; cancel
+  is a graceful no-op when the run is already terminal.
+- **Negative tests:** missing idempotency key fails closed; cross-tenant
+  cancel rejected.
+- **Acceptance:** command surface matches OpenAPI snapshot.
+- **Non-goals:** webhook ingestion.
+- **Estimate:** 1.0 PR-day.
+
+### v2.1.5-T2 — Command endpoint for approvals
+- **Version:** v2.1.5
+- **Title:** POST endpoint to submit approval decisions
+- **Description:** Mirror the CLI approval verbs through the API. Single-
+  use grants are issued through the same engine.
+- **Dependencies:** v2.1.5-T1, v2.1.3-T3.
+- **Files/Modules:**
+  - `src/safecode/enterprise/api/routes/approvals.py` (extend)
+  - `tests/enterprise/api/test_approval_commands.py` (planned)
+- **Public contract:** API extension; OpenAPI updated.
+- **Persistence / migration impact:** uses existing approval and grant
+  tables.
+- **Security boundary:** subject identity must match an `approver`
+  role per the role-permission matrix; self-approval blocked.
+- **Positive tests:** approve / reject / revoke flows complete and emit
+  audit events.
+- **Negative tests:** unauthorized role fails closed; replay attack with
+  a consumed grant rejected.
+- **Acceptance:** identical behavior between CLI and API.
+- **Non-goals:** notifications.
+- **Estimate:** 0.75 PR-day.
+
+### v2.1.5-T3 — Worker lease, heartbeat, and recovery
+- **Version:** v2.1.5
+- **Title:** Durable worker with lease, heartbeat, and crash recovery
+- **Description:** Add a single worker implementation that pulls from the
+  queue, leases a run, heartbeats, and releases the lease on crash.
+- **Dependencies:** v2.1.5-T1.
+- **Files/Modules:**
+  - `src/safecode/enterprise/worker/lease.py` (planned)
+  - `src/safecode/enterprise/worker/runner.py` (planned)
+  - `tests/enterprise/worker/test_lease_recovery.py` (planned)
+- **Public contract:** internal.
+- **Persistence / migration impact:** `lease` table with expiry index.
+- **Security boundary:** workers see only data the API would expose to
+  their identity.
+- **Positive tests:** lease acquired and released atomically; heartbeat
+  refreshes expiry; second worker takes over after crash.
+- **Negative tests:** double-acquire blocked; expired lease auto-released.
+- **Acceptance:** crash recovery deterministic in tests.
+- **Non-goals:** scheduler quality of service.
+- **Estimate:** 1.25 PR-days.
+
+### v2.1.5-T4 — CLI thin-client mode
+- **Version:** v2.1.5
+- **Title:** Teach the CLI to route through the v2.1 API in `server` mode
+- **Description:** Add a runtime-mode switch so the CLI runs against the
+  filesystem locally and against the API in server mode. CLI contract is
+  unchanged.
+- **Dependencies:** v2.1.5-T2.
+- **Files/Modules:**
+  - `src/safecode/cli_enterprise.py` (extend)
+  - `tests/enterprise/cli/test_cli_server_mode.py` (planned)
+- **Public contract:** CLI behavior unchanged; new `--server-url` and
+  `--token` flags; `local` mode default.
+- **Persistence / migration impact:** none direct.
+- **Security boundary:** `--token` accepted only in `server` mode and is
+  redacted from logs.
+- **Positive tests:** same fixture run produces same artifacts in both
+  modes.
+- **Negative tests:** `server` mode without a token fails closed.
+- **Acceptance:** parity test between modes for the v1.7 fixture.
+- **Non-goals:** auth provider login flow.
+- **Estimate:** 0.75 PR-day.
+
+### v2.1.6-T1 — OIDC discovery and JWT validation
+- **Version:** v2.1.6
+- **Title:** Validate bearer tokens against an OIDC provider
+- **Description:** Add token validation using OIDC discovery and JWKS, with
+  bounded clock skew and a small in-memory cache for keys.
+- **Dependencies:** v2.1.4-T2.
+- **Files/Modules:**
+  - `src/safecode/enterprise/auth/__init__.py` (planned)
+  - `src/safecode/enterprise/auth/oidc.py` (planned)
+  - `tests/enterprise/auth/test_oidc.py` (planned)
+- **Public contract:** internal.
+- **Persistence / migration impact:** none (in-memory cache only).
+- **Security boundary:** invalid or unsigned tokens fail closed; algorithm
+  pinned to a configured allowlist.
+- **Positive tests:** valid token resolves to a claims object.
+- **Negative tests:** expired, tampered, or wrong-audience tokens rejected.
+- **Acceptance:** unit-tested without network using a JWKS fixture.
+- **Non-goals:** SSO provisioning.
+- **Estimate:** 1.0 PR-day.
+
+### v2.1.6-T2 — Authenticated subject mapping
+- **Version:** v2.1.6
+- **Title:** Map OIDC claims to the existing `RBACSubject`
+- **Description:** Resolve the v2.1.6-T1 claims into the existing v1.4
+  RBAC subject (tenant + role) and apply across API and worker contexts.
+- **Dependencies:** v2.1.6-T1.
+- **Files/Modules:**
+  - `src/safecode/enterprise/auth/subject.py` (planned)
+  - `tests/enterprise/auth/test_subject_mapping.py` (planned)
+- **Public contract:** the existing `RBACSubject` shape.
+- **Persistence / migration impact:** none.
+- **Security boundary:** unknown claims default to the lowest role; the
+  CLI `--actor` is ignored when an authenticated subject is present.
+- **Positive tests:** known claim maps to the expected role; tenant id
+  propagates.
+- **Negative tests:** missing tenant claim fails closed in `server` mode.
+- **Acceptance:** v2.1.4-T2 endpoint tests now use the resolved subject.
+- **Non-goals:** SCIM provisioning.
+- **Estimate:** 0.5 PR-day.
+
+### v2.1.7-T1 — API and CLI contract snapshots
+- **Version:** v2.1.7
+- **Title:** Freeze the v2.1 API and CLI contracts
+- **Description:** Extend the v2.0 contract snapshot tests to cover the
+  new API surface, including OpenAPI digest, error shapes, and the CLI
+  `--server-url` / `--token` flags.
+- **Dependencies:** v2.1.6-T2.
+- **Files/Modules:**
+  - `tests/enterprise/contracts/test_public_contract_v2_1.py` (planned)
+  - `tests/enterprise/contracts/snapshots/api_v2_1.json` (planned)
+- **Public contract:** v2.1 frozen surface.
+- **Persistence / migration impact:** none.
+- **Security boundary:** snapshots scrub secrets and host-specific paths.
+- **Acceptance:** drift fails CI until intentional snapshot update.
+- **Non-goals:** GA contract (v3.0).
+- **Estimate:** 0.5 PR-day.
+
+### v2.1.7-T2 — Upgrade and rollback runbook
+- **Version:** v2.1.7
+- **Title:** Document upgrade and rollback from v2.0 to v2.1
+- **Description:** Extend `deployment-profiles.md` and add an upgrade /
+  rollback section anchored on v2.1.3 migrations and v2.1.2 backend swap.
+- **Dependencies:** v2.1.7-T1.
+- **Files/Modules:**
+  - `enterprise-docs/deployment-profiles.md` (extend)
+- **Public contract:** none.
+- **Acceptance:** runbook covers schema apply, data migration from local
+  to PostgreSQL, and rollback steps.
+- **Non-goals:** chaos drills.
+- **Estimate:** 0.5 PR-day.
+
+### v2.1.7-T3 — v2.1 demo and integration suite
+- **Version:** v2.1.7
+- **Title:** Demo bundle + offline integration suite
+- **Description:** Ship the v2.1 demo (under `examples/enterprise/demos/v2.1/`)
+  plus a deterministic offline integration suite that runs against the API
+  app and the PG fake.
+- **Dependencies:** v2.1.7-T2.
+- **Files/Modules:**
+  - `examples/enterprise/demos/v2.1/` (planned)
+  - `tests/enterprise/api/test_integration_v2_1.py` (planned)
+- **Acceptance:** demo replays cleanly; integration suite green in CI.
+- **Non-goals:** UI; webhook ingest.
+- **Estimate:** 0.75 PR-day.
+
+---
+
+## v2.2 Real GitHub Secure Change Workflow (planned)
+
+PR-sized; estimates and security boundaries as for v2.1.
+
+### v2.2.1-T1 — GitHub App credential boundary
+- **Files/Modules:** `src/safecode/enterprise/connectors/github_app.py` (planned),
+  `src/safecode/enterprise/api/settings.py` (extend),
+  `tests/enterprise/connectors/test_github_app_credentials.py` (planned).
+- **Public contract:** environment / vault contract for the App private key.
+- **Persistence / migration impact:** none.
+- **Security boundary:** private key never written to disk, logs, traces, or
+  evidence; reload requires explicit restart.
+- **Acceptance:** secret never appears in any captured output; rotation test
+  proves a refresh re-reads the key.
+- **Non-goals:** webhook handler.
+- **Estimate:** 0.75 PR-day.
+
+### v2.2.1-T2 — Signed-webhook handler
+- **Files/Modules:** `src/safecode/enterprise/api/routes/webhooks.py` (planned),
+  `tests/enterprise/api/test_webhooks.py` (planned).
+- **Public contract:** new `/webhooks/github` endpoint.
+- **Persistence / migration impact:** `webhook_events` table.
+- **Security boundary:** signature verification mandatory; missing secret
+  fails closed.
+- **Acceptance:** replay of the same delivery id is a no-op.
+- **Non-goals:** PR fetch.
+- **Estimate:** 0.75 PR-day.
+
+### v2.2.2-T1 — Live PR fetch adapter
+- **Files/Modules:** `src/safecode/enterprise/connectors/github_pr.py` (extend),
+  `tests/enterprise/connectors/test_github_pr_live.py` (planned).
+- **Public contract:** unchanged `PullRequestEvidence` shape.
+- **Security boundary:** rate-limit and 4xx handling fail closed; out-of-tenant
+  repository access rejected.
+- **Acceptance:** offline fixture and recorded live response produce the same
+  evidence.
+- **Non-goals:** writes.
+- **Estimate:** 0.75 PR-day.
+
+### v2.2.2-T2 — Sandboxed PR checkout
+- **Files/Modules:** `src/safecode/enterprise/sandbox/pr_workspace.py` (planned),
+  `tests/enterprise/sandbox/test_pr_workspace.py` (planned).
+- **Public contract:** internal.
+- **Security boundary:** workspace pinned under the sandbox root; symlink
+  escape rejected.
+- **Acceptance:** checkout is read-only by default; mutation requires the
+  v2.0 sandbox proposal pipeline.
+- **Estimate:** 1.0 PR-day.
+
+### v2.2.3-T1 — Governed PR comment write
+- **Files/Modules:** `src/safecode/enterprise/connectors/github_pr_write.py`
+  (extend), `tests/enterprise/connectors/test_github_pr_comment_live.py`
+  (planned).
+- **Security boundary:** write only after a single-use grant; comment body
+  redacted; audit chain includes the API response id.
+- **Acceptance:** unapproved write attempts always fail closed.
+- **Estimate:** 0.75 PR-day.
+
+### v2.2.3-T2 — Branch push and PR create
+- **Files/Modules:** `src/safecode/enterprise/connectors/github_branch.py`
+  (planned), `tests/enterprise/connectors/test_github_branch.py` (planned).
+- **Security boundary:** protected branches stay `BLOCK`; pushed branches
+  carry the v2.0 redaction profile.
+- **Acceptance:** push and PR create paths gated; protected-branch attempt
+  produces an audit event.
+- **Estimate:** 1.0 PR-day.
+
+### v2.2.4-T1 — Sandboxed scanner re-run
+- **Files/Modules:** `src/safecode/enterprise/scanners/ci_runner.py` (planned),
+  `tests/enterprise/scanners/test_ci_runner.py` (planned).
+- **Security boundary:** every command goes through the sandbox proposal
+  pipeline.
+- **Acceptance:** CI runner refuses to run without an approved proposal.
+- **Estimate:** 0.75 PR-day.
+
+### v2.2.4-T2 — CI callback endpoint and structured result schema
+- **Files/Modules:** `src/safecode/enterprise/api/routes/ci_callback.py`
+  (planned), `src/safecode/enterprise/scanners/results.py` (planned),
+  `tests/enterprise/api/test_ci_callback.py` (planned).
+- **Security boundary:** callback authenticated; payload validated against
+  schema; never treated as instructions.
+- **Acceptance:** schema mismatches rejected; trace shows callback origin.
+- **Estimate:** 0.75 PR-day.
+
+### v2.2.5-T1 — End-to-end live PR review demo
+- **Files/Modules:** `examples/enterprise/demos/v2.2/pr_review_live.md`
+  (planned), `tests/enterprise/integration/test_pr_review_v2_2.py` (planned).
+- **Acceptance:** demo runs against a sample repo; offline integration test
+  passes; live test opt-in only.
+- **Estimate:** 1.0 PR-day.
+
+### v2.2.5-T2 — End-to-end live remediation demo
+- **Files/Modules:** `examples/enterprise/demos/v2.2/remediation_live.md`
+  (planned), `tests/enterprise/integration/test_remediation_v2_2.py`
+  (planned).
+- **Acceptance:** demo opens a real PR through the approval chain; integration
+  test deterministic on fixtures.
+- **Estimate:** 1.0 PR-day.
+
+---
+
+## v2.3 Operator Console (planned, mid-grain)
+
+Tasks here cover the surfaces; each will be expanded into PR-sized items
+before implementation. The `v2.3` console is bounded by the v2.1 API; no
+backend mutation lives in the UI.
+
+### v2.3.1-T1 — Console shell, OIDC login, tenant-aware navigation
+- Acceptance: routed pages reject cross-tenant access; auth refresh works.
+
+### v2.3.2-T1 — Run list and detail with trace viewer
+- Acceptance: timeline renders the v1.5 schema; redaction profile honored.
+
+### v2.3.3-T1 — Approval inbox and patch / comment review
+- Acceptance: approval submit uses the v2.1.5-T2 endpoint; single-use grant
+  semantics preserved.
+
+### v2.3.4-T1 — Evidence, eval, and cost surfaces
+- Acceptance: read-only; export reuses v1.9 evidence bundle endpoint.
+
+### v2.3.5-T1 — UI / API contract snapshot and v2.3 demo bundle
+- Acceptance: contract snapshot extended; demo recording committed.
+
+---
+
+## v2.4 Enterprise Knowledge, Tickets, and Memory (planned, mid-grain)
+
+### v2.4.1-T1 — pgvector schema and migration
+- Acceptance: tenant-scoped vector index; deterministic test harness.
+
+### v2.4.2-T1 — Incremental ingest and freshness propagation
+- Acceptance: no-op re-ingest on unchanged input; ACL sync verified.
+
+### v2.4.3-T1 — Deterministic reranker and query rewriting
+- Acceptance: ratchet enforced on retrieval suites.
+
+### v2.4.4-T1 — Live Jira connector behind approval gate
+- Acceptance: tenant-scoped credentials; write actions require GATE.
+
+### v2.4.5-T1 — `secure_planning` workflow end-to-end
+- Acceptance: planning artifact carries citations, alternatives, revisit.
+
+### v2.4.6-T1 — Governed long-term memory
+- Acceptance: admit/revoke/expire and audit trail proven.
+
+---
+
+## v2.5 Production Hardening (planned, mid-grain)
+
+### v2.5.1-T1 — OpenTelemetry exporter behind the trace emitter
+- Acceptance: exporter disable preserves local trace files.
+
+### v2.5.2-T1 — Worker recovery and dead-letter behavior
+- Acceptance: poisoned message reaches DLQ; healthy workers continue.
+
+### v2.5.3-T1 — Concurrency, rate-limit, and cost budget controls
+- Acceptance: documented limits enforced; cost budget tested against
+  `RunCosts`.
+
+### v2.5.4-T1 — Backup / restore and schema migration tooling
+- Acceptance: round-trip across a schema migration; audit and evidence
+  verifications succeed.
+
+### v2.5.5-T1 — Load and threat model captured in `enterprise-docs/`
+- Acceptance: ratchet on key endpoints; threat model includes v2.1+ new
+  boundaries.
+
+### v2.5.6-T1 — On-prem deploy automation and upgrade / rollback rehearsal
+- Acceptance: single-command bring-up; rehearsed upgrade and rollback.
+
+---
+
+## v3.0 Enterprise GA (planned, mid-grain)
+
+### v3.0.1-T1 — GA contract and migration compatibility tests
+- Acceptance: v2.0 → v3.0 migration test green.
+
+### v3.0.2-T1 — Signed external security review
+- Acceptance: review filed; no open high / critical findings.
+
+### v3.0.3-T1 — Production deployment evidence
+- Acceptance: production-like deployment captured per profile.
+
+### v3.0.4-T1 — Flagship demos and GA release notes
+- Acceptance: demos repeat v2.2 acceptance against GA contracts.
 
 ---
 

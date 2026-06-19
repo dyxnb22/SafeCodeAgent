@@ -16,8 +16,11 @@ compliance evidence, and auditable tool-using security operations.
 
 - Legacy implemented baseline: `v7.1.5`.
 - Enterprise planning and namespace stages: complete.
-- Current delivery stage: `v2.0 Enterprise Release Candidate` (completed).
-- Next delivery task: none — RC milestone complete; post-RC work is v2.1+ planning.
+- Last delivery stage completed: `v2.0 Enterprise Release Candidate`.
+- Current delivery stage: `v2.1 Team Server Foundation` (ready).
+- Next delivery task: `v2.1.1-T1` — land OpenAPI + settings + runtime-mode
+  contracts for Team Server. See `product-planning/execution-backlog.md`.
+- Post-RC platform architecture: `enterprise-docs/platform-architecture-v2.md`.
 - Machine-readable live status: `.agents/context/progress.json`.
 
 Do not infer current progress from prose in this file. Read `progress.json`.
@@ -95,9 +98,25 @@ regression analysis.
 | v1.8 | Vulnerability remediation workflow | Complete | `enterprise-docs/workflow-design.md` |
 | v1.9 | Enterprise beta hardening | Complete | `product-planning/version-roadmap.md` |
 | v2.0 | Enterprise release candidate | Complete | `RELEASE-NOTES-v2.0.0-rc.md` |
+| v2.1 | Team Server foundation (FastAPI + PostgreSQL + worker + OIDC) | Planned | `enterprise-docs/platform-architecture-v2.md` |
+| v2.2 | Real GitHub secure change workflow | Planned | `enterprise-docs/platform-architecture-v2.md` |
+| v2.3 | Operator console (React/Next.js) | Planned | `enterprise-docs/platform-architecture-v2.md` |
+| v2.4 | Enterprise knowledge, tickets, long-term memory | Planned | `enterprise-docs/platform-architecture-v2.md` |
+| v2.5 | Production hardening | Planned | `enterprise-docs/platform-architecture-v2.md` |
+| v3.0 | Enterprise GA | Planned | `product-planning/version-roadmap.md` |
 
 Status details belong in `progress.json`; change this table only when stage
 scope, ownership, or architecture changes.
+
+### Post-RC Plane Map
+
+| Plane | Owning module (planned) | Live source of truth |
+|---|---|---|
+| Service (FastAPI `/v2`) | `src/safecode/enterprise/api/` | `platform-architecture-v2.md` § Service plane |
+| Workflow (durable worker) | `src/safecode/enterprise/worker/` | `platform-architecture-v2.md` § Workflow plane |
+| Data (PostgreSQL + local file backend) | `src/safecode/enterprise/persistence/` | `platform-architecture-v2.md` § Data plane |
+| Integration (live GitHub, Jira) | `src/safecode/enterprise/connectors/` | `platform-architecture-v2.md` § Integration plane |
+| Identity (OIDC) | `src/safecode/enterprise/auth/` | `platform-architecture-v2.md` § Authenticated identity |
 
 ## Task-To-Context Routing
 

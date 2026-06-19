@@ -1,6 +1,9 @@
 # Milestone Acceptance Gates
 
-**Implementation status (v1.9):** Executable contracts through v1.9 are implemented; see `.agents/context/progress.json` for live stage state.
+**Implementation status (v2.0 RC):** Stages v1.0–v2.0 are implemented and gated;
+stages v2.1–v3.0 are planned. See `.agents/context/progress.json` for live
+state.
+
 Every stage version in `version-roadmap.md` has a hard acceptance gate.
 A stage is only "done" when **all five gate dimensions are satisfied**:
 
@@ -466,6 +469,258 @@ For each stage:
 **Yellow-risk policy**
 - No yellow risks may carry into the RC. Any remaining must be
   filed as v2.1 work.
+
+---
+
+### v2.1 Team Server Foundation
+
+**Engineering acceptance**
+- All persistence protocol contract tests pass against both
+  backends (local file and PostgreSQL fake) without divergence.
+- FastAPI app boots on a documented dev profile;
+  `pytest tests/enterprise/api` runs deterministically without a
+  live database or live identity provider.
+- Worker tests cover lease acquisition, heartbeat, crash
+  recovery, idempotent retry, and concurrent approval consumption.
+- `scripts/verify-package.py` still passes; full
+  `PYTHONPATH=src python3 -m pytest -q` green.
+
+**Product acceptance**
+- `sac enterprise workflow run` works against the API in
+  `server` mode and against the local filesystem in `local` mode
+  with identical observable behavior on the v1.7/v1.8 fixtures.
+- `sac enterprise approval approve` works against both modes;
+  pending approvals survive a worker restart.
+- A documented `docker compose up` (or equivalent reproducible
+  script) brings the Team Server stack up; the demo bundle proves
+  a clean PR review against PostgreSQL.
+
+**Security acceptance**
+- API endpoints reject unauthenticated requests in `server`
+  mode; CLI `--actor` is ignored in `server` mode.
+- Tenant boundary enforced in SQL, audit reads, evidence export,
+  and approval store; no cross-tenant fetch in any handler test.
+- No new code path lets the model authorize an approval or
+  bypass the approval engine.
+- Approval consumption is atomic against concurrent workers;
+  the M2 binding guarantees from `security-review-v2-0.md` hold
+  in PostgreSQL too.
+- Credentials and tokens are loaded from environment / vault;
+  none are persisted in logs, traces, or evidence.
+
+**Evaluation acceptance**
+- All existing v1.6 / v1.7 / v1.8 / v1.9 eval suites still pass
+  against the new persistence and runtime paths.
+- A v2.1 service-mode latency/throughput micro-baseline is
+  captured under `tests/enterprise/perf/`.
+
+**Demo / interview acceptance**
+- A walk-through committed under
+  `examples/enterprise/demos/v2.1/` covers: starting the server,
+  authenticating, running a PR review against PostgreSQL, viewing
+  the trace, and approving a pending action.
+
+**Yellow-risk policy**
+- Allowed yellow risks (at most three):
+  - No real Jira/GitHub writes yet (lands in v2.2).
+  - No operator console yet (lands in v2.3).
+  - In-memory worker fake used for unit tests; production worker
+    exercised only in integration lane.
+
+---
+
+### v2.2 Real GitHub Secure Change Workflow
+
+**Engineering acceptance**
+- Webhook signature validation tests cover positive, negative,
+  and missing-secret cases.
+- Live GitHub adapters have offline-equivalent fixture tests
+  that share the evidence model.
+- CI / scanner sandbox runner tests use the existing sandbox
+  pipeline and refuse direct shell strings.
+
+**Product acceptance**
+- An end-to-end demo runs a PR review and a remediation against
+  a real (sample) repository, including a draft comment and a
+  proposed PR.
+- The demo runbook captures GitHub App setup, webhook
+  registration, and tear-down.
+- Network-denied integration tests reproduce the same workflow
+  decisions against recorded fixtures.
+
+**Security acceptance**
+- GitHub App private key is never written to logs, traces,
+  evidence, or any committed file.
+- Protected branches stay `BLOCK`; live writes require single-
+  use grants bound to the active policy snapshot.
+- Webhook delivery is idempotent; replay attacks fail closed.
+- CI output is structured-parsed; no instruction-shaped string
+  from CI affects model decisions.
+
+**Evaluation acceptance**
+- A `live_github` eval lane exists, is opt-in, never blocks
+  merges, and uses the same case schema.
+- Existing baselines remain green.
+
+**Demo / interview acceptance**
+- `examples/enterprise/demos/v2.2/` captures both a PR review
+  posting a comment and a remediation opening a PR, with the
+  full trace and approval chain.
+
+**Yellow-risk policy**
+- Allowed yellow risks (at most three):
+  - GitLab/Bitbucket not supported.
+  - GHES (GitHub Enterprise Server) not validated.
+  - `pytest` re-run only on the changed slice (full repo
+    pytest left for the host project to wire).
+
+---
+
+### v2.3 Operator Console
+
+**Engineering acceptance**
+- Console build is reproducible; lint and type-check pass.
+- API contract tests cover every endpoint the UI consumes.
+- Headless test of the UI runs against the v2.1 API fake.
+
+**Product acceptance**
+- An OIDC user can log in, list runs, view a timeline, approve
+  a pending action, and download an evidence bundle.
+- UI uses the same redaction profile as the CLI; strict by
+  default.
+
+**Security acceptance**
+- Cross-tenant URLs and direct API calls fail closed.
+- UI has no "bypass approval" code path; approve / reject only
+  submit through the gated endpoint.
+- Tokens stored only in browser session storage with explicit
+  expiry; refresh through the auth provider.
+
+**Evaluation acceptance**
+- The UI does not introduce new eval ratchets but inherits
+  v1.7/v1.8 baselines.
+
+**Demo / interview acceptance**
+- `examples/enterprise/demos/v2.3/` includes a screen recording
+  or storyboard of the console flows above.
+
+**Yellow-risk policy**
+- Allowed yellow risks (at most three):
+  - Read-only on most views (write paths only via approval).
+  - Single locale.
+  - No mobile layout.
+
+---
+
+### v2.4 Enterprise Knowledge, Tickets, and Memory
+
+**Engineering acceptance**
+- pgvector schema migrations idempotent; per-tenant retrieval
+  filter enforced in SQL.
+- Incremental ingest produces deterministic chunk ids on
+  unchanged inputs.
+- Reranker is deterministic on the mock embeddings.
+- Jira connector live mode behind the existing network policy
+  gate and the approval engine.
+
+**Product acceptance**
+- A `secure_planning` workflow runs against a Jira ticket and
+  produces a cited plan with provenance and a revisit trigger.
+- Long-term memory facts can be admitted, revoked, and audited.
+- Existing v1.7 / v1.8 demos still pass against the persistent
+  index.
+
+**Security acceptance**
+- Cross-tenant retrieval impossible by query, by index, or by
+  reranker side-effect.
+- Memory admission requires explicit approval and policy bit;
+  injection text never becomes an instruction.
+- ACL sync failure fails closed.
+
+**Evaluation acceptance**
+- Persistent retrieval baselines published; injection and
+  classification suites still green.
+- Memory admission test covers approve, revoke, expire, and
+  audit verification.
+
+**Demo / interview acceptance**
+- `examples/enterprise/demos/v2.4/` covers ingestion, secure
+  planning, and a memory admission cycle.
+
+**Yellow-risk policy**
+- Allowed yellow risks (at most three):
+  - No live LLM reranker (deterministic local only).
+  - Single-language tokenizer.
+  - No SCIM/ACL push API (only periodic pull).
+
+---
+
+### v2.5 Production Hardening
+
+**Engineering acceptance**
+- OTel exporter unit-tested against a fake collector.
+- Worker recovery tests cover crash, deadlock, and poison.
+- Concurrency tests cover the documented rate / cost limits.
+- Backup / restore tests round-trip across a schema migration.
+
+**Product acceptance**
+- A documented load profile holds within the latency budget.
+- A documented on-prem deploy command brings up the same stack
+  as the dev profile.
+- Upgrade and rollback runbooks rehearsed end-to-end.
+
+**Security acceptance**
+- Threat model captured under `enterprise-docs/`; no open high
+  finding.
+- All exported telemetry runs through the strict redaction
+  profile.
+- DLQ contents are redacted; no secret material can land in
+  poison records.
+
+**Evaluation acceptance**
+- Latency and cost ratchets enforced in the eval dashboard.
+- All prior eval baselines still hold.
+
+**Demo / interview acceptance**
+- `examples/enterprise/demos/v2.5/` shows the load run, the
+  recovery run, and the upgrade / rollback test.
+
+**Yellow-risk policy**
+- Allowed yellow risks (at most three):
+  - Single-region only.
+  - No automated failover.
+  - Manual key rotation.
+
+---
+
+### v3.0 Enterprise GA
+
+**Engineering acceptance**
+- All eval, perf, and contract suites green at GA SHA.
+- Migration tests from v2.0 RC to v3.0 GA pass.
+- Public API and CLI contract snapshots match v3.0.
+
+**Product acceptance**
+- Flagship demos run cleanly against the GA build.
+- Release notes describe every contract change since v2.0 RC
+  and the migration path.
+
+**Security acceptance**
+- Signed external-style security review with no open
+  high-/critical-severity findings.
+- Production deployment evidence captured per profile.
+
+**Evaluation acceptance**
+- All baselines locked at GA; ratchet rules enforced.
+- Live-provider eval lane has at least one stable run.
+
+**Demo / interview acceptance**
+- `examples/enterprise/demos/v3.0/` covers PR review,
+  remediation, secure planning, evidence export, and a
+  console-driven approval.
+
+**Yellow-risk policy**
+- No yellow risks may carry into GA.
 
 ---
 

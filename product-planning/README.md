@@ -1,6 +1,8 @@
 # SafeCodeAgent Enterprise Planning
 
-**Implementation status (v1.9):** Index current through v1.9 beta hardening; see `.agents/context/progress.json` for live delivery state.
+**Implementation status (v2.0 RC + post-RC plan):** v1.0–v2.0 are
+implemented; v2.1–v3.0 are planned and detailed in the executable planning
+files below. See `.agents/context/progress.json` for live delivery state.
 SafeCodeAgent Enterprise turns the finished SafeCodeAgent terminal coding agent
 into an enterprise security engineering agent platform.
 
@@ -42,13 +44,15 @@ Foundation (set the direction and shape):
 
 Executable planning (new, authoritative for delivery):
 
-- `version-roadmap.md` — stage versions `v1.0`–`v2.0` with sub-plans
-  (`v1.1.1`, `v1.1.2`, …). The single source of truth for the order
+- `version-roadmap.md` — stage versions `v1.0`–`v3.0` with sub-plans
+  (`v1.1.1`, …, `v2.1.1`, …). The single source of truth for the order
   of work.
 - `milestone-acceptance.md` — engineering, product, security, eval,
-  and demo gate criteria per stage.
+  and demo gate criteria per stage, including the post-RC stages
+  `v2.1`–`v3.0`.
 - `execution-backlog.md` — PR-sized tasks with files, tests, and
-  acceptance criteria, fully detailed for `v1.1`–`v1.4`.
+  acceptance criteria, fully detailed for `v1.1`–`v1.4` and the
+  post-RC `v2.1` / `v2.2` plans.
 - `interview-master-narrative.md` — structured interview material
   organized by talking points and demo flows.
 - `decision-log.md` — durable record of architectural decisions
