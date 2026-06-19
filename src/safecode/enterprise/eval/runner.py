@@ -10,7 +10,9 @@ from pathlib import Path
 
 from safecode.enterprise.eval.cases import EvaluationCase, EvaluationResult
 from safecode.enterprise.eval.loader import discover_cases, load_case_file
+from safecode.enterprise.eval.prompt_injection import run_prompt_injection_evaluation
 from safecode.enterprise.eval.retrieval import run_retrieval_evaluation
+from safecode.enterprise.eval.tool_classification import run_tool_classification_evaluation
 from safecode.enterprise.trace.redaction import DEFAULT_TRACE_EXPORT_PROFILE
 from safecode.enterprise.workflow.contracts import NodeCost, RunCosts
 
@@ -63,6 +65,10 @@ def run_case(
                 notes="retrieval suite requires manifest_path",
             )
         return run_retrieval_evaluation(case, manifest_path, project_root)
+    if case.suite == "prompt_injection":
+        return run_prompt_injection_evaluation(case, project_root)
+    if case.suite == "tool_classification":
+        return run_tool_classification_evaluation(case, project_root)
     return EvaluationResult(
         case_id=case.case_id,
         suite=case.suite,
