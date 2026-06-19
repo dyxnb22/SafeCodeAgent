@@ -5,9 +5,9 @@
   "current": {
     "stage": "v1.6",
     "milestone": "v1.6.1",
-    "status": "ready",
+    "status": "in_progress",
     "active_task": null,
-    "next_delivery_task": "v1.6.1-T1"
+    "next_delivery_task": "v1.6.1-T2"
   },
   "stages": {
     "v1.0": "completed",
@@ -16,7 +16,7 @@
     "v1.3": "completed",
     "v1.4": "completed",
     "v1.5": "completed",
-    "v1.6": "ready",
+    "v1.6": "in_progress",
     "v1.7": "planned",
     "v1.8": "planned",
     "v1.9": "planned",
@@ -84,7 +84,8 @@
     {"id": "v1.5.2-T2", "completed_at": "2026-06-19", "evidence": "758af4c"},
     {"id": "v1.5.3-T1", "completed_at": "2026-06-19", "evidence": "00bbf11"},
     {"id": "v1.5.3-T2", "completed_at": "2026-06-19", "evidence": "e68b172"},
-    {"id": "v1.5.4-T1", "completed_at": "2026-06-19", "evidence": "ac1014f"}
+    {"id": "v1.5.4-T1", "completed_at": "2026-06-19", "evidence": "ac1014f"},
+    {"id": "v1.6.1-T1", "completed_at": "2026-06-19", "evidence": "28c143f"}
   ],
   "recent_maintenance": [
     {"id": "maintenance-agent-context-governance", "completed_at": "2026-06-18", "evidence": "77 governance tests and full regression: 5778 passed, 4 skipped"},
