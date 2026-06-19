@@ -31,7 +31,13 @@ async def run(state: EnterpriseRunState) -> NodePatch:
         "pr_fixture",
         "pr_live",
     }:
-        evidence = pr_review.collect_pull_request(repo_root, state.request.input_ref)
+        evidence = pr_review.collect_pull_request(
+            repo_root,
+            state.request.input_ref,
+            input_kind=state.request.input_kind,
+            extra=state.request.extra,
+            installation_id=state.request.extra.get("installation_id"),
+        )
         if evidence is None or not evidence.hunks:
             updates["missing_evidence"] = True
         else:

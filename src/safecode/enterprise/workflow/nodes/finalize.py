@@ -102,18 +102,43 @@ async def run(state: EnterpriseRunState) -> NodePatch:
         if state.request.input_kind == "pr_live":
             comment_proposals = [item for item in state.proposals if item.kind == "comment"]
             if comment_proposals:
-                consume_required_approval()
                 body = Path(comment_proposals[0].ref).read_text(encoding="utf-8")
+                owner = state.request.extra.get("owner")
+                repo = state.request.extra.get("repo")
+                pr_number_raw = state.request.extra.get("pr_number")
+                pr_number = int(pr_number_raw) if pr_number_raw and pr_number_raw.isdigit() else None
+                from safecode.enterprise.connectors.session import (
+                    get_github_access_token,
+                    get_github_transport,
+                )
+
+                access_token = get_github_access_token()
+                transport = get_github_transport()
+                governed_write = (
+                    access_token is not None
+                    and owner
+                    and repo
+                    and pr_number is not None
+                    and pr_number > 0
+                )
                 record = post_pr_comment(
                     sac_root=sac_root,
                     run_id=state.run_id,
                     node_name=NODE_NAME,
-                    spec=PRCommentWriteSpec(mode="live"),
+                    spec=PRCommentWriteSpec(
+                        mode="live",
+                        owner=owner,
+                        repo=repo,
+                        pr_number=pr_number,
+                    ),
                     body=body,
-                    approved=True,
+                    approved=not governed_write,
                     actor_id=state.actor_id,
                     tenant_id=state.tenant_id,
                     policy_snapshot_id=state.policy_snapshot_id,
+                    request_id=f"approval-{state.run_id}" if governed_write else None,
+                    access_token=access_token,
+                    transport=transport,
                 )
                 tool_calls.append(record)
         elif state.risk_tier in {RiskTier.high, RiskTier.critical}:

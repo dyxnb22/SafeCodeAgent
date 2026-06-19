@@ -72,7 +72,39 @@ def resolve_fixture_path(repo_root: Path, input_ref: str) -> tuple[Path, Path]:
     return candidate, project_root
 
 
-def collect_pull_request(repo_root: Path, input_ref: str) -> PullRequestEvidence | None:
+def collect_pull_request(
+    repo_root: Path,
+    input_ref: str,
+    *,
+    input_kind: str = "pr_fixture",
+    extra: dict[str, str] | None = None,
+    installation_id: str | None = None,
+) -> PullRequestEvidence | None:
+    from safecode.enterprise.connectors.session import get_github_access_token, get_github_transport
+
+    metadata = dict(extra or {})
+    if input_kind == "pr_live":
+        owner = metadata.get("owner", "").strip()
+        repo = metadata.get("repo", "").strip()
+        try:
+            pr_number = int(metadata.get("pr_number") or 0)
+        except ValueError:
+            pr_number = 0
+        if owner and repo and pr_number > 0:
+            try:
+                return fetch_pr(
+                    PullRequestConnectorSpec(
+                        mode="live",
+                        owner=owner,
+                        repo=repo,
+                        pr_number=pr_number,
+                        installation_id=installation_id,
+                    ),
+                    access_token=get_github_access_token(),
+                    transport=get_github_transport(),
+                )
+            except Exception:
+                return None
     try:
         fixture_path, project_root = resolve_fixture_path(repo_root, input_ref)
     except (FileNotFoundError, ValueError):

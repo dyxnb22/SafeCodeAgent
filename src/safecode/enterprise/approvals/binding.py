@@ -6,6 +6,7 @@ import hashlib
 from pathlib import Path
 
 from safecode.enterprise.approvals.store import Action
+from safecode.enterprise.connectors.github_pr_write import comment_approval_target
 from safecode.enterprise.workflow.state import EnterpriseRunState, Proposal
 from safecode.enterprise.workflow.types import TaskType
 
@@ -28,6 +29,21 @@ def workflow_approval_binding(state: EnterpriseRunState) -> tuple[Action, dict[s
     elif state.task_type == TaskType.pr_review and state.request.input_kind == "pr_live":
         action = Action.github_write_comment
         proposal = next((item for item in state.proposals if item.kind == "comment"), None)
+        if proposal is not None and proposal.ref:
+            body = Path(proposal.ref).read_text(encoding="utf-8")
+            owner = state.request.extra.get("owner", "")
+            repo = state.request.extra.get("repo", "")
+            try:
+                pr_number = int(state.request.extra.get("pr_number") or 0)
+            except ValueError:
+                pr_number = 0
+            if owner and repo and pr_number > 0:
+                return action, comment_approval_target(
+                    owner=owner,
+                    repo=repo,
+                    pr_number=pr_number,
+                    body=body,
+                )
     else:
         action = Action.file_write
         proposal = next(iter(state.proposals), None)
