@@ -11,6 +11,8 @@ from safecode.enterprise.rag.ids import stable_citation_id
 from safecode.enterprise.rag.lexical import score_chunks as lexical_scores
 from safecode.enterprise.rag.models import Chunk, Citation
 from safecode.enterprise.rag.permission_scope import actor_can_access_chunk
+from safecode.enterprise.rag.query_rewrite import rewrite_query
+from safecode.enterprise.rag.reranker import RerankCandidate, query_terms, rerank_candidates
 from safecode.enterprise.rag.semantic import DeterministicEmbeddingBackend, score_chunks as semantic_scores
 from safecode.enterprise.rag.source_registry import SourceType
 from safecode.enterprise.rag.vector_store import KnowledgeVectorStore
@@ -38,6 +40,7 @@ class HybridRetriever:
     embedding_backend: EmbeddingBackend = field(default_factory=DeterministicEmbeddingBackend)
     vector_store: KnowledgeVectorStore | None = None
     actor_tenant: str = "local"
+    use_reranker: bool = False
     denied_events: list[dict[str, str]] = field(default_factory=list)
 
     @classmethod
@@ -71,34 +74,58 @@ class HybridRetriever:
         effective_tenant = actor_tenant if actor_tenant is not None else self.actor_tenant
         if self.vector_store is not None:
             self.chunks = self.vector_store.list_chunks(effective_tenant)
+        rewritten = rewrite_query(query)
         allowed = self._filter_candidates(actor_scope, effective_tenant, filters)
         if not allowed:
             return []
 
-        lex = lexical_scores(query, allowed)
+        lex = lexical_scores(rewritten, allowed)
         if self.vector_store is not None:
             sem = self.vector_store.semantic_scores(
                 self.actor_tenant,
-                query,
+                rewritten,
                 [chunk.chunk_id for chunk in allowed],
                 backend=self.embedding_backend,
             )
         else:
-            sem = semantic_scores(query, allowed, backend=self.embedding_backend)
-        ranked: list[tuple[float, Chunk, str]] = []
+            sem = semantic_scores(rewritten, allowed, backend=self.embedding_backend)
+        ranked: list[tuple[float, Chunk, str, float, float]] = []
         for chunk in allowed:
             combined = (self.lexical_weight * lex.get(chunk.chunk_id, 0.0)) + (
                 self.semantic_weight * sem.get(chunk.chunk_id, 0.0)
             )
-            reason = (
-                f"lex={lex.get(chunk.chunk_id, 0.0):.2f},"
-                f"sem={sem.get(chunk.chunk_id, 0.0):.2f}"
-            )
-            ranked.append((combined, chunk, reason))
+            lex_score = lex.get(chunk.chunk_id, 0.0)
+            sem_score = sem.get(chunk.chunk_id, 0.0)
+            reason = f"lex={lex_score:.2f},sem={sem_score:.2f}"
+            ranked.append((combined, chunk, reason, lex_score, sem_score))
 
-        ranked.sort(key=lambda item: (-item[0], item[1].path, item[1].start_line, item[1].chunk_id))
+        if self.use_reranker:
+            candidates = [
+                RerankCandidate(
+                    chunk=chunk,
+                    base_score=score,
+                    lexical_score=lex_score,
+                    semantic_score=sem_score,
+                )
+                for score, chunk, _, lex_score, sem_score in ranked
+            ]
+            reranked = rerank_candidates(candidates, query_terms=query_terms(rewritten))
+            ranked = [
+                (
+                    (self.lexical_weight * item.lexical_score)
+                    + (self.semantic_weight * item.semantic_score),
+                    item.chunk,
+                    f"lex={item.lexical_score:.2f},sem={item.semantic_score:.2f},rerank=1",
+                    item.lexical_score,
+                    item.semantic_score,
+                )
+                for item in reranked
+            ]
+        else:
+            ranked.sort(key=lambda item: (-item[0], item[1].path, item[1].start_line, item[1].chunk_id))
+
         citations: list[Citation] = []
-        for score, chunk, reason in ranked[:k]:
+        for score, chunk, reason, _, _ in ranked[:k]:
             excerpt = redact_secrets(chunk.text)[:_MAX_EXCERPT_CHARS]
             if len(chunk.text) > _MAX_EXCERPT_CHARS:
                 excerpt += "…"
