@@ -1,0 +1,65 @@
+# v2.1 Team Server development profile (D31)
+#
+# Loopback-bound API, disposable PostgreSQL, and a worker process.
+# Development credentials only — not a production deployment contract.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    env_file:
+      - compose/enterprise.dev.env
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+    tmpfs:
+      - /var/lib/postgresql/data
+
+  api:
+    image: python:3.12-slim
+    working_dir: /app
+    env_file:
+      - compose/enterprise.dev.env
+    volumes:
+      - .:/app:ro
+      - enterprise-artifacts:/var/lib/safecode
+    command: >
+      sh -c "pip install -q -e '.[team-server]' &&
+             python -m safecode.enterprise.api.server"
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/healthz')\"",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  worker:
+    image: python:3.12-slim
+    working_dir: /app
+    env_file:
+      - compose/enterprise.dev.env
+    volumes:
+      - .:/app:ro
+      - enterprise-artifacts:/var/lib/safecode
+    command: >
+      sh -c "pip install -q -e '.[team-server]' &&
+             python -m safecode.enterprise.worker.serve"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+
+volumes:
+  enterprise-artifacts:

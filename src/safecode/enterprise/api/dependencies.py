@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Callable
 
-from safecode.enterprise.api.exceptions import TeamServerDependencyError
+from safecode.enterprise.api.exceptions import SettingsValidationError, TeamServerDependencyError
 from safecode.enterprise.api.settings import RuntimeMode, TeamServerSettings
-from safecode.enterprise.auth.oidc import OidcValidator, TokenValidationError
+from safecode.enterprise.auth.oidc import OidcValidator, TokenValidationError, build_oidc_validator
 from safecode.enterprise.auth.subject import SubjectMappingError, map_claims_to_subject
 from safecode.enterprise.rbac.models import RBACSubject
 
@@ -80,6 +81,22 @@ def fail_closed_subject_resolver(settings: TeamServerSettings) -> SubjectResolve
         return RBACSubject(actor_id=actor, tenant_id="local")
 
     return _resolve
+
+
+def build_oidc_validator_from_settings(settings: TeamServerSettings) -> OidcValidator:
+    if not settings.oidc_issuer or not settings.oidc_audience:
+        raise SettingsValidationError("server mode requires oidc_issuer and oidc_audience")
+    if not settings.oidc_jwks_path:
+        raise SettingsValidationError("server mode requires oidc_jwks_path until discovery fetch is wired")
+    jwks_path = Path(settings.oidc_jwks_path)
+    if not jwks_path.is_file():
+        raise SettingsValidationError(f"oidc jwks file not found: {jwks_path}")
+    jwks = json.loads(jwks_path.read_text(encoding="utf-8"))
+    return build_oidc_validator(
+        issuer=settings.oidc_issuer,
+        audience=settings.oidc_audience,
+        jwks=jwks,
+    )
 
 
 def resolve_subject(

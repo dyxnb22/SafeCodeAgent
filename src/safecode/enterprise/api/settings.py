@@ -22,6 +22,7 @@ DOCUMENTED_ENV_VARS: Final[tuple[str, ...]] = (
     f"{ENV_PREFIX}DATABASE_URL",
     f"{ENV_PREFIX}OIDC_ISSUER",
     f"{ENV_PREFIX}OIDC_AUDIENCE",
+    f"{ENV_PREFIX}OIDC_JWKS_PATH",
     f"{ENV_PREFIX}API_HOST",
     f"{ENV_PREFIX}API_PORT",
     f"{ENV_PREFIX}SERVER_URL",
@@ -38,12 +39,13 @@ class TeamServerSettings(BaseModel):
     database_url: SecretStr | None = None
     oidc_issuer: str | None = None
     oidc_audience: str | None = None
+    oidc_jwks_path: str | None = None
     api_host: str = "127.0.0.1"
     api_port: int = Field(default=8080, ge=1, le=65535)
     server_url: str | None = None
     operator_actor: str | None = None
 
-    @field_validator("oidc_issuer", "oidc_audience", "server_url", "operator_actor")
+    @field_validator("oidc_issuer", "oidc_audience", "oidc_jwks_path", "server_url", "operator_actor")
     @classmethod
     def _strip_optional_strings(cls, value: str | None) -> str | None:
         if value is None:
@@ -79,6 +81,7 @@ class TeamServerSettings(BaseModel):
             f"database_url={self._secret_repr(self.database_url)}, "
             f"oidc_issuer={self.oidc_issuer!r}, "
             f"oidc_audience={self.oidc_audience!r}, "
+            f"oidc_jwks_path={self.oidc_jwks_path!r}, "
             f"api_host={self.api_host!r}, "
             f"api_port={self.api_port}, "
             f"server_url={self.server_url!r}, "
@@ -129,6 +132,7 @@ def load_team_server_settings_from_env() -> TeamServerSettings:
         database_url: SecretStr | None = None
         oidc_issuer: str | None = None
         oidc_audience: str | None = None
+        oidc_jwks_path: str | None = None
         api_host: str = "127.0.0.1"
         api_port: int = Field(default=8080, ge=1, le=65535)
         server_url: str | None = None

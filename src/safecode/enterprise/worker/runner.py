@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from safecode.enterprise.persistence.local_backend import LocalBackend
+from safecode.enterprise.persistence.postgres.backend import PostgresBackend
 from safecode.enterprise.worker.lease import LocalRunLeaseStore, RunLeaseStore
 from safecode.enterprise.worker.models import QueueJob
 from safecode.enterprise.worker.queue import CommandQueue, LocalCommandQueue
@@ -16,23 +17,32 @@ from safecode.enterprise.workflow.orchestrator import LocalOrchestrator
 from safecode.enterprise.workflow.types import WorkflowStatus
 
 
-def lease_store_for(backend: LocalBackend) -> RunLeaseStore:
+PersistenceBackend = LocalBackend | PostgresBackend
+
+
+def _artifacts_root(backend: PersistenceBackend) -> Path:
+    if isinstance(backend, LocalBackend):
+        return backend.sac_root
+    return backend.artifacts_root
+
+
+def lease_store_for(backend: PersistenceBackend) -> RunLeaseStore:
     store = getattr(backend, "leases", None)
     if store is not None:
         return store
-    return LocalRunLeaseStore(backend.sac_root)
+    return LocalRunLeaseStore(_artifacts_root(backend))
 
 
-def command_queue_for_backend(backend: LocalBackend) -> CommandQueue:
+def command_queue_for_backend(backend: PersistenceBackend) -> CommandQueue:
     queue = getattr(backend, "commands", None)
     if queue is not None:
         return queue
-    return LocalCommandQueue(backend.sac_root)
+    return LocalCommandQueue(_artifacts_root(backend))
 
 
 @dataclass(frozen=True)
 class WorkerRunner:
-    backend: LocalBackend
+    backend: PersistenceBackend
     worker_id: str
     project_root: Path
     lease_ttl_seconds: int = 30
@@ -87,7 +97,7 @@ class WorkerRunner:
         if checkpoint.state.status is WorkflowStatus.cancelled:
             return
         orchestrator = LocalOrchestrator(
-            self.backend.sac_root,
+            _artifacts_root(self.backend),
             runtime="local",
             backend=self.backend,
         )
@@ -108,7 +118,7 @@ class WorkerRunner:
         raise ValueError(f"unsupported queue command: {job.command}")
 
     def heartbeat_active_leases(self) -> int:
-        root = self.backend.sac_root / "enterprise" / "worker" / "leases"
+        root = _artifacts_root(self.backend) / "enterprise" / "worker" / "leases"
         if not root.is_dir():
             return 0
         refreshed = 0

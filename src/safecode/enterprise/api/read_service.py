@@ -33,8 +33,9 @@ class RunSummaryView:
 
 
 def artifacts_root(backend: PersistenceBackend) -> Path:
-    if isinstance(backend, LocalBackend):
-        return backend.sac_root
+    sac_root = getattr(backend, "sac_root", None)
+    if sac_root is not None:
+        return sac_root
     return backend.artifacts_root
 
 

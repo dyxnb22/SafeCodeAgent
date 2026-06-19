@@ -17,5 +17,6 @@ pytest-report*.xml
 
 # SafeCode Agent runtime state for the current working project.
 .sac/
+compose/enterprise.dev.env
 !examples/fastapi-todo/.sac/
 !examples/fastapi-todo/.sac/project_profile.json

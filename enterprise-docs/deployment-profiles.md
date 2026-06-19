@@ -93,6 +93,46 @@ Compose file: `compose/postgres-integration.yaml` (loopback-bound, tmpfs data).
 
 ---
 
+## Profile 2b — Team Server Compose Development (v2.1.7)
+
+### Components
+
+- `compose.enterprise.yaml` — loopback-bound API, worker, and PostgreSQL
+- `scripts/run-enterprise-dev.sh` — creates `compose/enterprise.dev.env` from
+  the example file and boots the stack
+- `examples/enterprise/dev/jwks.json` — public JWKS for the development issuer
+- `scripts/issue-dev-token.py` — prints a disposable bearer token for server
+  mode CLI/API calls
+
+### Security posture
+
+- API and PostgreSQL bind to `127.0.0.1` only
+- Development credentials live in `compose/enterprise.dev.env` (gitignored)
+- No Docker socket mounts; no committed production secrets
+- Server mode rejects CLI `--actor`; identity comes from validated bearer tokens
+
+### Upgrade and rollback rehearsal
+
+1. Boot a fresh stack: `./scripts/run-enterprise-dev.sh`
+2. Verify probes: `curl -fsS http://127.0.0.1:8080/healthz`
+3. Run authenticated integration tests against the offline fake lane
+4. Roll back by discarding volumes: `docker compose -f compose.enterprise.yaml down -v`
+5. Local single-user mode remains the fallback operator path
+
+Schema apply uses the same forward-only migrations as the PostgreSQL integration
+lane (`001_initial.sql`, `002_worker_queue.sql`, `003_run_leases.sql`). Moving
+from local `.sac/` artifacts to PostgreSQL is a manual export/import outside the
+v2.1.7 scope; the rehearsal validates schema apply and service health on disposable
+volumes.
+
+### Dependencies
+
+- Docker with Compose v2
+- Python 3.11+ with the `team-server` optional extra
+- Loopback access to ports `8080` and `5432`
+
+---
+
 ## Profile 3 — On-Prem Hybrid
 
 ### Components
