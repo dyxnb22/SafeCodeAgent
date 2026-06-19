@@ -36,6 +36,7 @@ _OWNED_TABLES = (
     "webhook_events",
     "knowledge_chunks",
     "knowledge_vectors",
+    "memory_facts",
 )
 
 
