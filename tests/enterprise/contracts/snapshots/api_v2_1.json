@@ -1,0 +1,90 @@
+{
+  "cli_server_controls": {
+    "env_vars": [
+      "SAFECODE_ENTERPRISE_TOKEN"
+    ],
+    "flags": [
+      "--server-url",
+      "--token-stdin"
+    ],
+    "rejected_flags_in_server_mode": [
+      "--actor"
+    ]
+  },
+  "contract": "TeamServerV2_1",
+  "contract_status": "planned",
+  "http_error_content_type": "application/problem+json",
+  "openapi_digest": "c4b83c0ee912a8b01d53076cd7c822b9ec159a6142f80df1f4e57dcde91a7141",
+  "operation_ids": [
+    "cancelRun",
+    "decideApproval",
+    "exportEvidence",
+    "getHealthz",
+    "getReadyz",
+    "getRun",
+    "getRunTimeline",
+    "getRunTrace",
+    "getVersion",
+    "ingestCiCallback",
+    "ingestGithubWebhook",
+    "listApprovals",
+    "listEvalBaselines",
+    "listRuns",
+    "resumeRun",
+    "revokeApprovalGrant",
+    "startRun"
+  ],
+  "problem_details": {
+    "additional_properties": false,
+    "detail_max_length": 512,
+    "property_names": [
+      "detail",
+      "instance",
+      "status",
+      "tenant_id",
+      "title",
+      "type"
+    ],
+    "required_fields": [
+      "status",
+      "title",
+      "type"
+    ]
+  },
+  "run_statuses": [
+    "awaiting_approval",
+    "blocked",
+    "cancelled",
+    "failed",
+    "pending",
+    "rejected",
+    "running",
+    "succeeded"
+  ],
+  "run_statuses_match_openapi": true,
+  "security_response_status_codes": [
+    "401",
+    "403",
+    "404",
+    "409",
+    "503"
+  ],
+  "service_plane_paths": [
+    "/healthz",
+    "/readyz",
+    "/version",
+    "/v2/runs",
+    "/v2/runs/{run_id}",
+    "/v2/runs/{run_id}/resume",
+    "/v2/runs/{run_id}/cancel",
+    "/v2/runs/{run_id}/timeline",
+    "/v2/runs/{run_id}/trace",
+    "/v2/approvals",
+    "/v2/approvals/{approval_id}/decide",
+    "/v2/approvals/{approval_id}/revoke",
+    "/v2/evidence/{run_id}",
+    "/v2/eval/baselines",
+    "/v2/webhooks/github",
+    "/v2/ci/callback"
+  ]
+}
