@@ -14,7 +14,7 @@ EXAMPLE = ROOT / "examples" / "fastapi-todo"
 def test_required_files_exist() -> None:
     required = [
         "pyproject.toml",
-        ".sac/project_profile.json",
+        "fixtures/project_profile.json",
         "src/todo_api/__init__.py",
         "src/todo_api/app.py",
         "src/todo_api/store.py",
@@ -27,7 +27,9 @@ def test_required_files_exist() -> None:
 
 
 def test_project_profile_is_valid_and_has_deterministic_test_command() -> None:
-    profile = json.loads((EXAMPLE / ".sac" / "project_profile.json").read_text(encoding="utf-8"))
+    profile = json.loads(
+        (EXAMPLE / "fixtures" / "project_profile.json").read_text(encoding="utf-8")
+    )
 
     assert profile["name"] == "fastapi-todo"
     assert profile["stack"] == "python"

@@ -196,6 +196,7 @@
     {"id": "v3.4.4-T1", "completed_at": "2026-06-19", "evidence": "90ffe69d"}
   ],
   "recent_maintenance": [
+    {"id": "maintenance-r4-audit-remediation-closeout", "completed_at": "2026-06-19", "evidence": "R1-R3 findings remediated; enterprise 817 passed, 21 skipped; full regression 6569 passed, 25 skipped; v3.0 external gates remain pending"},
     {"id": "maintenance-portfolio-v3.4-final-closeout", "completed_at": "2026-06-19", "evidence": "v3.3.1-T1..v3.4.4-T1 delivered; portfolio_track completed; v3.0 GA blockers G1/G2/G3 remain pending"},
     {"id": "maintenance-post-ga-portfolio-planning", "completed_at": "2026-06-19", "evidence": "Added v3.1-v3.4 portfolio roadmap, backlog, acceptance, external gates, and portfolio_track planning state; v3.0 GA blockers remain pending"},
     {"id": "maintenance-v2.5-production-hardening-closeout", "completed_at": "2026-06-19", "evidence": "v2.5.1..v2.5.6 delivered; 6342 passed excluding postgres_integration; full regression closeout"},
@@ -204,8 +205,7 @@
     {"id": "maintenance-v2.1.2-v2.1.3-closeout", "completed_at": "2026-06-19", "evidence": "strict fake + postgres integration compose; caller routing through backends; 6111 passed excluding postgres_integration"},
     {"id": "maintenance-v1.1-regression-cleanup", "completed_at": "2026-06-19", "evidence": "Reported 4 regressions independently passed; full regression: 5818 passed, 4 skipped"},
     {"id": "maintenance-v1.2-closeout-cleanup", "completed_at": "2026-06-19", "evidence": "uv lock verified with enterprise extra; full regression: 5870 passed, 5 skipped"},
-    {"id": "maintenance-v1.3-v1.4-security-closeout", "completed_at": "2026-06-19", "evidence": "Missing PR fixture now marks evidence missing; CLI supports both declared and baseline Typer environments; full regression: 5932 passed, 5 skipped"},
-    {"id": "maintenance-v2.0-reviewed-security-closeout", "completed_at": "2026-06-19", "evidence": "3b182f6; exact approval/grant binding, tenant-safe trace/evidence, fail-closed remediation validation; full regression: 6012 passed, 5 skipped"}
+    {"id": "maintenance-v1.3-v1.4-security-closeout", "completed_at": "2026-06-19", "evidence": "Missing PR fixture now marks evidence missing; CLI supports both declared and baseline Typer environments; full regression: 5932 passed, 5 skipped"}
   ],
   "blockers": [
     "Independent security reviewer signature is required before GA promotion.",
@@ -216,7 +216,7 @@
   "last_verification": {
     "recorded_at": "2026-06-19",
     "command": "PYTHONPATH=src python3 -m pytest -q",
-    "result": "6421 passed, 29 skipped",
-    "scope": "portfolio v3.4 final closeout; enterprise GA external gates G1/G2/G3 pending"
+    "result": "6569 passed, 25 skipped",
+    "scope": "R4 audit remediation closeout; enterprise 817 passed, 21 skipped; enterprise GA external gates G1/G2/G3 pending"
   }
 }

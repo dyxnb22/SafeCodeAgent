@@ -29,6 +29,18 @@ LEGACY_CLAUDE_POLICY_FILES = (
 
 FORBIDDEN_TEST_DIRECTORIES = {"temp", "debug", "scratch", "generated"}
 FORBIDDEN_DOC_DIRECTORIES = {"worklog", "evidence"}
+FORBIDDEN_TRACKED_DIRECTORY_NAMES = {
+    ".mypy_cache",
+    ".next",
+    ".pytest_cache",
+    ".ruff_cache",
+    "__pycache__",
+    "build",
+    "coverage",
+    "dist",
+    "htmlcov",
+    "node_modules",
+}
 FORBIDDEN_TRACKED_SUFFIXES = {
     ".bak",
     ".log",
@@ -39,7 +51,9 @@ FORBIDDEN_TRACKED_SUFFIXES = {
 }
 FORBIDDEN_TRACKED_FILENAMES = {
     ".coverage",
+    ".DS_Store",
     "coverage.xml",
+    "tsconfig.tsbuildinfo",
 }
 
 
@@ -247,6 +261,14 @@ def test_temporary_outputs_are_not_tracked() -> None:
 
         if path.name in FORBIDDEN_TRACKED_FILENAMES:
             violations.append(raw_path)
+        elif any(part in FORBIDDEN_TRACKED_DIRECTORY_NAMES for part in parts[:-1]):
+            violations.append(raw_path)
+        elif (
+            path.name == ".env"
+            or path.name.endswith(".env")
+            or (path.name.startswith(".env.") and not path.name.endswith(".example"))
+        ):
+            violations.append(raw_path)
         elif path.suffix.lower() in FORBIDDEN_TRACKED_SUFFIXES:
             violations.append(raw_path)
         elif parts and parts[0] == "tests" and any(
@@ -259,3 +281,23 @@ def test_temporary_outputs_are_not_tracked() -> None:
             violations.append(raw_path)
 
     assert not violations, f"temporary artifacts are tracked: {violations}"
+
+
+@pytest.mark.subprocess
+def test_no_tracked_sac_runtime_paths() -> None:
+    """Runtime .sac/ trees must not be committed; use fixtures/ for example seeds."""
+    result = subprocess.run(
+        ["git", "ls-files", "-z"],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    tracked_sac = [
+        raw_path
+        for raw_path in result.stdout.split("\0")
+        if raw_path and "/.sac/" in f"/{raw_path}/"
+    ]
+
+    assert not tracked_sac, f"tracked .sac runtime paths: {tracked_sac}"
