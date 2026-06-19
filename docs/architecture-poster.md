@@ -98,7 +98,10 @@ flowchart TB
 2. **Retrieved content is untrusted input.** RAG preserves source identity;
    prompt-injection cases are in eval suites.
 3. **Tenant and RBAC boundaries** apply to API, persistence, and trace export.
-4. **Audit is append-only** with hash-chain verification before evidence export.
+4. **Audit is append-only** with hash-chain verification before standalone
+   evidence export.
+5. **Console safety display is truthful:** timeline safety invariants render as
+   `not verified` unless the API supplies explicit proof.
 
 ---
 
@@ -107,6 +110,7 @@ flowchart TB
 ```text
 sac demo pr-review --offline
   → examples/enterprise/fixtures/pr_sql_injection/
+  → temporary workspace (default; no persistent repo-root .sac mutation)
   → workflow nodes + citations + approval refusal
   → transcript snapshot examples/enterprise/demos/v3.2/transcripts/pr-review.txt
 ```

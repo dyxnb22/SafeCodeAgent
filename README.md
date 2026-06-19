@@ -48,9 +48,11 @@ uv run sac demo --list
 uv run sac demo pr-review --offline
 ```
 
-The demo uses `examples/enterprise/fixtures/pr_sql_injection/` and writes
-disposable state under your project `.sac` directory only when run from that
-root.
+The demo uses `examples/enterprise/fixtures/pr_sql_injection/`. By default it
+runs in a disposable temporary workspace and does **not** write persistent state
+under the repository root `.sac`. Use
+`uv run sac demo pr-review --offline --output-dir <path>` only when you
+intentionally want to keep run artifacts.
 
 ---
 
@@ -116,16 +118,24 @@ Release notes (candidate, not GA approved):
 
 ## Tests
 
-Closest offline verification:
+Reproduce verification locally. Use command exit status and captured CI
+artifacts for the exact commit as evidence; suite growth and optional-dependency
+skips make counts copied into prose stale:
 
 ```bash
 PYTHONPATH=src python3 -m pytest tests/enterprise -q
+PYTHONPATH=src python3 -m pytest tests/enterprise/cli/test_demo_command.py -q
+PYTHONPATH=src python3 -m pytest tests/enterprise/test_no_false_ga_claims.py -q
+```
+
+Optional full regression (longer):
+
+```bash
 PYTHONPATH=src python3 -m pytest -q
 ```
 
-**Last local verification (2026-06-19):** enterprise suite
-`671 passed, 23 skipped`; full regression `6421 passed, 29 skipped`.
-Counts are manually recorded from local runs, not CI badges.
+Portfolio docs/link hygiene tests live under `tests/enterprise/` (false-GA
+claims, README links, documentation path references).
 
 ---
 

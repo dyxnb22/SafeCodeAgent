@@ -1,6 +1,9 @@
 # Interview Master Narrative
 
-**Implementation status (v1.9):** Executable contracts through v1.9 are implemented; see `.agents/context/progress.json` for live stage state.
+**Implementation status (portfolio v3.4.4 / enterprise v3.0 candidate):**
+Portfolio presentation track is complete. Enterprise `v3.0` remains **blocked**
+on external GA gates G1/G2/G3 (see `enterprise-docs/security/external-gates.md`).
+Live state: `.agents/context/progress.json`.
 This is the structured material to draw from in interviews about
 SafeCodeAgent Enterprise. It is not a script. Each section gives
 the talking-point framing, the engineering detail to support it,
@@ -39,7 +42,7 @@ A reviewer should leave the minute knowing three things:
 ## Architecture in Sixty Seconds
 
 ```
-Interface (CLI) → Workflow (LangGraph) → Nodes (typed Pydantic)
+Interface (CLI / API / Console) → Workflow (local; optional LangGraph) → Typed nodes
                                 ↘ RAG (permission-aware) ↗
                                 ↘ Tools / MCP / Scanner Connectors ↗
                                 ↘ Governance (Policy, RBAC, Approval) ↗
@@ -49,18 +52,21 @@ Interface (CLI) → Workflow (LangGraph) → Nodes (typed Pydantic)
 
 Talking points:
 
-- The interface is intentionally CLI-first; the trace and dashboard
-  are Markdown today and HTML/static next, and a web UI is *not* a
-  prerequisite.
-- The workflow is a state machine with checkpoints and resume, not
-  a free-form agent loop.
+- The interface is CLI-first, with a Team Server `/v2` API and an implemented
+  Next.js operator console under `console/` (run inspection, approval decisions,
+  eval baselines, and read-only evidence download). CLI `trace show` and
+  Markdown exports remain the schema-stable presentation path.
+- The workflow is a state machine with checkpoints and resume (CLI resume
+  requires `--tenant` or explicit `--allow-tenant-infer`), not a free-form
+  agent loop.
 - Tools are local *code* contracts; MCP server-claimed metadata is
   ignored for security decisions.
 - The audit and approval primitives existed in the original
   SafeCodeAgent; the new layer is governance, RAG grounding, and
   workflow.
 
-Reference: `enterprise-docs/system-architecture-v1.md`.
+Reference: `enterprise-docs/platform-architecture-v2.md`,
+`enterprise-docs/system-architecture-v1.md`.
 
 ---
 
@@ -237,9 +243,9 @@ Approvals are first-class objects, not modal dialogs.
   writes state and exits.
 - The CLI inbox: `sac enterprise approval
   list/show/approve/reject/request-evidence/revoke`.
-- Approvals can be: approve, reject, request more evidence, edit
-  plan constraints (via a follow-up workflow run), or partial
-  approve (a subset of proposals).
+- Approval requests can be approved, rejected, moved to evidence-requested, or
+  revoked. Plan-constraint changes require a follow-up workflow run; partial
+  approval of a proposal subset is not implemented.
 - A grant is single-use; resuming with a changed policy snapshot
   revokes it automatically.
 
@@ -277,21 +283,28 @@ Reference: `enterprise-docs/evaluation-plan.md`.
 
 ## How Observability Is Done
 
-- Every run emits a `trace.jsonl`.
-- The orchestrator builds a `timeline.json` from trace + state +
-  approvals.
-- The Markdown dashboard is the default presentation; static HTML
-  comes later; a web UI is *not* a prerequisite.
+- Local runs emit `trace.jsonl`; Team Server mode persists equivalent typed
+  trace events through its backend.
+- Timeline views are derived from trace, workflow state, and approvals; local
+  export can materialize `timeline.json`.
+- Operators can inspect runs via CLI (`sac enterprise trace show <run_id>`),
+  Markdown export, or the Next.js console (`console/`) against the Team
+  Server API.
+- Console safety invariants are **not** defaulted to verified: missing API
+  evidence renders as `not verified` rather than green checks.
 - Strict redaction is the default for export. Raw prompts and
   full file contents never appear unless a policy unlock plus an
   approval grant it.
-- The compliance evidence exporter zips a redacted bundle the
-  hash chain can verify.
+- Standalone compliance evidence export zips a redacted bundle the
+  hash chain can verify. The `compliance_export` **workflow task** is
+  fail-closed until a first-class workflow exists.
 
-A reviewer can run `sac enterprise trace show <run_id>` after a
-demo and see exactly what happened.
+A reviewer can run `sac demo pr-review --offline` or
+`sac enterprise trace show <run_id>` after a workflow demo and see what
+happened without live providers.
 
-Reference: `enterprise-docs/agentops-observability-plan.md`.
+Reference: `enterprise-docs/agentops-observability-plan.md`,
+`docs/architecture-poster.md`.
 
 ---
 
@@ -301,14 +314,41 @@ Reference: `enterprise-docs/agentops-observability-plan.md`.
 |----------|-----------|
 | Workflow first, autonomy second | Less flashy "watch the agent run" demos, but resumable and auditable. |
 | LangGraph optional | A dependency to manage; offset by an in-process orchestrator for tests. |
-| Local-first storage (file + SQLite) | No "wow" service architecture; offset by every MVP demo running on a laptop. |
+| Local and Team Server backends | More backend contract tests; offset by laptop demos plus PostgreSQL-backed team operation. |
 | Approval engine in the critical path | More user friction; offset by zero unauthorized writes by construction. |
 | Hand-rolled BM25-ish scorer | Lower retrieval ceiling early; offset by no extra dependency and a clear upgrade path. |
 | MCP server metadata ignored | Slightly more configuration work; offset by adversarial-eval-proven safety. |
 | Strict redaction default | More boilerplate to enable debug; offset by safe sharing of every artifact. |
 | Multi-agent only when output schemas differ | Less "lots of agents" theater; offset by less wasted tokens and fewer race conditions. |
 | Live provider not in CI | Manual smoke pass to confirm; offset by deterministic CI that does not flake on rate limits. |
-| Markdown dashboard before web UI | UI does not look glossy; offset by the schema being the contract, not the rendering. |
+| Console before polish | Operator UI supports reads and approval decisions but not run creation; safety invariants stay unknown without backend proof. |
+
+---
+
+## Console Walkthrough (Optional, 2–3 minutes)
+
+The operator console is implemented without workflow-run creation. It supports
+tenant-scoped run lists, run detail timelines, approval decisions, eval
+summaries, and evidence bundle download.
+
+```text
+./scripts/run-enterprise-dev.sh
+cd console && npm ci
+NEXT_PUBLIC_SAC_API_BASE_URL=http://127.0.0.1:8080 npm run dev
+# Sign in with a dev bearer token whose claims include the target tenant.
+# Routes: /t/<tenantId>/runs, /t/<tenantId>/approvals, /t/<tenantId>/eval
+```
+
+Limitations to state honestly:
+
+- No console button starts a new workflow run; CLI/API remain the run-creation
+  path. Approval decisions are governed Console writes through the API.
+- Safety invariant rows show `not verified` unless the API returns explicit
+  proof (Batch 1B truthfulness fix).
+- Enterprise GA external gates G1/G2/G3 remain pending; the console is portfolio
+  evidence, not production sign-off.
+
+Reference: `console/`, `examples/enterprise/demos/v2.3/console_demo.md`.
 
 ---
 
@@ -330,9 +370,10 @@ $ sac enterprise workflow run \
 [trace] validate -> skipped (report-only)
 [trace] approval_gate -> awaiting approval
 
-$ sac enterprise approval show approval-...
-$ sac enterprise approval approve approval-... --note "verified by AppSec"
-$ sac enterprise workflow run --resume run-...
+$ sac enterprise approval show run-... approval-...
+$ sac enterprise approval approve run-... approval-... \
+    --actor user:appsec --note "verified by AppSec"
+$ sac enterprise workflow resume run-... --tenant local
 [trace] approval_gate -> grant consumed
 [trace] propose: pr_comment_post executed (fixture mode = local file)
 [trace] finalize -> report.md
@@ -364,9 +405,10 @@ $ sac enterprise workflow run \
 [trace] validate_pre_apply -> tests pass
 [trace] approval_gate -> awaiting approval
 
-$ sac enterprise approval approve approval-... --note "minimal fix"
+$ sac enterprise approval approve run-... approval-... \
+    --actor user:appsec --note "minimal fix"
 
-$ sac enterprise workflow run --resume run-...
+$ sac enterprise workflow resume run-... --tenant local
 [trace] checkpoint
 [trace] apply_patch -> 1 file
 [trace] validate_post_apply -> tests pass; scanner re-run: finding cleared
@@ -437,7 +479,7 @@ What is new for Enterprise:
 - The compliance evidence exporter.
 - The role-based approval inbox.
 - The eval suites (retrieval, prompt injection, tool
-  classification, PR review, remediation, compliance export).
+  classification, PR review, remediation) plus standalone evidence export.
 
 ---
 
@@ -465,7 +507,7 @@ trends from two years ago:
 - **Audit logs** are a hash chain with external anchors, not
   ad-hoc JSON.
 - **AgentOps observability** ships locally first: trace JSON,
-  Markdown dashboard, evidence exporter.
+  CLI/console views, standalone evidence exporter.
 - **Evaluation** is part of release evidence, with safety-critical
   ratchets.
 - **CI/CD** runs the deterministic lane on every PR.
@@ -483,23 +525,20 @@ That is the shape of enterprise agent work I expect to be doing in
 
 If a reviewer is sitting next to me, this is the path I take:
 
-1. Open `product-planning/version-roadmap.md`. Show the stage
-   list, then drill into `v1.1.x` to demonstrate the level of
-   detail.
-2. Open `enterprise-docs/system-architecture-v1.md`. Walk the
-   mermaid diagram.
-3. Open `enterprise-docs/security-governance-plan.md`. Read out
-   the action matrix.
-4. Open `enterprise-docs/workflow-design.md`. Walk the PR review
-   sub-graph.
-5. Run the PR review demo (Flow A above).
-6. Run `sac enterprise trace show <run_id>` and walk the
-   dashboard.
-7. Run `pytest tests/enterprise/eval -q` to show the suite.
-8. Open the eval baseline file and explain the ratchet.
+1. Open `README.md` and `docs/architecture-poster.md` for honest v3.0 blocked /
+   portfolio-complete status.
+2. Open `enterprise-docs/security/external-gates.md` for G1/G2/G3.
+3. Open `product-planning/case-study-secure-change-platform.md` for the
+   code/test walkthrough.
+4. Run `uv run sac demo pr-review --offline` (stable transcript; no repo-root
+   `.sac` mutation by default).
+5. Optionally open the console (`console/`) for run list/detail and governed
+   approval decisions.
+6. Run `pytest tests/enterprise/eval -q` to show the suite.
+7. Open an eval baseline file and explain the ratchet.
 
-If they ask "what's left", I open the backlog file and point at
-the next stage. No mystery.
+If they ask "what's left", I open `product-planning/post-ga-portfolio-roadmap.md`
+and `enterprise-docs/security/external-gates.md`. No mystery.
 
 ---
 
@@ -510,8 +549,9 @@ A: Chat is a feature; workflow is the product. Chat is a thin
 client over the workflow at a later stage if we want.
 
 **Q: Why not start with a web UI?**
-A: The contract is the JSON schema. UI is rendering. Markdown
-dashboard, static HTML, then web UI; same contract.
+A: The contract is the JSON schema. The Next.js console supports tenant-scoped
+inspection and governed approval decisions, but not run creation. Safety rows
+stay honest when backend proof is missing.
 
 **Q: What stops the model from running a command?**
 A: The tool registry, the approval engine, and the legacy sandbox

@@ -25,9 +25,10 @@ Detailed technical plans (new, implementation-ready):
 - `data-models.md` — Pydantic-shaped data model designs for run state,
   citations, findings, approvals, audit, eval, and policy.
 - `workflow-design.md` — node graphs, conditional edges, HITL points,
-  retries, and demos for the four enterprise workflows
-  (PR review, vulnerability remediation, secure implementation
-  planning, compliance evidence export).
+  retries, and demos for enterprise workflows (PR review, vulnerability
+  remediation, secure implementation planning). The `compliance_export`
+  workflow task is fail-closed until implemented; use standalone
+  `sac enterprise evidence export --run <run_id>`.
 - `rag-implementation-plan.md` — concrete RAG steps for `v1.1.1`–
   `v1.1.4`, anchored on the existing `context`/`index`/`memory`/`eval`
   primitives.
