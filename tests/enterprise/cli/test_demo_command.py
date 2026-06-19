@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import shutil
 from pathlib import Path
 
@@ -11,6 +12,8 @@ from safecode.cli_test_demo import demo_app
 
 _ROOT = Path(__file__).resolve().parents[3]
 _COMMAND = ("pr-review", "--offline")
+_DEMO_RUN_DIR = _ROOT / ".sac" / "enterprise" / "runs" / "run-demoprreview"
+_SHA256_LINE = re.compile(r"audit_chain_head: [a-f0-9]{64}")
 
 
 def _seed_demo_root(tmp_path: Path) -> Path:
@@ -36,7 +39,8 @@ def test_pr_review_offline_demo_exits_zero(tmp_path: Path) -> None:
     assert "citation_id:" in output
     assert "workflow timeline" in output.lower() or "node: classify_request" in output
     assert "approval-gated action: refused" in output
-    assert "audit_chain_head:" in output or "audit_summary:" in output
+    assert "audit_chain_head: generated" in output
+    assert _SHA256_LINE.search(output) is None
 
 
 def test_pr_review_requires_offline_flag(tmp_path: Path) -> None:
@@ -52,18 +56,67 @@ def test_unknown_demo_command_fails() -> None:
     assert result.exit_code != 0
 
 
-def test_pr_review_offline_demo_is_repeatable_in_tmp_path(tmp_path: Path) -> None:
+def test_pr_review_offline_demo_output_is_stable_across_runs(tmp_path: Path) -> None:
     root = _seed_demo_root(tmp_path)
-    repo_sac = _ROOT / ".sac"
-    repo_sac_exists_before = repo_sac.exists()
     runner = CliRunner()
     outputs: list[str] = []
     for _ in range(2):
         result = runner.invoke(demo_app, [*_COMMAND, "--root", str(root)])
         assert result.exit_code == 0, result.stdout + result.stderr
         outputs.append(result.stdout)
-    from safecode.enterprise.demo.redactor import redact_transcript
+    assert outputs[0] == outputs[1]
 
-    assert redact_transcript(outputs[0]) == redact_transcript(outputs[1])
-    assert (root / ".sac").exists()
-    assert repo_sac_exists_before == repo_sac.exists()
+
+def test_pr_review_offline_demo_does_not_write_project_root_sac(tmp_path: Path) -> None:
+    root = _seed_demo_root(tmp_path)
+    runner = CliRunner()
+    result = runner.invoke(demo_app, [*_COMMAND, "--root", str(root)])
+    assert result.exit_code == 0, result.stdout + result.stderr
+    assert not (root / ".sac" / "enterprise" / "runs" / "run-demoprreview").exists()
+
+
+def test_pr_review_offline_demo_from_repo_root_does_not_touch_repo_sac(monkeypatch) -> None:
+    monkeypatch.chdir(_ROOT)
+    existed_before = _DEMO_RUN_DIR.exists()
+    before_entries = (
+        {path.name for path in _DEMO_RUN_DIR.iterdir()} if existed_before else set()
+    )
+    runner = CliRunner()
+    result = runner.invoke(demo_app, list(_COMMAND))
+    assert result.exit_code == 0, result.stdout + result.stderr
+    if existed_before:
+        assert {path.name for path in _DEMO_RUN_DIR.iterdir()} == before_entries
+    else:
+        assert not _DEMO_RUN_DIR.exists()
+
+
+def test_pr_review_output_dir_writes_persistent_workspace(tmp_path: Path) -> None:
+    root = _seed_demo_root(tmp_path)
+    workspace = tmp_path / "demo-workspace"
+    runner = CliRunner()
+    result = runner.invoke(
+        demo_app,
+        [*_COMMAND, "--root", str(root), "--output-dir", str(workspace)],
+    )
+    assert result.exit_code == 0, result.stdout + result.stderr
+    assert (workspace / ".sac" / "enterprise" / "runs" / "run-demoprreview").exists()
+    assert not (root / ".sac" / "enterprise" / "runs" / "run-demoprreview").exists()
+
+
+def test_pr_review_show_run_metadata_exposes_raw_audit_chain_head(tmp_path: Path) -> None:
+    root = _seed_demo_root(tmp_path)
+    workspace = tmp_path / "demo-workspace"
+    runner = CliRunner()
+    result = runner.invoke(
+        demo_app,
+        [
+            *_COMMAND,
+            "--root",
+            str(root),
+            "--output-dir",
+            str(workspace),
+            "--show-run-metadata",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout + result.stderr
+    assert _SHA256_LINE.search(result.stdout) is not None

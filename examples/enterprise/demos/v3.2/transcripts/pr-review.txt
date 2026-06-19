@@ -37,5 +37,5 @@ decision: rejected
 --- audit chain ---
 audit_integrity: verified
 audit_summary: Audit log integrity verified with external anchor.
-audit_chain_head: <hash>
+audit_chain_head: generated
 completed_nodes: 8

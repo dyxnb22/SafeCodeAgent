@@ -39,6 +39,21 @@ def register(demo_app: typer.Typer) -> None:
             "--root",
             help="Project root containing examples/enterprise fixtures.",
         ),
+        output_dir: Path | None = typer.Option(
+            None,
+            "--output-dir",
+            help="Persistent demo workspace; writes .sac state under this directory.",
+        ),
+        keep_runs: bool = typer.Option(
+            False,
+            "--keep-runs",
+            help="Keep the temporary demo workspace after the run completes.",
+        ),
+        show_run_metadata: bool = typer.Option(
+            False,
+            "--show-run-metadata",
+            help="Include volatile run metadata such as raw audit_chain_head.",
+        ),
     ) -> None:
         """Run the offline PR security review portfolio demo."""
         if not offline:
@@ -53,6 +68,11 @@ def register(demo_app: typer.Typer) -> None:
                 err=True,
             )
             raise typer.Exit(code=1)
-        transcript = run_pr_review_offline_demo(project_root)
+        transcript = run_pr_review_offline_demo(
+            project_root,
+            workspace_root=output_dir,
+            keep_runs=keep_runs or output_dir is not None,
+            show_run_metadata=show_run_metadata,
+        )
         typer.echo(transcript, nl=False)
         raise typer.Exit(code=0)
