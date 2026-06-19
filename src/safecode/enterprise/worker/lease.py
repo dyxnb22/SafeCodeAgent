@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import os
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -11,6 +10,7 @@ from typing import Protocol, runtime_checkable
 
 from safecode.enterprise.persistence.protocols import validate_tenant_id
 from safecode.enterprise.workflow.ids import validate_run_id
+from safecode.utils.file_lock import atomic_replace_text, keyed_exclusive_lock, lock_path_for
 
 
 class LeaseHeldError(Exception):
@@ -70,10 +70,7 @@ class LocalRunLeaseStore:
 
     def _write(self, tenant_id: str, run_id: str, payload: dict[str, str]) -> None:
         path = _lease_path(self.sac_root, tenant_id, run_id)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        tmp = path.with_suffix(".tmp")
-        tmp.write_text(json.dumps(payload, sort_keys=True), encoding="utf-8")
-        os.replace(tmp, path)
+        atomic_replace_text(path, json.dumps(payload, sort_keys=True))
 
     def acquire(
         self,
@@ -85,25 +82,25 @@ class LocalRunLeaseStore:
     ) -> bool:
         tenant = validate_tenant_id(tenant_id)
         validate_run_id(run_id)
-        now = _utc_now()
-        existing = self._read(tenant, run_id)
-        if existing is not None:
-            expires = datetime.fromisoformat(existing["expires_at"])
-            if existing["worker_id"] != worker_id and expires > now:
-                return False
-        expires_at = (now + timedelta(seconds=max(1, ttl_seconds))).isoformat()
-        self._write(
-            tenant,
-            run_id,
-            {
+        path = _lease_path(self.sac_root, tenant, run_id)
+        with keyed_exclusive_lock(f"lease:{tenant}:{run_id}", lock_path_for(path)):
+            now = _utc_now()
+            existing = self._read(tenant, run_id)
+            if existing is not None:
+                expires = datetime.fromisoformat(existing["expires_at"])
+                if existing["worker_id"] != worker_id and expires > now:
+                    return False
+            expires_at = (now + timedelta(seconds=max(1, ttl_seconds))).isoformat()
+            payload = {
                 "tenant_id": tenant,
                 "run_id": run_id,
                 "worker_id": worker_id,
                 "expires_at": expires_at,
                 "heartbeat_at": now.isoformat(),
-            },
-        )
-        return True
+            }
+            atomic_replace_text(path, json.dumps(payload, sort_keys=True))
+            verified = self._read(tenant, run_id)
+            return verified is not None and verified["worker_id"] == worker_id
 
     def heartbeat(
         self,
@@ -115,19 +112,18 @@ class LocalRunLeaseStore:
     ) -> bool:
         tenant = validate_tenant_id(tenant_id)
         validate_run_id(run_id)
-        existing = self._read(tenant, run_id)
-        if existing is None or existing["worker_id"] != worker_id:
-            return False
-        now = _utc_now()
-        self._write(
-            tenant,
-            run_id,
-            {
+        path = _lease_path(self.sac_root, tenant, run_id)
+        with keyed_exclusive_lock(f"lease:{tenant}:{run_id}", lock_path_for(path)):
+            existing = self._read(tenant, run_id)
+            if existing is None or existing["worker_id"] != worker_id:
+                return False
+            now = _utc_now()
+            payload = {
                 **existing,
                 "expires_at": (now + timedelta(seconds=max(1, ttl_seconds))).isoformat(),
                 "heartbeat_at": now.isoformat(),
-            },
-        )
+            }
+            atomic_replace_text(path, json.dumps(payload, sort_keys=True))
         return True
 
     def release(
@@ -140,13 +136,14 @@ class LocalRunLeaseStore:
         tenant = validate_tenant_id(tenant_id)
         validate_run_id(run_id)
         path = _lease_path(self.sac_root, tenant, run_id)
-        existing = self._read(tenant, run_id)
-        if existing is None:
-            return
-        if existing["worker_id"] != worker_id:
-            raise LeaseHeldError(f"lease held by {existing['worker_id']!r}")
-        if path.is_file():
-            path.unlink()
+        with keyed_exclusive_lock(f"lease:{tenant}:{run_id}", lock_path_for(path)):
+            existing = self._read(tenant, run_id)
+            if existing is None:
+                return
+            if existing["worker_id"] != worker_id:
+                raise LeaseHeldError(f"lease held by {existing['worker_id']!r}")
+            if path.is_file():
+                path.unlink()
 
 
 @dataclass(frozen=True)

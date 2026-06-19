@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 import secrets
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -14,6 +13,7 @@ from typing import Any, Protocol, runtime_checkable
 from safecode.context.redactor import redact_secrets
 from safecode.enterprise.persistence.protocols import validate_tenant_id
 from safecode.enterprise.worker.models import QueueJob, RunCommandKind, RunCommandRecord
+from safecode.utils.file_lock import atomic_replace_text, keyed_exclusive_lock, lock_path_for
 
 MAX_QUEUE_ATTEMPTS = 3
 
@@ -95,15 +95,21 @@ def _command_path(sac_root: Path, tenant_id: str, idempotency_key: str) -> Path:
 
 
 def _atomic_write_json(path: Path, payload: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(json.dumps(payload, sort_keys=True, indent=2), encoding="utf-8")
-    os.replace(tmp, path)
+    atomic_replace_text(path, json.dumps(payload, sort_keys=True, indent=2))
+
+
+def _queue_lock_path(sac_root: Path) -> Path:
+    return lock_path_for(_queue_root(sac_root) / "queue.state")
 
 
 @dataclass(frozen=True)
 class LocalCommandQueue:
     sac_root: Path
+
+    def _with_queue_lock(self):
+        root = _queue_root(self.sac_root)
+        root.mkdir(parents=True, exist_ok=True)
+        return keyed_exclusive_lock(str(root.resolve()), _queue_lock_path(self.sac_root))
 
     def get_command(
         self, *, tenant_id: str, idempotency_key: str
@@ -124,25 +130,24 @@ class LocalCommandQueue:
     ) -> RunCommandRecord:
         tenant = validate_tenant_id(tenant_id)
         key = _validate_idempotency_key(idempotency_key)
-        existing = self.get_command(tenant_id=tenant, idempotency_key=key)
-        if existing is not None:
-            if existing.command != command or existing.run_id != run_id:
-                raise IdempotencyConflictError(
-                    f"idempotency key {key!r} already bound to another command"
-                )
-            return existing
-        record = RunCommandRecord(
-            tenant_id=tenant,
-            idempotency_key=key,
-            command=command,
-            run_id=run_id,
-            payload=dict(payload or {}),
-            created_at=_utc_now(),
-        )
-        _atomic_write_json(
-            _command_path(self.sac_root, tenant, key),
-            json.loads(record.model_dump_json()),
-        )
+        path = _command_path(self.sac_root, tenant, key)
+        with keyed_exclusive_lock(str(path.resolve()), lock_path_for(path)):
+            existing = self.get_command(tenant_id=tenant, idempotency_key=key)
+            if existing is not None:
+                if existing.command != command or existing.run_id != run_id:
+                    raise IdempotencyConflictError(
+                        f"idempotency key {key!r} already bound to another command"
+                    )
+                return existing
+            record = RunCommandRecord(
+                tenant_id=tenant,
+                idempotency_key=key,
+                command=command,
+                run_id=run_id,
+                payload=dict(payload or {}),
+                created_at=_utc_now(),
+            )
+            _atomic_write_json(path, json.loads(record.model_dump_json()))
         return record
 
     def enqueue_job(
@@ -163,45 +168,50 @@ class LocalCommandQueue:
             payload=dict(payload or {}),
             created_at=_utc_now(),
         )
-        root = _queue_root(self.sac_root)
-        root.mkdir(parents=True, exist_ok=True)
-        pending_path = root / "pending.jsonl"
-        with pending_path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(json.loads(job.model_dump_json()), sort_keys=True) + "\n")
+        with self._with_queue_lock():
+            root = _queue_root(self.sac_root)
+            pending_path = root / "pending.jsonl"
+            with pending_path.open("a", encoding="utf-8") as handle:
+                handle.write(json.dumps(json.loads(job.model_dump_json()), sort_keys=True) + "\n")
         return job
 
     def poll_pending_job(self) -> QueueJob | None:
-        root = _queue_root(self.sac_root)
-        pending_path = root / "pending.jsonl"
-        if not pending_path.is_file():
-            return None
-        lines = pending_path.read_text(encoding="utf-8").splitlines()
-        remaining: list[str] = []
-        selected: QueueJob | None = None
-        for line in lines:
-            if not line.strip():
-                continue
-            job = QueueJob.model_validate(json.loads(line))
-            if selected is None and job.status == "pending":
-                selected = job
-                continue
-            remaining.append(line)
-        if selected is not None:
-            pending_path.write_text("\n".join(remaining) + ("\n" if remaining else ""), encoding="utf-8")
-            active_path = root / "active.jsonl"
-            with active_path.open("a", encoding="utf-8") as handle:
-                handle.write(json.dumps(json.loads(selected.model_dump_json()), sort_keys=True) + "\n")
-        return selected
+        with self._with_queue_lock():
+            root = _queue_root(self.sac_root)
+            pending_path = root / "pending.jsonl"
+            if not pending_path.is_file():
+                return None
+            lines = pending_path.read_text(encoding="utf-8").splitlines()
+            remaining: list[str] = []
+            selected: QueueJob | None = None
+            for line in lines:
+                if not line.strip():
+                    continue
+                job = QueueJob.model_validate(json.loads(line))
+                if selected is None and job.status == "pending":
+                    selected = job
+                    continue
+                remaining.append(line)
+            if selected is not None:
+                atomic_replace_text(
+                    pending_path,
+                    "\n".join(remaining) + ("\n" if remaining else ""),
+                )
+                active_path = root / "active.jsonl"
+                with active_path.open("a", encoding="utf-8") as handle:
+                    handle.write(
+                        json.dumps(json.loads(selected.model_dump_json()), sort_keys=True) + "\n"
+                    )
+            return selected
 
     def _rewrite_active(self, jobs: list[QueueJob]) -> None:
         active_path = _queue_root(self.sac_root) / "active.jsonl"
-        active_path.parent.mkdir(parents=True, exist_ok=True)
-        active_path.write_text(
+        atomic_replace_text(
+            active_path,
             "\n".join(
                 json.dumps(json.loads(job.model_dump_json()), sort_keys=True) for job in jobs
             )
             + ("\n" if jobs else ""),
-            encoding="utf-8",
         )
 
     def _load_active_jobs(self) -> list[QueueJob]:
@@ -215,94 +225,97 @@ class LocalCommandQueue:
         ]
 
     def complete_job(self, job_id: str) -> None:
-        active_path = _queue_root(self.sac_root) / "active.jsonl"
-        if not active_path.is_file():
-            return
-        jobs = self._load_active_jobs()
-        completed = _queue_root(self.sac_root) / "completed.jsonl"
-        kept: list[QueueJob] = []
-        for job in jobs:
-            if job.job_id == job_id:
-                finished = job.model_copy(update={"status": "completed"})
-                with completed.open("a", encoding="utf-8") as handle:
-                    handle.write(
-                        json.dumps(json.loads(finished.model_dump_json()), sort_keys=True) + "\n"
-                    )
-            else:
-                kept.append(job)
-        self._rewrite_active(kept)
+        with self._with_queue_lock():
+            active_path = _queue_root(self.sac_root) / "active.jsonl"
+            if not active_path.is_file():
+                return
+            jobs = self._load_active_jobs()
+            completed = _queue_root(self.sac_root) / "completed.jsonl"
+            kept: list[QueueJob] = []
+            for job in jobs:
+                if job.job_id == job_id:
+                    finished = job.model_copy(update={"status": "completed"})
+                    with completed.open("a", encoding="utf-8") as handle:
+                        handle.write(
+                            json.dumps(json.loads(finished.model_dump_json()), sort_keys=True) + "\n"
+                        )
+                else:
+                    kept.append(job)
+            self._rewrite_active(kept)
 
     def fail_job(self, job_id: str, *, message: str) -> None:
         redacted = _redact_queue_error(message)
-        active_path = _queue_root(self.sac_root) / "active.jsonl"
-        if not active_path.is_file():
-            return
-        jobs = self._load_active_jobs()
-        failed_path = _queue_root(self.sac_root) / "failed.jsonl"
-        kept: list[QueueJob] = []
-        for job in jobs:
-            if job.job_id == job_id:
-                finished = job.model_copy(
-                    update={"status": "failed", "payload": {**job.payload, "error": redacted}}
-                )
-                with failed_path.open("a", encoding="utf-8") as handle:
-                    handle.write(
-                        json.dumps(json.loads(finished.model_dump_json()), sort_keys=True) + "\n"
+        with self._with_queue_lock():
+            active_path = _queue_root(self.sac_root) / "active.jsonl"
+            if not active_path.is_file():
+                return
+            jobs = self._load_active_jobs()
+            failed_path = _queue_root(self.sac_root) / "failed.jsonl"
+            kept: list[QueueJob] = []
+            for job in jobs:
+                if job.job_id == job_id:
+                    finished = job.model_copy(
+                        update={"status": "failed", "payload": {**job.payload, "error": redacted}}
                     )
-            else:
-                kept.append(job)
-        self._rewrite_active(kept)
+                    with failed_path.open("a", encoding="utf-8") as handle:
+                        handle.write(
+                            json.dumps(json.loads(finished.model_dump_json()), sort_keys=True) + "\n"
+                        )
+                else:
+                    kept.append(job)
+            self._rewrite_active(kept)
 
     def retry_job(self, job_id: str, *, message: str) -> bool:
         redacted = _redact_queue_error(message)
-        jobs = self._load_active_jobs()
-        selected: QueueJob | None = None
-        kept: list[QueueJob] = []
-        for job in jobs:
-            if job.job_id == job_id:
-                selected = job
-            else:
-                kept.append(job)
-        if selected is None:
-            return False
-        next_attempts = selected.attempts + 1
-        if next_attempts >= MAX_QUEUE_ATTEMPTS:
-            return False
-        self._rewrite_active(kept)
-        retried = selected.model_copy(
-            update={
-                "status": "pending",
-                "attempts": next_attempts,
-                "payload": {**selected.payload, "last_error": redacted},
-            }
-        )
-        pending_path = _queue_root(self.sac_root) / "pending.jsonl"
-        pending_path.parent.mkdir(parents=True, exist_ok=True)
-        with pending_path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(json.loads(retried.model_dump_json()), sort_keys=True) + "\n")
-        return True
+        with self._with_queue_lock():
+            jobs = self._load_active_jobs()
+            selected: QueueJob | None = None
+            kept: list[QueueJob] = []
+            for job in jobs:
+                if job.job_id == job_id:
+                    selected = job
+                else:
+                    kept.append(job)
+            if selected is None:
+                return False
+            next_attempts = selected.attempts + 1
+            if next_attempts >= MAX_QUEUE_ATTEMPTS:
+                return False
+            self._rewrite_active(kept)
+            retried = selected.model_copy(
+                update={
+                    "status": "pending",
+                    "attempts": next_attempts,
+                    "payload": {**selected.payload, "last_error": redacted},
+                }
+            )
+            pending_path = _queue_root(self.sac_root) / "pending.jsonl"
+            with pending_path.open("a", encoding="utf-8") as handle:
+                handle.write(json.dumps(json.loads(retried.model_dump_json()), sort_keys=True) + "\n")
+            return True
 
     def dlq_job(self, job_id: str, *, message: str, poison: bool = False) -> None:
         redacted = _redact_queue_error(message)
-        jobs = self._load_active_jobs()
-        kept: list[QueueJob] = []
-        selected: QueueJob | None = None
-        for job in jobs:
-            if job.job_id == job_id:
-                selected = job
-            else:
-                kept.append(job)
-        if selected is None:
-            return
-        self._rewrite_active(kept)
-        dlq_record = {
-            **json.loads(selected.model_dump_json()),
-            "status": "failed",
-            "poison": poison,
-            "error": redacted,
-            "dlq_at": _utc_now(),
-        }
-        dlq_path = _dlq_path(self.sac_root)
-        dlq_path.parent.mkdir(parents=True, exist_ok=True)
-        with dlq_path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(dlq_record, sort_keys=True) + "\n")
+        with self._with_queue_lock():
+            jobs = self._load_active_jobs()
+            kept: list[QueueJob] = []
+            selected: QueueJob | None = None
+            for job in jobs:
+                if job.job_id == job_id:
+                    selected = job
+                else:
+                    kept.append(job)
+            if selected is None:
+                return
+            self._rewrite_active(kept)
+            dlq_record = {
+                **json.loads(selected.model_dump_json()),
+                "status": "failed",
+                "poison": poison,
+                "error": redacted,
+                "dlq_at": _utc_now(),
+            }
+            dlq_path = _dlq_path(self.sac_root)
+            dlq_path.parent.mkdir(parents=True, exist_ok=True)
+            with dlq_path.open("a", encoding="utf-8") as handle:
+                handle.write(json.dumps(dlq_record, sort_keys=True) + "\n")

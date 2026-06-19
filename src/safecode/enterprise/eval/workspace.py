@@ -19,8 +19,12 @@ _SUPPORT_DIRS = ("policies", "sample_app", "scanner_findings", "runbooks")
 
 def _require_relative_fixture_ref(case: EvaluationCase) -> Path:
     raw = case.input_fixture or ""
+    if not raw or "\\" in raw or raw in {".", ".."}:
+        raise InvalidEvalCaseError(
+            f"eval case {case.case_id!r} input_fixture must be a project-relative path"
+        )
     fixture_ref = Path(raw)
-    if not raw or fixture_ref.is_absolute() or ".." in fixture_ref.parts:
+    if fixture_ref.is_absolute() or ".." in fixture_ref.parts or "." in fixture_ref.parts:
         raise InvalidEvalCaseError(
             f"eval case {case.case_id!r} input_fixture must be a project-relative path"
         )

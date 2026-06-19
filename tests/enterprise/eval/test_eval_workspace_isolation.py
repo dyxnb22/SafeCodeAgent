@@ -112,7 +112,10 @@ def test_remediation_eval_ignores_corrupt_project_root_sac(tmp_path: Path):
 
 
 @pytest.mark.parametrize("suite", ["pr_review", "remediation"])
-@pytest.mark.parametrize("fixture_ref", ["../outside.txt", "/tmp/outside.txt"])
+@pytest.mark.parametrize(
+    "fixture_ref",
+    ["../outside.txt", "/tmp/outside.txt", ".", r"..\outside"],
+)
 def test_eval_workspace_rejects_non_relative_fixture_paths(
     tmp_path: Path,
     suite: str,
@@ -200,3 +203,26 @@ def test_eval_workspace_cleans_container_when_staging_fails(
             pytest.fail("invalid fixture path must fail before yielding")
 
     assert not container.exists()
+
+
+def test_eval_workspace_accepts_inside_root_symlink_fixture(tmp_path: Path):
+    project_root = tmp_path / "project"
+    workspace = tmp_path / "container" / "workspace"
+    fixture_dir = project_root / "examples" / "enterprise" / "fixtures" / "pr_sql_injection"
+    project_root.mkdir(parents=True)
+    workspace.mkdir(parents=True)
+    fixture_dir.parent.mkdir(parents=True)
+    shutil.copytree(_ROOT / "examples" / "enterprise" / "fixtures" / "pr_sql_injection", fixture_dir)
+    link = project_root / "fixture-link"
+    link.symlink_to(fixture_dir, target_is_directory=True)
+    case = EvaluationCase(
+        case_id="pr_review.inside_symlink",
+        suite="pr_review",
+        goal="Accept in-root symlink fixture.",
+        input_fixture="fixture-link",
+    )
+
+    input_ref = stage_eval_workspace(project_root, case, workspace)
+
+    assert input_ref == "fixture-link"
+    assert (workspace / "fixture-link" / "pr.json").is_file()

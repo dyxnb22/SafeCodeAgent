@@ -202,6 +202,48 @@ def exercise_duplicate_grant_consumption_denied(bundle: BackendBundle) -> None:
         )
 
 
+def exercise_revoked_request_revokes_grant(bundle: BackendBundle) -> None:
+    run_id = "run-revokegrant01"
+    request = sample_request(
+        run_id=run_id,
+        request_id="approval-revokegrant01",
+        tenant_id=bundle.tenant_id,
+    )
+    saved = bundle.backend.approvals.save_request(
+        tenant_id=bundle.tenant_id,
+        request=request,
+    )
+    approved = bundle.backend.approvals.decide_request(
+        tenant_id=bundle.tenant_id,
+        run_id=run_id,
+        request_id=saved.request_id,
+        decision="approved",
+        decision_actor="user:reviewer",
+    )
+    grant_id = grant_id_for_request(approved)
+
+    revoked = bundle.backend.approvals.revoke_request(
+        tenant_id=bundle.tenant_id,
+        run_id=run_id,
+        request_id=saved.request_id,
+        decision_actor="user:reviewer",
+    )
+
+    assert revoked.status == "revoked"
+    grant = bundle.backend.approvals.load_grant(
+        tenant_id=bundle.tenant_id,
+        run_id=run_id,
+        grant_id=grant_id,
+    )
+    assert grant.revoked_at is not None
+    with pytest.raises(GrantAlreadyConsumedError):
+        bundle.backend.approvals.consume_grant(
+            tenant_id=bundle.tenant_id,
+            run_id=run_id,
+            grant_id=grant_id,
+        )
+
+
 def exercise_duplicate_request_denied(bundle: BackendBundle) -> None:
     request = sample_request(
         run_id="run-dupreq001",
@@ -329,6 +371,7 @@ CONTRACT_EXERCISES: tuple[tuple[str, Callable[[BackendBundle], None]], ...] = (
     ("invalid_run_id_denied", exercise_invalid_run_id_denied),
     ("approval_and_grant_lifecycle", exercise_approval_and_grant_lifecycle),
     ("duplicate_grant_consumption_denied", exercise_duplicate_grant_consumption_denied),
+    ("revoked_request_revokes_grant", exercise_revoked_request_revokes_grant),
     ("duplicate_request_denied", exercise_duplicate_request_denied),
     ("audit_chain_append_and_verify", exercise_audit_chain_append_and_verify),
     ("corrupted_audit_fails_verification", exercise_corrupted_audit_fails_verification),

@@ -6,6 +6,7 @@ import json
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from safecode.audit.models import AuditEvent
 from safecode.enterprise.approvals.store import (
@@ -39,8 +40,6 @@ from safecode.enterprise.trace.emitter import TraceEmitter
 from safecode.enterprise.trace.events import TraceEvent, TraceEventType
 from safecode.enterprise.trace.session import project_root_for_sac
 from safecode.enterprise.trace.timeline import write_timeline
-from safecode.enterprise.worker.queue import LocalCommandQueue
-from safecode.enterprise.worker.lease import LocalRunLeaseStore
 from safecode.enterprise.workflow.checkpoint import (
     RunCheckpoint,
     gc_runs,
@@ -51,6 +50,10 @@ from safecode.enterprise.workflow.checkpoint import (
 from safecode.enterprise.workflow.exceptions import CheckpointCorruptedError
 from safecode.enterprise.workflow.contracts import NodeCost
 from safecode.enterprise.workflow.ids import validate_run_id
+
+if TYPE_CHECKING:
+    from safecode.enterprise.worker.lease import LocalRunLeaseStore
+    from safecode.enterprise.worker.queue import LocalCommandQueue
 
 
 class LocalRunStore:
@@ -416,10 +419,14 @@ class LocalBackend:
 
     @property
     def commands(self) -> LocalCommandQueue:
+        from safecode.enterprise.worker.queue import LocalCommandQueue
+
         return LocalCommandQueue(self.sac_root)
 
     @property
     def leases(self) -> LocalRunLeaseStore:
+        from safecode.enterprise.worker.lease import LocalRunLeaseStore
+
         return LocalRunLeaseStore(self.sac_root)
 
     @property

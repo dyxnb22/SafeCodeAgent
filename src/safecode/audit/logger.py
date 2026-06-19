@@ -2,13 +2,16 @@
 
 import hashlib
 import json
+import os
 from pathlib import Path
 
 from pydantic import ValidationError
 
 from safecode.audit.anchor import AuditAnchorStore
 from safecode.audit.models import AuditEvent
+from safecode.audit.sanitize import apply_audit_event_sanitization
 from safecode.config import SafeCodeConfig
+from safecode.utils.file_lock import keyed_exclusive_lock, lock_path_for
 
 
 class AuditLogger:
@@ -29,14 +32,20 @@ class AuditLogger:
         if task_id is not None:
             event.metadata = dict(event.metadata)
             event.metadata["task_id"] = task_id
-        self.log_file.parent.mkdir(parents=True, exist_ok=True)
-        previous_hash = self._last_hash()
-        event.previous_hash = previous_hash
-        event.event_hash = self._hash_event(event)
-        line = json.dumps(event.model_dump(), ensure_ascii=False, sort_keys=True)
-        with self.log_file.open("a", encoding="utf-8") as file:
-            file.write(line + "\n")
-        self.anchor_store.write(self.log_file, self._line_count(), event.event_hash)
+        apply_audit_event_sanitization(event)
+        lock_key = str(self.log_file.resolve())
+        with keyed_exclusive_lock(lock_key, lock_path_for(self.log_file)):
+            self.log_file.parent.mkdir(parents=True, exist_ok=True)
+            previous_hash = self._last_hash_unlocked()
+            event.previous_hash = previous_hash
+            event.event_hash = self._hash_event(event)
+            line = json.dumps(event.model_dump(), ensure_ascii=False, sort_keys=True)
+            with self.log_file.open("a", encoding="utf-8") as file:
+                file.write(line + "\n")
+                file.flush()
+                os.fsync(file.fileno())
+            line_count = self._line_count_unlocked()
+            self.anchor_store.write(self.log_file, line_count, event.event_hash)
 
     def read_recent(self, limit: int = 20) -> list[AuditEvent]:
         """Read recent events for sac history."""
@@ -90,6 +99,15 @@ class AuditLogger:
         if not self.log_file.exists():
             return True, "No audit log found."
 
+        lock_key = str(self.log_file.resolve())
+        with keyed_exclusive_lock(lock_key, lock_path_for(self.log_file)):
+            return self._verify_integrity_unlocked()
+
+    def _verify_integrity_unlocked(self) -> tuple[bool, str]:
+        """Verify the audit hash chain while the caller holds the log lock."""
+        if not self.log_file.exists():
+            return True, "No audit log found."
+
         previous_hash: str | None = None
         line_count = 0
         for line_number, line in enumerate(self.log_file.read_text(encoding="utf-8").splitlines(), start=1):
@@ -119,6 +137,9 @@ class AuditLogger:
 
     def _last_hash(self) -> str | None:
         """Return the latest event hash."""
+        return self._last_hash_unlocked()
+
+    def _last_hash_unlocked(self) -> str | None:
         if not self.log_file.exists():
             return None
         for line in reversed(self.log_file.read_text(encoding="utf-8").splitlines()):
@@ -128,6 +149,9 @@ class AuditLogger:
 
     def _line_count(self) -> int:
         """Count non-empty audit events."""
+        return self._line_count_unlocked()
+
+    def _line_count_unlocked(self) -> int:
         if not self.log_file.exists():
             return 0
         return sum(1 for line in self.log_file.read_text(encoding="utf-8").splitlines() if line.strip())

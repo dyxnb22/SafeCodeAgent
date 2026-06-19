@@ -153,6 +153,7 @@ class StrictFakeApprovalStore:
             "rejected",
         }:
             raise RequestAlreadyConsumedError(f"approval request already decided: {request_id}")
+        previous_request = request
         updated = request.model_copy(
             update={
                 "status": decision,
@@ -175,6 +176,16 @@ class StrictFakeApprovalStore:
                 created_at=updated.decision_at or _utc_now(),
             )
             self.save_grant(tenant_id=tenant_id, grant=grant)
+        elif decision == "revoked" and previous_request.status == "approved":
+            grant_id = grant_id_for_request(previous_request)
+            grant = self.load_grant(
+                tenant_id=tenant_id,
+                run_id=run_id,
+                grant_id=grant_id,
+            )
+            revoked = grant.model_copy(update={"revoked_at": updated.decision_at or _utc_now()})
+            revoked = revoked.model_copy(update={"grant_hash": grant_hash(revoked)})
+            self._grants[(validate_tenant_id(tenant_id), run_id, grant_id)] = revoked
         return updated
 
     def request_evidence(

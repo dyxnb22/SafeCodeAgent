@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 import re
 from datetime import datetime, timezone
 from enum import Enum
@@ -26,6 +25,7 @@ from safecode.enterprise.workflow.exceptions import (
 )
 from safecode.enterprise.workflow.ids import validate_run_id
 from safecode.enterprise.workflow.types import RiskTier
+from safecode.utils.file_lock import atomic_replace_text, keyed_exclusive_lock, lock_path_for
 
 
 class Action(str, Enum):
@@ -100,10 +100,8 @@ def approvals_dir(sac_root: Path, run_id: str) -> Path:
 
 
 def _atomic_write(path: Path, payload: dict) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(json.dumps(payload, sort_keys=True, indent=2), encoding="utf-8")
-    os.replace(tmp, path)
+    with keyed_exclusive_lock(str(path.resolve()), lock_path_for(path)):
+        atomic_replace_text(path, json.dumps(payload, sort_keys=True, indent=2))
 
 
 _REQUEST_ID_RE = re.compile(r"^approval-[a-zA-Z0-9_-]{8,64}$")
@@ -121,11 +119,12 @@ def save_request(sac_root: Path, request: ApprovalRequest) -> ApprovalRequest:
     validate_request_id(request.request_id)
     directory = approvals_dir(sac_root, request.run_id)
     path = directory / f"{request.request_id}.json"
-    if path.exists():
-        raise ApprovalRequestExistsError(f"approval request exists: {request.request_id}")
-    redacted = request.model_copy(update={"preview": redact_secrets(request.preview)[:4096]})
-    redacted = redacted.model_copy(update={"request_hash": request_hash(redacted)})
-    _atomic_write(path, json.loads(redacted.model_dump_json()))
+    with keyed_exclusive_lock(str(path.resolve()), lock_path_for(path)):
+        if path.exists():
+            raise ApprovalRequestExistsError(f"approval request exists: {request.request_id}")
+        redacted = request.model_copy(update={"preview": redact_secrets(request.preview)[:4096]})
+        redacted = redacted.model_copy(update={"request_hash": request_hash(redacted)})
+        atomic_replace_text(path, json.dumps(json.loads(redacted.model_dump_json()), sort_keys=True, indent=2))
     emit_standalone_trace(
         sac_root,
         run_id=redacted.run_id,
@@ -217,10 +216,11 @@ def save_grant(sac_root: Path, grant: Grant) -> Grant:
     validate_grant_id(grant.grant_id)
     directory = grants_dir(sac_root, grant.run_id)
     path = directory / f"{grant.grant_id}.json"
-    if path.exists():
-        raise ApprovalRequestExistsError(f"grant exists: {grant.grant_id}")
-    stored = grant.model_copy(update={"grant_hash": grant_hash(grant)})
-    _atomic_write(path, json.loads(stored.model_dump_json()))
+    with keyed_exclusive_lock(str(path.resolve()), lock_path_for(path)):
+        if path.exists():
+            raise ApprovalRequestExistsError(f"grant exists: {grant.grant_id}")
+        stored = grant.model_copy(update={"grant_hash": grant_hash(grant)})
+        atomic_replace_text(path, json.dumps(json.loads(stored.model_dump_json()), sort_keys=True, indent=2))
     return stored
 
 
@@ -236,17 +236,16 @@ def load_grant(sac_root: Path, run_id: str, grant_id: str) -> Grant:
 
 
 def consume_grant(sac_root: Path, run_id: str, grant_id: str) -> Grant:
-    grant = load_grant(sac_root, run_id, grant_id)
-    if grant.revoked_at is not None:
-        raise GrantAlreadyConsumedError(f"grant revoked: {grant_id}")
-    if grant.consumed_at is not None:
-        raise GrantAlreadyConsumedError(f"grant already consumed: {grant_id}")
-    updated = grant.model_copy(update={"consumed_at": _utc_now()})
-    updated = updated.model_copy(update={"grant_hash": grant_hash(updated)})
-    _atomic_write(
-        grants_dir(sac_root, run_id) / f"{grant_id}.json",
-        json.loads(updated.model_dump_json()),
-    )
+    path = grants_dir(sac_root, run_id) / f"{grant_id}.json"
+    with keyed_exclusive_lock(str(path.resolve()), lock_path_for(path)):
+        grant = load_grant(sac_root, run_id, grant_id)
+        if grant.revoked_at is not None:
+            raise GrantAlreadyConsumedError(f"grant revoked: {grant_id}")
+        if grant.consumed_at is not None:
+            raise GrantAlreadyConsumedError(f"grant already consumed: {grant_id}")
+        updated = grant.model_copy(update={"consumed_at": _utc_now()})
+        updated = updated.model_copy(update={"grant_hash": grant_hash(updated)})
+        atomic_replace_text(path, json.dumps(json.loads(updated.model_dump_json()), sort_keys=True, indent=2))
     emit_standalone_trace(
         sac_root,
         run_id=run_id,
@@ -329,38 +328,48 @@ def decide_request(
 ) -> ApprovalRequest:
     if decision_actor.startswith("model:"):
         raise PermissionError("model actors cannot approve their own requests")
-    request = load_request(sac_root, run_id, request_id)
-    if request.status not in {"pending", "evidence_requested"} and decision in {"approved", "rejected"}:
-        raise RequestAlreadyConsumedError(f"approval request already decided: {request_id}")
-    if decision == "revoked" and request.status not in {"pending", "evidence_requested", "approved"}:
-        raise RequestAlreadyConsumedError(f"approval request cannot be revoked: {request_id}")
-    updated = request.model_copy(
-        update={
-            "status": decision,
-            "decision_at": _utc_now(),
-            "decision_actor": decision_actor,
-            "decision_note": redact_secrets(decision_note),
-        }
-    )
-    updated = updated.model_copy(update={"request_hash": request_hash(updated)})
-    _atomic_write(
-        approvals_dir(sac_root, run_id) / f"{request_id}.json",
-        json.loads(updated.model_dump_json()),
-    )
-    if decision == "approved":
-        save_grant(
-            sac_root,
-            Grant(
-                grant_id=grant_id_for_request(updated),
-                run_id=updated.run_id,
-                request_id=updated.request_id,
-                tenant_id=updated.tenant_id,
-                action=updated.action,
-                policy_snapshot_id=updated.policy_snapshot_id,
-                target=updated.target,
-                created_at=updated.decision_at or _utc_now(),
-            ),
+    path = approvals_dir(sac_root, run_id) / f"{request_id}.json"
+    with keyed_exclusive_lock(str(path.resolve()), lock_path_for(path)):
+        request = load_request(sac_root, run_id, request_id)
+        if request.status not in {"pending", "evidence_requested"} and decision in {"approved", "rejected"}:
+            raise RequestAlreadyConsumedError(f"approval request already decided: {request_id}")
+        if decision == "revoked" and request.status not in {"pending", "evidence_requested", "approved"}:
+            raise RequestAlreadyConsumedError(f"approval request cannot be revoked: {request_id}")
+        updated = request.model_copy(
+            update={
+                "status": decision,
+                "decision_at": _utc_now(),
+                "decision_actor": decision_actor,
+                "decision_note": redact_secrets(decision_note),
+            }
         )
+        updated = updated.model_copy(update={"request_hash": request_hash(updated)})
+        atomic_replace_text(path, json.dumps(json.loads(updated.model_dump_json()), sort_keys=True, indent=2))
+        if decision == "approved":
+            save_grant(
+                sac_root,
+                Grant(
+                    grant_id=grant_id_for_request(updated),
+                    run_id=updated.run_id,
+                    request_id=updated.request_id,
+                    tenant_id=updated.tenant_id,
+                    action=updated.action,
+                    policy_snapshot_id=updated.policy_snapshot_id,
+                    target=updated.target,
+                    created_at=updated.decision_at or _utc_now(),
+                ),
+            )
+        elif decision == "revoked" and request.status == "approved":
+            grant_id = grant_id_for_request(request)
+            grant_path = grants_dir(sac_root, run_id) / f"{grant_id}.json"
+            with keyed_exclusive_lock(str(grant_path.resolve()), lock_path_for(grant_path)):
+                grant = load_grant(sac_root, run_id, grant_id)
+                revoked = grant.model_copy(update={"revoked_at": updated.decision_at or _utc_now()})
+                revoked = revoked.model_copy(update={"grant_hash": grant_hash(revoked)})
+                atomic_replace_text(
+                    grant_path,
+                    json.dumps(json.loads(revoked.model_dump_json()), sort_keys=True, indent=2),
+                )
     if decision in {"approved", "rejected"}:
         event_type = (
             TraceEventType.approval_decided

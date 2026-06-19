@@ -10,8 +10,19 @@ from typing import Any
 from pydantic import ValidationError
 
 from safecode.audit.models import AuditEvent
+from safecode.audit.sanitize import sanitize_audit_event
 from safecode.context.redactor import redact_secrets
 from safecode.enterprise.audit.events import AuditEventKind
+
+# Stable global advisory lock for the single enterprise audit hash chain.
+ENTERPRISE_GLOBAL_AUDIT_CHAIN_LOCK_KEY = 0x5341435F41554449
+
+
+def acquire_global_audit_chain_lock(conn: Any) -> None:
+    conn.execute(
+        "SELECT pg_advisory_xact_lock(%s)",
+        (ENTERPRISE_GLOBAL_AUDIT_CHAIN_LOCK_KEY,),
+    )
 
 
 def utc_now_iso() -> str:
@@ -36,9 +47,18 @@ def build_audit_event(
     message: str | None = None,
     previous_hash: str | None = None,
 ) -> AuditEvent:
-    metadata = {"run_id": run_id, "chain_id": "enterprise", "tenant_id": tenant_id}
-    if payload:
-        metadata.update({key: redact_secrets(str(value)) for key, value in payload.items()})
+    reserved_metadata = {
+        "run_id": run_id,
+        "chain_id": "enterprise",
+        "tenant_id": tenant_id,
+        "actor_id": actor_id,
+    }
+    metadata = {
+        key: str(value)
+        for key, value in (payload or {}).items()
+        if key not in reserved_metadata
+    }
+    metadata.update(reserved_metadata)
     event = AuditEvent(
         type=kind.value,
         timestamp=utc_now_iso(),
@@ -48,6 +68,7 @@ def build_audit_event(
         trace_id=run_id,
         previous_hash=previous_hash,
     )
+    event = sanitize_audit_event(event)
     event.event_hash = hash_event(event)
     return event
 
@@ -61,7 +82,19 @@ def last_event_hash(conn: Any) -> str | None:
     return str(row[0])
 
 
-def append_audit_event(conn: Any, event: AuditEvent, *, actor_id: str) -> AuditEvent:
+def _append_audit_event_locked(conn: Any, event: AuditEvent, *, actor_id: str) -> AuditEvent:
+    safe_actor_id = redact_secrets(actor_id)
+    previous_hash = event.previous_hash
+    metadata = dict(event.metadata)
+    metadata.setdefault("actor_id", safe_actor_id)
+    event = event.model_copy(update={"metadata": metadata})
+    persisted = sanitize_audit_event(event)
+    if persisted.previous_hash != previous_hash:
+        persisted = persisted.model_copy(update={"previous_hash": previous_hash})
+    persisted.event_hash = hash_event(persisted)
+    metadata_actor = persisted.metadata.get("actor_id")
+    if metadata_actor != safe_actor_id:
+        raise ValueError("actor_id column does not match hash-covered metadata actor_id")
     conn.execute(
         """
         INSERT INTO enterprise.audit_events (
@@ -69,16 +102,25 @@ def append_audit_event(conn: Any, event: AuditEvent, *, actor_id: str) -> AuditE
         ) VALUES (%s, %s, %s, %s::jsonb, %s, %s, %s)
         """,
         (
-            event.metadata.get("tenant_id", "local"),
-            event.metadata.get("run_id"),
-            actor_id,
-            json.dumps(event.model_dump(), ensure_ascii=False, sort_keys=True),
-            event.previous_hash,
-            event.event_hash,
-            event.timestamp,
+            persisted.metadata.get("tenant_id", "local"),
+            persisted.metadata.get("run_id"),
+            safe_actor_id,
+            json.dumps(persisted.model_dump(), ensure_ascii=False, sort_keys=True),
+            persisted.previous_hash,
+            persisted.event_hash,
+            persisted.timestamp,
         ),
     )
-    return event
+    return persisted
+
+
+def append_audit_event(conn: Any, event: AuditEvent, *, actor_id: str) -> AuditEvent:
+    """Append a prebuilt event only when it extends the locked global chain head."""
+    acquire_global_audit_chain_lock(conn)
+    current_hash = last_event_hash(conn)
+    if event.previous_hash != current_hash:
+        raise ValueError("audit event previous_hash does not match current chain head")
+    return _append_audit_event_locked(conn, event, actor_id=actor_id)
 
 
 def emit_audit_event(
@@ -92,6 +134,7 @@ def emit_audit_event(
     status: str = "success",
     message: str | None = None,
 ) -> AuditEvent:
+    acquire_global_audit_chain_lock(conn)
     event = build_audit_event(
         kind,
         tenant_id=tenant_id,
@@ -102,7 +145,7 @@ def emit_audit_event(
         message=message,
         previous_hash=last_event_hash(conn),
     )
-    return append_audit_event(conn, event, actor_id=actor_id)
+    return _append_audit_event_locked(conn, event, actor_id=actor_id)
 
 
 def verify_audit_chain(conn: Any) -> tuple[bool, str]:

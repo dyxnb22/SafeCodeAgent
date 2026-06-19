@@ -217,6 +217,24 @@ class PostgresApprovalStore:
             raise ApprovalRequestTamperedError(f"approval request tampered: {request_id}")
         return request
 
+    def _load_request_row_for_update(
+        self, conn, *, tenant_id: str, run_id: str, request_id: str
+    ) -> ApprovalRequest:
+        row = conn.execute(
+            """
+            SELECT payload FROM enterprise.approval_requests
+            WHERE tenant_id = %s AND run_id = %s AND request_id = %s
+            FOR UPDATE
+            """,
+            (tenant_id, run_id, request_id),
+        ).fetchone()
+        if row is None:
+            raise ApprovalRequestNotFoundError(f"approval request not found: {request_id}")
+        request = ApprovalRequest.model_validate(row[0])
+        if request.request_hash != request_hash(request):
+            raise ApprovalRequestTamperedError(f"approval request tampered: {request_id}")
+        return request
+
     def save_request(self, *, tenant_id: str, request: ApprovalRequest) -> ApprovalRequest:
         tenant = validate_tenant_id(tenant_id)
         assert_tenant_match(tenant, request.tenant_id, operation="save_request")
@@ -300,76 +318,111 @@ class PostgresApprovalStore:
         if decision_actor.startswith("model:"):
             raise PermissionError("model actors cannot approve their own requests")
         tenant = validate_tenant_id(tenant_id)
-        with self._uow.connection() as conn:
-            request = self._load_request_row(
-                conn, tenant_id=tenant, run_id=run_id, request_id=request_id
-            )
-            if request.status not in {"pending", "evidence_requested"} and decision in {
-                "approved",
-                "rejected",
-            }:
-                raise RequestAlreadyConsumedError(
-                    f"approval request already decided: {request_id}"
-                )
-            if decision == "revoked" and request.status not in {
-                "pending",
-                "evidence_requested",
-                "approved",
-            }:
-                raise RequestAlreadyConsumedError(
-                    f"approval request cannot be revoked: {request_id}"
-                )
-            updated = request.model_copy(
-                update={
-                    "status": decision,
-                    "decision_at": _utc_now(),
-                    "decision_actor": decision_actor,
-                    "decision_note": redact_secrets(decision_note),
-                }
-            )
-            updated = updated.model_copy(update={"request_hash": request_hash(updated)})
-            conn.execute(
-                """
-                UPDATE enterprise.approval_requests
-                SET payload = %s::jsonb, status = %s
-                WHERE tenant_id = %s AND run_id = %s AND request_id = %s
-                """,
-                (
-                    updated.model_dump_json(),
-                    updated.status,
-                    tenant,
-                    run_id,
-                    request_id,
-                ),
-            )
-            if decision == "approved":
-                grant = Grant(
-                    grant_id=grant_id_for_request(updated),
-                    run_id=updated.run_id,
-                    request_id=updated.request_id,
-                    tenant_id=updated.tenant_id,
-                    action=updated.action,
-                    policy_snapshot_id=updated.policy_snapshot_id,
-                    target=updated.target,
-                    created_at=updated.decision_at or _utc_now(),
-                )
-                stored = grant.model_copy(update={"grant_hash": grant_hash(grant)})
-                conn.execute(
-                    """
-                    INSERT INTO enterprise.grants (
-                        tenant_id, run_id, grant_id, request_id, payload, created_at
-                    ) VALUES (%s, %s, %s, %s, %s::jsonb, %s)
-                    """,
-                    (
-                        tenant,
-                        grant.run_id,
-                        grant.grant_id,
-                        grant.request_id,
-                        stored.model_dump_json(),
-                        stored.created_at,
-                    ),
-                )
-            conn.commit()
+        updated: ApprovalRequest | None = None
+        for _attempt in range(8):
+            try:
+                with self._uow.transaction(isolation_level=IsolationLevel.SERIALIZABLE) as conn:
+                    request = self._load_request_row_for_update(
+                        conn, tenant_id=tenant, run_id=run_id, request_id=request_id
+                    )
+                    if request.status not in {"pending", "evidence_requested"} and decision in {
+                        "approved",
+                        "rejected",
+                    }:
+                        raise RequestAlreadyConsumedError(
+                            f"approval request already decided: {request_id}"
+                        )
+                    if decision == "revoked" and request.status not in {
+                        "pending",
+                        "evidence_requested",
+                        "approved",
+                    }:
+                        raise RequestAlreadyConsumedError(
+                            f"approval request cannot be revoked: {request_id}"
+                        )
+                    updated = request.model_copy(
+                        update={
+                            "status": decision,
+                            "decision_at": _utc_now(),
+                            "decision_actor": decision_actor,
+                            "decision_note": redact_secrets(decision_note),
+                        }
+                    )
+                    updated = updated.model_copy(update={"request_hash": request_hash(updated)})
+                    conn.execute(
+                        """
+                        UPDATE enterprise.approval_requests
+                        SET payload = %s::jsonb, status = %s
+                        WHERE tenant_id = %s AND run_id = %s AND request_id = %s
+                        """,
+                        (
+                            updated.model_dump_json(),
+                            updated.status,
+                            tenant,
+                            run_id,
+                            request_id,
+                        ),
+                    )
+                    if decision == "approved":
+                        grant = Grant(
+                            grant_id=grant_id_for_request(updated),
+                            run_id=updated.run_id,
+                            request_id=updated.request_id,
+                            tenant_id=updated.tenant_id,
+                            action=updated.action,
+                            policy_snapshot_id=updated.policy_snapshot_id,
+                            target=updated.target,
+                            created_at=updated.decision_at or _utc_now(),
+                        )
+                        stored = grant.model_copy(update={"grant_hash": grant_hash(grant)})
+                        conn.execute(
+                            """
+                            INSERT INTO enterprise.grants (
+                                tenant_id, run_id, grant_id, request_id, payload, created_at
+                            ) VALUES (%s, %s, %s, %s, %s::jsonb, %s)
+                            """,
+                            (
+                                tenant,
+                                grant.run_id,
+                                grant.grant_id,
+                                grant.request_id,
+                                stored.model_dump_json(),
+                                stored.created_at,
+                            ),
+                        )
+                    elif decision == "revoked" and request.status == "approved":
+                        grant_id = grant_id_for_request(request)
+                        row = conn.execute(
+                            """
+                            SELECT payload FROM enterprise.grants
+                            WHERE tenant_id = %s AND run_id = %s AND grant_id = %s
+                            FOR UPDATE
+                            """,
+                            (tenant, run_id, grant_id),
+                        ).fetchone()
+                        if row is None:
+                            raise ApprovalRequestNotFoundError(f"grant not found: {grant_id}")
+                        grant = Grant.model_validate(row[0])
+                        if grant.grant_hash != grant_hash(grant):
+                            raise ApprovalRequestTamperedError(f"grant tampered: {grant_id}")
+                        revoked = grant.model_copy(
+                            update={"revoked_at": updated.decision_at or _utc_now()}
+                        )
+                        revoked = revoked.model_copy(update={"grant_hash": grant_hash(revoked)})
+                        conn.execute(
+                            """
+                            UPDATE enterprise.grants
+                            SET payload = %s::jsonb, revoked_at = NOW()
+                            WHERE tenant_id = %s AND run_id = %s AND grant_id = %s
+                            """,
+                            (revoked.model_dump_json(), tenant, run_id, grant_id),
+                        )
+            except SerializationFailure:
+                continue
+            break
+        else:
+            raise RequestAlreadyConsumedError(f"approval request already decided: {request_id}")
+        assert updated is not None
         assert_tenant_match(tenant, updated.tenant_id, operation="decide_request")
         return updated
 
@@ -578,7 +631,7 @@ class PostgresAuditStore:
         message: str | None = None,
     ) -> AuditEvent:
         tenant = validate_tenant_id(tenant_id)
-        with self._uow.connection() as conn:
+        with self._uow.transaction() as conn:
             event = pg_audit.emit_audit_event(
                 conn,
                 kind,
@@ -589,7 +642,6 @@ class PostgresAuditStore:
                 status=status,
                 message=message,
             )
-            conn.commit()
         return event
 
     def verify_integrity(self) -> tuple[bool, str]:

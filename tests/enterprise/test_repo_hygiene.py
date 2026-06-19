@@ -192,7 +192,10 @@ def test_progress_state_is_valid_and_matches_backlog() -> None:
     assert verification["command"].strip()
     assert verification["result"].strip()
     if progress["stages"]["v1.1"] == "completed":
-        assert verification["command"] == "PYTHONPATH=src python3 -m pytest -q"
+        assert verification["command"] in {
+            "PYTHONPATH=src python3 -m pytest -q",
+            "uv run --extra enterprise python -m pytest -q",
+        }
         assert "passed" in verification["result"]
 
 
