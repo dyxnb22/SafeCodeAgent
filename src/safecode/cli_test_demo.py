@@ -202,3 +202,8 @@ def demo_agent_loop() -> None:
     """EXPERIMENTAL: run the deterministic mock-provider agent loop demo."""
     result = run_agent_loop_demo(Path.cwd())
     typer.echo(result.transcript.rstrip("\n"))
+
+
+from safecode.enterprise.cli.demo import register as register_enterprise_demos
+
+register_enterprise_demos(demo_app)
