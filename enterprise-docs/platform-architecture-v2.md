@@ -10,7 +10,7 @@
   the corresponding sub-plan is active.
 - **Companion documents:** `system-architecture-v1.md` (v1.x → v2.0
   RC architecture, implemented), `deployment-profiles.md`, and the
-  decisions D19–D29 in `product-planning/decision-log.md`.
+  decisions D19–D31 in `product-planning/decision-log.md`.
 
 The v1 architecture covers a single-operator, file-backed,
 CLI-driven agent. The v2 architecture extends it into a multi-user
@@ -28,7 +28,7 @@ RC safety contracts; the local-first CLI mode keeps working unchanged.
 | Service surface | None; CLI is the entry point | FastAPI `/v2` service plus thin-client CLI in `server` mode |
 | Storage | `.sac/enterprise/...` filesystem | PostgreSQL (relational) + optional `pgvector` from v2.4 |
 | Workflow execution | Synchronous in-process orchestrator | Durable worker pool with PostgreSQL queue, lease, heartbeat |
-| Identity | Local `--actor` flag | OIDC bearer tokens; `--actor` ignored in `server` mode |
+| Identity | Local `--actor` flag | OIDC bearer tokens; server mode rejects `--actor` |
 | Approval store | File-backed single-use grants | PostgreSQL-backed single-use grants with `SERIALIZABLE` consumption |
 | Audit chain | File-backed hash chain | Same chain semantics persisted to PostgreSQL with chain verification on read |
 | RAG | In-process embedding store | pgvector-backed persistent index with incremental ingest (v2.4) |
@@ -124,7 +124,7 @@ plane never bypasses the governance plane.
 ## Service Plane (v2.1)
 
 Decisions: D21 (FastAPI), D22 (runtime modes), D23 (OIDC), D29 (`/v2`
-prefix).
+prefix), D30 (Team Server dependencies), D31 (development orchestration).
 
 - **Framework:** FastAPI with Pydantic v2 models.
 - **Versioning:** `/v2/...` for every endpoint; `/healthz`, `/readyz`,
@@ -200,9 +200,10 @@ Decision: D20 (durable worker), D25 (LangGraph stays optional).
   v2.1.2 protocols.
 - **Resume:** on lease pickup, the worker reloads the latest
   checkpoint and continues from the next pending node.
-- **Cancellation:** a cancel command writes a typed signal; the
-  orchestrator stops at the next safe checkpoint and marks the run
-  `rejected` with the audit trail.
+- **Cancellation:** a cancel command writes a typed signal; the orchestrator
+  stops at the next safe checkpoint and marks the run with the additive
+  `cancelled` terminal status. Cancellation is never represented as rejection,
+  blocking, or execution failure.
 - **Backoff and DLQ (v2.5):** poison messages move to a dead-letter
   queue; the worker continues with the next job.
 
@@ -237,7 +238,8 @@ sequenceDiagram
 
 ## Data Plane (v2.1 + v2.4)
 
-Decision: D19 (PostgreSQL + pgvector single store).
+Decisions: D19 (PostgreSQL + pgvector single store), D30 (psycopg boundary),
+D31 (real-PostgreSQL development and integration profile).
 
 ### Schema ownership boundaries
 
@@ -376,8 +378,10 @@ it composes the existing one.
   fails closed.
 - **CI callback:** delivery id deduplicates; schema failure fails
   closed.
-- **Audit append:** atomic with the action it audits; broken chain
-  fails the run.
+- **Audit append:** database-only state changes and their audit event commit in
+  one transaction. External actions use a durable intent/outbox record before
+  execution and an idempotent outcome event afterward; no design claims atomic
+  commit across PostgreSQL and GitHub/Jira/CI. A broken chain fails the run.
 - **DLQ (v2.5):** poison messages move to the DLQ with a redacted
   payload; healthy workers continue.
 
@@ -391,7 +395,7 @@ document fixes the boundaries between profiles:
 | Profile | Service plane | Data plane | Identity | Notes |
 |---|---|---|---|---|
 | Local Single-User | Not started | Local filesystem | CLI operator | Unchanged from v1.x |
-| Team Server (v2.1) | FastAPI `/v2` | PostgreSQL | OIDC bearer | New default |
+| Team Server (v2.1) | FastAPI `/v2` | PostgreSQL | OIDC bearer | Docker Compose dev profile; explicit server mode |
 | Team Server + pgvector (v2.4) | FastAPI `/v2` | PostgreSQL + pgvector | OIDC bearer | Retrieval consolidated |
 | On-Prem Hybrid (v2.5) | FastAPI `/v2` (or remote) | PostgreSQL + pgvector | OIDC bearer | OTel optional |
 

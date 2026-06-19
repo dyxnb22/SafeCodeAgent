@@ -63,6 +63,8 @@ def test_agent_entrypoints_use_canonical_governance() -> None:
         assert path in agents
         assert path in cursor
         assert path in skill
+    assert "enterprise-docs/platform-architecture-v2.md" in skill
+    assert "normative for v2.1+" in skill
 
 
 def test_tool_entrypoints_remain_thin() -> None:
@@ -133,6 +135,10 @@ def test_progress_state_is_valid_and_matches_backlog() -> None:
     backlog_task_ids = set(
         re.findall(r"^### (v\d+\.\d+\.\d+-T\d+)\b", backlog, re.MULTILINE)
     )
+    backlog_task_id_list = re.findall(
+        r"^### (v\d+\.\d+\.\d+-T\d+)\b", backlog, re.MULTILINE
+    )
+    assert len(backlog_task_id_list) == len(set(backlog_task_id_list))
     for stage, status in progress["stages"].items():
         if status != "completed":
             continue
@@ -161,6 +167,38 @@ def test_progress_state_is_valid_and_matches_backlog() -> None:
     if progress["stages"]["v1.1"] == "completed":
         assert verification["command"] == "PYTHONPATH=src python3 -m pytest -q"
         assert "passed" in verification["result"]
+
+
+def test_ready_post_rc_tasks_have_executable_contracts() -> None:
+    backlog = _read("product-planning/execution-backlog.md")
+    sections = re.split(r"^### ", backlog, flags=re.MULTILINE)[1:]
+    required_labels = (
+        "dependencies",
+        "files/modules",
+        "public contract",
+        "persistence / migration impact",
+        "security boundary",
+        "positive",
+        "negative",
+        "acceptance",
+        "non-goals",
+        "estimate",
+        "rollback / compatibility",
+    )
+
+    checked: list[str] = []
+    for section in sections:
+        heading = section.splitlines()[0]
+        match = re.match(r"(v(?:2\.1|2\.2)\.\d+-T\d+)\b", heading)
+        if not match:
+            continue
+        task_id = match.group(1)
+        checked.append(task_id)
+        lowered = section.lower()
+        missing = [label for label in required_labels if label not in lowered]
+        assert not missing, f"{task_id} is missing executable fields: {missing}"
+
+    assert checked
 
 
 @pytest.mark.parametrize("relative_path", LEGACY_CLAUDE_POLICY_FILES)

@@ -18,8 +18,8 @@ compliance evidence, and auditable tool-using security operations.
 - Enterprise planning and namespace stages: complete.
 - Last delivery stage completed: `v2.0 Enterprise Release Candidate`.
 - Current delivery stage: `v2.1 Team Server Foundation` (ready).
-- Next delivery task: `v2.1.1-T1` — land OpenAPI + settings + runtime-mode
-  contracts for Team Server. See `product-planning/execution-backlog.md`.
+- Next delivery task: `v2.1.1-T1` — ratify and declare the Team Server
+  dependency boundary. See `product-planning/execution-backlog.md`.
 - Post-RC platform architecture: `enterprise-docs/platform-architecture-v2.md`.
 - Machine-readable live status: `.agents/context/progress.json`.
 
@@ -61,7 +61,8 @@ Control flows downward through typed contracts. Tool execution does not bypass
 governance. Audit, redaction, approval, checkpoint, and rollback are cross-layer
 requirements rather than optional adapters.
 
-Authoritative architecture: `enterprise-docs/system-architecture-v1.md`.
+Implemented v2.0 architecture: `enterprise-docs/system-architecture-v1.md`.
+Normative v2.1+ target architecture: `enterprise-docs/platform-architecture-v2.md`.
 Authoritative models: `enterprise-docs/data-models.md`.
 
 ## Reusable Kernel Boundaries
@@ -98,7 +99,7 @@ regression analysis.
 | v1.8 | Vulnerability remediation workflow | Complete | `enterprise-docs/workflow-design.md` |
 | v1.9 | Enterprise beta hardening | Complete | `product-planning/version-roadmap.md` |
 | v2.0 | Enterprise release candidate | Complete | `RELEASE-NOTES-v2.0.0-rc.md` |
-| v2.1 | Team Server foundation (FastAPI + PostgreSQL + worker + OIDC) | Planned | `enterprise-docs/platform-architecture-v2.md` |
+| v2.1 | Team Server foundation (FastAPI + PostgreSQL + worker + OIDC) | Ready | `enterprise-docs/platform-architecture-v2.md` |
 | v2.2 | Real GitHub secure change workflow | Planned | `enterprise-docs/platform-architecture-v2.md` |
 | v2.3 | Operator console (React/Next.js) | Planned | `enterprise-docs/platform-architecture-v2.md` |
 | v2.4 | Enterprise knowledge, tickets, long-term memory | Planned | `enterprise-docs/platform-architecture-v2.md` |
@@ -133,6 +134,8 @@ tests.
 | Trace or dashboard | AgentOps observability, security governance, evaluation plan |
 | Evaluation | evaluation plan, milestone acceptance, relevant domain design |
 | Demo or interview narrative | interview master narrative and implemented behavior only |
+| Team Server API, persistence, worker, auth | platform architecture v2, decision log, security governance, data models |
+| Live GitHub, console, persistent knowledge | platform architecture v2, active stage roadmap and acceptance, relevant v1 domain plan |
 
 The filenames for all authoritative documents are indexed in
 `.agents/skills/current/SKILL.md` and the two planning README files.

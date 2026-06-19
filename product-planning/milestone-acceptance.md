@@ -475,13 +475,16 @@ For each stage:
 ### v2.1 Team Server Foundation
 
 **Engineering acceptance**
-- All persistence protocol contract tests pass against both
-  backends (local file and PostgreSQL fake) without divergence.
+- All persistence protocol contract tests pass against the local backend, the
+  strict PostgreSQL protocol fake, and a real supported PostgreSQL integration
+  database without divergence.
 - FastAPI app boots on a documented dev profile;
   `pytest tests/enterprise/api` runs deterministically without a
   live database or live identity provider.
 - Worker tests cover lease acquisition, heartbeat, crash
   recovery, idempotent retry, and concurrent approval consumption.
+- Migration, `SKIP LOCKED`, and `SERIALIZABLE` behavior is verified in the
+  real-PostgreSQL integration lane; mocks do not satisfy these gates.
 - `scripts/verify-package.py` still passes; full
   `PYTHONPATH=src python3 -m pytest -q` green.
 
@@ -491,13 +494,15 @@ For each stage:
   with identical observable behavior on the v1.7/v1.8 fixtures.
 - `sac enterprise approval approve` works against both modes;
   pending approvals survive a worker restart.
+- Cancelled runs use the explicit `cancelled` terminal state and remain
+  distinguishable from rejection, blocking, and failure.
 - A documented `docker compose up` (or equivalent reproducible
   script) brings the Team Server stack up; the demo bundle proves
   a clean PR review against PostgreSQL.
 
 **Security acceptance**
-- API endpoints reject unauthenticated requests in `server`
-  mode; CLI `--actor` is ignored in `server` mode.
+- API endpoints reject unauthenticated requests in server mode; CLI `--actor`
+  and raw command-line bearer values are rejected in server mode.
 - Tenant boundary enforced in SQL, audit reads, evidence export,
   and approval store; no cross-tenant fetch in any handler test.
 - No new code path lets the model authorize an approval or
@@ -524,8 +529,8 @@ For each stage:
 - Allowed yellow risks (at most three):
   - No real Jira/GitHub writes yet (lands in v2.2).
   - No operator console yet (lands in v2.3).
-  - In-memory worker fake used for unit tests; production worker
-    exercised only in integration lane.
+  - Protocol fakes remain unit-test aids only; PostgreSQL and worker semantics
+    are exercised in the marked integration lane.
 
 ---
 

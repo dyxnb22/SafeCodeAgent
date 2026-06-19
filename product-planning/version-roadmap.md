@@ -1249,12 +1249,11 @@ real Jira API, OpenTelemetry export.
 
 ### v2.1.1 Service Contracts and Configuration
 
-- **Goal:** declare the v2.1 API and persistence contracts before
-  any implementation lands; pick a single, justified storage and
-  worker stack and freeze it in the decision log.
-- **Scope:** OpenAPI surface, settings module, deployment configs,
-  and the storage / worker decisions referenced from
-  `decision-log.md` and `platform-architecture-v2.md`.
+- **Goal:** declare one optional Team Server dependency boundary, typed
+  local/server settings, and the planned `/v2` OpenAPI contract before any
+  handler lands.
+- **Scope:** `team-server` optional extra, runtime settings, planned OpenAPI
+  surface, and D30-D31 dependency/development-orchestrator decisions.
 - **Tasks:** see backlog tasks `v2.1.1-T1`–`v2.1.1-T3`.
 - **Directories/modules:** `src/safecode/enterprise/api/contracts/`
   (planned), `src/safecode/enterprise/api/settings.py` (planned),
@@ -1264,8 +1263,8 @@ real Jira API, OpenTelemetry export.
     eval, traces, and health endpoints as `planned` contracts.
   - Settings module captures DSN, auth issuer, runtime mode, and
     worker mode without consuming live config in tests.
-  - Storage and worker choices recorded in `decision-log.md` with
-    rejected alternatives.
+  - Team Server dependencies remain lazy and optional; base/local imports do
+    not start services or perform network/database I/O.
 - **Risks:** API drift between server and CLI. Mitigation: API
   contracts and CLI/JSON contracts are pinned by snapshot tests in
   v2.1.7.
@@ -1296,24 +1295,25 @@ real Jira API, OpenTelemetry export.
 
 ### v2.1.3 PostgreSQL Schema and Adapter
 
-- **Goal:** introduce a PostgreSQL backend behind the v2.1.2
-  protocol, with deterministic schema migrations and a test harness
-  that does not require a live database in unit tests.
-- **Scope:** PostgreSQL schema, migrations, repository adapter, and
-  the in-memory fake used by deterministic tests.
+- **Goal:** introduce a PostgreSQL backend behind the v2.1.2 protocol, with
+  deterministic schema migrations, fast fake-backed unit tests, and a mandatory
+  real-PostgreSQL integration lane for SQL and concurrency semantics.
+- **Scope:** PostgreSQL schema, migrations, repository adapter, strict protocol
+  fake, and Docker Compose integration database.
 - **Tasks:** see backlog tasks `v2.1.3-T1`–`v2.1.3-T4`.
 - **Directories/modules:** `src/safecode/enterprise/persistence/
   postgres/` (planned), `tests/enterprise/persistence/` (planned).
 - **Acceptance:**
   - Schema versioned; migrations idempotent.
   - Adapter passes the same protocol contract tests as the local
-    backend.
+    backend against both the strict fake and real PostgreSQL.
   - Tenant id is enforced as a non-null column on every owned
     table.
-  - Default `psycopg` driver vendored only via existing dependency
-    surface; no new top-level dependency without backlog approval.
-- **Risks:** transactional boundaries differ from filesystem;
-  approval consumption and audit chain must remain atomic.
+  - The D30 psycopg dependency stays inside the `team-server` optional extra.
+  - Migration, `SKIP LOCKED`, and `SERIALIZABLE` gates pass against real
+    PostgreSQL; a fake is never treated as proof of database semantics.
+- **Risks:** transactional boundaries differ from filesystem; approval
+  consumption and database audit append must remain atomic.
   Mitigation: explicit `SERIALIZABLE` for the approval-consume
   path; protocol contract tests enforce single-use semantics.
 - **Non-goals:** any service code; pgvector (`v2.4`).
@@ -1348,6 +1348,8 @@ real Jira API, OpenTelemetry export.
 - **Acceptance:**
   - Submitting the same run twice with the same idempotency key
     yields one execution.
+  - Cancellation reaches an explicit additive `cancelled` status; it is not
+    represented as rejection or failure.
   - Worker crash releases the lease within a bounded interval;
     another worker resumes from the last checkpoint.
   - Approval submission and consumption emit the same audit events
@@ -1383,14 +1385,16 @@ real Jira API, OpenTelemetry export.
 - **Goal:** freeze the v2.1 public contracts, document deployment
   and rollback, ship the demo, and update the project context for
   post-RC navigation.
-- **Scope:** API snapshot tests, migration runbook, deployment
-  README updates, and the v2.1 demo bundle.
+- **Scope:** API snapshot tests, Docker Compose development profile, migration
+  and rollback rehearsal, deployment README updates, and the v2.1 demo bundle.
 - **Tasks:** see backlog tasks `v2.1.7-T1`–`v2.1.7-T3`.
 - **Acceptance:**
   - API snapshot tests pass for the v2.1 surface; intentional
     changes update the snapshot in the same PR.
   - Migration runbook describes upgrade and rollback for a Team
     Server installation.
+  - Development Compose profile validates, binds the API to loopback by
+    default, and contains no committed credential.
   - Demo bundle proves a clean end-to-end PR review run on the
     server profile.
 - **Risks:** CLI/API divergence post-v2.1. Mitigation: same JSON

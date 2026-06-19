@@ -1,7 +1,7 @@
 # Decision Log
 
 **Implementation status (v2.0 RC):** Decisions D1–D18 are in effect through
-v2.0 RC. Decisions D19–D29 are post-RC and govern v2.1+ planning. See
+v2.0 RC. Decisions D19–D31 are post-RC and govern v2.1+ planning. See
 `.agents/context/progress.json` for live stage state.
 This file is the durable record of architectural and product
 decisions for SafeCodeAgent Enterprise. Every entry follows the
@@ -596,13 +596,13 @@ file to list the superseding entry. Do not edit history.
 
 ---
 
-## D23 — Identity for v2.1+ is OIDC bearer tokens; `--actor` is ignored in `server` mode
+## D23 — Identity for v2.1+ is OIDC bearer tokens; server mode rejects `--actor`
 
 - **Date:** 2026-06-19.
 - **Decision:** Authenticated identity in `server` mode comes from an
-  OIDC provider's bearer token. The CLI `--actor` flag is honored in
-  `local` mode only and is silently ignored in `server` mode. The
-  `RBACSubject` is built from the validated claim set.
+  OIDC provider's bearer token. The CLI `--actor` flag is honored in local mode
+  only and rejected in server mode so operators cannot mistake a display value
+  for authenticated identity. The `RBACSubject` is built from validated claims.
 - **Rationale:** v2.0 RC explicitly noted that trusting `--actor` is
   acceptable only for single-user local use. The team-server profile
   needs a verifiable identity; OIDC fits broadly without requiring a
@@ -614,8 +614,10 @@ file to list the superseding entry. Do not edit history.
     workload is high and OIDC covers the common operator use cases.
 - **Consequences:**
   - v2.1.6 implements OIDC validation and subject mapping.
-  - The CLI documents the new `--token` flag; tokens never appear in
-    logs or trace events.
+  - The CLI reads tokens from the existing credential provider/keychain,
+    `SAFECODE_ENTERPRISE_TOKEN` for bounded automation, or stdin. It does not
+    accept a raw `--token` value that would leak through process listings or
+    shell history; tokens never appear in logs or trace events.
   - SSO is layered on top of OIDC; the choice of provider is the
     operator's.
 - **Revisit trigger:** if a regulated profile requires mTLS or SAML
@@ -783,6 +785,71 @@ file to list the superseding entry. Do not edit history.
 - **Revisit trigger:** if a security finding forces a breaking
   schema change, document the deviation in this log and update
   contract tests in the same PR.
+
+---
+
+## D30 — Team Server dependencies live in one lazy optional extra
+
+- **Date:** 2026-06-19.
+- **Status:** Accepted for v2.1.
+- **Decision:** Add one `team-server` optional extra containing FastAPI,
+  Uvicorn, pydantic-settings, psycopg 3 with pooling, HTTPX for bounded OIDC/JWKS
+  retrieval, and PyJWT with cryptographic verification support. Base and
+  `enterprise` extras remain unchanged. Team Server modules lazy-import these
+  packages and perform no connection, discovery, or service startup at import
+  time.
+- **Rationale:** The Team Server requires a coherent tested dependency set, but
+  forcing server, database, and identity packages onto local CLI users would
+  enlarge the trusted and operational surface. Psycopg 3 provides sync/async
+  PostgreSQL and pooling without adding an ORM; HTTPX and PyJWT keep OIDC
+  discovery separate from token verification.
+- **Alternatives considered:**
+  - Put server dependencies in the base install. Rejected: breaks the local
+    minimal-install contract and increases supply-chain exposure.
+  - SQLAlchemy plus Alembic. Rejected for v2.1: repository protocols and
+    explicit SQL own the schema; an ORM adds a second abstraction before it
+    removes demonstrated complexity.
+  - Authlib for the whole OIDC client. Rejected initially: the service only
+    needs discovery/JWKS retrieval and JWT validation, not interactive OAuth
+    flows. Revisit if v2.3 login requires a backend-for-frontend flow.
+- **Consequences:**
+  - `v2.1.1-T1` declares and locks the optional extra.
+  - Production modules must remain importable in local mode when the extra is
+    absent and raise a typed installation error only when server mode is used.
+  - Supported ranges and lockfile changes are reviewed together.
+- **Revisit trigger:** a required OIDC flow cannot be implemented safely with
+  bounded HTTPX discovery plus PyJWT, or explicit SQL/pooling creates repeated
+  transaction bugs that an ORM demonstrably prevents.
+
+## D31 — Docker Compose is the v2.1 development and integration orchestrator
+
+- **Date:** 2026-06-19.
+- **Status:** Accepted for v2.1 development only.
+- **Decision:** Use one checked-in Docker Compose profile for disposable
+  PostgreSQL, API, and worker development/integration runs. Unit tests continue
+  to use local backends and strict protocol fakes, but migrations, locking,
+  `SKIP LOCKED`, and `SERIALIZABLE` acceptance require the real PostgreSQL
+  integration lane. Compose is not the production deployment contract.
+- **Rationale:** PostgreSQL transaction and concurrency behavior cannot be
+  proven by an in-memory fake. Compose gives contributors and CI one repeatable
+  database version without committing to Kubernetes or a hosted platform.
+- **Alternatives considered:**
+  - Fake-only database tests. Rejected: they cannot validate PostgreSQL DDL,
+    isolation levels, row locks, or connection recovery.
+  - Testcontainers as the sole orchestrator. Rejected initially: it adds a
+    second Python dependency and hides the operator-visible stack; tests may
+    wrap the same Compose profile later.
+  - Kubernetes manifests in v2.1. Rejected: production orchestration is v2.5
+    scope and would distract from service correctness.
+- **Consequences:**
+  - `v2.1.7-T2` lands the loopback-bound, secret-free development profile and
+    upgrade/rollback rehearsal.
+  - Real-PostgreSQL tests are marked and deterministic; they are required at
+    milestone closeout even when the default unit lane skips Docker.
+  - No Docker socket is mounted into the API or worker.
+- **Revisit trigger:** CI cannot run Docker/Compose, or the on-prem v2.5 profile
+  requires a production orchestrator. Any replacement must preserve the real
+  PostgreSQL acceptance lane.
 
 ---
 

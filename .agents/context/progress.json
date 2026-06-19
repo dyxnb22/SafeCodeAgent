@@ -124,14 +124,15 @@
     {"id": "maintenance-v1.2-closeout-cleanup", "completed_at": "2026-06-19", "evidence": "uv lock verified with enterprise extra; full regression: 5870 passed, 5 skipped"},
     {"id": "maintenance-v1.3-v1.4-security-closeout", "completed_at": "2026-06-19", "evidence": "Missing PR fixture now marks evidence missing; CLI supports both declared and baseline Typer environments; full regression: 5932 passed, 5 skipped"},
     {"id": "maintenance-v2.0-reviewed-security-closeout", "completed_at": "2026-06-19", "evidence": "3b182f6; exact approval/grant binding, tenant-safe trace/evidence, fail-closed remediation validation; full regression: 6012 passed, 5 skipped"},
-    {"id": "maintenance-post-rc-platform-roadmap", "completed_at": "2026-06-19", "evidence": "Planned v2.1-v3.0 stages: roadmap, milestone acceptance, v2.1 PR-level backlog, v2.2 PR-level backlog, decisions D19-D29, platform-architecture-v2.md; progress moved to v2.1=ready with next_delivery_task=v2.1.1-T1"}
+    {"id": "maintenance-post-rc-platform-roadmap", "completed_at": "2026-06-19", "evidence": "dd8c117; planned v2.1-v3.0 stages with v2.1/v2.2 PR-level backlog, decisions D19-D29, and platform-architecture-v2.md"},
+    {"id": "maintenance-post-rc-plan-review", "completed_at": "2026-06-19", "evidence": "Aligned v2.1/v2.2 executable contracts, decisions D30-D31, real PostgreSQL gates, cancellation and external-action audit semantics, credential safety, and shared agent routing; 264 Enterprise passed, 1 skipped; full regression 6016 passed, 5 skipped"}
   ],
   "blockers": [],
   "decisions_required": [],
   "last_verification": {
     "recorded_at": "2026-06-19",
     "command": "PYTHONPATH=src python3 -m pytest -q",
-    "result": "6012 passed, 5 skipped; 260 Enterprise passed, 1 skipped; package verification passed",
-    "scope": "post-RC platform roadmap planning closeout (no production code changed)"
+    "result": "6016 passed, 5 skipped; 264 Enterprise passed, 1 skipped",
+    "scope": "post-RC v2.1-v3.0 plan review and agent-routing governance"
   }
 }

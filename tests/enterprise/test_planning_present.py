@@ -23,6 +23,9 @@ ENTERPRISE_DOCS = [
     "enterprise-docs/security-governance-plan.md",
     "enterprise-docs/evaluation-plan.md",
     "enterprise-docs/agentops-observability-plan.md",
+    "enterprise-docs/deployment-profiles.md",
+    "enterprise-docs/security-review-v2-0.md",
+    "enterprise-docs/platform-architecture-v2.md",
 ]
 
 ALL_PLANNING_DOCS = PRODUCT_PLANNING_DOCS + ENTERPRISE_DOCS
@@ -44,6 +47,9 @@ ENTERPRISE_README_FILES = [
     "security-governance-plan.md",
     "evaluation-plan.md",
     "agentops-observability-plan.md",
+    "deployment-profiles.md",
+    "security-review-v2-0.md",
+    "platform-architecture-v2.md",
 ]
 
 

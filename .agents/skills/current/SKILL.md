@@ -25,8 +25,9 @@ callers, and tests. Do not treat the compact context as implementation truth.
 
 ## Product Goal
 
-Build governed workflows for PR security review, vulnerability remediation,
-secure implementation planning, compliance evidence, and auditable tool use.
+Build a governed secure-change platform for PR security review, vulnerability
+remediation, secure implementation planning, compliance evidence, and auditable
+tool use. The post-RC stages add a Team Server without weakening local mode.
 
 ## Reusable Safety Kernel
 
@@ -49,6 +50,7 @@ memory, context budgets, provider validation, and deterministic eval fixtures.
 - `enterprise-docs/security-governance-plan.md`
 - `enterprise-docs/evaluation-plan.md`
 - `enterprise-docs/agentops-observability-plan.md`
+- `enterprise-docs/platform-architecture-v2.md` (normative for v2.1+)
 
 Indexes: `product-planning/README.md` and `enterprise-docs/README.md`.
 
@@ -64,3 +66,6 @@ and `archive/safecodeagent-final`; do not recreate them here.
   `AGENTS.md`.
 - Resolve context, plan, code, or test conflicts explicitly; never silently
   select the interpretation that is easiest to implement.
+- For v2.1+ work, read the active stage section in
+  `platform-architecture-v2.md` and preserve the explicit local/server backend
+  boundary. Planned target-state prose is not evidence of implementation.
