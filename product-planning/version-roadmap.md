@@ -1713,6 +1713,52 @@ evidence, the flagship workflows, and release notes.
 
 ---
 
+## Post-GA Portfolio Track
+
+The `v3.0` candidate remains blocked on external GA evidence unless
+an independent reviewer, deployment operator, and live-provider run
+produce real artifacts. Portfolio work is tracked separately in
+`post-ga-portfolio-roadmap.md`.
+
+The portfolio track does not add enterprise platform scope. Its
+purpose is to make the implemented platform reproducible, explainable,
+and suitable for a resume / interview setting.
+
+### v3.1 Portfolio Release Framing
+
+- **Goal:** separate portfolio readiness from enterprise GA approval.
+- **Acceptance:** external GA gates stay pending; docs and tests prevent
+  false GA-approved, production-deployed, or externally-signed claims.
+
+### v3.2 One-Command Demo
+
+- **Goal:** ship one deterministic offline `pr-review` demo before
+  expanding to additional flows.
+- **Acceptance:** demo command exits 0, emits citations, approval gate,
+  redacted trace, and audit summary, and has snapshot coverage.
+
+### v3.3 Interview Case Study
+
+- **Goal:** connect RAG, workflow, MCP, guardrails, HITL,
+  observability, and evaluation to real code and tests.
+- **Acceptance:** narrative links resolve; every major capability cites
+  implementation and regression coverage.
+
+### v3.4 Recruiter README
+
+- **Goal:** make the repository understandable in the first 90 seconds.
+- **Acceptance:** root README has an accurate quickstart, architecture
+  pointer, demo link, security status, and passing link checks.
+
+### v3.5 Visual Assets and Live Lane (Optional)
+
+- **Goal:** add screenshots, GIF, or one opt-in live-provider lane only
+  after `v3.4` is stable.
+- **Acceptance:** optional assets do not block portfolio final and do
+  not introduce secret, network, or binary-churn risk.
+
+---
+
 ## Cross-Stage Invariants
 
 These hold for every sub-plan and override anything that contradicts

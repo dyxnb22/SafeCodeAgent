@@ -2201,6 +2201,236 @@ backend mutation lives in the UI.
 
 ---
 
+## v3.1 Portfolio Release Framing (planned)
+
+These tasks do not close enterprise GA gates. They create a separate portfolio
+track while preserving the `v3.0` candidate blockers.
+
+### v3.1.1-T1 - Portfolio roadmap and indexes
+- **Version / Dependencies:** v3.1.1; v3.0 candidate remediation.
+- **Files/Modules:** `product-planning/post-ga-portfolio-roadmap.md`,
+  `product-planning/README.md`, `product-planning/version-roadmap.md`,
+  `product-planning/milestone-acceptance.md`,
+  `product-planning/execution-backlog.md`.
+- **Public contract:** planning only; no runtime contract.
+- **Persistence / migration impact:** none.
+- **Security boundary:** portfolio readiness must not imply enterprise GA
+  approval.
+- **Positive / negative tests:** planning-present test includes the new
+  roadmap; false GA claims remain absent.
+- **Acceptance:** v3.1-v3.4 portfolio track is indexed and visible from the
+  existing planning entry points.
+- **Non-goals:** runtime changes, screenshots, live providers, or GA closeout.
+- **Estimate:** 0.5 PR-day.
+- **Rollback / compatibility:** remove the new planning doc and index entries.
+
+### v3.1.1-T2 - External GA gates document
+- **Version / Dependencies:** v3.1.1; v3.1.1-T1.
+- **Files/Modules:** `enterprise-docs/security/external-gates.md`,
+  `enterprise-docs/README.md`.
+- **Public contract:** documentation only.
+- **Persistence / migration impact:** none.
+- **Security boundary:** agents cannot satisfy reviewer signature,
+  production-like deployment evidence, or stable live-provider evidence.
+- **Positive / negative tests:** planning-present test indexes the document;
+  false-claim test rejects satisfied-gate language without evidence.
+- **Acceptance:** G1/G2/G3 are listed with owners, required evidence, and
+  agent boundaries.
+- **Non-goals:** changing `security-review-v3.0.md` to approved.
+- **Estimate:** 0.25 PR-day.
+- **Rollback / compatibility:** remove doc and index link.
+
+### v3.1.2-T1 - Portfolio track progress state
+- **Version / Dependencies:** v3.1.2; v3.1.1-T1.
+- **Files/Modules:** `.agents/context/progress.json`,
+  `.agents/context/project-context.md`,
+  `tests/enterprise/test_repo_hygiene.py`.
+- **Public contract:** `current` remains v3.0 blocked; new
+  `portfolio_track` carries portfolio stage and next task.
+- **Persistence / migration impact:** none.
+- **Security boundary:** GA blockers remain in `blockers` and are not marked
+  complete by portfolio progress.
+- **Positive / negative tests:** hygiene verifies portfolio next task exists in
+  backlog; v3.0 blockers remain non-empty.
+- **Acceptance:** `portfolio_track.next_delivery_task` points to
+  `v3.1.1-T1` until execution starts.
+- **Non-goals:** adding a new `current.status` enum value.
+- **Estimate:** 0.25 PR-day.
+- **Rollback / compatibility:** remove `portfolio_track` and test assertion.
+
+### v3.1.2-T2 - False GA claim hygiene test
+- **Version / Dependencies:** v3.1.2; v3.1.1-T2.
+- **Files/Modules:** `tests/enterprise/test_no_false_ga_claims.py`.
+- **Public contract:** repository governance test.
+- **Persistence / migration impact:** none.
+- **Security boundary:** prevents accidental or agent-written false release
+  status.
+- **Positive / negative tests:** top-level release, README, and security docs
+  may say candidate / pending / portfolio final; they must not claim GA
+  approval, production deployment, or external signature without evidence.
+- **Acceptance:** test passes on current candidate docs and fails on forbidden
+  phrases.
+- **Non-goals:** natural-language policy engine.
+- **Estimate:** 0.5 PR-day.
+- **Rollback / compatibility:** remove test if replaced by stronger doc lint.
+
+## v3.2 One-Command Demo (planned)
+
+### v3.2.1-T1 - Offline PR review demo command
+- **Version / Dependencies:** v3.2.1; v3.1 complete.
+- **Files/Modules:** `src/safecode/enterprise/cli/demo.py`,
+  enterprise CLI registration, `tests/enterprise/cli/test_demo_command.py`.
+- **Public contract:** `sac demo pr-review --offline`.
+- **Persistence / migration impact:** demo writes only disposable local run
+  state under the project `.sac` root.
+- **Security boundary:** no live writes, provider calls, or network access in
+  offline demo mode.
+- **Positive / negative tests:** `--list` shows demos; `pr-review --offline`
+  exits 0; unknown demo exits non-zero; live mode is unavailable by default.
+- **Acceptance:** demo output includes classification, citation IDs, workflow
+  nodes, approval-gated refusal, and audit summary.
+- **Non-goals:** five demos, live GitHub, live LLM provider.
+- **Estimate:** 1.0 PR-day.
+- **Rollback / compatibility:** remove demo command without changing core
+  workflow APIs.
+
+### v3.2.2-T1 - Demo transcript redaction and snapshots
+- **Version / Dependencies:** v3.2.2; v3.2.1-T1.
+- **Files/Modules:** `src/safecode/enterprise/demo/redactor.py`,
+  `examples/enterprise/demos/v3.2/transcripts/pr-review.txt`,
+  `tests/enterprise/demo/test_transcripts.py`.
+- **Public contract:** deterministic transcript fixture.
+- **Persistence / migration impact:** none.
+- **Security boundary:** redactor removes timestamps, run IDs, hostnames,
+  volatile paths, and secrets before snapshot comparison.
+- **Positive / negative tests:** redaction unit tests and transcript snapshot
+  test.
+- **Acceptance:** transcript snapshot is deterministic on repeated runs.
+- **Non-goals:** image or GIF generation.
+- **Estimate:** 0.75 PR-day.
+- **Rollback / compatibility:** delete transcript fixtures and redactor.
+
+## v3.3 Interview Case Study (planned)
+
+### v3.3.1-T1 - Secure-change case study
+- **Version / Dependencies:** v3.3.1; v3.2.1-T1 recommended.
+- **Files/Modules:** `product-planning/case-study-secure-change-platform.md`,
+  `product-planning/README.md`.
+- **Public contract:** documentation only.
+- **Persistence / migration impact:** none.
+- **Security boundary:** distinguishes model proposals from execution
+  authority.
+- **Positive / negative tests:** planning-present test indexes the case study.
+- **Acceptance:** case study has sections for RAG, workflow, MCP,
+  guardrails, HITL, observability, evaluation, and audit, each citing a source
+  file and test.
+- **Non-goals:** new architecture or new workflow.
+- **Estimate:** 0.75 PR-day.
+- **Rollback / compatibility:** remove doc and index link.
+
+### v3.3.2-T1 - Narrative link integrity test
+- **Version / Dependencies:** v3.3.2; v3.3.1-T1.
+- **Files/Modules:** `tests/enterprise/test_planning_links.py`,
+  `product-planning/interview-master-narrative.md` (patch references only if
+  needed).
+- **Public contract:** repository governance test.
+- **Persistence / migration impact:** none.
+- **Security boundary:** prevents docs from drifting into unverifiable claims.
+- **Positive / negative tests:** referenced `src/...`, `tests/...`,
+  `product-planning/...`, and `enterprise-docs/...` paths exist.
+- **Acceptance:** case study and interview narrative links pass.
+- **Non-goals:** line-number perfect citation enforcement.
+- **Estimate:** 0.5 PR-day.
+- **Rollback / compatibility:** remove test if replaced by stronger link
+  checker.
+
+### v3.3.3-T1 - Architecture poster
+- **Version / Dependencies:** v3.3.3; v3.3.1-T1.
+- **Files/Modules:** `docs/architecture-poster.svg` or
+  `docs/architecture-poster.md`, root README reference.
+- **Public contract:** documentation asset.
+- **Persistence / migration impact:** none.
+- **Security boundary:** poster must reflect implemented boundaries and keep
+  external GA gates separate.
+- **Positive / negative tests:** README link test resolves the asset; size test
+  keeps SVG under 100 KB if SVG is used.
+- **Acceptance:** poster shows service, workflow, data, integration,
+  governance, observability, and evaluation planes.
+- **Non-goals:** new architecture diagrams that contradict
+  `platform-architecture-v2.md`.
+- **Estimate:** 0.5 PR-day.
+- **Rollback / compatibility:** remove asset and README link.
+
+## v3.4 Recruiter README (planned)
+
+### v3.4.1-T1 - Root README rewrite
+- **Version / Dependencies:** v3.4.1; v3.2.1-T1 and v3.3.1-T1 recommended.
+- **Files/Modules:** `README.md`.
+- **Public contract:** repository entry point.
+- **Persistence / migration impact:** none.
+- **Security boundary:** README must describe v3.0 as candidate and portfolio
+  final as presentation readiness, not enterprise GA.
+- **Positive / negative tests:** README link test and false-GA-claim test.
+- **Acceptance:** README includes hero, what it is, architecture, quickstart,
+  demo, security status, interview material, and link map.
+- **Non-goals:** marketing claims, hosted demo, or deleting old docs.
+- **Estimate:** 1.0 PR-day.
+- **Rollback / compatibility:** revert README only.
+
+### v3.4.2-T1 - README link integrity test
+- **Version / Dependencies:** v3.4.2; v3.4.1-T1.
+- **Files/Modules:** `tests/enterprise/test_readme_links.py`.
+- **Public contract:** repository governance test.
+- **Persistence / migration impact:** none.
+- **Security boundary:** docs should not point reviewers at stale or missing
+  evidence.
+- **Positive / negative tests:** internal Markdown links resolve; external
+  links are ignored or allowlisted without network.
+- **Acceptance:** test passes for root README.
+- **Non-goals:** internet link checking.
+- **Estimate:** 0.5 PR-day.
+- **Rollback / compatibility:** remove test if replaced by broader doc link
+  checker.
+
+### v3.4.3-T1 - Legacy link audit
+- **Version / Dependencies:** v3.4.3; v3.4.2-T1.
+- **Files/Modules:** root README, planning README files, optional audit note in
+  PR description only.
+- **Public contract:** documentation cleanup guidance.
+- **Persistence / migration impact:** none.
+- **Security boundary:** do not delete files merely because they look old.
+- **Positive / negative tests:** `rg` audit proves any changed links resolve;
+  full regression remains green.
+- **Acceptance:** stale entry points are replaced by current portfolio
+  links; no file deletion unless separately justified.
+- **Non-goals:** deleting legacy docs in this task.
+- **Estimate:** 0.5 PR-day.
+- **Rollback / compatibility:** restore previous links.
+
+### v3.4.4-T1 - Portfolio final closeout
+- **Version / Dependencies:** v3.4.4; v3.1 through v3.4.3.
+- **Files/Modules:** `.agents/context/progress.json`,
+  `.agents/context/project-context.md`, release notes if needed.
+- **Public contract:** portfolio track status only.
+- **Persistence / migration impact:** none.
+- **Security boundary:** enterprise GA blockers remain pending unless real
+  external evidence exists.
+- **Positive / negative tests:** targeted planning/hygiene tests and full
+  regression.
+- **Acceptance:** portfolio track complete, full regression recorded, v3.0 GA
+  blockers unchanged.
+- **Non-goals:** tagging or pushing unless explicitly requested.
+- **Estimate:** 0.25 PR-day.
+- **Rollback / compatibility:** revert progress/context status changes.
+
+## v3.5 Visual Assets and Live Lane (optional)
+
+Optional tasks may be added after `v3.4.0-portfolio-final`. They must not block
+portfolio final and must not introduce committed credentials or brittle network
+requirements.
+
+---
+
 ## Backlog Hygiene
 
 - Every merged PR must update this file by either marking the task

@@ -8,6 +8,7 @@ _ROOT = Path(__file__).resolve().parent.parent.parent
 
 PRODUCT_PLANNING_DOCS = [
     "product-planning/version-roadmap.md",
+    "product-planning/post-ga-portfolio-roadmap.md",
     "product-planning/milestone-acceptance.md",
     "product-planning/execution-backlog.md",
     "product-planning/interview-master-narrative.md",
@@ -26,12 +27,14 @@ ENTERPRISE_DOCS = [
     "enterprise-docs/deployment-profiles.md",
     "enterprise-docs/security-review-v2-0.md",
     "enterprise-docs/platform-architecture-v2.md",
+    "enterprise-docs/security/external-gates.md",
 ]
 
 ALL_PLANNING_DOCS = PRODUCT_PLANNING_DOCS + ENTERPRISE_DOCS
 
 PRODUCT_PLANNING_README_FILES = [
     "version-roadmap.md",
+    "post-ga-portfolio-roadmap.md",
     "milestone-acceptance.md",
     "execution-backlog.md",
     "interview-master-narrative.md",
@@ -50,6 +53,7 @@ ENTERPRISE_README_FILES = [
     "deployment-profiles.md",
     "security-review-v2-0.md",
     "platform-architecture-v2.md",
+    "security/external-gates.md",
 ]
 
 

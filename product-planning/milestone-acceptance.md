@@ -729,6 +729,91 @@ For each stage:
 
 ---
 
+### v3.1 Portfolio Release Framing
+
+**Engineering acceptance**
+- `post-ga-portfolio-roadmap.md` is indexed and task IDs are represented in
+  `execution-backlog.md`.
+- `progress.json` keeps `current` blocked on v3.0 external GA gates and adds
+  a separate portfolio track.
+
+**Product acceptance**
+- Release notes and planning docs explain portfolio final versus enterprise
+  GA without implying external approval.
+
+**Security acceptance**
+- `security/external-gates.md` lists G1/G2/G3, owners, and agent boundaries.
+- A hygiene test rejects false GA-approved / production-deployed claims.
+
+**Evaluation acceptance**
+- No new eval suite required; planning and hygiene tests pass.
+
+**Demo / interview acceptance**
+- The post-GA track gives a clear route to a runnable demo and interview
+  narrative.
+
+### v3.2 One-Command Demo
+
+**Engineering acceptance**
+- `sac demo pr-review --offline` is deterministic and uses existing fixtures.
+- Transcript snapshots redact timestamps, run IDs, hostnames, and volatile
+  local paths.
+
+**Product acceptance**
+- Demo output shows classification, retrieval citation IDs, workflow nodes,
+  approval-gated write refusal, and audit summary.
+
+**Security acceptance**
+- Demo mode never performs live writes and never requires provider secrets.
+
+**Evaluation acceptance**
+- Snapshot tests cover the transcript.
+
+**Demo / interview acceptance**
+- README can reference one command that works on a clean checkout.
+
+### v3.3 Interview Case Study
+
+**Engineering acceptance**
+- Narrative docs cite existing files and tests; link integrity tests verify
+  those references.
+
+**Product acceptance**
+- One case study walks a secure-change workflow end to end.
+
+**Security acceptance**
+- The case study preserves the distinction between model proposals and
+  execution authority.
+
+**Evaluation acceptance**
+- Evaluation and ratchet claims cite concrete tests or fixtures.
+
+**Demo / interview acceptance**
+- Five concise talking points are ready for a 15-minute interview walkthrough.
+
+### v3.4 Recruiter README
+
+**Engineering acceptance**
+- README internal links resolve.
+- Quickstart uses deterministic offline commands.
+
+**Product acceptance**
+- A reviewer can understand the project, status, architecture, and demo path
+  from the root README.
+
+**Security acceptance**
+- README describes the v3.0 candidate / external gate status honestly.
+
+**Evaluation acceptance**
+- README test count or badge, if present, is clearly marked as manually
+  maintained unless backed by CI.
+
+**Demo / interview acceptance**
+- README points to the demo, case study, architecture poster, and security
+  status.
+
+---
+
 ## Gate Mechanics
 
 | Mechanism | Owner | Where it lives |

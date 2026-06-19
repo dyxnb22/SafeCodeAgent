@@ -888,6 +888,41 @@ file to list the superseding entry. Do not edit history.
 
 ---
 
+## D33 - Portfolio release track is separate from enterprise GA
+
+- **Date:** 2026-06-19.
+- **Status:** Accepted for post-v3.0 planning.
+- **Decision:** Add a `v3.1`-`v3.4` portfolio track for honest release
+  framing, one-command demo, interview case study, and recruiter-facing README
+  polish. Keep `v3.0` enterprise GA blocked until the external reviewer,
+  production-like deployment, and live-provider evidence gates have real
+  artifacts. Portfolio completion must not mutate those GA gates to complete.
+- **Rationale:** The implemented platform is already feature-complete enough
+  for a resume and learning project, but its value is hidden behind deep
+  planning docs and incomplete external GA evidence. A separate portfolio track
+  lets the repo become runnable and explainable without fabricating enterprise
+  production claims.
+- **Alternatives considered:**
+  - Continue adding enterprise product features. Rejected: more scope would
+    dilute the interview story and increase maintenance cost.
+  - Mark `v3.0` GA complete after local tests. Rejected: local tests cannot
+    substitute for external review, production-like deployment evidence, or a
+    live-provider run.
+  - Put portfolio tasks directly into the main `current` progress state.
+    Rejected: it would blur the blocked GA state and make future agents think
+    the external gates were resolved.
+- **Consequences:**
+  - `post-ga-portfolio-roadmap.md` owns the portfolio narrative.
+  - `execution-backlog.md` owns PR-sized portfolio tasks.
+  - `progress.json` may add a separate `portfolio_track`, while `current`
+    remains the enterprise GA state.
+  - Root README and demo work may be treated as release-quality portfolio
+    work, but not as enterprise GA evidence.
+- **Revisit trigger:** real G1/G2/G3 artifacts are produced, or the project
+  moves from portfolio use to an actual external customer rollout.
+
+---
+
 ## How to add a new decision
 
 1. Pick the next `D<n>` id.

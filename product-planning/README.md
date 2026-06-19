@@ -1,8 +1,9 @@
 # SafeCodeAgent Enterprise Planning
 
-**Implementation status (v2.0 RC + post-RC plan):** v1.0–v2.0 are
-implemented; v2.1–v3.0 are planned and detailed in the executable planning
-files below. See `.agents/context/progress.json` for live delivery state.
+**Implementation status (v3.0 candidate + portfolio track):** v1.0–v2.5 are
+implemented; v3.0 is a candidate blocked on external GA gates; v3.1–v3.4 are
+the planned portfolio hardening track. See `.agents/context/progress.json` for
+live delivery state.
 SafeCodeAgent Enterprise turns the finished SafeCodeAgent terminal coding agent
 into an enterprise security engineering agent platform.
 
@@ -47,6 +48,9 @@ Executable planning (new, authoritative for delivery):
 - `version-roadmap.md` — stage versions `v1.0`–`v3.0` with sub-plans
   (`v1.1.1`, …, `v2.1.1`, …). The single source of truth for the order
   of work.
+- `post-ga-portfolio-roadmap.md` — scoped `v3.1`–`v3.4` portfolio
+  hardening plan: honest release framing, one-command demo, interview
+  case study, and recruiter-facing README.
 - `milestone-acceptance.md` — engineering, product, security, eval,
   and demo gate criteria per stage, including the post-RC stages
   `v2.1`–`v3.0`.
