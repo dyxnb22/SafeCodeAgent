@@ -5,7 +5,7 @@ from __future__ import annotations
 from safecode.enterprise.workflow.contracts import NodePatch
 from safecode.enterprise.workflow.nodes._helpers import build_patch
 from safecode.enterprise.workflow.state import EnterpriseRunState, Plan, PlanAction
-from safecode.enterprise.workflow.tasks import pr_review, remediation
+from safecode.enterprise.workflow.tasks import pr_review, remediation, secure_planning
 from safecode.enterprise.workflow.types import RiskTier
 
 NODE_NAME = "plan_actions"
@@ -30,6 +30,20 @@ async def run(state: EnterpriseRunState) -> NodePatch:
             state,
             NODE_NAME,
             summary="planned actions",
+            state_updates={"plan": plan_obj},
+        )
+    if secure_planning.is_secure_planning_task(state) and state.issue_evidence is not None:
+        plan_obj = secure_planning.build_planning_plan(
+            state,
+            state.issue_evidence,
+            state.citations,
+            state.findings,
+            state.risk_tier or RiskTier.medium,
+        )
+        return build_patch(
+            state,
+            NODE_NAME,
+            summary="planned secure implementation actions",
             state_updates={"plan": plan_obj},
         )
     risk = state.risk_tier or RiskTier.low

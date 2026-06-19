@@ -7,7 +7,7 @@ from pathlib import Path
 from safecode.enterprise.workflow.contracts import NodePatch
 from safecode.enterprise.workflow.nodes._helpers import build_patch
 from safecode.enterprise.workflow.state import EnterpriseRunState
-from safecode.enterprise.workflow.tasks import pr_review, remediation
+from safecode.enterprise.workflow.tasks import pr_review, remediation, secure_planning
 
 NODE_NAME = "collect_repo_context"
 
@@ -42,6 +42,21 @@ async def run(state: EnterpriseRunState) -> NodePatch:
             updates["missing_evidence"] = True
         else:
             updates["pull_request_evidence"] = evidence
+    elif secure_planning.is_secure_planning_task(state) and state.request.input_kind == "ticket":
+        evidence, issue_key = secure_planning.collect_issue(
+            repo_root,
+            state.request.input_ref,
+            input_kind=state.request.input_kind,
+            extra=state.request.extra,
+        )
+        if evidence is None:
+            updates["missing_evidence"] = True
+        else:
+            updates["issue_evidence"] = evidence
+            if issue_key and state.request.extra.get("issue_key") is None:
+                updates["request"] = state.request.model_copy(
+                    update={"extra": {**state.request.extra, "issue_key": issue_key}}
+                )
     return build_patch(
         state,
         NODE_NAME,

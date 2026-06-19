@@ -6,11 +6,12 @@ from pathlib import Path
 
 from safecode.enterprise.workflow.contracts import NodePatch
 from safecode.enterprise.workflow.nodes._helpers import build_patch
+from safecode.enterprise.workflow.render_planning_report import render_planning_report
 from safecode.enterprise.workflow.render_pr_report import render_pr_report
 from safecode.enterprise.workflow.render_remediation_report import render_remediation_report
 from safecode.enterprise.workflow.remediation_patch import write_patch_proposal
 from safecode.enterprise.workflow.state import EnterpriseRunState, Proposal
-from safecode.enterprise.workflow.tasks import pr_review, remediation
+from safecode.enterprise.workflow.tasks import pr_review, remediation, secure_planning
 
 NODE_NAME = "propose_report_or_patch"
 
@@ -71,6 +72,31 @@ async def run(state: EnterpriseRunState) -> NodePatch:
             state,
             NODE_NAME,
             summary="proposed PR review artifacts",
+            state_updates={"proposals": proposals},
+        )
+
+    if secure_planning.is_secure_planning_task(state) and state.plan is not None:
+        report_path = run_dir / "plan.md"
+        report_path.write_text(render_planning_report(state), encoding="utf-8")
+        comment_ref: str | None = None
+        proposals = secure_planning.build_planning_proposals(
+            state,
+            report_ref=str(report_path),
+            comment_ref=None,
+        )
+        if state.request.extra.get("post_to_ticket") == "1":
+            comment_path = run_dir / "draft_ticket_comment.md"
+            comment_path.write_text(secure_planning.build_ticket_comment_body(state, state.plan), encoding="utf-8")
+            comment_ref = str(comment_path)
+            proposals = secure_planning.build_planning_proposals(
+                state,
+                report_ref=str(report_path),
+                comment_ref=comment_ref,
+            )
+        return build_patch(
+            state,
+            NODE_NAME,
+            summary="proposed secure planning artifacts",
             state_updates={"proposals": proposals},
         )
 

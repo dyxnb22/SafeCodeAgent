@@ -56,6 +56,8 @@ def build_initial_state(
     now = utc_now_iso()
     tid = (tenant_id or "local").strip() or "local"
     input_kind = "finding_fixture" if task_type == TaskType.remediation else "pr_fixture"
+    if task_type == TaskType.secure_planning:
+        input_kind = "ticket"
     snapshot = resolve_policy(repo_root, tenant_id=tid)
     return EnterpriseRunState(
         run_id=run,

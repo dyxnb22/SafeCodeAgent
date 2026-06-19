@@ -82,6 +82,9 @@ class Plan(BaseModel):
     plan_id: str
     summary: str
     actions: list[PlanAction] = Field(default_factory=list)
+    alternatives: list[str] = Field(default_factory=list)
+    revisit_trigger: str = ""
+    citation_ids: list[str] = Field(default_factory=list)
 
 
 class Proposal(BaseModel):
