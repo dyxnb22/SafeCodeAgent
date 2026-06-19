@@ -1,5 +1,6 @@
 # LangGraph Workflow Design
 
+**Implementation status (v1.9):** Executable contracts through v1.9 are implemented; see `.agents/context/progress.json` for live stage state.
 ## Why A Workflow Graph
 
 Enterprise agent tasks need resumability, typed state, approval pauses, retries,

@@ -1,5 +1,6 @@
 # Enterprise Data Models
 
+**Implementation status (v1.9):** Executable contracts through v1.9 are implemented; see `.agents/context/progress.json` for live stage state.
 This document is the single source of truth for the Pydantic models
 used by the enterprise workflow. Every model lives under
 `src/safecode/enterprise/` (created in v1.0.2 onwards). Tests assert

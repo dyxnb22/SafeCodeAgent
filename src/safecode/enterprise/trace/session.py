@@ -102,6 +102,7 @@ class TraceSession:
                     audit_kind,
                     run_id=self.state.run_id,
                     actor_id=self.state.actor_id or "unknown",
+                    tenant_id=self.state.tenant_id,
                     payload=audit_payload,
                 )
         return event
@@ -145,6 +146,7 @@ class TraceSession:
                 audit_kind,
                 run_id=self.state.run_id,
                 actor_id=actor_id or "unknown",
+                tenant_id=tenant_id,
                 payload=audit_payload,
             )
         return event
@@ -187,6 +189,7 @@ def emit_standalone_trace(
             audit_kind,
             run_id=run_id,
             actor_id=actor_id or "unknown",
+            tenant_id=tenant_id,
             payload=audit_payload,
         )
     return event

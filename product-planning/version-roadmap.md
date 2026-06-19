@@ -1,5 +1,6 @@
 # SafeCodeAgent Enterprise Version Roadmap
 
+**Implementation status (v1.9):** Executable contracts through v1.9 are implemented; see `.agents/context/progress.json` for live stage state.
 This roadmap is the authoritative breakdown of work for the
 `dev/enterprise-agent-platform` branch. It uses two-level versions:
 

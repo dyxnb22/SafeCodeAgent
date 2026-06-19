@@ -42,22 +42,32 @@ from safecode.enterprise.eval.dashboard import render_dashboard, write_dashboard
 from safecode.enterprise.eval.loader import discover_cases
 from safecode.enterprise.eval.ratchet import baseline_path_for_suite, check_ratchet, write_baseline
 from safecode.enterprise.eval.runner import run_suite, write_results
+from safecode.enterprise.evidence.export import export_run_evidence, verify_export_bundle
 
 RAG_MAX_CITATIONS = 8
 _EVAL_CASES_ROOT = Path("tests/enterprise/eval/cases")
 _EVAL_BASELINES_ROOT = Path("tests/enterprise/eval/baselines")
 _EVAL_MANIFEST = Path("examples/enterprise/knowledge_sources.yaml")
-_IMPLEMENTED_EVAL_SUITES = ("smoke", "retrieval", "prompt_injection", "tool_classification", "pr_review")
+_IMPLEMENTED_EVAL_SUITES = (
+    "smoke",
+    "retrieval",
+    "prompt_injection",
+    "tool_classification",
+    "pr_review",
+    "remediation",
+)
 
 enterprise_app = typer.Typer(help="Enterprise security workflow commands.")
 workflow_app = typer.Typer(help="Enterprise workflow orchestration.")
 approval_app = typer.Typer(help="Enterprise approval inbox.")
 trace_app = typer.Typer(help="Enterprise trace export and dashboard.")
 eval_app = typer.Typer(help="Enterprise evaluation suites.")
+evidence_app = typer.Typer(help="Enterprise compliance evidence export.")
 enterprise_app.add_typer(workflow_app, name="workflow")
 enterprise_app.add_typer(approval_app, name="approval")
 enterprise_app.add_typer(trace_app, name="trace")
 enterprise_app.add_typer(eval_app, name="eval")
+enterprise_app.add_typer(evidence_app, name="evidence")
 
 
 @enterprise_app.command("retrieve")
@@ -97,6 +107,7 @@ def workflow_run(
     input_path: Path = typer.Option(..., "--input", help="Task input fixture path."),
     root: Path = typer.Option(None, "--root", help="Project root (defaults to cwd)."),
     actor: str = typer.Option("user:local", "--actor", help="Actor identifier."),
+    tenant: str = typer.Option("local", "--tenant", help="Tenant identifier."),
     as_role: Optional[str] = typer.Option(
         None, "--as-role", help="Override role when org policy allows."
     ),
@@ -122,6 +133,7 @@ def workflow_run(
         input_ref=str(input_path),
         actor_id=actor,
         repo_root=project_root,
+        tenant_id=tenant,
     )
     run_id = state.run_id
     orchestrator = LocalOrchestrator(sac_root)
@@ -473,3 +485,34 @@ def eval_dashboard(
         raise typer.Exit(code=1)
     typer.echo(path.read_text(encoding="utf-8"))
     raise typer.Exit(code=0)
+
+
+@evidence_app.command("export")
+def evidence_export(
+    run_id: str = typer.Option(..., "--run", help="Workflow run identifier."),
+    tenant: str = typer.Option("local", "--tenant", help="Expected workflow tenant."),
+    root: Path = typer.Option(None, "--root", help="Project root (defaults to cwd)."),
+    verify: bool = typer.Option(True, "--verify/--no-verify", help="Verify bundle after export."),
+) -> None:
+    """Export a compliance evidence zip for a completed workflow run."""
+    project_root = _project_root(root)
+    sac_root = project_root / ".sac"
+    try:
+        bundle_path = export_run_evidence(sac_root, run_id, tenant_id=tenant)
+    except Exception as exc:
+        typer.echo(f"Evidence export failed: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+    ok = True
+    message = "skipped"
+    if verify:
+        ok, message = verify_export_bundle(bundle_path)
+    typer.echo(
+        json.dumps(
+            {
+                "bundle": str(bundle_path),
+                "verified": ok,
+                "verification_message": message,
+            }
+        )
+    )
+    raise typer.Exit(code=0 if ok else 1)

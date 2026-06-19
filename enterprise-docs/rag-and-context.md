@@ -1,5 +1,6 @@
 # RAG And Context Design
 
+**Implementation status (v1.9):** Executable contracts through v1.9 are implemented; see `.agents/context/progress.json` for live stage state.
 ## Purpose
 
 RAG should make security decisions grounded and auditable. It should not be a

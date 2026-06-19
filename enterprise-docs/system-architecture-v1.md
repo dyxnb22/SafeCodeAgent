@@ -1,5 +1,6 @@
 # System Architecture v1
 
+**Implementation status (v1.9):** Executable contracts through v1.9 are implemented; see `.agents/context/progress.json` for live stage state.
 This document captures the target architecture for the
 `dev/enterprise-agent-platform` branch through the `v2.0` release
 candidate. It is layered, with explicit data flow, control flow, and

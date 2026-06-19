@@ -5,13 +5,21 @@ from __future__ import annotations
 from safecode.enterprise.workflow.contracts import NodePatch
 from safecode.enterprise.workflow.nodes._helpers import build_patch
 from safecode.enterprise.workflow.state import EnterpriseRunState, Plan, PlanAction
-from safecode.enterprise.workflow.tasks import pr_review
+from safecode.enterprise.workflow.tasks import pr_review, remediation
 from safecode.enterprise.workflow.types import RiskTier
 
 NODE_NAME = "plan_actions"
 
 
 async def run(state: EnterpriseRunState) -> NodePatch:
+    if remediation.is_remediation_task(state) and state.findings:
+        plan_obj = remediation.build_remediation_plan(state, state.findings, state.citations)
+        return build_patch(
+            state,
+            NODE_NAME,
+            summary="planned remediation actions",
+            state_updates={"plan": plan_obj},
+        )
     if pr_review.is_pr_review_task(state):
         plan_obj = pr_review.build_pr_plan(
             state,

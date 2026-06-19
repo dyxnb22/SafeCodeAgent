@@ -1,5 +1,6 @@
 # Interview Talking Points
 
+**Implementation status (v1.9):** Executable contracts through v1.9 are implemented; see `.agents/context/progress.json` for live stage state.
 ## One-Minute Pitch
 
 SafeCodeAgent Enterprise is a governed security engineering agent. It combines

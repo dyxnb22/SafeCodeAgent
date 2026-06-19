@@ -5,7 +5,12 @@ from pathlib import Path
 
 import pytest
 
-from safecode.enterprise.approvals.store import decide_request, load_request
+from safecode.enterprise.approvals.store import (
+    decide_request,
+    grant_id_for_request,
+    load_grant,
+    load_request,
+)
 from safecode.enterprise.workflow.checkpoint import load_checkpoint
 from safecode.enterprise.workflow.exceptions import WorkflowInterrupted
 from safecode.enterprise.workflow.orchestrator import LocalOrchestrator, build_initial_state
@@ -64,6 +69,31 @@ def test_approve_and_resume_completes(tmp_path: Path):
     )
     final = asyncio.run(orchestrator.resume(run_id))
     assert final.status == WorkflowStatus.succeeded
+    request = load_request(sac_root, run_id, f"approval-{run_id}")
+    grant = load_grant(sac_root, run_id, grant_id_for_request(request))
+    assert grant.consumed_at is not None
+
+
+def test_resume_rejects_changed_approved_proposal(tmp_path: Path):
+    sac_root = tmp_path / ".sac"
+    orchestrator = LocalOrchestrator(sac_root, runtime="local")
+    run_id = "run-bound00001"
+    with pytest.raises(WorkflowInterrupted):
+        asyncio.run(orchestrator.run(_high_risk_state(tmp_path, run_id)))
+    request = decide_request(
+        sac_root,
+        run_id,
+        f"approval-{run_id}",
+        decision="approved",
+        decision_actor="user:approver",
+    )
+    checkpoint = load_checkpoint(sac_root, run_id)
+    proposal_path = Path(checkpoint.state.proposals[0].ref)
+    proposal_path.write_text("changed after approval", encoding="utf-8")
+    with pytest.raises(PermissionError, match="binding mismatch"):
+        asyncio.run(orchestrator.resume(run_id))
+    grant = load_grant(sac_root, run_id, grant_id_for_request(request))
+    assert grant.consumed_at is None
 
 
 def test_reject_and_resume_is_terminal_without_finalize_success(tmp_path: Path):

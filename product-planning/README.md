@@ -1,5 +1,6 @@
 # SafeCodeAgent Enterprise Planning
 
+**Implementation status (v1.9):** Index current through v1.9 beta hardening; see `.agents/context/progress.json` for live delivery state.
 SafeCodeAgent Enterprise turns the finished SafeCodeAgent terminal coding agent
 into an enterprise security engineering agent platform.
 

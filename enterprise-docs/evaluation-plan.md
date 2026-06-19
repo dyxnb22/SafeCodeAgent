@@ -1,5 +1,6 @@
 # Evaluation Plan
 
+**Implementation status (v1.9):** Executable contracts through v1.9 are implemented; see `.agents/context/progress.json` for live stage state.
 This plan is the operating manual for the enterprise evaluation
 platform. It is what makes "did we regress?" answerable without
 running a demo by hand.

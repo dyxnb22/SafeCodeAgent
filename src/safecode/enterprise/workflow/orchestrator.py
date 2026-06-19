@@ -6,7 +6,9 @@ import os
 from datetime import datetime, timezone
 from pathlib import Path
 
-from safecode.enterprise.approvals.store import list_requests
+from safecode.enterprise.approvals.binding import workflow_approval_binding
+from safecode.enterprise.approvals.store import load_request, validate_approved_request
+from safecode.enterprise.policy.resolver import resolve_policy
 from safecode.enterprise.trace.events import TraceEventType
 from safecode.enterprise.trace.session import TraceSession
 from safecode.enterprise.workflow.checkpoint import (
@@ -31,7 +33,7 @@ from safecode.enterprise.workflow.state import (
     RunRequest,
     RunCosts,
 )
-from safecode.enterprise.workflow.types import TaskType, WorkflowStatus
+from safecode.enterprise.workflow.types import RiskTier, TaskType, WorkflowStatus
 
 SUPPORTED_TASK_TYPES = frozenset(TaskType)
 
@@ -47,23 +49,27 @@ def build_initial_state(
     actor_id: str,
     repo_root: Path,
     run_id: str | None = None,
+    tenant_id: str = "local",
     extra: dict[str, str] | None = None,
 ) -> EnterpriseRunState:
     if task_type not in SUPPORTED_TASK_TYPES:
         raise UnknownTaskTypeError(f"unsupported task type: {task_type!r}")
     run = validate_run_id(run_id or generate_run_id())
     now = utc_now_iso()
+    tid = (tenant_id or "local").strip() or "local"
+    input_kind = "finding_fixture" if task_type == TaskType.remediation else "pr_fixture"
+    snapshot = resolve_policy(repo_root, tenant_id=tid)
     return EnterpriseRunState(
         run_id=run,
-        tenant_id="local",
+        tenant_id=tid,
         task_type=task_type,
         status=WorkflowStatus.pending,
         actor_id=actor_id,
-        subject=RBACSubject(actor_id=actor_id, tenant_id="local"),
-        policy_snapshot_id="snapshot-local",
+        subject=RBACSubject(actor_id=actor_id, tenant_id=tid),
+        policy_snapshot_id=snapshot.snapshot_id,
         request=RunRequest(
             task_type=task_type,
-            input_kind="pr_fixture",
+            input_kind=input_kind,
             input_ref=input_ref,
             actor_id=actor_id,
             extra=dict(extra or {}),
@@ -100,8 +106,9 @@ class LocalOrchestrator:
         checkpoint = load_checkpoint(self.sac_root, run_id)
         state = checkpoint.state
         if state.status == WorkflowStatus.awaiting_approval:
-            requests = list_requests(self.sac_root, run_id)
-            if any(item.status == "rejected" for item in requests):
+            request_id = f"approval-{run_id}"
+            request = load_request(self.sac_root, run_id, request_id)
+            if request.status == "rejected":
                 rejected = state.model_copy(
                     update={
                         "status": WorkflowStatus.rejected,
@@ -120,8 +127,18 @@ class LocalOrchestrator:
                     ),
                 )
                 return rejected
-            if not any(item.status == "approved" for item in requests):
+            if request.status != "approved":
                 raise WorkflowInterrupted(f"awaiting approval for run {run_id}")
+            action, target = workflow_approval_binding(state)
+            validate_approved_request(
+                self.sac_root,
+                run_id,
+                request_id,
+                tenant_id=state.tenant_id,
+                action=action,
+                policy_snapshot_id=state.policy_snapshot_id,
+                target=target,
+            )
             state = state.model_copy(
                 update={
                     "awaiting_human_approval": False,
@@ -184,22 +201,20 @@ class LocalOrchestrator:
                     state=current,
                 ),
             )
-            if (
-                node_name == "approval_gate"
-                and current.awaiting_human_approval
-                and current.risk_tier is not None
-                and current.risk_tier.value in {"high", "critical"}
-            ):
-                from safecode.enterprise.approvals.store import Action, ApprovalRequest
+            if node_name == "approval_gate" and current.awaiting_human_approval:
+                from safecode.enterprise.approvals.store import ApprovalRequest
                 from safecode.enterprise.workflow.interrupt import pause_for_approval
 
+                action, target = workflow_approval_binding(current)
                 request = ApprovalRequest(
                     request_id=f"approval-{current.run_id}",
                     run_id=current.run_id,
-                    action=Action.file_write,
-                    risk_tier=current.risk_tier,
+                    tenant_id=current.tenant_id,
+                    action=action,
+                    risk_tier=current.risk_tier or RiskTier.low,
                     requested_by_node=node_name,
                     requesting_actor=current.actor_id,
+                    target=target,
                     policy_snapshot_id=current.policy_snapshot_id,
                     created_at=current.updated_at,
                     preview="High-risk workflow action requires approval.",

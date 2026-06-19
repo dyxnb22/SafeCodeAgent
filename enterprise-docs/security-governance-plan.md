@@ -1,5 +1,6 @@
 # Security Governance Plan
 
+**Implementation status (v1.9):** Executable contracts through v1.9 are implemented; see `.agents/context/progress.json` for live stage state.
 This is the normative reference for policy, RBAC, approvals, audit,
 secrets, and the action matrix used by the workflow's approval gate.
 It anchors on the existing SafeCodeAgent safety kernel and adds only

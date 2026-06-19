@@ -7,6 +7,7 @@ from pathlib import Path
 
 from safecode.audit.logger import AuditLogger
 from safecode.audit.models import AuditEvent
+from safecode.context.redactor import redact_secrets
 from safecode.enterprise.audit.events import AuditEventKind
 
 
@@ -32,13 +33,14 @@ class EnterpriseAuditChain:
         *,
         run_id: str,
         actor_id: str,
+        tenant_id: str = "local",
         payload: dict[str, str] | None = None,
         status: str = "success",
         message: str | None = None,
     ) -> AuditEvent:
-        metadata = {"run_id": run_id, "chain_id": self.chain_id}
+        metadata = {"run_id": run_id, "chain_id": self.chain_id, "tenant_id": tenant_id}
         if payload:
-            metadata.update({key: str(value) for key, value in payload.items()})
+            metadata.update({key: redact_secrets(str(value)) for key, value in payload.items()})
         event = AuditEvent(
             type=kind.value,
             timestamp=_utc_now(),

@@ -1,0 +1,27 @@
+{
+  "contract": "EnterpriseRunTimeline",
+  "contract_status": "supported",
+  "fields": [
+    "actor",
+    "approvals",
+    "citations",
+    "costs",
+    "duration_ms",
+    "ended_at",
+    "failures",
+    "nodes",
+    "policy_snapshot_id",
+    "proposals",
+    "run_id",
+    "safety_invariants",
+    "started_at",
+    "status",
+    "summary",
+    "task_type",
+    "tenant_id",
+    "timeline_schema_version",
+    "tool_calls",
+    "validation"
+  ],
+  "schema_version": 1
+}

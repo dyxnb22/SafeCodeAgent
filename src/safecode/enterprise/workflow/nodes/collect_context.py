@@ -7,18 +7,30 @@ from pathlib import Path
 from safecode.enterprise.workflow.contracts import NodePatch
 from safecode.enterprise.workflow.nodes._helpers import build_patch
 from safecode.enterprise.workflow.state import EnterpriseRunState
-from safecode.enterprise.workflow.tasks import pr_review
+from safecode.enterprise.workflow.tasks import pr_review, remediation
 
 NODE_NAME = "collect_repo_context"
 
 
 async def run(state: EnterpriseRunState) -> NodePatch:
     updates: dict = {"missing_evidence": False}
-    if pr_review.is_pr_review_task(state) and state.request.input_kind in {
+    repo_root = Path(state.repo.repo_root).resolve()
+    if remediation.is_remediation_task(state) and state.request.input_kind in {
+        "finding_fixture",
+        "finding_live",
+    }:
+        try:
+            findings = remediation.ingest_findings(repo_root, state.request.input_ref)
+        except Exception:
+            findings = []
+        if not findings:
+            updates["missing_evidence"] = True
+        else:
+            updates["findings"] = findings
+    elif pr_review.is_pr_review_task(state) and state.request.input_kind in {
         "pr_fixture",
         "pr_live",
     }:
-        repo_root = Path(state.repo.repo_root).resolve()
         evidence = pr_review.collect_pull_request(repo_root, state.request.input_ref)
         if evidence is None or not evidence.hunks:
             updates["missing_evidence"] = True

@@ -9,7 +9,9 @@ from safecode.enterprise.approvals.store import (
     Action,
     ApprovalRequest,
     decide_request,
+    grant_id_for_request,
     list_requests,
+    load_grant,
     load_request,
     save_request,
 )
@@ -59,6 +61,10 @@ def test_decide_request_approve_and_reject(tmp_path: Path):
         sac_root, req.run_id, req.request_id, decision="approved", decision_actor="user:approver"
     )
     assert approved.status == "approved"
+    grant = load_grant(sac_root, req.run_id, grant_id_for_request(approved))
+    assert grant.request_id == approved.request_id
+    assert grant.action == approved.action
+    assert grant.policy_snapshot_id == approved.policy_snapshot_id
     with pytest.raises(RequestAlreadyConsumedError):
         decide_request(
             sac_root, req.run_id, req.request_id, decision="approved", decision_actor="user:approver"
@@ -83,6 +89,8 @@ def test_tampered_request_invalidates(tmp_path: Path):
     path.write_text(json.dumps(payload), encoding="utf-8")
     with pytest.raises(ApprovalRequestTamperedError):
         load_request(sac_root, req.run_id, req.request_id)
+    with pytest.raises(ApprovalRequestTamperedError):
+        list_requests(sac_root, req.run_id)
 
 
 def test_run_id_and_request_id_traversal_rejected(tmp_path: Path):

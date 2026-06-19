@@ -1,5 +1,6 @@
 # Workflow Design
 
+**Implementation status (v1.9):** Executable contracts through v1.9 are implemented; see `.agents/context/progress.json` for live stage state.
 This document specifies the four enterprise workflows. Each workflow
 is a sub-graph over the nine canonical nodes defined in
 `system-architecture-v1.md`. The sub-graphs share infrastructure but

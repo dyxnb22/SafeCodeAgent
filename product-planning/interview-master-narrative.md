@@ -1,5 +1,6 @@
 # Interview Master Narrative
 
+**Implementation status (v1.9):** Executable contracts through v1.9 are implemented; see `.agents/context/progress.json` for live stage state.
 This is the structured material to draw from in interviews about
 SafeCodeAgent Enterprise. It is not a script. Each section gives
 the talking-point framing, the engineering detail to support it,

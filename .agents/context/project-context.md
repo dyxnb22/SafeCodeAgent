@@ -16,8 +16,8 @@ compliance evidence, and auditable tool-using security operations.
 
 - Legacy implemented baseline: `v7.1.5`.
 - Enterprise planning and namespace stages: complete.
-- Current delivery stage: `v1.8 Vulnerability Remediation Workflow`.
-- Next delivery task: `v1.8.1-T1 Remediation task sub-graph`.
+- Current delivery stage: `v2.0 Enterprise Release Candidate` (completed).
+- Next delivery task: none — RC milestone complete; post-RC work is v2.1+ planning.
 - Machine-readable live status: `.agents/context/progress.json`.
 
 Do not infer current progress from prose in this file. Read `progress.json`.
@@ -92,9 +92,9 @@ regression analysis.
 | v1.5 | AgentOps trace and dashboard | Complete | `enterprise-docs/agentops-observability-plan.md` |
 | v1.6 | Evaluation and regression platform | Complete | `enterprise-docs/evaluation-plan.md` |
 | v1.7 | PR security review workflow | Complete | `enterprise-docs/workflow-design.md` |
-| v1.8 | Vulnerability remediation workflow | Ready | `enterprise-docs/workflow-design.md` |
-| v1.9 | Enterprise beta hardening | Planned | `product-planning/version-roadmap.md` |
-| v2.0 | Enterprise release candidate | Planned | `product-planning/version-roadmap.md` |
+| v1.8 | Vulnerability remediation workflow | Complete | `enterprise-docs/workflow-design.md` |
+| v1.9 | Enterprise beta hardening | Complete | `product-planning/version-roadmap.md` |
+| v2.0 | Enterprise release candidate | Complete | `RELEASE-NOTES-v2.0.0-rc.md` |
 
 Status details belong in `progress.json`; change this table only when stage
 scope, ownership, or architecture changes.

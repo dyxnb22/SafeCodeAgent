@@ -1,0 +1,16 @@
+{
+  "dependencies": [
+    {
+      "name": "requests",
+      "version": "2.25.0",
+      "vulns": [
+        {
+          "id": "CVE-2024-12345",
+          "severity": "high",
+          "fix_versions": ["2.32.0"],
+          "description": "HTTP header injection"
+        }
+      ]
+    }
+  ]
+}

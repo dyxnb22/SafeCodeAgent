@@ -1,0 +1,16 @@
+{
+  "case_keys": [
+    "case_id",
+    "passed",
+    "metrics",
+    "forbidden_behavior_triggered_eq"
+  ],
+  "contract": "EnterpriseEvalBaseline",
+  "contract_status": "supported",
+  "top_level_keys": [
+    "suite",
+    "date",
+    "commit",
+    "cases"
+  ]
+}

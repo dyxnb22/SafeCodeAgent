@@ -38,6 +38,8 @@ def post_pr_comment(
     body: str,
     approved: bool,
     actor_id: str,
+    tenant_id: str = "local",
+    policy_snapshot_id: str = "snapshot-local",
 ) -> ToolCallRecord:
     """Write a PR comment offline or record a gated live write attempt."""
     redacted_body = redact_secrets(body)
@@ -46,7 +48,7 @@ def post_pr_comment(
     decision = ApprovalDecision(
         decision="GATE" if spec.mode == "live" else "AUTO",
         reason="fixture write" if spec.mode == "fixture" else "live github write",
-        policy_snapshot_id="snapshot-local",
+        policy_snapshot_id=policy_snapshot_id,
         inputs=ApprovalDecisionInputs(policy_value="GATE", rbac_value="GATE", tool_spec_value="GATE"),
     )
     record = ToolCallRecord(
@@ -66,11 +68,11 @@ def post_pr_comment(
         emit_standalone_trace(
             sac_root,
             run_id=run_id,
-            tenant_id="local",
+            tenant_id=tenant_id,
             event_type=TraceEventType.tool_blocked,
             node_id=node_name,
             actor_id=actor_id,
-            policy_snapshot_id="snapshot-local",
+            policy_snapshot_id=policy_snapshot_id,
             payload={"tool_name": "github_write", "mode": "live"},
         )
         return record
@@ -87,11 +89,11 @@ def post_pr_comment(
         emit_standalone_trace(
             sac_root,
             run_id=run_id,
-            tenant_id="local",
+            tenant_id=tenant_id,
             event_type=TraceEventType.tool_executed,
             node_id=node_name,
             actor_id=actor_id,
-            policy_snapshot_id="snapshot-local",
+            policy_snapshot_id=policy_snapshot_id,
             payload={"tool_name": "github_write", "mode": "fixture", "path": str(path)},
         )
         return record
@@ -103,11 +105,11 @@ def post_pr_comment(
     emit_standalone_trace(
         sac_root,
         run_id=run_id,
-        tenant_id="local",
+        tenant_id=tenant_id,
         event_type=TraceEventType.tool_executed,
         node_id=node_name,
         actor_id=actor_id,
-        policy_snapshot_id="snapshot-local",
+        policy_snapshot_id=policy_snapshot_id,
         payload={"tool_name": "github_write", "mode": "live", "actor": actor_id},
     )
     return record

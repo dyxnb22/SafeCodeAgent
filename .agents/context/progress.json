@@ -3,11 +3,11 @@
   "updated_at": "2026-06-19",
   "implemented_baseline_tag": "v7.1.5",
   "current": {
-    "stage": "v1.8",
-    "milestone": "v1.8.1",
-    "status": "ready",
+    "stage": "v2.0",
+    "milestone": "v2.0.4",
+    "status": "completed",
     "active_task": null,
-    "next_delivery_task": "v1.8.1-T1"
+    "next_delivery_task": null
   },
   "stages": {
     "v1.0": "completed",
@@ -18,9 +18,9 @@
     "v1.5": "completed",
     "v1.6": "completed",
     "v1.7": "completed",
-    "v1.8": "ready",
-    "v1.9": "planned",
-    "v2.0": "planned"
+    "v1.8": "completed",
+    "v1.9": "completed",
+    "v2.0": "completed"
   },
   "completed_delivery_tasks": [
     {"id": "v1.0.1-T1", "completed_at": "2026-06-18", "evidence": "enterprise-v1.0.1-sot"},
@@ -96,7 +96,21 @@
     {"id": "v1.7.2-T1", "completed_at": "2026-06-19", "evidence": "1326def"},
     {"id": "v1.7.3-T1", "completed_at": "2026-06-19", "evidence": "1326def"},
     {"id": "v1.7.4-T1", "completed_at": "2026-06-19", "evidence": "1326def"},
-    {"id": "v1.7.4-T2", "completed_at": "2026-06-19", "evidence": "1326def"}
+    {"id": "v1.7.4-T2", "completed_at": "2026-06-19", "evidence": "1326def"},
+    {"id": "v1.8.1-T1", "completed_at": "2026-06-19", "evidence": "v1.8-implementation"},
+    {"id": "v1.8.2-T1", "completed_at": "2026-06-19", "evidence": "v1.8-implementation"},
+    {"id": "v1.8.2-T2", "completed_at": "2026-06-19", "evidence": "v1.8-implementation"},
+    {"id": "v1.8.3-T1", "completed_at": "2026-06-19", "evidence": "v1.8-implementation"},
+    {"id": "v1.8.4-T1", "completed_at": "2026-06-19", "evidence": "v1.8-implementation"},
+    {"id": "v1.8.5-T1", "completed_at": "2026-06-19", "evidence": "v1.8-implementation"},
+    {"id": "v1.9.1-T1", "completed_at": "2026-06-19", "evidence": "v1.9-implementation"},
+    {"id": "v1.9.2-T1", "completed_at": "2026-06-19", "evidence": "v1.9-implementation"},
+    {"id": "v1.9.3-T1", "completed_at": "2026-06-19", "evidence": "v1.9-implementation"},
+    {"id": "v1.9.4-T1", "completed_at": "2026-06-19", "evidence": "v1.9-implementation"},
+    {"id": "v2.0.1-T1", "completed_at": "2026-06-19", "evidence": "v2.0-implementation"},
+    {"id": "v2.0.2-T1", "completed_at": "2026-06-19", "evidence": "v2.0-implementation"},
+    {"id": "v2.0.3-T1", "completed_at": "2026-06-19", "evidence": "v2.0-implementation"},
+    {"id": "v2.0.4-T1", "completed_at": "2026-06-19", "evidence": "v2.0-implementation"}
   ],
   "recent_maintenance": [
     {"id": "maintenance-agent-context-governance", "completed_at": "2026-06-18", "evidence": "77 governance tests and full regression: 5778 passed, 4 skipped"},
@@ -109,7 +123,7 @@
   "last_verification": {
     "recorded_at": "2026-06-19",
     "command": "PYTHONPATH=src python3 -m pytest -q",
-    "result": "5979 passed, 8 skipped",
-    "scope": "v1.7 PR Security Review MVP stage closeout"
+    "result": "6012 passed, 5 skipped; 260 Enterprise passed, 1 skipped; package verification passed",
+    "scope": "reviewed v2.0 Enterprise Release Candidate closeout"
   }
 }

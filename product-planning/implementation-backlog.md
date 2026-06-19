@@ -1,5 +1,6 @@
 # Implementation Backlog
 
+**Implementation status (v1.9):** Executable contracts through v1.9 are implemented; see `.agents/context/progress.json` for live stage state.
 ## Foundation
 
 - Add `enterprise` package boundaries without disturbing existing CLI behavior.

@@ -50,6 +50,7 @@ class PolicySnapshot(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     snapshot_id: str
+    tenant_id: str = "local"
     layers: tuple[PolicyLayer, ...]
     merged: dict[str, PolicyValue]
     created_at: str

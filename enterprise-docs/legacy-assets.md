@@ -1,5 +1,6 @@
 # Reusable Legacy Assets
 
+**Implementation status (v1.9):** Executable contracts through v1.9 are implemented; see `.agents/context/progress.json` for live stage state.
 The original SafeCodeAgent product is finished. Its best long-term value is the
 set of safety and runtime primitives that can become the Enterprise platform
 kernel.

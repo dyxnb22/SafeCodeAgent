@@ -203,13 +203,14 @@ class PolicyResolver:
         ordered.extend(self.extra_layers)
         return sorted(ordered, key=lambda layer: LAYER_PRIORITY[layer.name])
 
-    def resolve(self) -> PolicySnapshot:
+    def resolve(self, *, tenant_id: str = "local") -> PolicySnapshot:
         layers = self.collect_layers()
         merged, blocked = merge_layers(layers)
         created_at = _utc_now()
         snapshot_id = snapshot_id_for(layers, merged)
         return PolicySnapshot(
             snapshot_id=snapshot_id,
+            tenant_id=tenant_id,
             layers=tuple(layers),
             merged=merged,
             created_at=created_at,
@@ -223,13 +224,14 @@ def resolve_policy(
     config_root: Path | None = None,
     workflow_overrides: dict[str, Any] | None = None,
     extra_layers: list[PolicyLayer] | None = None,
+    tenant_id: str = "local",
 ) -> PolicySnapshot:
     return PolicyResolver(
         repo_root=repo_root,
         config_root=config_root,
         workflow_overrides=workflow_overrides,
         extra_layers=extra_layers,
-    ).resolve()
+    ).resolve(tenant_id=tenant_id)
 
 
 def policy_tier(snapshot: PolicySnapshot, action_key: str, *, default: ApprovalTier = "GATE") -> ApprovalTier:

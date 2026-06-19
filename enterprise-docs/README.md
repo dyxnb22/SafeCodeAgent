@@ -1,5 +1,7 @@
 # Enterprise Technical Docs
 
+**Implementation status (v2.0):** Index current through v2.0 RC; see
+`.agents/context/progress.json` for live delivery state.
 This directory contains the technical context that future Enterprise development
 should read first.
 
@@ -33,6 +35,9 @@ Detailed technical plans (new, implementation-ready):
   dashboards, and CI wiring.
 - `agentops-observability-plan.md` — trace event schema, timeline JSON,
   Markdown dashboard, redaction profiles, and evidence export.
+- `deployment-profiles.md` — local, team server, and on-prem hybrid
+  deployment shapes (v2.0 RC).
+- `security-review-v2-0.md` — external-style RC security review notes.
 
 The goal is clean, useful context. Historical version notes and old product
 manuals should stay out of this branch unless they are deliberately distilled

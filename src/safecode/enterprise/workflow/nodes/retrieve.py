@@ -5,14 +5,18 @@ from __future__ import annotations
 from safecode.enterprise.workflow.contracts import NodePatch
 from safecode.enterprise.workflow.nodes._helpers import build_patch
 from safecode.enterprise.workflow.state import EnterpriseRunState
-from safecode.enterprise.workflow.tasks import pr_review
+from safecode.enterprise.workflow.tasks import pr_review, remediation
 
 NODE_NAME = "retrieve_policy_and_code"
 
 
 async def run(state: EnterpriseRunState) -> NodePatch:
     updates: dict = {}
-    if pr_review.is_pr_review_task(state) and state.pull_request_evidence is not None:
+    if remediation.is_remediation_task(state) and state.findings:
+        citations = remediation.retrieve_citations(state, state.findings)
+        updates["citations"] = citations
+        updates["missing_evidence"] = len(citations) == 0
+    elif pr_review.is_pr_review_task(state) and state.pull_request_evidence is not None:
         citations = pr_review.retrieve_citations(state, state.pull_request_evidence)
         updates["citations"] = citations
         updates["missing_evidence"] = len(citations) == 0

@@ -1,0 +1,15 @@
+{
+  "results": [
+    {
+      "check_id": "python.lang.security.audit.eval-use",
+      "path": "parser.py",
+      "start": {"line": 4, "col": 12},
+      "end": {"line": 4, "col": 22},
+      "extra": {
+        "message": "Use of eval detected",
+        "severity": "ERROR",
+        "metadata": {"cwe": ["CWE-95"]}
+      }
+    }
+  ]
+}

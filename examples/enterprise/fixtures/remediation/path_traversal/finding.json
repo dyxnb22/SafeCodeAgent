@@ -1,0 +1,15 @@
+{
+  "results": [
+    {
+      "check_id": "python.lang.security.audit.path-traversal",
+      "path": "io.py",
+      "start": {"line": 7, "col": 12},
+      "end": {"line": 7, "col": 22},
+      "extra": {
+        "message": "Possible path traversal",
+        "severity": "ERROR",
+        "metadata": {"cwe": ["CWE-22"]}
+      }
+    }
+  ]
+}

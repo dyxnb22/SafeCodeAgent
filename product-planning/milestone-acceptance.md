@@ -1,5 +1,6 @@
 # Milestone Acceptance Gates
 
+**Implementation status (v1.9):** Executable contracts through v1.9 are implemented; see `.agents/context/progress.json` for live stage state.
 Every stage version in `version-roadmap.md` has a hard acceptance gate.
 A stage is only "done" when **all five gate dimensions are satisfied**:
 

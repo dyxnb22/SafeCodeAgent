@@ -1,0 +1,66 @@
+{
+  "commands": [
+    {
+      "group": "enterprise",
+      "name": "retrieve"
+    },
+    {
+      "group": "workflow",
+      "name": "run"
+    },
+    {
+      "group": "workflow",
+      "name": "resume"
+    },
+    {
+      "group": "workflow",
+      "name": "gc"
+    },
+    {
+      "group": "approval",
+      "name": "list"
+    },
+    {
+      "group": "approval",
+      "name": "show"
+    },
+    {
+      "group": "approval",
+      "name": "approve"
+    },
+    {
+      "group": "approval",
+      "name": "reject"
+    },
+    {
+      "group": "approval",
+      "name": "request-evidence"
+    },
+    {
+      "group": "approval",
+      "name": "revoke"
+    },
+    {
+      "group": "trace",
+      "name": "export"
+    },
+    {
+      "group": "trace",
+      "name": "show"
+    },
+    {
+      "group": "eval",
+      "name": "run"
+    },
+    {
+      "group": "eval",
+      "name": "dashboard"
+    },
+    {
+      "group": "evidence",
+      "name": "export"
+    }
+  ],
+  "contract": "EnterpriseCLI",
+  "contract_status": "supported"
+}

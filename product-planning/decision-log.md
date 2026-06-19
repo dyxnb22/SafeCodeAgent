@@ -1,5 +1,6 @@
 # Decision Log
 
+**Implementation status (v1.9):** Executable contracts through v1.9 are implemented; see `.agents/context/progress.json` for live stage state.
 This file is the durable record of architectural and product
 decisions for SafeCodeAgent Enterprise. Every entry follows the
 same shape and is written as if a future contributor will read it

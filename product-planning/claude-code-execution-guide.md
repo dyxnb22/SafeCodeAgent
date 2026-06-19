@@ -1,5 +1,6 @@
 # Claude Code / Codex Execution Guide
 
+**Implementation status (v1.9):** Executable contracts through v1.9 are implemented; see `.agents/context/progress.json` for live stage state.
 This file is the operating contract for any AI agent (Claude Code,
 Codex, or similar) that picks up an implementation task on this
 branch. It assumes you have already read `.claude/CLAUDE.md` and

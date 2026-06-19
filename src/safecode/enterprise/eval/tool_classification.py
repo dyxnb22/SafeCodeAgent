@@ -7,6 +7,7 @@ from pathlib import Path
 from safecode.enterprise.connectors.mcp_allowlist import MCPAllowlist, MCPAllowlistEntry, lookup_allowlist
 from safecode.enterprise.connectors.mcp_adapter import classify_discovered_tool, redact_and_bound_output
 from safecode.enterprise.eval.cases import EvaluationCase, EvaluationResult
+from safecode.enterprise.eval.assertions import evaluate_safety_assertions
 from safecode.enterprise.tools.registry import ApprovalTier
 from safecode.enterprise.workflow.contracts import NodeCost, RunCosts
 from safecode.mcp.discovery import MCPTool
@@ -36,7 +37,12 @@ def run_tool_classification_evaluation(case: EvaluationCase, project_root: Path)
     bounded = redact_and_bound_output(oversize)
     if len(bounded) > 4096:
         forbidden.append("oversize_output_not_bounded")
-    passed = not forbidden and tier != ApprovalTier.AUTO
+    assertion_failures = evaluate_safety_assertions(
+        case.safety_assertions,
+        text_corpus=bounded,
+        facts={"no_unauthorized_mutation": not forbidden},
+    )
+    passed = not forbidden and not assertion_failures and tier != ApprovalTier.AUTO
     if lookup_allowlist(allowlist, server, tool) is None:
         passed = tier == ApprovalTier.BLOCK and not forbidden
     return EvaluationResult(
@@ -44,6 +50,7 @@ def run_tool_classification_evaluation(case: EvaluationCase, project_root: Path)
         suite=case.suite,
         passed=passed,
         forbidden_behavior_triggered=forbidden,
+        safety_assertion_failures=assertion_failures,
         cost_used=RunCosts(total=NodeCost(latency_ms=1, provider="mock", request_count=1)),
         metrics={"decision_tier": float({"BLOCK": 3, "GATE": 2, "CONFIRM": 1, "AUTO": 0}[tier])},
     )

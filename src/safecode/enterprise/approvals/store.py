@@ -53,6 +53,7 @@ class ApprovalRequest(BaseModel):
 
     request_id: str
     run_id: str
+    tenant_id: str = "local"
     action: Action
     risk_tier: RiskTier
     requested_by_node: str
@@ -128,7 +129,7 @@ def save_request(sac_root: Path, request: ApprovalRequest) -> ApprovalRequest:
     emit_standalone_trace(
         sac_root,
         run_id=redacted.run_id,
-        tenant_id="local",
+        tenant_id=redacted.tenant_id,
         event_type=TraceEventType.approval_requested,
         node_id=redacted.requested_by_node,
         actor_id=redacted.requesting_actor,
@@ -160,7 +161,10 @@ def list_requests(sac_root: Path, run_id: str) -> list[ApprovalRequest]:
         return []
     items: list[ApprovalRequest] = []
     for path in sorted(directory.glob("*.json")):
-        items.append(ApprovalRequest.model_validate_json(path.read_text(encoding="utf-8")))
+        request = ApprovalRequest.model_validate_json(path.read_text(encoding="utf-8"))
+        if request.request_hash != request_hash(request):
+            raise ApprovalRequestTamperedError(f"approval request tampered: {request.request_id}")
+        items.append(request)
     return items
 
 
@@ -170,8 +174,10 @@ class Grant(BaseModel):
     grant_id: str
     run_id: str
     request_id: str
+    tenant_id: str = "local"
     action: Action
     policy_snapshot_id: str
+    target: dict[str, str] = Field(default_factory=dict)
     created_at: str
     consumed_at: str | None = None
     revoked_at: str | None = None
@@ -244,7 +250,7 @@ def consume_grant(sac_root: Path, run_id: str, grant_id: str) -> Grant:
     emit_standalone_trace(
         sac_root,
         run_id=run_id,
-        tenant_id="local",
+        tenant_id=updated.tenant_id,
         event_type=TraceEventType.approval_consumed,
         node_id="approval_store",
         actor_id=None,
@@ -256,6 +262,60 @@ def consume_grant(sac_root: Path, run_id: str, grant_id: str) -> Grant:
         },
     )
     return updated
+
+
+def grant_id_for_request(request: ApprovalRequest) -> str:
+    digest = hashlib.sha256(request.request_hash.encode("utf-8")).hexdigest()[:20]
+    return f"grant-{digest}"
+
+
+def validate_approved_request(
+    sac_root: Path,
+    run_id: str,
+    request_id: str,
+    *,
+    tenant_id: str,
+    action: Action,
+    policy_snapshot_id: str,
+    target: dict[str, str],
+) -> tuple[ApprovalRequest, Grant]:
+    """Validate an approval and its grant against the exact pending action."""
+    request = load_request(sac_root, run_id, request_id)
+    if request.status != "approved":
+        raise PermissionError(f"approval request is not approved: {request_id}")
+    expected = (tenant_id, action, policy_snapshot_id, target)
+    actual = (request.tenant_id, request.action, request.policy_snapshot_id, request.target)
+    if actual != expected:
+        raise PermissionError(f"approval request binding mismatch: {request_id}")
+    grant = load_grant(sac_root, run_id, grant_id_for_request(request))
+    grant_binding = (grant.tenant_id, grant.action, grant.policy_snapshot_id, grant.target)
+    if grant.request_id != request.request_id or grant_binding != expected:
+        raise PermissionError(f"approval grant binding mismatch: {grant.grant_id}")
+    if grant.revoked_at is not None or grant.consumed_at is not None:
+        raise GrantAlreadyConsumedError(f"approval grant unavailable: {grant.grant_id}")
+    return request, grant
+
+
+def consume_approved_request(
+    sac_root: Path,
+    run_id: str,
+    request_id: str,
+    *,
+    tenant_id: str,
+    action: Action,
+    policy_snapshot_id: str,
+    target: dict[str, str],
+) -> Grant:
+    _, grant = validate_approved_request(
+        sac_root,
+        run_id,
+        request_id,
+        tenant_id=tenant_id,
+        action=action,
+        policy_snapshot_id=policy_snapshot_id,
+        target=target,
+    )
+    return consume_grant(sac_root, run_id, grant.grant_id)
 
 
 def decide_request(
@@ -287,6 +347,20 @@ def decide_request(
         approvals_dir(sac_root, run_id) / f"{request_id}.json",
         json.loads(updated.model_dump_json()),
     )
+    if decision == "approved":
+        save_grant(
+            sac_root,
+            Grant(
+                grant_id=grant_id_for_request(updated),
+                run_id=updated.run_id,
+                request_id=updated.request_id,
+                tenant_id=updated.tenant_id,
+                action=updated.action,
+                policy_snapshot_id=updated.policy_snapshot_id,
+                target=updated.target,
+                created_at=updated.decision_at or _utc_now(),
+            ),
+        )
     if decision in {"approved", "rejected"}:
         event_type = (
             TraceEventType.approval_decided
@@ -296,7 +370,7 @@ def decide_request(
         emit_standalone_trace(
             sac_root,
             run_id=run_id,
-            tenant_id="local",
+            tenant_id=updated.tenant_id,
             event_type=event_type,
             node_id="approval_store",
             actor_id=decision_actor,

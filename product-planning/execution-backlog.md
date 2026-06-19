@@ -1,5 +1,6 @@
 # Execution Backlog
 
+**Implementation status (v1.9):** Executable contracts through v1.9 are implemented; see `.agents/context/progress.json` for live stage state.
 This file is the line-by-line backlog the implementation team (Claude
 Code, Codex, or human contributors) will draw from to execute
 `version-roadmap.md`. Tasks here are sized for a single small PR each.
@@ -1123,24 +1124,245 @@ expanded into the same shape as v1.1–v1.4 tasks.
 - **Estimate:** 0.25 PR-day.
 
 ### v1.8 Vulnerability Remediation Workflow
-- v1.8.1-T1 — Remediation task sub-graph.
-- v1.8.2-T1 — Vulnerability classifier node.
-- v1.8.2-T2 — Fix planner node.
-- v1.8.3-T1 — Patch proposal with checkpoint wrapper.
-- v1.8.4-T1 — Validation node (test + scanner re-run).
-- v1.8.5-T1 — Remediation eval cases (five).
+
+### v1.8.1-T1 — Remediation task sub-graph
+- **Dependencies:** v1.7 completed.
+- **Files/Modules:**
+  - `src/safecode/enterprise/workflow/tasks/remediation.py`
+  - `src/safecode/enterprise/workflow/nodes/collect_context.py` (extend)
+  - `src/safecode/enterprise/workflow/nodes/retrieve.py` (extend)
+  - `src/safecode/enterprise/workflow/nodes/analyze.py` (extend)
+  - `src/safecode/enterprise/workflow/nodes/plan.py` (extend)
+  - `src/safecode/enterprise/workflow/nodes/propose.py` (extend)
+  - `src/safecode/enterprise/workflow/orchestrator.py` (extend)
+  - `examples/enterprise/fixtures/remediation/*/`
+- **Tests:**
+  - `tests/enterprise/workflow/tasks/test_remediation_ingest.py`
+- **Acceptance:**
+  - Workflow consumes a finding fixture directory and returns `SecurityFinding[]`.
+  - RAG retrieval yields policy citations for known vulnerability types.
+- **Security constraints:**
+  - Fixture paths cannot escape `repo_root`.
+  - Findings and code chunks treated as untrusted input.
+- **Non-goals:** Live Semgrep invocation in workflow lane.
+- **Estimate:** 1.0 PR-day.
+
+### v1.8.2-T1 — Vulnerability classifier node
+- **Dependencies:** v1.8.1-T1.
+- **Files/Modules:**
+  - `src/safecode/enterprise/workflow/tasks/remediation.py` (extend)
+  - `src/safecode/enterprise/workflow/nodes/analyze.py` (extend)
+- **Tests:**
+  - `tests/enterprise/workflow/tasks/test_remediation_classifier.py`
+- **Acceptance:**
+  - Deterministic classifier maps fixture findings to vulnerability types.
+  - SQL-injection fixture references secure-sql policy citation.
+- **Security constraints:**
+  - Classifier is pattern/rule-based; model output is not authority.
+- **Non-goals:** ML classifiers.
+- **Estimate:** 0.5 PR-day.
+
+### v1.8.2-T2 — Fix planner node
+- **Dependencies:** v1.8.2-T1.
+- **Files/Modules:**
+  - `src/safecode/enterprise/workflow/tasks/remediation.py` (extend)
+  - `src/safecode/enterprise/workflow/nodes/plan.py` (extend)
+- **Tests:**
+  - `tests/enterprise/workflow/tasks/test_remediation_classifier.py`
+- **Acceptance:**
+  - Plan actions reference cited policy and target file for each fixture type.
+- **Security constraints:**
+  - Plan is a proposal only; no file writes.
+- **Non-goals:** Multi-file refactor plans.
+- **Estimate:** 0.5 PR-day.
+
+### v1.8.3-T1 — Patch proposal with checkpoint wrapper
+- **Dependencies:** v1.8.2-T2, v1.4 approvals.
+- **Files/Modules:**
+  - `src/safecode/enterprise/workflow/remediation_patch.py`
+  - `src/safecode/enterprise/workflow/render_remediation_report.py`
+  - `src/safecode/enterprise/workflow/nodes/propose.py` (extend)
+  - `src/safecode/enterprise/workflow/nodes/finalize.py` (extend)
+  - `src/safecode/enterprise/workflow/nodes/approval.py` (extend)
+- **Tests:**
+  - `tests/enterprise/workflow/test_patch_rollback.py`
+- **Acceptance:**
+  - Patch apply gated by approval; checkpoint created before apply.
+  - Rejection or validation failure rolls back working tree by hash.
+- **Security constraints:**
+  - No automatic write; grants are single-use scoped.
+- **Non-goals:** Live Git apply to remote.
+- **Estimate:** 0.75 PR-day.
+
+### v1.8.4-T1 — Validation node (test + scanner re-run)
+- **Dependencies:** v1.8.3-T1.
+- **Files/Modules:**
+  - `src/safecode/enterprise/workflow/tasks/remediation.py` (extend)
+  - `src/safecode/enterprise/workflow/nodes/validate.py` (extend)
+- **Tests:**
+  - `tests/enterprise/workflow/test_validation_rerun.py`
+- **Acceptance:**
+  - Post-patch validation reports pass/fail with scanner diff metadata.
+  - Validation cannot disable tests or pass with forbidden patch markers.
+- **Security constraints:**
+  - RC fixtures use deterministic in-process checks; any external scanner re-run
+    must use the sandbox proposal pipeline and separate approval.
+- **Non-goals:** Full CI reproduction.
+- **Estimate:** 0.5 PR-day.
+
+### v1.8.5-T1 — Remediation eval cases (five)
+- **Dependencies:** v1.8.4-T1.
+- **Files/Modules:**
+  - `src/safecode/enterprise/eval/remediation.py`
+  - `tests/enterprise/eval/cases/remediation/*.yaml`
+  - `tests/enterprise/eval/baselines/remediation_v1_8.json`
+  - `examples/enterprise/demos/v1.8/remediation.md`
+  - `src/safecode/cli_enterprise.py` (extend `eval run --suite remediation`)
+- **Tests:**
+  - `tests/enterprise/eval/test_remediation_suite.py`
+  - `tests/enterprise/eval/test_remediation_baseline.py`
+- **Acceptance:**
+  - Five cases: SQLi, secret, unsafe eval, path traversal, dependency CVE.
+  - Eval runs in isolated workspaces; committed fixtures remain pristine.
+  - Baseline checked in; `sac enterprise eval run --suite remediation` ratchets pass.
+- **Security constraints:**
+  - Forbidden behaviors: disable tests, secret in patch.
+  - Baseline updates require explicit `--update-baseline`.
+- **Non-goals:** Cross-suite merge gate.
+- **Estimate:** 0.75 PR-day.
 
 ### v1.9 Enterprise Beta Hardening
-- v1.9.1-T1 — `tenant_id` propagation through RAG and audit.
-- v1.9.2-T1 — Evidence export CLI and zip schema.
-- v1.9.3-T1 — Latency budget tests.
-- v1.9.4-T1 — Status-line pass across planning docs.
+
+### v1.9.1-T1 — `tenant_id` propagation through RAG and audit
+- **Dependencies:** v1.8 completed.
+- **Files/Modules:**
+  - `src/safecode/enterprise/policy/models.py` (extend `PolicySnapshot`)
+  - `src/safecode/enterprise/policy/resolver.py` (extend)
+  - `src/safecode/enterprise/audit/tenant.py`
+  - `src/safecode/enterprise/audit/chain.py` (extend)
+  - `src/safecode/enterprise/trace/session.py` (extend)
+  - `src/safecode/enterprise/workflow/orchestrator.py` (extend `build_initial_state`)
+  - `src/safecode/cli_enterprise.py` (extend `--tenant`)
+- **Tests:**
+  - `tests/enterprise/multitenant/test_tenant_isolation.py`
+  - `tests/enterprise/multitenant/test_retrieval_tenant_filter.py`
+- **Acceptance:**
+  - Tenant A retrieval never returns tenant B chunks with matching content.
+  - Audit events carry `tenant_id` and filter by tenant.
+- **Security constraints:**
+  - Cross-tenant access fails closed in RAG and audit reads.
+- **Non-goals:** Per-tenant filesystem indexes.
+- **Estimate:** 0.75 PR-day.
+
+### v1.9.2-T1 — Evidence export CLI and zip schema
+- **Dependencies:** v1.9.1-T1.
+- **Files/Modules:**
+  - `src/safecode/enterprise/evidence/export.py`
+  - `src/safecode/cli_enterprise.py` (extend `evidence export`)
+- **Tests:**
+  - `tests/enterprise/evidence/test_export_shape.py`
+- **Acceptance:**
+  - `sac enterprise evidence export --run <id>` produces zip with manifest,
+    trace, timeline, citations, approvals, audit segment, validation.
+  - Export verifies the anchored source audit chain; import verifies bundled event hashes.
+- **Security constraints:**
+  - Strict redaction profile; no debug artifacts unless policy allows.
+- **Non-goals:** Multi-run batch export UI.
+- **Estimate:** 0.75 PR-day.
+
+### v1.9.3-T1 — Latency budget tests
+- **Dependencies:** v1.9.2-T1.
+- **Files/Modules:**
+  - `src/safecode/enterprise/perf/budgets.py`
+  - `src/safecode/enterprise/eval/dashboard.py` (extend)
+- **Tests:**
+  - `tests/enterprise/perf/test_workflow_latency_budget.py`
+- **Acceptance:**
+  - PR review benign fixture completes < 30s on mock provider.
+  - Eval dashboard surfaces latency budget warnings.
+- **Security constraints:**
+  - Budget checks are observability only; no policy weakening.
+- **Non-goals:** Live provider latency SLOs.
+- **Estimate:** 0.5 PR-day.
+
+### v1.9.4-T1 — Status-line pass across planning docs
+- **Dependencies:** v1.9.3-T1.
+- **Files/Modules:**
+  - `product-planning/*.md`
+  - `enterprise-docs/*.md`
+  - `examples/enterprise/demos/v1.9/beta_summary.md`
+- **Tests:**
+  - Manual review; no new code tests.
+- **Acceptance:**
+  - Every planning and enterprise doc shows v1.9 implementation status.
+  - Beta demo walk-through checked in.
+- **Security constraints:**
+  - Doc-only; no behavior change.
+- **Non-goals:** Web dashboard.
+- **Estimate:** 0.5 PR-day.
 
 ### v2.0 Enterprise Release Candidate
-- v2.0.1-T1 — Public contract snapshot test.
-- v2.0.2-T1 — Run `/code-review ultra` and file findings.
-- v2.0.3-T1 — Deployment-profile docs.
-- v2.0.4-T1 — RC release notes and dashboard.
+
+### v2.0.1-T1 — Public contract snapshot test
+- **Dependencies:** v1.9 completed.
+- **Files/Modules:**
+  - `src/safecode/enterprise/contracts/snapshot.py`
+  - `tests/enterprise/contracts/test_public_contract_v2_0.py`
+  - `tests/enterprise/contracts/snapshots/*.json`
+- **Tests:**
+  - `tests/enterprise/contracts/test_public_contract_v2_0.py`
+- **Acceptance:**
+  - CLI commands, trace schema, timeline schema, evidence manifest, eval baseline,
+    and workflow state fields frozen in snapshots.
+  - Contract drift fails CI until snapshots updated intentionally.
+- **Security constraints:**
+  - Snapshots exclude secrets and host-specific paths.
+- **Non-goals:** Kernel contract migration from `tests/test_public_contract_snapshots.py`.
+- **Estimate:** 0.75 PR-day.
+
+### v2.0.2-T1 — External-style security review
+- **Dependencies:** v2.0.1-T1.
+- **Files/Modules:**
+  - `enterprise-docs/security-review-v2-0.md`
+  - `src/safecode/enterprise/approvals/store.py` (M1 remediation)
+- **Tests:**
+  - `tests/enterprise/approvals/test_request_store.py` (extend tamper case)
+- **Acceptance:**
+  - Review filed; no open high-severity findings.
+  - M1 approval hash enforcement on list path closed.
+- **Security constraints:**
+  - M2-M3 approval binding and tenant propagation findings closed before RC.
+- **Non-goals:** Hosted penetration test.
+- **Estimate:** 0.75 PR-day.
+
+### v2.0.3-T1 — Deployment-profile docs
+- **Dependencies:** v2.0.2-T1.
+- **Files/Modules:**
+  - `enterprise-docs/deployment-profiles.md`
+- **Tests:**
+  - Doc review only.
+- **Acceptance:**
+  - Local, team server, and on-prem hybrid profiles documented with components,
+    security posture, dependencies, limitations.
+- **Security constraints:**
+  - Plans only; no weakening of defaults.
+- **Non-goals:** Implementation of hosted profiles.
+- **Estimate:** 0.5 PR-day.
+
+### v2.0.4-T1 — RC release notes and dashboard
+- **Dependencies:** v2.0.3-T1.
+- **Files/Modules:**
+  - `RELEASE-NOTES-v2.0.0-rc.md`
+  - `examples/enterprise/demos/v2.0/rc_dashboard.md`
+- **Tests:**
+  - Full regression + `scripts/verify-package.py`
+- **Acceptance:**
+  - Release notes link contract snapshot.
+  - RC dashboard documents eval + trace gate commands.
+- **Security constraints:**
+  - Release notes reference security review doc.
+- **Non-goals:** Git tag push (operator action).
+- **Estimate:** 0.5 PR-day.
 
 ---
 

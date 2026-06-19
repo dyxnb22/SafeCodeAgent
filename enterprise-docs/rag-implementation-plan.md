@@ -1,5 +1,6 @@
 # RAG Implementation Plan
 
+**Implementation status (v1.9):** Executable contracts through v1.9 are implemented; see `.agents/context/progress.json` for live stage state.
 This plan turns the design in `rag-and-context.md` into a sequence of
 concrete steps tied to `v1.1.1`–`v1.1.4` (and refined for later
 stages). It is anchored in the existing context/index/memory/eval

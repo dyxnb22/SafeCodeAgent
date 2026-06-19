@@ -100,14 +100,18 @@ def test_progress_state_is_valid_and_matches_backlog() -> None:
     assert progress["implemented_baseline_tag"] == "v7.1.5"
 
     current = progress["current"]
-    assert current["status"] in {"ready", "in_progress", "blocked"}
+    assert current["status"] in {"ready", "in_progress", "blocked", "completed"}
     assert current["stage"] in progress["stages"]
-    assert current["next_delivery_task"] in backlog
-    assert current["next_delivery_task"] in context
+    if current.get("next_delivery_task"):
+        assert current["next_delivery_task"] in backlog
+        assert current["next_delivery_task"] in context
 
     if current["status"] == "ready":
         assert current["active_task"] is None
         assert progress["stages"][current["stage"]] == "ready"
+    elif current["status"] == "completed":
+        assert current["active_task"] is None
+        assert progress["stages"][current["stage"]] == "completed"
     else:
         assert current["active_task"]
         date.fromisoformat(current["active_task"]["started_at"])
@@ -115,7 +119,8 @@ def test_progress_state_is_valid_and_matches_backlog() -> None:
         assert progress["blockers"]
 
     assert progress["stages"]["v1.0"] == "completed"
-    assert progress["stages"]["v2.0"] in {"planned", "ready", "in_progress"}
+    if progress["stages"].get("v2.0") != "completed":
+        assert progress["stages"]["v2.0"] in {"planned", "ready", "in_progress"}
 
     completed = progress["completed_delivery_tasks"]
     completed_ids = [task["id"] for task in completed]

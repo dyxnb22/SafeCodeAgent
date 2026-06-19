@@ -1,5 +1,6 @@
 # Enterprise Roadmap
 
+**Implementation status (v1.9):** Executable contracts through v1.9 are implemented; see `.agents/context/progress.json` for live stage state.
 ## Phase 0: Branch Cleanup And Planning
 
 Goal: make this branch a focused Enterprise workspace.

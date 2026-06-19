@@ -1,5 +1,6 @@
 # Observability And Evaluation
 
+**Implementation status (v1.9):** Executable contracts through v1.9 are implemented; see `.agents/context/progress.json` for live stage state.
 ## Observability Goals
 
 Enterprise users need to answer:

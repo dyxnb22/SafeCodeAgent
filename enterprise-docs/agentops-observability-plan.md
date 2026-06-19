@@ -1,5 +1,6 @@
 # AgentOps and Observability Plan
 
+**Implementation status (v1.9):** Executable contracts through v1.9 are implemented; see `.agents/context/progress.json` for live stage state.
 This plan specifies what is recorded for every enterprise workflow
 run, how it is structured, how it is rendered to humans, and how it
 flows into the evaluation lane and the compliance evidence exporter.
