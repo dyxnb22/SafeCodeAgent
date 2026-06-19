@@ -1,0 +1,12 @@
+[
+  {
+    "filename": "app/db.py",
+    "status": "modified",
+    "patch": "@@ -10,3 +10,3 @@\n-query = f\"SELECT * FROM users WHERE id={user_id}\"\n+query = \"SELECT * FROM users WHERE id=?\""
+  },
+  {
+    "filename": "tests/test_db.py",
+    "status": "added",
+    "patch": ""
+  }
+]

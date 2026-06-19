@@ -1,0 +1,10 @@
+{
+  "number": 42,
+  "title": "Fix SQL injection in login",
+  "body": "Parameterize user input.\nAuthorization: Bearer ghp_1234567890123456789012345678901234",
+  "user": {"login": "dev@example.com"},
+  "base": {"ref": "main"},
+  "head": {"ref": "feature/sql-fix"},
+  "labels": [{"name": "security"}, {"name": "bug"}],
+  "requested_reviewers": [{"login": "reviewer@example.com"}]
+}
