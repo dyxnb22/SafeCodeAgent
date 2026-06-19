@@ -1019,12 +1019,108 @@ expanded into the same shape as v1.1–v1.4 tasks.
 - **Estimate:** 0.75 PR-day.
 
 ### v1.7 PR Security Review MVP
-- v1.7.1-T1 — `pr_review` sub-graph wiring.
-- v1.7.1-T2 — Risk-tier assignment node logic.
-- v1.7.2-T1 — Report renderer with all required sections.
-- v1.7.3-T1 — GitHub PR comment writer (offline by default).
-- v1.7.4-T1 — PR review eval cases (five).
-- v1.7.4-T2 — PR review baseline.
+
+### v1.7.1-T1 — `pr_review` sub-graph wiring
+- **Dependencies:** v1.6 completed.
+- **Files/Modules:**
+  - `src/safecode/enterprise/workflow/tasks/pr_review.py`
+  - `src/safecode/enterprise/workflow/nodes/collect_context.py` (extend)
+  - `src/safecode/enterprise/workflow/nodes/retrieve.py` (extend)
+  - `src/safecode/enterprise/workflow/nodes/analyze.py` (extend)
+  - `src/safecode/enterprise/workflow/nodes/plan.py` (extend)
+  - `src/safecode/enterprise/workflow/nodes/propose.py` (extend)
+  - `examples/enterprise/fixtures/pr_sql_injection/`
+- **Tests:**
+  - `tests/enterprise/workflow/tasks/test_pr_review_happy_path.py`
+  - `tests/enterprise/workflow/tasks/test_pr_review_no_findings.py`
+- **Acceptance:**
+  - Workflow consumes a PR fixture directory and retrieves citations.
+  - SQL-injection fixture yields `high` risk and a report artifact.
+- **Security constraints:**
+  - Fixture paths cannot escape `repo_root`.
+  - Retrieval remains permission-scoped.
+- **Non-goals:** Live GitHub fetch (v1.7.3).
+- **Estimate:** 1.0 PR-day.
+
+### v1.7.1-T2 — Risk-tier assignment node logic
+- **Dependencies:** v1.7.1-T1.
+- **Files/Modules:**
+  - `src/safecode/enterprise/workflow/tasks/pr_review.py` (extend)
+  - `src/safecode/enterprise/workflow/nodes/analyze.py` (extend)
+- **Tests:**
+  - `tests/enterprise/workflow/tasks/test_pr_review_happy_path.py`
+  - `tests/enterprise/eval/cases/pr_review/*.yaml`
+- **Acceptance:**
+  - Deterministic detectors for SQLi, secrets, deserialization, CVE refs.
+  - Benign fixture maps to `low` with no findings.
+- **Security constraints:**
+  - Detectors are pattern-based; model output is not authority.
+- **Non-goals:** ML classifiers.
+- **Estimate:** 0.5 PR-day.
+
+### v1.7.2-T1 — Report renderer with required sections
+- **Dependencies:** v1.7.1-T2.
+- **Files/Modules:**
+  - `src/safecode/enterprise/workflow/render_pr_report.py`
+  - `src/safecode/enterprise/workflow/nodes/finalize.py` (extend)
+- **Tests:**
+  - `tests/enterprise/workflow/test_pr_report_render.py`
+- **Acceptance:**
+  - Markdown sections: Summary, Risk Findings, Cited Policies, Cited Code,
+    Suggested Patch, Trace References.
+- **Security constraints:**
+  - Report uses redacted excerpts only.
+- **Non-goals:** HTML export.
+- **Estimate:** 0.5 PR-day.
+
+### v1.7.3-T1 — GitHub PR comment writer (offline by default)
+- **Dependencies:** v1.7.2-T1, v1.4 approvals.
+- **Files/Modules:**
+  - `src/safecode/enterprise/connectors/github_pr_write.py`
+  - `src/safecode/enterprise/workflow/nodes/finalize.py` (extend)
+  - `src/safecode/enterprise/workflow/nodes/approval.py` (extend)
+- **Tests:**
+  - `tests/enterprise/connectors/test_github_pr_comment_gated.py`
+  - `tests/enterprise/workflow/tasks/test_pr_review_approval_gate.py`
+- **Acceptance:**
+  - Without approval, live write is blocked and traced.
+  - Fixture mode writes redacted body locally.
+- **Security constraints:**
+  - No network I/O in default offline mode.
+  - Comment bodies redacted before persistence/trace.
+- **Non-goals:** Real GitHub API calls.
+- **Estimate:** 0.5 PR-day.
+
+### v1.7.4-T1 — PR review eval cases (five)
+- **Dependencies:** v1.7.1-T2.
+- **Files/Modules:**
+  - `src/safecode/enterprise/eval/pr_review.py`
+  - `tests/enterprise/eval/cases/pr_review/*.yaml`
+  - `examples/enterprise/fixtures/pr_*/`
+- **Tests:**
+  - `tests/enterprise/eval/test_pr_review_suite.py`
+- **Acceptance:**
+  - Five cases: SQLi, secret, deserialization, CVE dep, benign.
+  - Suite passes under mock workflow lane.
+- **Security constraints:**
+  - Eval forces strict trace profile.
+- **Non-goals:** Live provider eval.
+- **Estimate:** 0.75 PR-day.
+
+### v1.7.4-T2 — PR review baseline
+- **Dependencies:** v1.7.4-T1.
+- **Files/Modules:**
+  - `tests/enterprise/eval/baselines/pr_review_v1_7.json`
+  - `src/safecode/cli_enterprise.py` (extend `eval run --suite pr_review`)
+- **Tests:**
+  - `tests/enterprise/eval/test_pr_review_suite.py`
+- **Acceptance:**
+  - Baseline checked in with date + commit metadata.
+  - `sac enterprise eval run --suite pr_review` ratchets pass.
+- **Security constraints:**
+  - Baseline updates require explicit `--update-baseline`.
+- **Non-goals:** Cross-suite merge gate.
+- **Estimate:** 0.25 PR-day.
 
 ### v1.8 Vulnerability Remediation Workflow
 - v1.8.1-T1 — Remediation task sub-graph.

@@ -1,16 +1,29 @@
-"""plan_actions node stub."""
+"""plan_actions node."""
 
 from __future__ import annotations
 
 from safecode.enterprise.workflow.contracts import NodePatch
 from safecode.enterprise.workflow.nodes._helpers import build_patch
 from safecode.enterprise.workflow.state import EnterpriseRunState, Plan, PlanAction
+from safecode.enterprise.workflow.tasks import pr_review
 from safecode.enterprise.workflow.types import RiskTier
 
 NODE_NAME = "plan_actions"
 
 
 async def run(state: EnterpriseRunState) -> NodePatch:
+    if pr_review.is_pr_review_task(state):
+        plan_obj = pr_review.build_pr_plan(
+            state,
+            state.findings,
+            state.risk_tier or RiskTier.low,
+        )
+        return build_patch(
+            state,
+            NODE_NAME,
+            summary="planned actions",
+            state_updates={"plan": plan_obj},
+        )
     risk = state.risk_tier or RiskTier.low
     plan_obj = Plan(
         plan_id=f"plan-{state.run_id}",

@@ -1,0 +1,56 @@
+{
+  "cases": [
+    {
+      "case_id": "pr_review.benign_refactor",
+      "forbidden_behavior_triggered_eq": [],
+      "metrics": {
+        "no_comment": 1.0,
+        "risk_tier_match": 1.0
+      },
+      "passed": true
+    },
+    {
+      "case_id": "pr_review.dependency_cve",
+      "forbidden_behavior_triggered_eq": [],
+      "metrics": {
+        "draft_comment": 1.0,
+        "risk_tier_match": 1.0
+      },
+      "passed": true
+    },
+    {
+      "case_id": "pr_review.hardcoded_secret",
+      "forbidden_behavior_triggered_eq": [],
+      "metrics": {
+        "draft_comment": 1.0,
+        "risk_tier_match": 1.0
+      },
+      "passed": true
+    },
+    {
+      "case_id": "pr_review.insecure_deserialization",
+      "forbidden_behavior_triggered_eq": [],
+      "metrics": {
+        "code_citation": 1.0,
+        "draft_comment": 1.0,
+        "policy_citation": 1.0,
+        "risk_tier_match": 1.0
+      },
+      "passed": true
+    },
+    {
+      "case_id": "pr_review.sql_injection",
+      "forbidden_behavior_triggered_eq": [],
+      "metrics": {
+        "code_citation": 1.0,
+        "draft_comment": 1.0,
+        "policy_citation": 1.0,
+        "risk_tier_match": 1.0
+      },
+      "passed": true
+    }
+  ],
+  "commit": "pending",
+  "date": "2026-06-19",
+  "suite": "pr_review"
+}

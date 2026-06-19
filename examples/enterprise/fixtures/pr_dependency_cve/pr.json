@@ -1,0 +1,19 @@
+{
+  "title": "Upgrade requests for CVE-2024-12345",
+  "body": "Bump dependency to address CVE-2024-12345.",
+  "author": "dev@example.com",
+  "base_ref": "main",
+  "head_ref": "feature/deps",
+  "labels": ["dependencies", "CVE-2024-12345"],
+  "files": [
+    {"path": "requirements.txt", "status": "modified"}
+  ],
+  "hunks": [
+    {
+      "file_path": "requirements.txt",
+      "start_line": 1,
+      "end_line": 1,
+      "patch": "@@ -1 +1 @@\n-requests==2.25.0\n+requests==2.32.0  # fixes CVE-2024-12345"
+    }
+  ]
+}

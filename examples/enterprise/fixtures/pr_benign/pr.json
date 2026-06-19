@@ -1,0 +1,19 @@
+{
+  "title": "Benign refactor",
+  "body": "Rename helper for clarity.",
+  "author": "dev@example.com",
+  "base_ref": "main",
+  "head_ref": "feature/refactor",
+  "labels": ["refactor"],
+  "files": [
+    {"path": "app/db.py", "status": "modified"}
+  ],
+  "hunks": [
+    {
+      "file_path": "app/db.py",
+      "start_line": 2,
+      "end_line": 4,
+      "patch": "@@ -2,2 +2,2 @@\n-def fetch_user(user_id):\n+def load_user(user_id):\n     return repo.get(user_id)"
+    }
+  ]
+}

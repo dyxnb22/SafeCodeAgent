@@ -1,0 +1,19 @@
+{
+  "title": "Add API key configuration",
+  "body": "Stores service credentials.",
+  "author": "dev@example.com",
+  "base_ref": "main",
+  "head_ref": "feature/config",
+  "labels": ["config"],
+  "files": [
+    {"path": "app/config.py", "status": "added"}
+  ],
+  "hunks": [
+    {
+      "file_path": "app/config.py",
+      "start_line": 1,
+      "end_line": 2,
+      "patch": "@@ -0,0 +1,2 @@\n+API_KEY = \"ghp_1234567890123456789012345678901234\"\n+TIMEOUT = 30"
+    }
+  ]
+}

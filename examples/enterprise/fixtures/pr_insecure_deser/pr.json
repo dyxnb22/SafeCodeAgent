@@ -1,0 +1,19 @@
+{
+  "title": "Add cached object loader",
+  "body": "Speed up startup with cached objects.",
+  "author": "dev@example.com",
+  "base_ref": "main",
+  "head_ref": "feature/cache",
+  "labels": ["performance"],
+  "files": [
+    {"path": "app/cache.py", "status": "added"}
+  ],
+  "hunks": [
+    {
+      "file_path": "app/cache.py",
+      "start_line": 1,
+      "end_line": 3,
+      "patch": "@@ -0,0 +1,3 @@\n+import pickle\n+def load_blob(data: bytes):\n+    return pickle.loads(data)"
+    }
+  ]
+}

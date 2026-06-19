@@ -19,8 +19,15 @@ def test_collect_context_attaches_pr_evidence(tmp_path: Path):
                 "author": "dev@example.com",
                 "base_ref": "main",
                 "head_ref": "feature/x",
-                "files": [],
-                "hunks": [],
+                "files": [{"path": "app.py", "status": "modified"}],
+                "hunks": [
+                    {
+                        "file_path": "app.py",
+                        "start_line": 1,
+                        "end_line": 2,
+                        "patch": "@@\n+pass",
+                    }
+                ],
             }
         ),
         encoding="utf-8",

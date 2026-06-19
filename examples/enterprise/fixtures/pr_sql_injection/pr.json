@@ -1,0 +1,19 @@
+{
+  "title": "Add user lookup with SQL injection risk",
+  "body": "Adds a user lookup helper.",
+  "author": "dev@example.com",
+  "base_ref": "main",
+  "head_ref": "feature/user-lookup",
+  "labels": ["feature"],
+  "files": [
+    {"path": "app/db.py", "status": "modified"}
+  ],
+  "hunks": [
+    {
+      "file_path": "app/db.py",
+      "start_line": 5,
+      "end_line": 8,
+      "patch": "@@ -5,0 +5,3 @@\n+def get_user(user_id):\n+    query = f\"SELECT * FROM users WHERE id={user_id}\"\n+    return db.execute(query)"
+    }
+  ]
+}

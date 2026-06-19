@@ -47,7 +47,7 @@ RAG_MAX_CITATIONS = 8
 _EVAL_CASES_ROOT = Path("tests/enterprise/eval/cases")
 _EVAL_BASELINES_ROOT = Path("tests/enterprise/eval/baselines")
 _EVAL_MANIFEST = Path("examples/enterprise/knowledge_sources.yaml")
-_IMPLEMENTED_EVAL_SUITES = ("smoke", "retrieval", "prompt_injection", "tool_classification")
+_IMPLEMENTED_EVAL_SUITES = ("smoke", "retrieval", "prompt_injection", "tool_classification", "pr_review")
 
 enterprise_app = typer.Typer(help="Enterprise security workflow commands.")
 workflow_app = typer.Typer(help="Enterprise workflow orchestration.")

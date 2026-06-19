@@ -3,11 +3,11 @@
   "updated_at": "2026-06-19",
   "implemented_baseline_tag": "v7.1.5",
   "current": {
-    "stage": "v1.7",
-    "milestone": "v1.7.1",
+    "stage": "v1.8",
+    "milestone": "v1.8.1",
     "status": "ready",
     "active_task": null,
-    "next_delivery_task": "v1.7.1-T1"
+    "next_delivery_task": "v1.8.1-T1"
   },
   "stages": {
     "v1.0": "completed",
@@ -17,8 +17,8 @@
     "v1.4": "completed",
     "v1.5": "completed",
     "v1.6": "completed",
-    "v1.7": "ready",
-    "v1.8": "planned",
+    "v1.7": "completed",
+    "v1.8": "ready",
     "v1.9": "planned",
     "v2.0": "planned"
   },
@@ -90,7 +90,13 @@
     {"id": "v1.6.2-T1", "completed_at": "2026-06-19", "evidence": "f3fe9da"},
     {"id": "v1.6.3-T1", "completed_at": "2026-06-19", "evidence": "c3515dd"},
     {"id": "v1.6.4-T1", "completed_at": "2026-06-19", "evidence": "eaf30ba"},
-    {"id": "v1.6.5-T1", "completed_at": "2026-06-19", "evidence": "ba4278a"}
+    {"id": "v1.6.5-T1", "completed_at": "2026-06-19", "evidence": "ba4278a"},
+    {"id": "v1.7.1-T1", "completed_at": "2026-06-19", "evidence": "pending"},
+    {"id": "v1.7.1-T2", "completed_at": "2026-06-19", "evidence": "pending"},
+    {"id": "v1.7.2-T1", "completed_at": "2026-06-19", "evidence": "pending"},
+    {"id": "v1.7.3-T1", "completed_at": "2026-06-19", "evidence": "pending"},
+    {"id": "v1.7.4-T1", "completed_at": "2026-06-19", "evidence": "pending"},
+    {"id": "v1.7.4-T2", "completed_at": "2026-06-19", "evidence": "pending"}
   ],
   "recent_maintenance": [
     {"id": "maintenance-agent-context-governance", "completed_at": "2026-06-18", "evidence": "77 governance tests and full regression: 5778 passed, 4 skipped"},
@@ -103,7 +109,7 @@
   "last_verification": {
     "recorded_at": "2026-06-19",
     "command": "PYTHONPATH=src python3 -m pytest -q",
-    "result": "5968 passed, 8 skipped",
-    "scope": "v1.6 Evaluation and regression platform stage closeout"
+    "result": "5979 passed, 8 skipped",
+    "scope": "v1.7 PR Security Review MVP stage closeout"
   }
 }

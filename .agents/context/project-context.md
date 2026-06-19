@@ -16,8 +16,8 @@ compliance evidence, and auditable tool-using security operations.
 
 - Legacy implemented baseline: `v7.1.5`.
 - Enterprise planning and namespace stages: complete.
-- Current delivery stage: `v1.7 PR Security Review MVP`.
-- Next delivery task: `v1.7.1-T1 PR review sub-graph wiring`.
+- Current delivery stage: `v1.8 Vulnerability Remediation Workflow`.
+- Next delivery task: `v1.8.1-T1 Remediation task sub-graph`.
 - Machine-readable live status: `.agents/context/progress.json`.
 
 Do not infer current progress from prose in this file. Read `progress.json`.
@@ -91,8 +91,8 @@ regression analysis.
 | v1.4 | Policy, RBAC, approval, and audit governance | Complete | `enterprise-docs/security-governance-plan.md` |
 | v1.5 | AgentOps trace and dashboard | Complete | `enterprise-docs/agentops-observability-plan.md` |
 | v1.6 | Evaluation and regression platform | Complete | `enterprise-docs/evaluation-plan.md` |
-| v1.7 | PR security review workflow | Ready | `enterprise-docs/workflow-design.md` |
-| v1.8 | Vulnerability remediation workflow | Planned | `enterprise-docs/workflow-design.md` |
+| v1.7 | PR security review workflow | Complete | `enterprise-docs/workflow-design.md` |
+| v1.8 | Vulnerability remediation workflow | Ready | `enterprise-docs/workflow-design.md` |
 | v1.9 | Enterprise beta hardening | Planned | `product-planning/version-roadmap.md` |
 | v2.0 | Enterprise release candidate | Planned | `product-planning/version-roadmap.md` |
 
