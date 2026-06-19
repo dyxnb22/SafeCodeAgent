@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import subprocess
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -34,6 +36,12 @@ from safecode.enterprise.eval.loader import discover_cases
 from safecode.enterprise.eval.ratchet import baseline_path_for_suite, check_ratchet, write_baseline
 from safecode.enterprise.eval.runner import run_suite
 from safecode.enterprise.evidence.export import verify_export_bundle
+from safecode.enterprise.client.api_client import (
+    EnterpriseApiClient,
+    ServerModeError,
+    load_bearer_token,
+    reject_raw_token_argv,
+)
 
 RAG_MAX_CITATIONS = 8
 _EVAL_CASES_ROOT = Path("tests/enterprise/eval/cases")
@@ -97,7 +105,7 @@ def workflow_run(
     task: str = typer.Option(..., "--task", help="Workflow task type."),
     input_path: Path = typer.Option(..., "--input", help="Task input fixture path."),
     root: Path = typer.Option(None, "--root", help="Project root (defaults to cwd)."),
-    actor: str = typer.Option("user:local", "--actor", help="Actor identifier."),
+    actor: Optional[str] = typer.Option(None, "--actor", help="Actor identifier."),
     tenant: str = typer.Option("local", "--tenant", help="Tenant identifier."),
     as_role: Optional[str] = typer.Option(
         None, "--as-role", help="Override role when org policy allows."
@@ -105,8 +113,14 @@ def workflow_run(
     config_root: Optional[Path] = typer.Option(
         None, "--config-root", help="Enterprise config root."
     ),
+    server_url: Optional[str] = typer.Option(
+        None, "--server-url", help="Team Server base URL for server mode."
+    ),
+    token_stdin: bool = typer.Option(
+        False, "--token-stdin", help="Read bearer token from stdin for server mode."
+    ),
 ) -> None:
-    """Start a local enterprise workflow run."""
+    """Start an enterprise workflow run locally or via the Team Server API."""
     project_root = (root or Path.cwd()).resolve()
     sac_root = project_root / ".sac"
     try:
@@ -114,15 +128,43 @@ def workflow_run(
     except ValueError as exc:
         typer.echo("Unsupported task type.", err=True)
         raise typer.Exit(code=1) from exc
+    if server_url:
+        if actor is not None:
+            typer.echo("server mode rejects --actor", err=True)
+            raise typer.Exit(code=1)
+        try:
+            reject_raw_token_argv(sys.argv[1:])
+            token = load_bearer_token(token_stdin=token_stdin)
+        except ServerModeError as exc:
+            typer.echo(str(exc), err=True)
+            raise typer.Exit(code=1) from exc
+        idempotency_key = hashlib.sha256(
+            f"{tenant}:{task}:{input_path.resolve()}".encode("utf-8")
+        ).hexdigest()[:32]
+        try:
+            payload = EnterpriseApiClient(
+                base_url=server_url,
+                tenant_id=tenant,
+                bearer_token=token,
+            ).start_run(
+                task_type=task_type.value,
+                input_ref=str(input_path),
+                idempotency_key=idempotency_key,
+            )
+        except Exception as exc:
+            typer.echo("Unable to start workflow via Team Server.", err=True)
+            raise typer.Exit(code=1) from exc
+        typer.echo(json.dumps({"run_id": payload["run_id"], "status": payload["status"]}))
+        raise typer.Exit(code=0)
     try:
-        resolve_subject(actor, config_root=config_root, as_role=as_role)
+        resolve_subject(actor or "user:local", config_root=config_root, as_role=as_role)
     except PermissionError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(code=1) from exc
     state = build_initial_state(
         task_type=task_type,
         input_ref=str(input_path),
-        actor_id=actor,
+        actor_id=actor or "user:local",
         repo_root=project_root,
         tenant_id=tenant,
     )
