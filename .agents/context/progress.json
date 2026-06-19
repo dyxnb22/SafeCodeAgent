@@ -193,7 +193,7 @@
     {"id": "v3.4.1-T1", "completed_at": "2026-06-19", "evidence": "1cd0b5e9"},
     {"id": "v3.4.2-T1", "completed_at": "2026-06-19", "evidence": "18d533df"},
     {"id": "v3.4.3-T1", "completed_at": "2026-06-19", "evidence": "ccd3bea7"},
-    {"id": "v3.4.4-T1", "completed_at": "2026-06-19", "evidence": "portfolio-v3.4-final-closeout"}
+    {"id": "v3.4.4-T1", "completed_at": "2026-06-19", "evidence": "90ffe69d"}
   ],
   "recent_maintenance": [
     {"id": "maintenance-portfolio-v3.4-final-closeout", "completed_at": "2026-06-19", "evidence": "v3.3.1-T1..v3.4.4-T1 delivered; portfolio_track completed; v3.0 GA blockers G1/G2/G3 remain pending"},
