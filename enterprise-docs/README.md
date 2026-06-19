@@ -1,9 +1,9 @@
 # Enterprise Technical Docs
 
-**Implementation status (v2.0 RC + post-RC plan):** v1.0–v2.0 are
-implemented and contract-frozen; v2.1–v3.0 are planned in
-`platform-architecture-v2.md`. See `.agents/context/progress.json` for
-live delivery state.
+**Implementation status (v3.0 candidate + portfolio track):** v1.0–v2.5 are
+implemented; v3.0 is a candidate blocked on external GA gates; v3.1–v3.4 are
+portfolio hardening, not new enterprise architecture. See
+`.agents/context/progress.json` for live delivery state.
 This directory contains the technical context that future Enterprise development
 should read first.
 
@@ -40,10 +40,12 @@ Detailed technical plans (new, implementation-ready):
 - `deployment-profiles.md` — local, team server, and on-prem hybrid
   deployment shapes (v2.0 RC + post-RC v2.1 upgrade).
 - `security-review-v2-0.md` — external-style RC security review notes.
+- `security/external-gates.md` — G1/G2/G3 external GA gates that cannot
+  be closed by repository-local agents or fabricated evidence.
 - `platform-architecture-v2.md` — post-RC target architecture for v2.1
   through v3.0 (service / workflow / data / integration / governance /
   observability planes; mermaid diagrams; trust boundaries; migration
-  strategy). **Status: planned.**
+  strategy). **Status: implemented through v2.5; v3.0 candidate.**
 
 The goal is clean, useful context. Historical version notes and old product
 manuals should stay out of this branch unless they are deliberately distilled
