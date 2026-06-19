@@ -7,7 +7,7 @@
     "milestone": "v2.1.1",
     "status": "ready",
     "active_task": null,
-    "next_delivery_task": "v2.1.1-T2"
+    "next_delivery_task": "v2.1.1-T3"
   },
   "stages": {
     "v1.0": "completed",
@@ -117,7 +117,8 @@
     {"id": "v2.0.2-T1", "completed_at": "2026-06-19", "evidence": "3b182f6"},
     {"id": "v2.0.3-T1", "completed_at": "2026-06-19", "evidence": "3b182f6"},
     {"id": "v2.0.4-T1", "completed_at": "2026-06-19", "evidence": "3b182f6"},
-    {"id": "v2.1.1-T1", "completed_at": "2026-06-19", "evidence": "270 Enterprise passed, 1 skipped; full regression 6019 passed, 8 skipped; uv lock --check and verify-package pass"}
+    {"id": "v2.1.1-T1", "completed_at": "2026-06-19", "evidence": "379c57e"},
+    {"id": "v2.1.1-T2", "completed_at": "2026-06-19", "evidence": "283 Enterprise passed, 2 skipped; full regression 6032 passed, 9 skipped"}
   ],
   "recent_maintenance": [
     {"id": "maintenance-agent-context-governance", "completed_at": "2026-06-18", "evidence": "77 governance tests and full regression: 5778 passed, 4 skipped"},
@@ -133,7 +134,7 @@
   "last_verification": {
     "recorded_at": "2026-06-19",
     "command": "PYTHONPATH=src python3 -m pytest -q",
-    "result": "6019 passed, 8 skipped; 270 Enterprise passed, 1 skipped",
-    "scope": "v2.1.1-T1 team-server optional extra boundary"
+    "result": "6032 passed, 9 skipped; 283 Enterprise passed, 2 skipped",
+    "scope": "v2.1.1-T2 runtime settings and RuntimeMode contracts"
   }
 }
