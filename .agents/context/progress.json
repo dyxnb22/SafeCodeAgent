@@ -3,16 +3,11 @@
   "updated_at": "2026-06-19",
   "implemented_baseline_tag": "v7.1.5",
   "current": {
-    "stage": "v2.5",
-    "milestone": "v2.5.2",
-    "status": "in_progress",
-    "active_task": {
-      "id": "v2.5.2-T1",
-      "kind": "delivery",
-      "title": "Worker recovery and dead-letter behavior",
-      "started_at": "2026-06-19"
-    },
-    "next_delivery_task": "v2.5.2-T1"
+    "stage": "v3.0",
+    "milestone": "v3.0",
+    "status": "ready",
+    "active_task": null,
+    "next_delivery_task": "v3.0.1-T1"
   },
   "stages": {
     "v1.0": "completed",
@@ -30,8 +25,8 @@
     "v2.2": "completed",
     "v2.3": "completed",
     "v2.4": "completed",
-    "v2.5": "ready",
-    "v3.0": "planned"
+    "v2.5": "completed",
+    "v3.0": "ready"
   },
   "completed_delivery_tasks": [
     {"id": "v1.0.1-T1", "completed_at": "2026-06-18", "evidence": "enterprise-v1.0.1-sot"},
@@ -163,10 +158,16 @@
     {"id": "v2.4.3-T1", "completed_at": "2026-06-19", "evidence": "cf01084a"},
     {"id": "v2.4.4-T1", "completed_at": "2026-06-19", "evidence": "73c4d68e"},
     {"id": "v2.4.5-T1", "completed_at": "2026-06-19", "evidence": "d5a8e1fc"},
-    {"id": "v2.4.6-T1", "completed_at": "2026-06-19", "evidence": "4914c50b"}
+    {"id": "v2.4.6-T1", "completed_at": "2026-06-19", "evidence": "4914c50b"},
+    {"id": "v2.5.1-T1", "completed_at": "2026-06-19", "evidence": "bafefb0d"},
+    {"id": "v2.5.2-T1", "completed_at": "2026-06-19", "evidence": "62d57567"},
+    {"id": "v2.5.3-T1", "completed_at": "2026-06-19", "evidence": "c17b08d8"},
+    {"id": "v2.5.4-T1", "completed_at": "2026-06-19", "evidence": "72ba8dcf"},
+    {"id": "v2.5.5-T1", "completed_at": "2026-06-19", "evidence": "f04fe345"},
+    {"id": "v2.5.6-T1", "completed_at": "2026-06-19", "evidence": "f6753850"}
   ],
   "recent_maintenance": [
-    {"id": "maintenance-v2.4-knowledge-tickets-memory-closeout", "completed_at": "2026-06-19", "evidence": "v2.4.1..v2.4.6 delivered; 6315 passed excluding postgres_integration; full regression closeout"},
+    {"id": "maintenance-v2.5-production-hardening-closeout", "completed_at": "2026-06-19", "evidence": "v2.5.1..v2.5.6 delivered; 6342 passed excluding postgres_integration; full regression closeout"},
     {"id": "maintenance-v2.1.6-oidc-subject", "completed_at": "2026-06-19", "evidence": "v2.1.6-T1..T2 delivered; 408 enterprise passed excluding postgres_integration; full regression 6158 passed, 8 skipped"},
     {"id": "maintenance-v2.1.5-command-worker-cli", "completed_at": "2026-06-19", "evidence": "v2.1.5-T1..T4 delivered; 393 enterprise passed excluding postgres_integration; full regression 6142 passed, 8 skipped"},
     {"id": "maintenance-v2.1.2-v2.1.3-closeout", "completed_at": "2026-06-19", "evidence": "strict fake + postgres integration compose; caller routing through backends; 6111 passed excluding postgres_integration"},
@@ -182,7 +183,7 @@
   "last_verification": {
     "recorded_at": "2026-06-19",
     "command": "PYTHONPATH=src python3 -m pytest -q",
-    "result": "6315 passed, 9 skipped, 20 deselected excluding postgres_integration",
-    "scope": "v2.4 Enterprise Knowledge, Tickets, and Memory stage closeout"
+    "result": "6342 passed, 9 skipped, 20 deselected excluding postgres_integration",
+    "scope": "v2.5 Production Hardening stage closeout"
   }
 }

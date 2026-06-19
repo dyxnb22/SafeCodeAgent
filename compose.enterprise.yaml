@@ -2,10 +2,15 @@
 #
 # Loopback-bound API, disposable PostgreSQL, and a worker process.
 # Development credentials only — not a production deployment contract.
+#
+# PostgreSQL uses the stock image here; for pgvector retrieval (v2.4+),
+# swap to a pgvector-enabled image in on-prem profiles — the API and worker
+# contracts are unchanged.
 
 services:
   postgres:
     image: postgres:16-alpine
+    # Optional v2.4+ profile: ankane/pgvector or pgvector/pgvector:pg16
     env_file:
       - compose/enterprise.dev.env
     ports:
@@ -60,6 +65,16 @@ services:
         condition: service_healthy
       api:
         condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"import pathlib; assert pathlib.Path('/var/lib/safecode').exists()\"",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
 
   console:
     image: node:22-alpine

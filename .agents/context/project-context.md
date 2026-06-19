@@ -16,9 +16,9 @@ compliance evidence, and auditable tool-using security operations.
 
 - Legacy implemented baseline: `v7.1.5`.
 - Enterprise planning and namespace stages: complete.
-- Last delivery stage completed: `v2.4 Enterprise Knowledge, Tickets, and Memory`.
-- Current delivery stage: `v2.5 Production Hardening` (ready).
-- Next delivery task: `v2.5.1-T1` — OpenTelemetry exporter behind the trace emitter.
+- Last delivery stage completed: `v2.5 Production Hardening`.
+- Current delivery stage: `v3.0 Enterprise GA` (ready).
+- Next delivery task: `v3.0.1-T1` — GA contract and migration compatibility tests.
   See `product-planning/execution-backlog.md`.
 - Post-RC platform architecture: `enterprise-docs/platform-architecture-v2.md`.
 - Machine-readable live status: `.agents/context/progress.json`.
@@ -103,8 +103,8 @@ regression analysis.
 | v2.2 | Real GitHub secure change workflow | Complete | `enterprise-docs/platform-architecture-v2.md` |
 | v2.3 | Operator console (React/Next.js) | Complete | `enterprise-docs/platform-architecture-v2.md` |
 | v2.4 | Enterprise knowledge, tickets, long-term memory | Complete | `enterprise-docs/platform-architecture-v2.md` |
-| v2.5 | Production hardening | Ready | `enterprise-docs/platform-architecture-v2.md` |
-| v3.0 | Enterprise GA | Planned | `product-planning/version-roadmap.md` |
+| v2.5 | Production hardening | Complete | `enterprise-docs/platform-architecture-v2.md` |
+| v3.0 | Enterprise GA | Ready | `product-planning/version-roadmap.md` |
 
 Status details belong in `progress.json`; change this table only when stage
 scope, ownership, or architecture changes.
