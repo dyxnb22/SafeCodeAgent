@@ -17,8 +17,8 @@ compliance evidence, and auditable tool-using security operations.
 - Legacy implemented baseline: `v7.1.5`.
 - Enterprise planning and namespace stages: complete.
 - Last delivery stage completed: `v2.0 Enterprise Release Candidate`.
-- Current delivery stage: `v2.1 Team Server Foundation` (ready).
-- Next delivery task: `v2.1.7-T1` — freeze v2.1 API and CLI contract snapshots.
+- Current delivery stage: `v2.2 Real GitHub Secure Change Workflow` (ready).
+- Next delivery task: `v2.2.1-T1` — GitHub App credential boundary.
   See `product-planning/execution-backlog.md`.
 - Post-RC platform architecture: `enterprise-docs/platform-architecture-v2.md`.
 - Machine-readable live status: `.agents/context/progress.json`.
