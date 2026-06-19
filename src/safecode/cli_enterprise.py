@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import asyncio
 import json
+import subprocess
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -36,16 +38,26 @@ from safecode.enterprise.trace.redaction import DebugTraceNotAllowed, resolve_ex
 from safecode.enterprise.policy.resolver import resolve_policy
 from safecode.enterprise.workflow.exceptions import CheckpointCorruptedError, InvalidRunIdError
 from safecode.enterprise.workflow.checkpoint import load_checkpoint
+from safecode.enterprise.eval.dashboard import render_dashboard, write_dashboard
+from safecode.enterprise.eval.loader import discover_cases
+from safecode.enterprise.eval.ratchet import baseline_path_for_suite, check_ratchet, write_baseline
+from safecode.enterprise.eval.runner import run_suite, write_results
 
 RAG_MAX_CITATIONS = 8
+_EVAL_CASES_ROOT = Path("tests/enterprise/eval/cases")
+_EVAL_BASELINES_ROOT = Path("tests/enterprise/eval/baselines")
+_EVAL_MANIFEST = Path("examples/enterprise/knowledge_sources.yaml")
+_IMPLEMENTED_EVAL_SUITES = ("smoke", "retrieval", "prompt_injection", "tool_classification")
 
 enterprise_app = typer.Typer(help="Enterprise security workflow commands.")
 workflow_app = typer.Typer(help="Enterprise workflow orchestration.")
 approval_app = typer.Typer(help="Enterprise approval inbox.")
 trace_app = typer.Typer(help="Enterprise trace export and dashboard.")
+eval_app = typer.Typer(help="Enterprise evaluation suites.")
 enterprise_app.add_typer(workflow_app, name="workflow")
 enterprise_app.add_typer(approval_app, name="approval")
 enterprise_app.add_typer(trace_app, name="trace")
+enterprise_app.add_typer(eval_app, name="eval")
 
 
 @enterprise_app.command("retrieve")
@@ -354,4 +366,110 @@ def trace_show(
     if out is not None:
         out.write_text(markdown, encoding="utf-8")
     typer.echo(markdown)
+    raise typer.Exit(code=0)
+
+
+def _project_root(root: Path | None) -> Path:
+    return (root or Path.cwd()).resolve()
+
+
+def _resolve_under(project_root: Path, path: Path) -> Path:
+    return path if path.is_absolute() else (project_root / path).resolve()
+
+
+def _git_head_short(project_root: Path) -> str:
+    try:
+        return subprocess.check_output(
+            ["git", "rev-parse", "--short", "HEAD"],
+            cwd=project_root,
+            stderr=subprocess.DEVNULL,
+            text=True,
+        ).strip()
+    except (OSError, subprocess.CalledProcessError):
+        return "unknown"
+
+
+@eval_app.command("run")
+def eval_run(
+    suite: str = typer.Option("all", "--suite", help="Suite name or all."),
+    root: Path = typer.Option(None, "--root", help="Project root (defaults to cwd)."),
+    cases_root: Path = typer.Option(
+        _EVAL_CASES_ROOT, "--cases-root", help="Eval cases root."
+    ),
+    baselines_root: Path = typer.Option(
+        _EVAL_BASELINES_ROOT, "--baselines-root", help="Baseline JSON root."
+    ),
+    manifest: Path = typer.Option(
+        _EVAL_MANIFEST, "--manifest", help="Knowledge manifest for retrieval."
+    ),
+    update_baseline: bool = typer.Option(
+        False, "--update-baseline", help="Rewrite suite baseline files."
+    ),
+) -> None:
+    """Run enterprise evaluation suites and write results plus dashboard."""
+    project_root = _project_root(root)
+    sac_root = project_root / ".sac"
+    resolved_cases = _resolve_under(project_root, cases_root)
+    resolved_baselines = _resolve_under(project_root, baselines_root)
+    resolved_manifest = _resolve_under(project_root, manifest)
+
+    if suite == "all":
+        suites = list(_IMPLEMENTED_EVAL_SUITES)
+    elif suite in _IMPLEMENTED_EVAL_SUITES:
+        suites = [suite]
+    else:
+        typer.echo(f"Unsupported suite: {suite}", err=True)
+        raise typer.Exit(code=1)
+
+    all_results = []
+    ratchet_failures: list[str] = []
+    recorded_at = datetime.now(timezone.utc).date().isoformat()
+    commit = _git_head_short(project_root)
+
+    for suite_name in suites:
+        cases = discover_cases(resolved_cases, suite=suite_name)
+        if not cases:
+            continue
+        manifest_path = resolved_manifest if suite_name == "retrieval" else None
+        results = run_suite(cases, project_root=project_root, manifest_path=manifest_path)
+        all_results.extend(results)
+        baseline_path = baseline_path_for_suite(resolved_baselines, suite_name)
+        if baseline_path is None:
+            continue
+        if update_baseline:
+            write_baseline(results, baseline_path, commit=commit, recorded_at=recorded_at)
+        else:
+            ratchet_failures.extend(check_ratchet(results, baseline_path))
+
+    if ratchet_failures and not update_baseline:
+        typer.echo(json.dumps({"passed": False, "failures": ratchet_failures}))
+        raise typer.Exit(code=1)
+
+    run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    results_path = write_results(all_results, sac_root, run_id)
+    dashboard_path = write_dashboard(sac_root, render_dashboard(all_results))
+    passed = all(item.passed for item in all_results)
+    typer.echo(
+        json.dumps(
+            {
+                "passed": passed,
+                "dashboard": str(dashboard_path),
+                "results": str(results_path),
+                "run_id": run_id,
+            }
+        )
+    )
+    raise typer.Exit(code=0 if passed else 1)
+
+
+@eval_app.command("dashboard")
+def eval_dashboard(
+    root: Path = typer.Option(None, "--root", help="Project root (defaults to cwd)."),
+) -> None:
+    """Print the latest enterprise evaluation dashboard Markdown."""
+    path = _project_root(root) / ".sac" / "enterprise" / "eval" / "latest.md"
+    if not path.is_file():
+        typer.echo("Eval dashboard not found. Run eval first.", err=True)
+        raise typer.Exit(code=1)
+    typer.echo(path.read_text(encoding="utf-8"))
     raise typer.Exit(code=0)
