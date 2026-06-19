@@ -1,0 +1,23 @@
+main {
+  font-family: system-ui, sans-serif;
+  margin: 2rem auto;
+  max-width: 960px;
+  padding: 0 1rem;
+}
+
+header a {
+  color: #0b5fff;
+  text-decoration: none;
+}
+
+header a:hover {
+  text-decoration: underline;
+}
+
+.forbidden {
+  color: #9b1c1c;
+}
+
+.muted {
+  color: #555;
+}

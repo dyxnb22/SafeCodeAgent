@@ -19,7 +19,7 @@ from safecode.enterprise.api.exceptions import (
     IdempotencyKeyRequiredError,
     TenantScopeDeniedError,
 )
-from safecode.enterprise.api.settings import TeamServerSettings
+from safecode.enterprise.api.settings import TeamServerSettings, parse_cors_allowed_origins
 from safecode.enterprise.auth.oidc import OidcValidator
 from safecode.enterprise.persistence.exceptions import TenantBoundaryError
 from safecode.enterprise.worker.queue import IdempotencyConflictError
@@ -77,6 +77,18 @@ def create_app(
     app.include_router(eval_router)
     app.include_router(webhooks_router)
     app.include_router(ci_callback_router)
+
+    cors_origins = parse_cors_allowed_origins(settings.cors_allowed_origins)
+    if cors_origins:
+        from fastapi.middleware.cors import CORSMiddleware
+
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=list(cors_origins),
+            allow_credentials=True,
+            allow_methods=["GET", "POST", "OPTIONS"],
+            allow_headers=["Authorization", "Content-Type", "X-Tenant-Id", "Idempotency-Key"],
+        )
 
     @app.get("/healthz")
     def healthz() -> dict[str, str]:
