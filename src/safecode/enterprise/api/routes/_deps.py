@@ -7,9 +7,15 @@ from typing import Annotated
 from fastapi import Depends, Header, Request
 
 from safecode.enterprise.api.app import AppState
-from safecode.enterprise.api.dependencies import resolve_subject
+from safecode.enterprise.api.dependencies import (
+    AuthenticationRequiredError,
+    PersistenceBackend,
+    resolve_bearer_subject,
+    resolve_subject,
+)
 from safecode.enterprise.api.exceptions import IdempotencyKeyRequiredError
-from safecode.enterprise.api.read_service import PersistenceBackend, enforce_tenant_scope
+from safecode.enterprise.api.read_service import enforce_tenant_scope
+from safecode.enterprise.api.settings import RuntimeMode
 from safecode.enterprise.rbac.models import RBACSubject
 
 
@@ -21,8 +27,18 @@ def get_backend(state: Annotated[AppState, Depends(get_app_state)]) -> Persisten
     return state.backend
 
 
-def get_subject(state: Annotated[AppState, Depends(get_app_state)]) -> RBACSubject:
-    return resolve_subject(state.subject_resolver)
+def get_subject(
+    request: Request,
+    state: Annotated[AppState, Depends(get_app_state)],
+) -> RBACSubject:
+    if state.settings.runtime_mode is RuntimeMode.LOCAL:
+        return resolve_subject(state.subject_resolver)
+    if state.oidc_validator is None:
+        raise AuthenticationRequiredError("authenticated subject required")
+    return resolve_bearer_subject(
+        request.headers.get("Authorization"),
+        oidc_validator=state.oidc_validator,
+    )
 
 
 def require_tenant(

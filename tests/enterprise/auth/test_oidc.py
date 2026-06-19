@@ -13,7 +13,7 @@ from safecode.enterprise.auth.oidc import (
     build_oidc_validator,
     load_oidc_discovery,
 )
-from ._oidc_fixtures import AUDIENCE, ISSUER, generate_oidc_test_keys
+from oidc_fixtures import AUDIENCE, ISSUER, generate_oidc_test_keys
 
 
 def test_valid_token_resolves_to_claims_object() -> None:

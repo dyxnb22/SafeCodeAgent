@@ -21,9 +21,12 @@ from backend_contract import (  # noqa: E402
 from safecode.enterprise.api.app import create_app
 from safecode.enterprise.api.dependencies import fail_closed_subject_resolver
 from safecode.enterprise.api.settings import RuntimeMode, TeamServerSettings
+from safecode.enterprise.auth.oidc import build_oidc_validator
 from safecode.enterprise.persistence.local_backend import LocalBackend
 from safecode.enterprise.rbac.models import RBACSubject, Role
 from safecode.enterprise.trace.events import TraceEventType
+
+from oidc_fixtures import AUDIENCE, ISSUER, generate_oidc_test_keys
 
 _BASELINES_ROOT = ROOT / "tests" / "enterprise" / "eval" / "baselines"
 _SECRET = "ghp_" + ("z" * 36)
@@ -110,8 +113,8 @@ def test_missing_subject_returns_401(tmp_path: Path) -> None:
         {
             "runtime_mode": RuntimeMode.SERVER,
             "database_url": "postgresql://user:pass@127.0.0.1:5432/enterprise",
-            "oidc_issuer": "https://issuer.example",
-            "oidc_audience": "safecode-enterprise",
+            "oidc_issuer": ISSUER,
+            "oidc_audience": AUDIENCE,
         }
     )
     backend = LocalBackend(tmp_path / ".sac")
@@ -123,6 +126,72 @@ def test_missing_subject_returns_401(tmp_path: Path) -> None:
     client = TestClient(app)
     response = client.get("/v2/runs", params={"tenant_id": "tenant-a"})
     assert response.status_code == 401
+
+
+def _server_client(
+    tmp_path: Path,
+    *,
+    keys=None,
+    token: str | None = None,
+) -> tuple[TestClient, LocalBackend, str | None]:
+    keys = keys or generate_oidc_test_keys()
+    settings = TeamServerSettings.model_validate(
+        {
+            "runtime_mode": RuntimeMode.SERVER,
+            "database_url": "postgresql://user:pass@127.0.0.1:5432/enterprise",
+            "oidc_issuer": ISSUER,
+            "oidc_audience": AUDIENCE,
+        }
+    )
+    validator = build_oidc_validator(issuer=ISSUER, audience=AUDIENCE, jwks=keys.jwks)
+    backend = LocalBackend(tmp_path / ".sac")
+    app = create_app(
+        settings=settings,
+        backend=backend,
+        subject_resolver=fail_closed_subject_resolver(settings),
+        oidc_validator=validator,
+        eval_baselines_root=_BASELINES_ROOT,
+    )
+    bearer = token or keys.sign(tenant_id="tenant-a", roles=["viewer"])
+    return TestClient(app), backend, bearer
+
+
+def test_server_mode_bearer_token_resolves_subject(tmp_path: Path) -> None:
+    client, backend, token = _server_client(tmp_path)
+    _seed_run(backend, run_id="run-api-read001", tenant_id="tenant-a")
+
+    response = client.get(
+        "/v2/runs",
+        params={"tenant_id": "tenant-a"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 200
+    assert len(response.json()["items"]) == 1
+
+
+def test_server_mode_missing_tenant_claim_returns_401(tmp_path: Path) -> None:
+    keys = generate_oidc_test_keys()
+    token = keys.sign(tenant_id=None)
+    client, _backend, _token = _server_client(tmp_path, keys=keys, token=token)
+
+    response = client.get(
+        "/v2/runs",
+        params={"tenant_id": "tenant-a"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 401
+
+
+def test_server_mode_cross_tenant_query_is_forbidden(tmp_path: Path) -> None:
+    client, backend, token = _server_client(tmp_path)
+    _seed_run(backend, run_id="run-api-read001", tenant_id="tenant-a")
+
+    response = client.get(
+        "/v2/runs",
+        params={"tenant_id": "tenant-b"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 403
 
 
 def test_list_approvals_filters_by_status(tmp_path: Path) -> None:

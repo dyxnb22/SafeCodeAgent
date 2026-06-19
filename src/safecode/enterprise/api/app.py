@@ -20,6 +20,7 @@ from safecode.enterprise.api.exceptions import (
     TenantScopeDeniedError,
 )
 from safecode.enterprise.api.settings import TeamServerSettings
+from safecode.enterprise.auth.oidc import OidcValidator
 from safecode.enterprise.persistence.exceptions import TenantBoundaryError
 from safecode.enterprise.worker.queue import IdempotencyConflictError
 from safecode.enterprise.workflow.exceptions import CheckpointCorruptedError
@@ -33,6 +34,7 @@ class AppState:
     settings: TeamServerSettings
     backend: PersistenceBackend
     subject_resolver: SubjectResolver
+    oidc_validator: OidcValidator | None = None
     eval_baselines_root: Path | None = None
     project_root: Path | None = None
 
@@ -42,6 +44,7 @@ def create_app(
     settings: TeamServerSettings,
     backend: PersistenceBackend,
     subject_resolver: SubjectResolver,
+    oidc_validator: OidcValidator | None = None,
     eval_baselines_root: Path | None = None,
     project_root: Path | None = None,
 ) -> Any:
@@ -61,6 +64,7 @@ def create_app(
         settings=settings,
         backend=backend,
         subject_resolver=subject_resolver,
+        oidc_validator=oidc_validator,
         eval_baselines_root=eval_baselines_root,
         project_root=project_root,
     )

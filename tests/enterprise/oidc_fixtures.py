@@ -1,9 +1,8 @@
-"""Shared OIDC test fixtures for enterprise auth tests."""
+"""Shared OIDC test fixtures for enterprise auth and API tests."""
 
 from __future__ import annotations
 
 import base64
-import json
 import time
 from dataclasses import dataclass
 from typing import Any
@@ -31,7 +30,7 @@ class OidcTestKeys:
         self,
         *,
         sub: str = "user:reviewer",
-        tenant_id: str = "tenant-a",
+        tenant_id: str | None = "tenant-a",
         roles: list[str] | None = None,
         audience: str = AUDIENCE,
         issuer: str = ISSUER,
@@ -46,8 +45,9 @@ class OidcTestKeys:
             "aud": audience,
             "exp": now + expires_in,
             "iat": now,
-            "tenant_id": tenant_id,
         }
+        if tenant_id is not None:
+            payload["tenant_id"] = tenant_id
         if roles is not None:
             payload["roles"] = roles
         if extra_claims:

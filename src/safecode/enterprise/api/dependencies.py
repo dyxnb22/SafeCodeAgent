@@ -7,6 +7,8 @@ from typing import Callable
 
 from safecode.enterprise.api.exceptions import TeamServerDependencyError
 from safecode.enterprise.api.settings import RuntimeMode, TeamServerSettings
+from safecode.enterprise.auth.oidc import OidcValidator, TokenValidationError
+from safecode.enterprise.auth.subject import SubjectMappingError, map_claims_to_subject
 from safecode.enterprise.rbac.models import RBACSubject
 
 
@@ -37,6 +39,33 @@ def build_backend(settings: TeamServerSettings, *, sac_root: Path) -> Persistenc
             raise AuthenticationRequiredError("server mode requires database_url")
         return build_postgres_backend(settings.database_url.get_secret_value(), sac_root)
     return build_local_backend(sac_root)
+
+
+def resolve_bearer_subject(
+    authorization_header: str | None,
+    *,
+    oidc_validator: OidcValidator,
+) -> RBACSubject:
+    if not authorization_header or not authorization_header.startswith("Bearer "):
+        raise AuthenticationRequiredError("bearer token required")
+    token = authorization_header.removeprefix("Bearer ").strip()
+    if not token:
+        raise AuthenticationRequiredError("bearer token required")
+    try:
+        claims = oidc_validator.validate_token(token)
+        return map_claims_to_subject(claims)
+    except (TokenValidationError, SubjectMappingError) as exc:
+        raise AuthenticationRequiredError(str(exc)) from exc
+
+
+def build_local_subject_resolver(settings: TeamServerSettings) -> SubjectResolver:
+    def _resolve() -> RBACSubject:
+        actor = settings.operator_actor
+        if not actor:
+            raise AuthenticationRequiredError("operator_actor required in local mode")
+        return RBACSubject(actor_id=actor, tenant_id="local")
+
+    return _resolve
 
 
 def fail_closed_subject_resolver(settings: TeamServerSettings) -> SubjectResolver:
