@@ -4,10 +4,15 @@
   "implemented_baseline_tag": "v7.1.5",
   "current": {
     "stage": "v2.5",
-    "milestone": "v2.5",
-    "status": "ready",
-    "active_task": null,
-    "next_delivery_task": "v2.5.1-T1"
+    "milestone": "v2.5.2",
+    "status": "in_progress",
+    "active_task": {
+      "id": "v2.5.2-T1",
+      "kind": "delivery",
+      "title": "Worker recovery and dead-letter behavior",
+      "started_at": "2026-06-19"
+    },
+    "next_delivery_task": "v2.5.2-T1"
   },
   "stages": {
     "v1.0": "completed",

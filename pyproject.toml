@@ -80,4 +80,6 @@ markers = [
     "live_github: opt-in tests against live GitHub providers",
     "live_jira: opt-in tests against live Jira providers",
     "live_oidc: opt-in tests requiring a live OIDC issuer",
+    "live_otel: opt-in tests requiring a live OpenTelemetry collector",
+    "live_load: opt-in load tests requiring live timing/network",
 ]

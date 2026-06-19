@@ -37,6 +37,9 @@ DOCUMENTED_ENV_VARS: Final[tuple[str, ...]] = (
     f"{ENV_PREFIX}JIRA_EMAIL",
     f"{ENV_PREFIX}JIRA_API_TOKEN",
     f"{ENV_PREFIX}CORS_ALLOWED_ORIGINS",
+    f"{ENV_PREFIX}OTEL_ENABLED",
+    f"{ENV_PREFIX}OTEL_ENDPOINT",
+    f"{ENV_PREFIX}OTEL_SERVICE_NAME",
 )
 
 
@@ -64,6 +67,9 @@ class TeamServerSettings(BaseModel):
     jira_email: str | None = None
     jira_api_token: SecretStr | None = None
     cors_allowed_origins: str | None = None
+    otel_enabled: bool = False
+    otel_endpoint: str | None = None
+    otel_service_name: str = "safecode-enterprise"
 
     @field_validator(
         "oidc_issuer",
@@ -78,6 +84,8 @@ class TeamServerSettings(BaseModel):
         "jira_base_url",
         "jira_email",
         "cors_allowed_origins",
+        "otel_endpoint",
+        "otel_service_name",
     )
     @classmethod
     def _strip_optional_strings(cls, value: str | None) -> str | None:
@@ -105,6 +113,10 @@ class TeamServerSettings(BaseModel):
                 raise SettingsValidationError(
                     "operator_actor is allowed in local mode only"
                 )
+        if self.otel_enabled and not self.otel_endpoint:
+            raise SettingsValidationError("otel endpoint is required when otel export is enabled")
+        if self.otel_enabled and not self.otel_service_name.strip():
+            raise SettingsValidationError("otel service name must not be blank when export is enabled")
         return self
 
     def __repr__(self) -> str:
@@ -128,7 +140,10 @@ class TeamServerSettings(BaseModel):
             f"jira_base_url={self.jira_base_url!r}, "
             f"jira_email={self.jira_email!r}, "
             f"jira_api_token={self._secret_repr(self.jira_api_token)}, "
-            f"cors_allowed_origins={self.cors_allowed_origins!r})"
+            f"cors_allowed_origins={self.cors_allowed_origins!r}, "
+            f"otel_enabled={self.otel_enabled}, "
+            f"otel_endpoint={self.otel_endpoint!r}, "
+            f"otel_service_name={self.otel_service_name!r})"
         )
 
     @staticmethod
@@ -190,6 +205,9 @@ def load_team_server_settings_from_env() -> TeamServerSettings:
         jira_email: str | None = None
         jira_api_token: SecretStr | None = None
         cors_allowed_origins: str | None = None
+        otel_enabled: bool = False
+        otel_endpoint: str | None = None
+        otel_service_name: str = "safecode-enterprise"
 
     try:
         env_values = _EnvTeamServerSettings().model_dump()

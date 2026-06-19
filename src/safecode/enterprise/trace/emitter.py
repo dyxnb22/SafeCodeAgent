@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 from typing import Iterable
 
+from safecode.enterprise.trace.otel_exporter import OtelExporter, span_from_trace_event
 from safecode.enterprise.trace.redaction import (
     DEFAULT_TRACE_EXPORT_PROFILE,
     apply_profile_to_payload,
@@ -84,13 +85,22 @@ def _load_event_ids(path: Path) -> set[str]:
 class TraceEmitter:
     """Append-only JSONL emitter with idempotent event_id handling."""
 
-    def __init__(self, sac_root: Path, run_id: str) -> None:
+    def __init__(
+        self,
+        sac_root: Path,
+        run_id: str,
+        *,
+        otel_exporter: OtelExporter | None = None,
+        otel_service_name: str = "safecode-enterprise",
+    ) -> None:
         validate_run_id(run_id)
         self.sac_root = sac_root
         self.run_id = run_id
         self._path = trace_file_path(sac_root, run_id)
         self._seen_ids = _load_event_ids(self._path)
         self._next_seq = _load_max_seq(self._path) + 1
+        self._otel_exporter = otel_exporter
+        self._otel_service_name = otel_service_name
 
     def allocate_seq(self) -> int:
         seq = self._next_seq
@@ -150,6 +160,13 @@ class TraceEmitter:
         )
         _atomic_append_line(self._path, event.model_dump_json())
         self._seen_ids.add(resolved_event_id)
+        if self._otel_exporter is not None:
+            try:
+                self._otel_exporter.export_span(
+                    span_from_trace_event(event, service_name=self._otel_service_name)
+                )
+            except Exception:
+                pass
         return event
 
     def iter_events(self) -> list[TraceEvent]:
