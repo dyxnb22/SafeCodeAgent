@@ -6,7 +6,12 @@
     "stage": "v2.1",
     "milestone": "v2.1.2",
     "status": "ready",
-    "active_task": null,
+    "active_task": {
+      "id": "v2.1.2-T3",
+      "kind": "delivery",
+      "title": "Backend-agnostic contract suite",
+      "started_at": "2026-06-19"
+    },
     "next_delivery_task": "v2.1.2-T3"
   },
   "stages": {
