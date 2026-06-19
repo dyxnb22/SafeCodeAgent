@@ -289,7 +289,13 @@ def timeline_payload(timeline: RunTimeline) -> dict[str, object]:
         }
         for node in timeline.nodes
     ]
-    return {"run_id": timeline.run_id, "events": events}
+    return {
+        "run_id": timeline.run_id,
+        "events": events,
+        "safety_invariants": {
+            "redaction_complete": timeline.safety_invariants.redaction_complete,
+        },
+    }
 
 
 def trace_payload(run_id: str, events: list[dict[str, str]]) -> dict[str, object]:

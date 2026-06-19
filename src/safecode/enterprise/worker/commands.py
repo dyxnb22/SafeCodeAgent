@@ -11,9 +11,16 @@ from safecode.enterprise.worker.models import RunAccepted
 from safecode.enterprise.worker.queue import CommandQueue, LocalCommandQueue
 from safecode.enterprise.worker.status import is_terminal
 from safecode.enterprise.workflow.checkpoint import CHECKPOINT_SCHEMA_VERSION, RunCheckpoint
-from safecode.enterprise.workflow.exceptions import CheckpointCorruptedError
+from safecode.enterprise.workflow.exceptions import (
+    CheckpointCorruptedError,
+    UnsupportedWorkflowTaskError,
+)
 from safecode.enterprise.workflow.ids import generate_run_id, validate_run_id
-from safecode.enterprise.workflow.orchestrator import build_initial_state, utc_now_iso
+from safecode.enterprise.workflow.orchestrator import (
+    build_initial_state,
+    ensure_workflow_task_executable,
+    utc_now_iso,
+)
 from safecode.enterprise.workflow.types import TaskType, WorkflowStatus
 
 if TYPE_CHECKING:
@@ -95,6 +102,10 @@ def start_run(
         raise ValueError(f"unsupported task_type: {task_type!r}") from exc
     if not input_ref:
         raise ValueError("input_ref is required")
+    try:
+        ensure_workflow_task_executable(parsed_task)
+    except UnsupportedWorkflowTaskError as exc:
+        raise ValueError(str(exc)) from exc
     run_id = validate_run_id(generate_run_id())
     state = build_initial_state(
         task_type=parsed_task,

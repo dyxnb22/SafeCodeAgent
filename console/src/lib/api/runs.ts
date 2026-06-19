@@ -3,6 +3,7 @@
 import { createApiClient } from "@/lib/api/client";
 import type { RunTimeline, TimelineApiResponse, TraceApiResponse } from "@/components/timeline/types";
 import type { ConsoleSession } from "@/lib/auth/session";
+import { safetyInvariantsFromApi } from "@/lib/timeline/safety";
 
 export interface RunSummary {
   run_id: string;
@@ -82,13 +83,7 @@ export function timelineFromApi(run: RunSummary, timeline: TimelineApiResponse):
     validation: { ran: false, summary: "n/a" },
     proposals: [],
     costs: {},
-    safety_invariants: {
-      audit_chain_intact: true,
-      no_unauthorized_mutation: true,
-      no_policy_block_overridden: true,
-      no_grant_double_consume: true,
-      redaction_complete: true,
-    },
+    safety_invariants: safetyInvariantsFromApi(timeline.safety_invariants),
     failures: [],
   };
 }

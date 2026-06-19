@@ -382,28 +382,29 @@ What the reviewer should notice:
 
 ---
 
-## Demo Flow C — Compliance Evidence Export
+## Demo Flow C — Standalone Compliance Evidence Export
 
 Time: 2 minutes.
 
-```text
-$ sac enterprise workflow run \
-    --task compliance_export \
-    --input "runs=run-01HX...,run-01HY..."
+> **Note:** `sac enterprise workflow run --task compliance_export` is **not
+> implemented** as a workflow task. Use the standalone evidence exporter for
+> an existing run.
 
-[trace] collect_repo_context -> 2 runs
-[trace] retrieve_policy_and_code -> snapshots
-[trace] analyze_security_risk -> safety invariants ok
-[trace] plan_actions -> bundle manifest
-[trace] propose_report_or_patch -> evidence.md
-[trace] validate -> hash chain ok
-[trace] finalize -> bundle .sac/enterprise/evidence/bundle-...zip
+```text
+$ sac enterprise evidence export \
+    --run run-01HX... \
+    --tenant local \
+    --root .
+
+Exported bundle: .sac/enterprise/evidence/bundle-<run_id>.zip
 ```
 
 What the reviewer should notice:
 
-- A single zip captures every audit-relevant artifact, redacted.
+- Standalone export zips redacted trace, timeline, and audit artifacts for one
+  completed run.
 - The bundle is verifiable independently via hash.
+- This is separate from a future workflow-level `compliance_export` task.
 
 ---
 

@@ -19,6 +19,7 @@ from safecode.enterprise.workflow.exceptions import (
     InvalidWorkflowRuntimeError,
     LangGraphUnavailableError,
     UnknownTaskTypeError,
+    UnsupportedWorkflowTaskError,
     WorkflowInterrupted,
 )
 from safecode.enterprise.workflow.ids import generate_run_id, validate_run_id
@@ -34,6 +35,16 @@ from safecode.enterprise.workflow.state import (
 from safecode.enterprise.workflow.types import RiskTier, TaskType, WorkflowStatus
 
 SUPPORTED_TASK_TYPES = frozenset(TaskType)
+
+COMPLIANCE_EXPORT_UNSUPPORTED_MSG = (
+    "compliance_export workflow is not implemented; "
+    "use `sac enterprise evidence export --run <run_id>` for standalone evidence export"
+)
+
+
+def ensure_workflow_task_executable(task_type: TaskType) -> None:
+    if task_type is TaskType.compliance_export:
+        raise UnsupportedWorkflowTaskError(COMPLIANCE_EXPORT_UNSUPPORTED_MSG)
 
 
 def utc_now_iso() -> str:
@@ -52,6 +63,7 @@ def build_initial_state(
 ) -> EnterpriseRunState:
     if task_type not in SUPPORTED_TASK_TYPES:
         raise UnknownTaskTypeError(f"unsupported task type: {task_type!r}")
+    ensure_workflow_task_executable(task_type)
     run = validate_run_id(run_id or generate_run_id())
     now = utc_now_iso()
     tid = (tenant_id or "local").strip() or "local"
@@ -172,6 +184,26 @@ class LocalOrchestrator:
         completed_nodes: list[str],
     ) -> EnterpriseRunState:
         current = state
+        try:
+            ensure_workflow_task_executable(current.task_type)
+        except UnsupportedWorkflowTaskError:
+            failed = current.model_copy(
+                update={
+                    "status": WorkflowStatus.failed,
+                    "updated_at": utc_now_iso(),
+                }
+            )
+            self.backend.runs.save_checkpoint(
+                tenant_id=failed.tenant_id,
+                checkpoint=RunCheckpoint(
+                    schema_version=CHECKPOINT_SCHEMA_VERSION,
+                    run_id=failed.run_id,
+                    completed_nodes=list(completed_nodes),
+                    next_node=None,
+                    state=failed,
+                ),
+            )
+            return failed
         trace = TraceSession(self.sac_root, current)
         start_index = len(completed_nodes)
         if start_index == 0:

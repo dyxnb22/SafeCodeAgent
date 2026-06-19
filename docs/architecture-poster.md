@@ -87,7 +87,7 @@ flowchart TB
 | Tool / Connector / MCP | Classified external capabilities | `src/safecode/enterprise/connectors/`, `src/safecode/enterprise/tools/` |
 | Governance / RBAC / Approval | Policy gates and human authority | `src/safecode/enterprise/policy/`, `src/safecode/enterprise/rbac/`, `src/safecode/enterprise/approvals/` |
 | Persistence | Durable runs, approvals, audit | `src/safecode/enterprise/persistence/` |
-| Observability / Evaluation / Audit | Trace, eval ratchet, compliance export | `src/safecode/enterprise/trace/`, `src/safecode/enterprise/eval/`, `src/safecode/enterprise/audit/`, `src/safecode/enterprise/evidence/` |
+| Observability / Evaluation / Audit | Trace, eval ratchet, standalone evidence export | `src/safecode/enterprise/trace/`, `src/safecode/enterprise/eval/`, `src/safecode/enterprise/audit/`, `src/safecode/enterprise/evidence/` |
 
 ---
 

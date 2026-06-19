@@ -21,3 +21,15 @@ header a:hover {
 .muted {
   color: #555;
 }
+
+.safety-verified {
+  color: #0f6b2d;
+}
+
+.safety-failed {
+  color: #9b1c1c;
+}
+
+.safety-unknown {
+  color: #555;
+}

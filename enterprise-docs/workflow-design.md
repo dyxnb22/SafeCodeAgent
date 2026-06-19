@@ -415,6 +415,11 @@ $ sac enterprise workflow run \
 
 ## Workflow 4 — Compliance Evidence Export
 
+> **Implementation status (portfolio v3.4):** Workflow 4 is designed but
+> **not implemented** as a first-class workflow task. `task_type=compliance_export`
+> is rejected at workflow initialization. Use standalone
+> `sac enterprise evidence export --run <run_id>` for existing runs.
+
 ### Goal
 
 Given a previous workflow run id (or a range of runs), produce a

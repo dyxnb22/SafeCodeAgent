@@ -21,10 +21,15 @@ from safecode.enterprise.rbac.models import resolve_subject
 from safecode.enterprise.workflow.exceptions import (
     ApprovalRequestNotFoundError,
     RequestAlreadyConsumedError,
+    UnsupportedWorkflowTaskError,
     WorkflowError,
     WorkflowInterrupted,
 )
-from safecode.enterprise.workflow.orchestrator import LocalOrchestrator, build_initial_state
+from safecode.enterprise.workflow.orchestrator import (
+    LocalOrchestrator,
+    build_initial_state,
+    ensure_workflow_task_executable,
+)
 from safecode.enterprise.workflow.types import TaskType
 from safecode.enterprise.trace.timeline import build_timeline, serialize_timeline
 from safecode.enterprise.trace.render_markdown import render_markdown
@@ -161,6 +166,11 @@ def workflow_run(
     except PermissionError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(code=1) from exc
+    try:
+        ensure_workflow_task_executable(task_type)
+    except UnsupportedWorkflowTaskError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
     state = build_initial_state(
         task_type=task_type,
         input_ref=str(input_path),
@@ -176,7 +186,7 @@ def workflow_run(
         typer.echo(json.dumps({"run_id": run_id, "status": "awaiting_approval"}))
         raise typer.Exit(code=3)
     except WorkflowError as exc:
-        typer.echo("Workflow failed.", err=True)
+        typer.echo(str(exc) or "Workflow failed.", err=True)
         raise typer.Exit(code=1) from exc
     typer.echo(json.dumps({"run_id": final.run_id, "status": final.status.value}))
     raise typer.Exit(code=0)

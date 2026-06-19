@@ -47,6 +47,7 @@ def test_console_run_view_source_files_exist() -> None:
     required = (
         "src/lib/api/client.ts",
         "src/lib/api/runs.ts",
+        "src/lib/timeline/safety.ts",
         "src/lib/redaction/display.ts",
         "src/components/timeline/RunTimelineView.tsx",
         "src/components/timeline/TraceEventsView.tsx",
@@ -55,6 +56,12 @@ def test_console_run_view_source_files_exist() -> None:
     )
     for relative in required:
         assert (CONSOLE_ROOT / relative).is_file(), relative
+
+
+def test_console_timeline_mapper_does_not_default_safety_to_true() -> None:
+    runs_module = (CONSOLE_ROOT / "src/lib/api/runs.ts").read_text(encoding="utf-8")
+    assert "audit_chain_intact: true" not in runs_module
+    assert "safetyInvariantsFromApi" in runs_module
 
 
 def test_console_timeline_sections_match_python_renderer() -> None:
@@ -97,7 +104,12 @@ def test_run_list_and_trace_endpoints_are_tenant_scoped(tmp_path: Path) -> None:
 
     timeline = client.get("/v2/runs/run-console001/timeline", params={"tenant_id": "tenant-a"})
     assert timeline.status_code == 200
-    assert timeline.json()["run_id"] == "run-console001"
+    timeline_body = timeline.json()
+    assert timeline_body["run_id"] == "run-console001"
+    safety = timeline_body.get("safety_invariants", {})
+    assert "redaction_complete" in safety
+    assert isinstance(safety["redaction_complete"], bool)
+    assert "audit_chain_intact" not in safety
 
     trace = client.get("/v2/runs/run-console001/trace", params={"tenant_id": "tenant-a"})
     assert trace.status_code == 200

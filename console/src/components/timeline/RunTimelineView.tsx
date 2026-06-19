@@ -5,6 +5,10 @@ import type { ReactNode } from "react";
 import { TIMELINE_SECTION_ORDER } from "@/components/timeline/sections";
 import type { RunTimeline } from "@/components/timeline/types";
 import { redactFieldForDisplay } from "@/lib/redaction/display";
+import {
+  formatSafetyInvariantDisplay,
+  type TimelineSafetyInvariants,
+} from "@/lib/timeline/safety";
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -205,21 +209,32 @@ function CostSection({ timeline }: { timeline: RunTimeline }) {
 
 function SafetySection({ timeline }: { timeline: RunTimeline }) {
   const inv = timeline.safety_invariants;
-  const checks: Array<[string, boolean]> = [
-    ["Audit chain intact", inv.audit_chain_intact],
-    ["No unauthorized mutation", inv.no_unauthorized_mutation],
-    ["No policy block overridden", inv.no_policy_block_overridden],
-    ["No grant double-consume", inv.no_grant_double_consume],
-    ["Redaction complete", inv.redaction_complete],
+  const checks: Array<[string, keyof TimelineSafetyInvariants]> = [
+    ["Audit chain intact", "audit_chain_intact"],
+    ["No unauthorized mutation", "no_unauthorized_mutation"],
+    ["No policy block overridden", "no_policy_block_overridden"],
+    ["No grant double-consume", "no_grant_double_consume"],
+    ["Redaction complete", "redaction_complete"],
   ];
+  const verifiedCount = checks.filter(([, key]) => inv[key] === true).length;
   return (
     <Section title={TIMELINE_SECTION_ORDER[7]}>
+      {verifiedCount === 0 ? (
+        <p className="muted">
+          Safety invariants are shown only when the API returns verified values. Unverified
+          indicators are not treated as passed.
+        </p>
+      ) : null}
       <ul>
-        {checks.map(([label, ok]) => (
-          <li key={label}>
-            {ok ? "✓" : "✗"} {label}
-          </li>
-        ))}
+        {checks.map(([label, key]) => {
+          const display = formatSafetyInvariantDisplay(inv[key]);
+          return (
+            <li key={key} className={`safety-${display.tone}`}>
+              <span aria-hidden="true">{display.symbol}</span> {label}{" "}
+              <span className="muted">({display.detail})</span>
+            </li>
+          );
+        })}
       </ul>
     </Section>
   );

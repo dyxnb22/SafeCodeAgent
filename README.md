@@ -24,8 +24,10 @@ typed connectors/MCP, trace observability, and deterministic evaluation.
   proposals, and refuse execution without grants.
 - **Secure implementation planning** — ticket/issue grounding with governed
   tool proposals.
-- **Evidence export** — compliance bundles with timeline, checkpoint, and audit
-  chain verification.
+- **Evidence export** — standalone `sac enterprise evidence export --run <id>`
+  for completed runs (compliance bundle with timeline, checkpoint, and audit
+  chain verification). The `compliance_export` workflow task is not yet
+  implemented.
 - **Approval workflow** — scoped, single-use grants bound to proposal snapshots;
   models never self-approve.
 

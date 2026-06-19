@@ -9,6 +9,10 @@ class UnknownTaskTypeError(WorkflowError):
     """Raised when a workflow receives an unsupported task type."""
 
 
+class UnsupportedWorkflowTaskError(WorkflowError):
+    """Raised when a task type is known but has no executable workflow implementation."""
+
+
 class InvalidStateSchemaVersionError(WorkflowError):
     """Raised when persisted state schema is incompatible."""
 

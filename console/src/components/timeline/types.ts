@@ -1,5 +1,7 @@
 /** RunTimeline types aligned with Enterprise v1.5 schema (v2.3.2). */
 
+import type { SafetyInvariantApiPayload, TimelineSafetyInvariants } from "@/lib/timeline/safety";
+
 export interface TimelineNode {
   name: string;
   status: string;
@@ -54,13 +56,7 @@ export interface TimelineValidation {
   summary: string;
 }
 
-export interface TimelineSafetyInvariants {
-  audit_chain_intact: boolean;
-  no_unauthorized_mutation: boolean;
-  no_policy_block_overridden: boolean;
-  no_grant_double_consume: boolean;
-  redaction_complete: boolean;
-}
+export type { TimelineSafetyInvariants, SafetyInvariantValue } from "@/lib/timeline/safety";
 
 export interface RunTimeline {
   timeline_schema_version: number;
@@ -94,6 +90,7 @@ export interface TimelineEvent {
 export interface TimelineApiResponse {
   run_id: string;
   events: TimelineEvent[];
+  safety_invariants?: SafetyInvariantApiPayload;
 }
 
 export interface TraceEvent {

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from safecode.context.redactor import redact_secrets
 from safecode.enterprise.approvals.binding import workflow_approval_binding
 from safecode.enterprise.connectors.github_pr_write import PRCommentWriteSpec, post_pr_comment
 from safecode.enterprise.connectors.jira_live import IssueCommentWriteSpec, post_issue_comment
@@ -212,18 +211,17 @@ async def run(state: EnterpriseRunState) -> NodePatch:
             },
         )
 
-    markdown = redact_secrets(
-        f"# Enterprise Workflow Report\n\nRun `{state.run_id}` completed for "
-        f"{state.task_type.value}.\n"
-    )
-    report = Report(
-        report_id=f"report-{state.run_id}",
-        kind="pr_review_report",
-        markdown=markdown,
-    )
+    if state.task_type is TaskType.compliance_export:
+        return build_patch(
+            state,
+            NODE_NAME,
+            summary="compliance_export workflow is not implemented",
+            state_updates={"status": WorkflowStatus.failed},
+        )
+
     return build_patch(
         state,
         NODE_NAME,
-        summary="finalized redacted report",
-        state_updates={"report": report, "status": WorkflowStatus.succeeded},
+        summary=f"unsupported task type for finalize: {state.task_type.value}",
+        state_updates={"status": WorkflowStatus.failed},
     )
