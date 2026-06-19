@@ -3,18 +3,17 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Callable, Protocol, runtime_checkable
+from typing import Callable
 
 from safecode.enterprise.api.exceptions import TeamServerDependencyError
 from safecode.enterprise.api.settings import RuntimeMode, TeamServerSettings
 from safecode.enterprise.rbac.models import RBACSubject
 
 
-@runtime_checkable
-class PersistenceBackend(Protocol):
-    """Minimal backend surface required by probe and future handlers."""
+from safecode.enterprise.persistence.local_backend import LocalBackend
+from safecode.enterprise.persistence.postgres.backend import PostgresBackend
 
-    def probe(self) -> bool: ...
+PersistenceBackend = LocalBackend | PostgresBackend
 
 
 SubjectResolver = Callable[[], RBACSubject]
@@ -24,15 +23,11 @@ class AuthenticationRequiredError(Exception):
     """Raised when server mode requires an authenticated subject."""
 
 
-def build_local_backend(sac_root: Path) -> PersistenceBackend:
-    from safecode.enterprise.persistence.local_backend import LocalBackend
-
+def build_local_backend(sac_root: Path) -> LocalBackend:
     return LocalBackend(sac_root)
 
 
-def build_postgres_backend(dsn: str, artifacts_root: Path) -> PersistenceBackend:
-    from safecode.enterprise.persistence.postgres.backend import PostgresBackend
-
+def build_postgres_backend(dsn: str, artifacts_root: Path) -> PostgresBackend:
     return PostgresBackend.connect(dsn, artifacts_root)
 
 
