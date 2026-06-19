@@ -6,7 +6,12 @@
     "stage": "v1.6",
     "milestone": "v1.6.1",
     "status": "in_progress",
-    "active_task": null,
+    "active_task": {
+      "id": "v1.6.1-T2",
+      "kind": "delivery",
+      "title": "Eval runner and case loader",
+      "started_at": "2026-06-19"
+    },
     "next_delivery_task": "v1.6.1-T2"
   },
   "stages": {
