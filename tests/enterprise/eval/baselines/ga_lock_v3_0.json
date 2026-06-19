@@ -1,0 +1,13 @@
+{
+  "baselines": {
+    "pr_review_v1_7.json": "1326def",
+    "prompt_injection_v1_6.json": "c3515dd",
+    "remediation_v1_8.json": "9dcf9b9",
+    "retrieval_v1_1.json": "ec030ba",
+    "smoke_v1_6.json": "c3515dd",
+    "tool_classification_v1_6.json": "eaf30ba"
+  },
+  "commit": "f2a428cb",
+  "date": "2026-06-19",
+  "suite": "ga_lock"
+}

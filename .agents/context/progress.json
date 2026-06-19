@@ -5,9 +5,9 @@
   "current": {
     "stage": "v3.0",
     "milestone": "v3.0",
-    "status": "ready",
+    "status": "completed",
     "active_task": null,
-    "next_delivery_task": "v3.0.1-T1"
+    "next_delivery_task": null
   },
   "stages": {
     "v1.0": "completed",
@@ -26,7 +26,7 @@
     "v2.3": "completed",
     "v2.4": "completed",
     "v2.5": "completed",
-    "v3.0": "ready"
+    "v3.0": "completed"
   },
   "completed_delivery_tasks": [
     {"id": "v1.0.1-T1", "completed_at": "2026-06-18", "evidence": "enterprise-v1.0.1-sot"},
@@ -164,9 +164,14 @@
     {"id": "v2.5.3-T1", "completed_at": "2026-06-19", "evidence": "c17b08d8"},
     {"id": "v2.5.4-T1", "completed_at": "2026-06-19", "evidence": "72ba8dcf"},
     {"id": "v2.5.5-T1", "completed_at": "2026-06-19", "evidence": "f04fe345"},
-    {"id": "v2.5.6-T1", "completed_at": "2026-06-19", "evidence": "f6753850"}
+    {"id": "v2.5.6-T1", "completed_at": "2026-06-19", "evidence": "f6753850"},
+    {"id": "v3.0.1-T1", "completed_at": "2026-06-19", "evidence": "59056f3a"},
+    {"id": "v3.0.2-T1", "completed_at": "2026-06-19", "evidence": "1702507b"},
+    {"id": "v3.0.3-T1", "completed_at": "2026-06-19", "evidence": "3dcb9992"},
+    {"id": "v3.0.4-T1", "completed_at": "2026-06-19", "evidence": "48138d8c"}
   ],
   "recent_maintenance": [
+    {"id": "maintenance-v3.0-enterprise-ga-closeout", "completed_at": "2026-06-19", "evidence": "v3.0.1..v3.0.4 delivered; 6375 passed excluding postgres_integration; RELEASE-NOTES-v3.0.0.md"},
     {"id": "maintenance-v2.5-production-hardening-closeout", "completed_at": "2026-06-19", "evidence": "v2.5.1..v2.5.6 delivered; 6342 passed excluding postgres_integration; full regression closeout"},
     {"id": "maintenance-v2.1.6-oidc-subject", "completed_at": "2026-06-19", "evidence": "v2.1.6-T1..T2 delivered; 408 enterprise passed excluding postgres_integration; full regression 6158 passed, 8 skipped"},
     {"id": "maintenance-v2.1.5-command-worker-cli", "completed_at": "2026-06-19", "evidence": "v2.1.5-T1..T4 delivered; 393 enterprise passed excluding postgres_integration; full regression 6142 passed, 8 skipped"},
@@ -175,15 +180,14 @@
     {"id": "maintenance-v1.2-closeout-cleanup", "completed_at": "2026-06-19", "evidence": "uv lock verified with enterprise extra; full regression: 5870 passed, 5 skipped"},
     {"id": "maintenance-v1.3-v1.4-security-closeout", "completed_at": "2026-06-19", "evidence": "Missing PR fixture now marks evidence missing; CLI supports both declared and baseline Typer environments; full regression: 5932 passed, 5 skipped"},
     {"id": "maintenance-v2.0-reviewed-security-closeout", "completed_at": "2026-06-19", "evidence": "3b182f6; exact approval/grant binding, tenant-safe trace/evidence, fail-closed remediation validation; full regression: 6012 passed, 5 skipped"},
-    {"id": "maintenance-post-rc-platform-roadmap", "completed_at": "2026-06-19", "evidence": "dd8c117; planned v2.1-v3.0 stages with v2.1/v2.2 PR-level backlog, decisions D19-D29, and platform-architecture-v2.md"},
-    {"id": "maintenance-post-rc-plan-review", "completed_at": "2026-06-19", "evidence": "Aligned v2.1/v2.2 executable contracts, decisions D30-D31, real PostgreSQL gates, cancellation and external-action audit semantics, credential safety, and shared agent routing; 264 Enterprise passed, 1 skipped; full regression 6016 passed, 5 skipped"}
+    {"id": "maintenance-post-rc-platform-roadmap", "completed_at": "2026-06-19", "evidence": "dd8c117; planned v2.1-v3.0 stages with v2.1/v2.2 PR-level backlog, decisions D19-D29, and platform-architecture-v2.md"}
   ],
   "blockers": [],
   "decisions_required": [],
   "last_verification": {
     "recorded_at": "2026-06-19",
     "command": "PYTHONPATH=src python3 -m pytest -q",
-    "result": "6342 passed, 9 skipped, 20 deselected excluding postgres_integration",
-    "scope": "v2.5 Production Hardening stage closeout"
+    "result": "6375 passed, 9 skipped, 20 deselected excluding postgres_integration",
+    "scope": "v3.0 Enterprise GA stage closeout"
   }
 }

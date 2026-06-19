@@ -16,10 +16,9 @@ compliance evidence, and auditable tool-using security operations.
 
 - Legacy implemented baseline: `v7.1.5`.
 - Enterprise planning and namespace stages: complete.
-- Last delivery stage completed: `v2.5 Production Hardening`.
-- Current delivery stage: `v3.0 Enterprise GA` (ready).
-- Next delivery task: `v3.0.1-T1` — GA contract and migration compatibility tests.
-  See `product-planning/execution-backlog.md`.
+- Last delivery stage completed: `v3.0 Enterprise GA`.
+- Current delivery stage: complete (post-GA maintenance).
+- Next delivery task: none — Enterprise GA delivered; see `RELEASE-NOTES-v3.0.0.md`.
 - Post-RC platform architecture: `enterprise-docs/platform-architecture-v2.md`.
 - Machine-readable live status: `.agents/context/progress.json`.
 
@@ -104,7 +103,7 @@ regression analysis.
 | v2.3 | Operator console (React/Next.js) | Complete | `enterprise-docs/platform-architecture-v2.md` |
 | v2.4 | Enterprise knowledge, tickets, long-term memory | Complete | `enterprise-docs/platform-architecture-v2.md` |
 | v2.5 | Production hardening | Complete | `enterprise-docs/platform-architecture-v2.md` |
-| v3.0 | Enterprise GA | Ready | `product-planning/version-roadmap.md` |
+| v3.0 | Enterprise GA | Complete | `RELEASE-NOTES-v3.0.0.md` |
 
 Status details belong in `progress.json`; change this table only when stage
 scope, ownership, or architecture changes.
