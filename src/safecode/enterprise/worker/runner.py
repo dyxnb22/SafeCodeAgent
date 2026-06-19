@@ -7,7 +7,6 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from safecode.enterprise.persistence.local_backend import LocalBackend
-from safecode.enterprise.persistence.postgres.backend import PostgresBackend
 from safecode.enterprise.worker.lease import LocalRunLeaseStore, RunLeaseStore
 from safecode.enterprise.worker.models import QueueJob
 from safecode.enterprise.worker.queue import CommandQueue, LocalCommandQueue, MAX_QUEUE_ATTEMPTS
@@ -19,7 +18,7 @@ from safecode.enterprise.workflow.types import WorkflowStatus
 MAX_ATTEMPTS = MAX_QUEUE_ATTEMPTS
 
 
-PersistenceBackend = LocalBackend | PostgresBackend
+PersistenceBackend = object
 
 
 def _artifacts_root(backend: PersistenceBackend) -> Path:

@@ -217,7 +217,7 @@ class GitHubAppClient:
         private_key = self._config.private_key_pem.get_secret_value()
         try:
             return jwt.encode(payload, private_key, algorithm="RS256")
-        except PyJWTError as exc:
+        except (PyJWTError, ValueError, TypeError) as exc:
             raise GitHubAppCredentialError("malformed private key") from exc
 
     def exchange_installation_token(self, *, installation_id: str | None = None) -> InstallationToken:

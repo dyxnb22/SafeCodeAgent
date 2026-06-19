@@ -1,10 +1,12 @@
-# v3.0 GA production deployment evidence
+# v3.0 Candidate Deployment Verification Runbook
 
-**Profile:** on-prem / production-like (`compose.enterprise.yaml`)  
-**Recorded:** 2026-06-19  
-**Environment:** loopback-only compose stack; no customer credentials committed
+**Status:** Pending operator-owned production-like execution evidence.
 
-## Stack bring-up
+This file is a maintained runbook, not proof that a deployment occurred. Raw
+logs and credentials belong in access-controlled CI artifacts. The GA reviewer
+must link an immutable artifact to the final candidate SHA.
+
+## Required Stack Verification
 
 ```bash
 bash scripts/enterprise-up.sh
@@ -13,44 +15,25 @@ curl -sf http://127.0.0.1:8080/readyz
 curl -sf http://127.0.0.1:8080/version
 ```
 
-Expected `/version` payload fields: `service`, `api_version` (`3.0.0`), `contract_status` (`supported`).
+Record candidate SHA, image digests, migration versions, probe output,
+PostgreSQL/pgvector version, worker recovery, redacted DLQ behavior, rate limits,
+and audit chain verification.
 
-## Observed metrics (representative)
+## Required Recovery Verification
 
-| Signal | Source | Notes |
-|--------|--------|-------|
-| API liveness | `/healthz` | Returns `{"status":"ok"}` |
-| Readiness | `/readyz` | 503 when persistence unavailable |
-| Worker queue depth | PostgreSQL `enterprise.worker_queue` | Bounded by inflight caps |
-| Rate limit denials | API 429 problem+json | Tenant-scoped RPM |
+1. Back up PostgreSQL and the Enterprise artifact volume with the approved
+   environment-specific procedure.
+2. Restore into an isolated target and verify the audit chain.
+3. Set `ENTERPRISE_ROLLBACK_ROOT` to an immutable previous release checkout and
+   run `scripts/enterprise-rollback.sh`.
+4. Attach redacted command output to the operator-owned evidence artifact.
 
-## Audit chain verification
-
-Offline contract (no live DB required for CI):
-
-```bash
-uv run pytest tests/enterprise/persistence/test_backend_contract.py -q
-uv run pytest tests/enterprise/deploy/test_production_evidence_offline.py -q
-```
-
-## Incident handling rehearsal
-
-1. Stop worker container; confirm `/readyz` remains green while API serves read paths.
-2. Replay poison queue message; confirm DLQ row is redacted (`tests/enterprise/worker/`).
-3. Run `bash scripts/enterprise-rollback.sh` against tagged release.
-
-## Backup evidence
+## Offline Preconditions
 
 ```bash
-bash scripts/enterprise-backup.sh /var/lib/safecode/enterprise ga-backup.tar.gz
-bash scripts/enterprise-restore.sh ga-backup.tar.gz /var/lib/safecode/restore
-uv run pytest tests/enterprise/persistence/test_backup_restore_offline.py -q
+uv run --extra team-server pytest tests/enterprise/deploy/test_production_evidence_offline.py -q
+uv run --extra team-server pytest tests/enterprise/persistence/test_backup_restore_offline.py -q
 ```
 
-## Tear-down
-
-```bash
-docker compose -f compose.enterprise.yaml down -v
-```
-
-No debug payloads, tokens, or host-specific paths are stored in this document.
+Passing offline checks proves the runbook contract only. It does not satisfy
+the deployment gate without the external execution artifact.

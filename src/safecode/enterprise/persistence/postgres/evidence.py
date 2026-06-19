@@ -6,8 +6,8 @@ import hashlib
 import json
 import zipfile
 from pathlib import Path
+from typing import Any
 
-from psycopg import Connection
 
 from safecode.audit.models import AuditEvent
 from safecode.enterprise.evidence.export import EVIDENCE_SCHEMA_VERSION, _sha256_bytes, _verify_audit_segment
@@ -33,7 +33,7 @@ def _json_bytes(value: object) -> bytes:
 
 
 def export_run_evidence_from_pg(
-    conn: Connection,
+    conn: Any,
     artifacts_root: Path,
     *,
     tenant_id: str,

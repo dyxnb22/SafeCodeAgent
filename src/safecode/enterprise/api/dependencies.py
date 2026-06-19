@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Callable
+from typing import Any, Callable
 
 from safecode.enterprise.api.exceptions import SettingsValidationError, TeamServerDependencyError
 from safecode.enterprise.api.settings import RuntimeMode, TeamServerSettings
@@ -14,9 +14,8 @@ from safecode.enterprise.rbac.models import RBACSubject
 
 
 from safecode.enterprise.persistence.local_backend import LocalBackend
-from safecode.enterprise.persistence.postgres.backend import PostgresBackend
 
-PersistenceBackend = LocalBackend | PostgresBackend
+PersistenceBackend = Any
 
 
 SubjectResolver = Callable[[], RBACSubject]
@@ -30,7 +29,9 @@ def build_local_backend(sac_root: Path) -> LocalBackend:
     return LocalBackend(sac_root)
 
 
-def build_postgres_backend(dsn: str, artifacts_root: Path) -> PostgresBackend:
+def build_postgres_backend(dsn: str, artifacts_root: Path) -> Any:
+    from safecode.enterprise.persistence.postgres.backend import PostgresBackend
+
     return PostgresBackend.connect(dsn, artifacts_root)
 
 

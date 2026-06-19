@@ -15,6 +15,6 @@ if [[ ! -f "${ARCHIVE}" ]]; then
   exit 1
 fi
 
-mkdir -p "${DEST_ROOT}"
-tar -xzf "${ARCHIVE}" -C "${DEST_ROOT}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+python3 "${SCRIPT_DIR}/validate-enterprise-backup.py" "${ARCHIVE}" "${DEST_ROOT}"
 echo "restored into ${DEST_ROOT}" >&2

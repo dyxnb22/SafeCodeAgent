@@ -1,25 +1,30 @@
-# SafeCodeAgent Enterprise v3.0.0 GA Release Notes
+# SafeCodeAgent Enterprise v3.0.0 Candidate Release Notes
 
-**General availability:** Enterprise security engineering agent platform  
+> GA promotion is pending independent security sign-off, production deployment
+> evidence, and one stable live-provider evaluation run. The existing
+> `enterprise-v3.0.0` tag identifies the pre-remediation candidate and must not
+> be represented as an approved GA build.
+
+**Release status:** Candidate; not approved for general availability
 **Baseline kernel tag:** `v7.1.5`  
-**Enterprise stages delivered:** v1.0 through v3.0 GA  
-**GA contract snapshot:** `tests/enterprise/contracts/snapshots/ga_v3_0.json`
+**Enterprise stages delivered:** v1.0 through v2.5; v3.0 gates pending
+**Candidate contract snapshot:** `tests/enterprise/contracts/snapshots/ga_v3_0.json`
 
 ---
 
 ## Highlights
 
-- **GA contract freeze** — `/v2` Team Server, Operator Console, and v2.0 RC CLI/trace/evidence contracts marked `supported`
-- **Migration path** — v2.0 RC → v3.0 GA compatibility tests for settings, OpenAPI, CLI, and persistence
-- **Signed security review** — `enterprise-docs/security/security-review-v3.0.md` with no open high/critical findings
-- **Production evidence** — on-prem compose profile with health probes, audit chain, backup/restore, and DLQ rehearsal
-- **Flagship demos** — PR review, remediation, secure planning, evidence export, console approval under GA contracts
+- **Candidate contract freeze** — `/v2`, console, and v2.0 RC contracts are snapshot-tested
+- **Migration path** — v2.0 RC compatibility tests cover settings, OpenAPI, CLI, and persistence
+- **Internal security remediation** — code findings are closed; independent sign-off remains pending
+- **Deployment runbook** — operator-owned production execution evidence remains pending
+- **Flagship demos** — offline PR review, remediation, planning, evidence, and approval flows
 
 ---
 
 ## Contract changes since v2.0 RC
 
-| Surface | v2.0 RC | v3.0 GA |
+| Surface | v2.0 RC | v3.0 candidate |
 |---------|---------|---------|
 | Enterprise CLI / trace / evidence / eval | `supported` (frozen) | `supported` (unchanged snapshots) |
 | Team Server OpenAPI | not published | `supported` at `/v2` |
@@ -50,7 +55,7 @@ Location: `examples/enterprise/demos/v3.0/`
 
 | Demo | Acceptance reference |
 |------|---------------------|
-| PR review | v2.2 integration + GA contract |
+| PR review | v2.2 integration + candidate contract |
 | Remediation | v2.2 integration + v2.0 state contract |
 | Secure planning | v2.4 workflow |
 | Evidence export | v2.0 evidence contract |
@@ -66,27 +71,28 @@ python3 scripts/verify-package.py
 PYTHONPATH=src python3 -m pytest -q -m "not postgres_integration"
 ```
 
-At GA closeout: full offline regression green; eval baselines locked in `tests/enterprise/eval/baselines/ga_lock_v3_0.json`.
+GA promotion additionally requires the three external gates listed at the top
+of this document.
 
 ---
 
 ## Security
 
-- GA review: `enterprise-docs/security/security-review-v3.0.md`
+- Candidate review: `enterprise-docs/security/security-review-v3.0.md`
 - Threat model: `enterprise-docs/security/threat-model-v2.5.md`
 - Deployment profiles: `enterprise-docs/deployment-profiles.md`
 
 ---
 
-## Known GA limitations
+## Candidate Limitations
 
 - Live GitHub/Jira/OIDC lanes remain opt-in; default CI is offline
 - Console requires separate build (`console/`); API remains the contract boundary
-- pgvector profile is optional; lexical RAG remains the offline default
+- pgvector is mandatory for Team Server migrations; lexical RAG remains the offline test default
 
 ---
 
 ## Tags
 
 - Milestone tags: `enterprise-v3.0.1` … `enterprise-v3.0.4`
-- GA tag: `enterprise-v3.0.0` (closeout)
+- Pre-remediation candidate tag: `enterprise-v3.0.0`

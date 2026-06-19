@@ -3,9 +3,8 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
-from psycopg import Connection
-from psycopg_pool import ConnectionPool
 
 MIGRATIONS_DIR = Path(__file__).resolve().parent / "migrations"
 SCHEMA_SQL = Path(__file__).resolve().parent / "schema.sql"
@@ -16,7 +15,7 @@ def list_migration_files() -> list[tuple[str, Path]]:
     return [(path.name, path) for path in files]
 
 
-def apply_migrations_conn(conn: Connection) -> None:
+def apply_migrations_conn(conn: Any) -> None:
     conn.execute("CREATE SCHEMA IF NOT EXISTS enterprise")
     conn.execute(
         """
@@ -41,12 +40,12 @@ def apply_migrations_conn(conn: Connection) -> None:
     conn.commit()
 
 
-def apply_migrations(pool: ConnectionPool) -> None:
+def apply_migrations(pool: Any) -> None:
     with pool.connection() as conn:
         apply_migrations_conn(conn)
 
 
-def reset_schema_for_tests(conn: Connection) -> None:
+def reset_schema_for_tests(conn: Any) -> None:
     """Drop enterprise-owned objects for isolated integration tests."""
     conn.execute("DROP SCHEMA IF EXISTS enterprise CASCADE")
     conn.commit()

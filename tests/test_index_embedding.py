@@ -350,20 +350,21 @@ class TestHybridRetriever:
 
 
 class TestIndexCLI:
-    def test_index_build_runs(self, tmp_path: Path) -> None:
+    def test_index_build_runs(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         from typer.testing import CliRunner
         from safecode.cli_project import index_app
         root = _make_project(tmp_path, {"src/auth.py": "def login(): pass\n" * 10})
+        monkeypatch.chdir(root)
         runner = CliRunner()
-        result = runner.invoke(index_app, ["build", "--json"], catch_exceptions=False,
-                               env={"SAFECODE_PROJECT_ROOT": str(root)})
+        result = runner.invoke(index_app, ["build", "--json"], catch_exceptions=False)
         # May fail if project root detection doesn't pick up tmp_path;
         # just verify it doesn't crash with an unhandled exception
         assert result.exit_code in {0, 1}
 
-    def test_index_status_no_index(self, tmp_path: Path) -> None:
+    def test_index_status_no_index(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         from typer.testing import CliRunner
         from safecode.cli_project import index_app
+        monkeypatch.chdir(tmp_path)
         runner = CliRunner()
         result = runner.invoke(index_app, ["status"], catch_exceptions=False)
         assert result.exit_code in {0, 1}
@@ -378,18 +379,22 @@ class TestSearchCLI:
         assert result.exit_code == 0
         assert "query" in result.output.lower() or "search" in result.output.lower()
 
-    def test_search_no_results(self, tmp_path: Path) -> None:
+    def test_search_no_results(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         from typer.testing import CliRunner
         from safecode.cli import app
+        _make_project(tmp_path, {"src/auth.py": "def login(): pass\n"})
+        monkeypatch.chdir(tmp_path)
         runner = CliRunner()
         result = runner.invoke(app, ["search", "zzz_no_match_xyz_abc", "--json"],
                                catch_exceptions=False)
         assert result.exit_code in {0, 1}
 
-    def test_search_json_output(self, tmp_path: Path) -> None:
+    def test_search_json_output(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         import json as _json
         from typer.testing import CliRunner
         from safecode.cli import app
+        _make_project(tmp_path, {"src/example.py": "def test_value():\n    return 'test'\n" * 5})
+        monkeypatch.chdir(tmp_path)
         runner = CliRunner()
         result = runner.invoke(app, ["search", "test", "--json"],
                                catch_exceptions=False)

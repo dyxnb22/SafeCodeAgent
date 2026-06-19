@@ -20,8 +20,8 @@ def _read(path: Path) -> str:
 
 def test_ga_security_review_document_exists() -> None:
     text = _read(_REVIEW)
-    assert "## Sign-off" in text
-    assert "## Findings summary" in text
+    assert "## Independent Sign-off" in text
+    assert "## Findings Summary" in text
 
 
 def test_ga_security_review_references_threat_model_v2_5() -> None:
@@ -46,13 +46,21 @@ def test_ga_security_review_has_no_open_high_or_critical_findings() -> None:
 def test_ga_security_review_sign_off_block_present() -> None:
     text = _read(_REVIEW)
     assert re.search(r"Security reviewer", text)
-    assert "Signature:" in text
+    assert "Pending independent reviewer" in text
+    assert "PENDING" in text
 
 
-def test_security_check_demo_lists_green_gates() -> None:
+def test_security_check_does_not_claim_external_gates_are_green() -> None:
     text = _read(_SECURITY_CHECK)
-    assert "PASS" in text
-    assert "test_ga_security_review_contract.py" in text
+    assert "BLOCKED" in text
+    assert "Independent review and detached signature" in text
+
+
+def test_candidate_review_cannot_claim_ga_pass_without_external_signoff() -> None:
+    text = _read(_REVIEW)
+    assert "Not approved for GA" in text
+    assert "Verdict:** Pass" not in text
+    assert "sha256:enterprise-ga" not in text
 
 
 def test_security_artifacts_contain_no_secret_material() -> None:

@@ -50,7 +50,7 @@ policies:
   mcp_read: CONFIRM
   mcp_write: BLOCK
   retrieval_source_access: AUTO
-  memory_fact_inject: AUTO
+  memory_fact_inject: GATE
   policy_config_change: BLOCK
   production_access: BLOCK
   allow_as_role_flag: false
@@ -179,7 +179,8 @@ Columns:
 | `mcp_write` (unknown / high risk) | BLOCK | none | `tool.blocked`, `policy.block` | refused. |
 | `retrieval_source_access` (in-scope source) | AUTO | n/a | `retrieval.query`, `retrieval.citation_used` | local read. |
 | `retrieval_source_access` (out-of-scope) | BLOCK | none | `retrieval.permission_denied`, `policy.block` | refused before any return. |
-| `memory_fact_inject` (approved fact) | AUTO | n/a | `memory.fact_used` | in-prompt. |
+| `memory_fact_inject` (admission) | GATE | security reviewer | `memory.fact_admitted` | persisted only after bound grant. |
+| approved fact retrieval | AUTO | n/a | `memory.fact_used` | in-prompt with provenance and ACL. |
 | `memory_fact_inject` (pending fact) | BLOCK | none | `memory.injection_blocked` | refused. |
 | `policy_config_change` | BLOCK at org; GATE at `platform_admin` org only | `platform_admin` | full chain plus `policy.config_change` | local config write; never via model output. |
 | `production_access` | BLOCK | `maintainer` after explicit `production_access_unlock` policy bit | full chain plus `policy.production_unlock` | network read/write to production hosts. |
@@ -352,7 +353,8 @@ Defense in depth, ordered from upstream to downstream:
 ## Memory Fact Injection
 
 - Approved facts in `src/safecode/memory/facts.py` may be injected
-  with `memory_fact_inject = AUTO`.
+  only after a `memory_fact_inject = GATE` admission is consumed; retrieval of
+  the resulting approved fact is automatic within its ACL.
 - Pending facts are never injected; injection attempt is `BLOCK` and
   audit-logged.
 - The set of memory keys allowed for injection is configurable per

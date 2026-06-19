@@ -16,9 +16,10 @@ compliance evidence, and auditable tool-using security operations.
 
 - Legacy implemented baseline: `v7.1.5`.
 - Enterprise planning and namespace stages: complete.
-- Last delivery stage completed: `v3.0 Enterprise GA`.
-- Current delivery stage: complete (post-GA maintenance).
-- Next delivery task: none — Enterprise GA delivered; see `RELEASE-NOTES-v3.0.0.md`.
+- Last delivery stage completed: `v2.5 Production Hardening`.
+- Current delivery stage: `v3.0` candidate blocked on external GA gates.
+- Next delivery task: none; independent sign-off, deployment evidence, and a
+  stable live-provider run are required before GA promotion.
 - Post-RC platform architecture: `enterprise-docs/platform-architecture-v2.md`.
 - Machine-readable live status: `.agents/context/progress.json`.
 
@@ -98,12 +99,12 @@ regression analysis.
 | v1.8 | Vulnerability remediation workflow | Complete | `enterprise-docs/workflow-design.md` |
 | v1.9 | Enterprise beta hardening | Complete | `product-planning/version-roadmap.md` |
 | v2.0 | Enterprise release candidate | Complete | `RELEASE-NOTES-v2.0.0-rc.md` |
-| v2.1 | Team Server foundation (FastAPI + PostgreSQL + worker + OIDC) | Ready | `enterprise-docs/platform-architecture-v2.md` |
+| v2.1 | Team Server foundation (FastAPI + PostgreSQL + worker + OIDC) | Complete | `enterprise-docs/platform-architecture-v2.md` |
 | v2.2 | Real GitHub secure change workflow | Complete | `enterprise-docs/platform-architecture-v2.md` |
 | v2.3 | Operator console (React/Next.js) | Complete | `enterprise-docs/platform-architecture-v2.md` |
 | v2.4 | Enterprise knowledge, tickets, long-term memory | Complete | `enterprise-docs/platform-architecture-v2.md` |
 | v2.5 | Production hardening | Complete | `enterprise-docs/platform-architecture-v2.md` |
-| v3.0 | Enterprise GA | Complete | `RELEASE-NOTES-v3.0.0.md` |
+| v3.0 | Enterprise GA | Blocked on external gates | `RELEASE-NOTES-v3.0.0.md` |
 
 Status details belong in `progress.json`; change this table only when stage
 scope, ownership, or architecture changes.

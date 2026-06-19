@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, Header, Request, Response
 from fastapi.responses import JSONResponse
 
 from safecode.enterprise.api.app import AppState
+from safecode.enterprise.api.rate_limit import RateLimitExceeded
 from safecode.enterprise.api.routes._deps import get_app_state, get_backend
 from safecode.enterprise.connectors.github_app import (
     GitHubAppConfigurationError,
@@ -45,6 +46,7 @@ def _problem(status: int, detail: str) -> JSONResponse:
         403: "Forbidden",
         409: "Conflict",
         413: "Payload Too Large",
+        429: "Too Many Requests",
         503: "Service Unavailable",
     }
     return JSONResponse(
@@ -137,6 +139,10 @@ async def github_webhook(
         return _problem(403, "installation id mismatch")
 
     tenant_id = app_config.webhook_tenant_id
+    try:
+        state.rate_limiter.check_request(tenant_id)
+    except RateLimitExceeded as exc:
+        return _problem(429, exc.detail)
     input_ref = json.dumps(
         {
             "source": "github_webhook",

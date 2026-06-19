@@ -46,7 +46,7 @@ def test_fixture_write_persists_redacted_body(tmp_path: Path):
     )
 
 
-def test_live_write_with_approval_records_trace(tmp_path: Path):
+def test_live_write_boolean_approval_is_not_execution_authority(tmp_path: Path):
     sac_root = tmp_path / ".sac"
     record = post_pr_comment(
         sac_root=sac_root,
@@ -57,7 +57,8 @@ def test_live_write_with_approval_records_trace(tmp_path: Path):
         approved=True,
         actor_id="user:approver",
     )
-    assert record.outcome == "ok"
+    assert record.outcome == "blocked"
     trace_path = sac_root / "enterprise" / "runs" / "run-gate00000003" / "trace.jsonl"
     payload = trace_path.read_text(encoding="utf-8")
     assert "github_write" in payload
+    assert "missing_bound_grant" in payload

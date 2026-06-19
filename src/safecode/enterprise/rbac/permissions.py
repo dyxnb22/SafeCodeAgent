@@ -38,7 +38,9 @@ ACTION_PERMISSIONS: dict[Action, ActionPermission] = {
     Action.retrieval_source_access: ActionPermission(
         Action.retrieval_source_access, Role.viewer, None, "AUTO"
     ),
-    Action.memory_fact_inject: ActionPermission(Action.memory_fact_inject, Role.viewer, None, "AUTO"),
+    Action.memory_fact_inject: ActionPermission(
+        Action.memory_fact_inject, Role.security_reviewer, Role.security_reviewer, "GATE"
+    ),
     Action.policy_config_change: ActionPermission(
         Action.policy_config_change, Role.platform_admin, Role.platform_admin, "BLOCK"
     ),
@@ -68,8 +70,10 @@ def rbac_tier_for_action(
 
     if action == Action.retrieval_source_access and ctx.get("scope") == "denied":
         return "BLOCK"
-    if action == Action.memory_fact_inject and ctx.get("fact_status") == "pending":
-        return "BLOCK"
+    if action == Action.memory_fact_inject:
+        if ctx.get("fact_status") != "approved":
+            return "BLOCK"
+        return "GATE" if _role_at_least(subject, Role.security_reviewer) else "BLOCK"
     if action == Action.mcp_read and ctx.get("server_known") == "false":
         return "BLOCK"
     if action == Action.mcp_write and ctx.get("server_known") == "false":

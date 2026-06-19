@@ -2,13 +2,11 @@
 
 from __future__ import annotations
 
+from safecode.enterprise.tenancy import MissingTenantIdError
+
 
 class PersistenceError(Exception):
     """Base persistence error."""
-
-
-class MissingTenantIdError(PersistenceError):
-    """Raised when a persistence operation lacks a tenant_id."""
 
 
 class TenantBoundaryError(PersistenceError):

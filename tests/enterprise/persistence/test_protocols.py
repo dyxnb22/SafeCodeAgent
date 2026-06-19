@@ -91,6 +91,19 @@ def test_validate_tenant_id_rejects_missing_values(tenant_id) -> None:
         validate_tenant_id(tenant_id)
 
 
+@pytest.mark.parametrize(
+    "tenant_id",
+    ["../tenant-b", "tenant/a", "tenant\\a", ".", "..", " tenant a ", "tenant:a"],
+)
+def test_validate_tenant_id_rejects_path_and_namespace_injection(tenant_id: str) -> None:
+    with pytest.raises(MissingTenantIdError, match="path-safe"):
+        validate_tenant_id(tenant_id)
+
+
+def test_validate_tenant_id_accepts_canonical_identifiers() -> None:
+    assert validate_tenant_id("tenant_A-1.prod") == "tenant_A-1.prod"
+
+
 def test_assert_tenant_match_raises_on_cross_tenant_access() -> None:
     with pytest.raises(TenantBoundaryError, match="tenant mismatch"):
         assert_tenant_match("tenant-a", "tenant-b", operation="load_checkpoint")

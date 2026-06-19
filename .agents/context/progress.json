@@ -5,8 +5,13 @@
   "current": {
     "stage": "v3.0",
     "milestone": "v3.0",
-    "status": "completed",
-    "active_task": null,
+    "status": "blocked",
+    "active_task": {
+      "id": "maintenance-v3.0-ga-security-remediation",
+      "kind": "maintenance",
+      "title": "Await external GA promotion evidence after automated security remediation",
+      "started_at": "2026-06-19"
+    },
     "next_delivery_task": null
   },
   "stages": {
@@ -26,7 +31,7 @@
     "v2.3": "completed",
     "v2.4": "completed",
     "v2.5": "completed",
-    "v3.0": "completed"
+    "v3.0": "blocked"
   },
   "completed_delivery_tasks": [
     {"id": "v1.0.1-T1", "completed_at": "2026-06-18", "evidence": "enterprise-v1.0.1-sot"},
@@ -171,7 +176,7 @@
     {"id": "v3.0.4-T1", "completed_at": "2026-06-19", "evidence": "48138d8c"}
   ],
   "recent_maintenance": [
-    {"id": "maintenance-v3.0-enterprise-ga-closeout", "completed_at": "2026-06-19", "evidence": "v3.0.1..v3.0.4 delivered; 6375 passed excluding postgres_integration; RELEASE-NOTES-v3.0.0.md"},
+    {"id": "maintenance-v3.0-candidate-remediation", "completed_at": "2026-06-19", "evidence": "GA review findings remediated in code/docs/tests; full regression 6385 passed, 8 skipped, 17 deselected excluding postgres_integration; external sign-off, deployment evidence, and stable live-provider evidence remain required"},
     {"id": "maintenance-v2.5-production-hardening-closeout", "completed_at": "2026-06-19", "evidence": "v2.5.1..v2.5.6 delivered; 6342 passed excluding postgres_integration; full regression closeout"},
     {"id": "maintenance-v2.1.6-oidc-subject", "completed_at": "2026-06-19", "evidence": "v2.1.6-T1..T2 delivered; 408 enterprise passed excluding postgres_integration; full regression 6158 passed, 8 skipped"},
     {"id": "maintenance-v2.1.5-command-worker-cli", "completed_at": "2026-06-19", "evidence": "v2.1.5-T1..T4 delivered; 393 enterprise passed excluding postgres_integration; full regression 6142 passed, 8 skipped"},
@@ -182,12 +187,16 @@
     {"id": "maintenance-v2.0-reviewed-security-closeout", "completed_at": "2026-06-19", "evidence": "3b182f6; exact approval/grant binding, tenant-safe trace/evidence, fail-closed remediation validation; full regression: 6012 passed, 5 skipped"},
     {"id": "maintenance-post-rc-platform-roadmap", "completed_at": "2026-06-19", "evidence": "dd8c117; planned v2.1-v3.0 stages with v2.1/v2.2 PR-level backlog, decisions D19-D29, and platform-architecture-v2.md"}
   ],
-  "blockers": [],
+  "blockers": [
+    "Independent security reviewer signature is required before GA promotion.",
+    "Operator-owned production-like deployment evidence is required before GA promotion.",
+    "Stable live-provider workflow evidence is required before GA promotion."
+  ],
   "decisions_required": [],
   "last_verification": {
     "recorded_at": "2026-06-19",
     "command": "PYTHONPATH=src python3 -m pytest -q",
-    "result": "6375 passed, 9 skipped, 20 deselected excluding postgres_integration",
-    "scope": "v3.0 Enterprise GA stage closeout"
+    "result": "6385 passed, 25 skipped",
+    "scope": "v3.0 candidate security remediation; external GA evidence gates pending"
   }
 }

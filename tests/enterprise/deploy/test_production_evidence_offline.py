@@ -21,7 +21,9 @@ def test_deployment_evidence_document_exists() -> None:
     text = _EVIDENCE.read_text(encoding="utf-8")
     assert "production-like" in text.lower()
     assert "audit chain" in text.lower()
-    assert "incident" in text.lower()
+    assert "pending operator-owned" in text.lower()
+    assert "not proof" in text.lower()
+    assert "representative" not in text.lower()
 
 
 def test_deployment_evidence_has_no_secret_or_debug_material() -> None:

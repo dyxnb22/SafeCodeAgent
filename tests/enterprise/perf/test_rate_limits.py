@@ -93,3 +93,15 @@ def test_token_bucket_is_tenant_scoped() -> None:
     limiter.check_request("tenant-b")
     with pytest.raises(RateLimitExceeded):
         limiter.check_request("tenant-a")
+
+
+def test_spoofed_unused_tenant_header_cannot_bypass_authenticated_bucket(tmp_path: Path) -> None:
+    client = _client(tmp_path, rpm=1)
+    first = client.get("/v2/runs", params={"tenant_id": "tenant-a"})
+    assert first.status_code == 200
+    bypass = client.get(
+        "/v2/runs",
+        params={"tenant_id": "tenant-a"},
+        headers={"X-Tenant-Id": "tenant-b"},
+    )
+    assert bypass.status_code == 429

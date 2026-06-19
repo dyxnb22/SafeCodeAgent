@@ -100,11 +100,14 @@ flowchart TB
 - **Mitigation:** Serializable grant consumption, single-use grants, hash-chain
   audit on decisions (v2.1 governance).
 
-## Residual risks (v2.5 yellow policy)
+## GA Disposition Of v2.5 Yellow Risks
 
-- Single-region deployment; no automated failover.
-- In-memory rate limiter is per API process (not cluster-wide).
-- Manual key rotation for connector credentials.
+- Single-region operation is an explicit supported-scope boundary, not an
+  unowned GA risk; multi-region HA remains a non-goal.
+- The supported Compose profile runs one API process. Multi-process deployment
+  is unsupported until a shared limiter is implemented.
+- Connector key rotation is an operator prerequisite and must be demonstrated
+  in the pending production deployment evidence before GA promotion.
 
 ## Verification
 

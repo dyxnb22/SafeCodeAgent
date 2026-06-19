@@ -13,8 +13,15 @@ if ! command -v docker >/dev/null 2>&1; then
 fi
 
 if [[ ! -f "${ENV_FILE}" ]]; then
-  cp "${ENV_EXAMPLE}" "${ENV_FILE}"
-  echo "created ${ENV_FILE} from example" >&2
+  echo "production env file is required: ${ENV_FILE}" >&2
+  echo "start from ${ENV_EXAMPLE}, replace every development credential, then retry" >&2
+  exit 1
+fi
+
+
+if grep -Eq 'issuer\.example|safecode_dev|POSTGRES_PASSWORD=safecode_dev' "${ENV_FILE}"; then
+  echo "refusing development credentials in production-like startup" >&2
+  exit 1
 fi
 
 cd "${ROOT}"

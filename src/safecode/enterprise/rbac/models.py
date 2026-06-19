@@ -9,6 +9,7 @@ from typing import Any
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from safecode.enterprise.tenancy import validate_tenant_id
 from safecode.enterprise.policy.resolver import load_org_layer, load_user_layer
 
 
@@ -46,6 +47,11 @@ class RBACSubject(BaseModel):
     roles: tuple[Role, ...] = (Role.developer,)
     permission_scopes: tuple[str, ...] = ("org",)
     metadata: dict[str, str] = Field(default_factory=dict)
+
+    @field_validator("tenant_id")
+    @classmethod
+    def _validate_tenant(cls, value: str) -> str:
+        return validate_tenant_id(value)
 
     @field_validator("roles", mode="before")
     @classmethod

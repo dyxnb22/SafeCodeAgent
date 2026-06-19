@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "hooks": {
+    "subagentStart": [
+      {
+        "command": ".cursor/hooks/subagent-cost-guard.sh",
+        "timeout": 5,
+        "failClosed": true
+      }
+    ]
+  }
+}
+

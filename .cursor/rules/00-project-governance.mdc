@@ -12,3 +12,8 @@ or work around it in tool-specific rules. Preserve unrelated working-tree
 changes, keep temporary artifacts untracked, and never weaken security gates or
 tests to complete a task. Update `progress.json` for every progress-bearing task
 using the protocol in `AGENTS.md`.
+
+For Cursor delegation, use only the project `standard-worker`; do not use
+built-in `generalPurpose`, `explore`, or other implementation sub-agents. Never
+request a Fast model in a Task call. If `.cursor/subagent-mode` is `blocked`,
+continue sequentially in the main agent and do not retry rejected Task calls.

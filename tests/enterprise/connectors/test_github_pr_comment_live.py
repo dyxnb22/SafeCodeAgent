@@ -169,6 +169,27 @@ def test_no_grant_never_writes(tmp_path):
     assert calls == []
 
 
+def test_legacy_approved_boolean_cannot_replace_a_bound_grant(tmp_path):
+    sac_root = tmp_path / ".sac"
+    calls: list[str] = []
+    record = post_pr_comment(
+        sac_root=sac_root,
+        run_id=_RUN_ID,
+        node_name="finalize",
+        spec=_live_spec(),
+        body=_COMMENT_BODY,
+        approved=True,
+        actor_id="user:approver",
+        tenant_id=_TENANT,
+        policy_snapshot_id=_POLICY,
+        request_id=None,
+        access_token=_ACCESS_TOKEN,
+        transport=_recorded_transport(calls=calls),
+    )
+    assert record.outcome == "blocked"
+    assert calls == []
+
+
 def test_replay_after_consume_fails_closed(tmp_path):
     sac_root = tmp_path / ".sac"
     _approve_comment_request(sac_root)

@@ -14,9 +14,10 @@ from safecode.enterprise.api.dependencies import (
     resolve_subject,
 )
 from safecode.enterprise.api.exceptions import IdempotencyKeyRequiredError
+from safecode.enterprise.api.exceptions import ApprovalForbiddenError
 from safecode.enterprise.api.read_service import enforce_tenant_scope
 from safecode.enterprise.api.settings import RuntimeMode
-from safecode.enterprise.rbac.models import RBACSubject
+from safecode.enterprise.rbac.models import RBACSubject, ROLE_RANK, Role
 
 
 def get_app_state(request: Request) -> AppState:
@@ -44,15 +45,28 @@ def get_subject(
 def require_tenant(
     tenant_id: str,
     subject: Annotated[RBACSubject, Depends(get_subject)],
+    state: Annotated[AppState, Depends(get_app_state)],
 ) -> str:
-    return enforce_tenant_scope(subject, tenant_id)
+    tenant = enforce_tenant_scope(subject, tenant_id)
+    state.rate_limiter.check_request(tenant)
+    return tenant
 
 
 def require_tenant_header(
     x_tenant_id: Annotated[str, Header(alias="X-Tenant-Id")],
     subject: Annotated[RBACSubject, Depends(get_subject)],
+    state: Annotated[AppState, Depends(get_app_state)],
 ) -> str:
-    return enforce_tenant_scope(subject, x_tenant_id)
+    tenant = enforce_tenant_scope(subject, x_tenant_id)
+    state.rate_limiter.check_request(tenant)
+    return tenant
+
+
+def require_minimum_role(subject: RBACSubject, minimum: Role, *, action: str) -> None:
+    if ROLE_RANK[subject.highest_role()] < ROLE_RANK[minimum]:
+        raise ApprovalForbiddenError(
+            f"role {subject.highest_role().value!r} cannot {action}; {minimum.value!r} required"
+        )
 
 
 def require_idempotency_key(

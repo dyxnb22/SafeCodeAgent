@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import subprocess
 import tarfile
+import io
 from pathlib import Path
 
 import pytest
@@ -74,3 +75,35 @@ def test_backup_restore_round_trip_preserves_audit_chain(
     restored = LocalBackend(restored_sac)
     events = restored.audit.list_events(tenant_id="tenant-a", run_id="run-backup001")
     assert len(events) == 2
+
+
+@pytest.mark.parametrize("member_name", ["../../outside.txt", "/tmp/outside.txt"])
+def test_restore_rejects_archive_path_escape(tmp_path: Path, member_name: str) -> None:
+    archive = tmp_path / "malicious.tar.gz"
+    payload = b"must not escape"
+    with tarfile.open(archive, "w:gz") as handle:
+        member = tarfile.TarInfo(member_name)
+        member.size = len(payload)
+        handle.addfile(member, io.BytesIO(payload))
+    result = subprocess.run(
+        ["bash", str(_RESTORE_SCRIPT), str(archive), str(tmp_path / "restore")],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode != 0
+    assert not (tmp_path / "outside.txt").exists()
+
+
+def test_restore_rejects_symbolic_links(tmp_path: Path) -> None:
+    archive = tmp_path / "symlink.tar.gz"
+    with tarfile.open(archive, "w:gz") as handle:
+        member = tarfile.TarInfo("backup/link")
+        member.type = tarfile.SYMTYPE
+        member.linkname = "../../outside"
+        handle.addfile(member)
+    result = subprocess.run(
+        ["bash", str(_RESTORE_SCRIPT), str(archive), str(tmp_path / "restore")],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode != 0

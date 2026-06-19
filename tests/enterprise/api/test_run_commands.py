@@ -20,14 +20,16 @@ from safecode.enterprise.workflow.types import WorkflowStatus
 _ROOT = Path(__file__).resolve().parents[3]
 
 
-def _subject_resolver(tenant_id: str = "tenant-a") -> callable:
+def _subject_resolver(tenant_id: str = "tenant-a", role: Role = Role.developer) -> callable:
     def _resolve() -> RBACSubject:
-        return RBACSubject(actor_id="user:dev", tenant_id=tenant_id, roles=(Role.developer,))
+        return RBACSubject(actor_id="user:dev", tenant_id=tenant_id, roles=(role,))
 
     return _resolve
 
 
-def _client(tmp_path: Path, *, tenant_id: str = "tenant-a") -> tuple[TestClient, LocalBackend]:
+def _client(
+    tmp_path: Path, *, tenant_id: str = "tenant-a", role: Role = Role.developer
+) -> tuple[TestClient, LocalBackend]:
     settings = TeamServerSettings.model_validate(
         {"runtime_mode": RuntimeMode.LOCAL, "operator_actor": "user:dev"}
     )
@@ -35,7 +37,7 @@ def _client(tmp_path: Path, *, tenant_id: str = "tenant-a") -> tuple[TestClient,
     app = create_app(
         settings=settings,
         backend=backend,
-        subject_resolver=_subject_resolver(tenant_id=tenant_id),
+        subject_resolver=_subject_resolver(tenant_id=tenant_id, role=role),
         project_root=tmp_path,
     )
     return TestClient(app), backend
@@ -163,3 +165,31 @@ def test_resume_enqueues_existing_run(tmp_path: Path) -> None:
     assert pending.is_file()
     lines = pending.read_text(encoding="utf-8").splitlines()
     assert any(json.loads(line)["command"] == "resume" for line in lines if line.strip())
+
+
+def test_viewer_cannot_start_runs(tmp_path: Path) -> None:
+    client, _backend = _client(tmp_path, role=Role.viewer)
+    response = client.post(
+        "/v2/runs",
+        headers=_headers(),
+        json={"task_type": "pr_review", "input_ref": "fixture.json"},
+    )
+    assert response.status_code == 403
+
+
+@pytest.mark.parametrize("command", ["resume", "cancel"])
+def test_viewer_cannot_mutate_existing_runs(tmp_path: Path, command: str) -> None:
+    developer, _backend = _client(tmp_path)
+    fixture = tmp_path / "fixture.json"
+    fixture.write_text("{}", encoding="utf-8")
+    started = developer.post(
+        "/v2/runs",
+        headers=_headers(idempotency_key="start-viewer-test"),
+        json={"task_type": "pr_review", "input_ref": str(fixture)},
+    )
+    viewer, _backend = _client(tmp_path, role=Role.viewer)
+    response = viewer.post(
+        f"/v2/runs/{started.json()['run_id']}/{command}",
+        headers=_headers(idempotency_key=f"{command}-viewer-test"),
+    )
+    assert response.status_code == 403

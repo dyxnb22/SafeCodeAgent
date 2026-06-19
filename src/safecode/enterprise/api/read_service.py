@@ -10,7 +10,6 @@ from safecode.enterprise.approvals.store import ApprovalRequest, list_requests
 from safecode.enterprise.eval.ratchet import baseline_path_for_suite
 from safecode.enterprise.persistence.protocols import validate_tenant_id
 from safecode.enterprise.persistence.local_backend import LocalBackend
-from safecode.enterprise.persistence.postgres.backend import PostgresBackend
 from safecode.enterprise.rbac.models import RBACSubject
 from safecode.enterprise.trace.events import TraceEvent
 from safecode.enterprise.trace.redaction import DEFAULT_TRACE_EXPORT_PROFILE, apply_profile_to_payload
@@ -19,7 +18,15 @@ from safecode.enterprise.workflow.checkpoint import RunCheckpoint, load_checkpoi
 from safecode.enterprise.workflow.ids import validate_run_id
 from safecode.enterprise.workflow.state import EnterpriseRunState
 
-PersistenceBackend = LocalBackend | PostgresBackend
+PersistenceBackend = Any
+
+
+def _is_postgres_backend(backend: object) -> bool:
+    try:
+        from safecode.enterprise.persistence.postgres.backend import PostgresBackend
+    except ImportError:
+        return False
+    return isinstance(backend, PostgresBackend)
 
 
 @dataclass(frozen=True)
@@ -117,7 +124,7 @@ def list_runs(
 ) -> tuple[list[RunSummaryView], str | None]:
     tenant = validate_tenant_id(tenant_id)
     bounded_limit = max(1, min(limit, 200))
-    if isinstance(backend, PostgresBackend):
+    if _is_postgres_backend(backend):
         with backend._uow.connection() as conn:
             params: list[Any] = [tenant]
             filters = ["tenant_id = %s"]
@@ -167,7 +174,7 @@ def list_approvals(
     status: str | None = None,
 ) -> list[ApprovalRequest]:
     tenant = validate_tenant_id(tenant_id)
-    if isinstance(backend, PostgresBackend):
+    if _is_postgres_backend(backend):
         with backend._uow.connection() as conn:
             params: list[Any] = [tenant]
             filters = ["tenant_id = %s"]

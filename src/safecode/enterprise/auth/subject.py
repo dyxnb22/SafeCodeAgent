@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from safecode.enterprise.auth.oidc import TokenClaims
 from safecode.enterprise.rbac.models import DEFAULT_SCOPES_BY_ROLE, ROLE_RANK, RBACSubject, Role
+from safecode.enterprise.tenancy import validate_tenant_id
 
 TENANT_CLAIM = "tenant_id"
 ROLE_CLAIM = "roles"
@@ -53,6 +54,10 @@ def map_claims_to_subject(claims: TokenClaims) -> RBACSubject:
     tenant_id = _extract_tenant_id(claims)
     if tenant_id is None:
         raise SubjectMappingError("tenant_id claim is required")
+    try:
+        tenant_id = validate_tenant_id(tenant_id)
+    except ValueError as exc:
+        raise SubjectMappingError("tenant_id claim is invalid") from exc
     roles = _extract_roles(claims)
     primary_role = max(roles, key=lambda role: ROLE_RANK[role])
     scopes = DEFAULT_SCOPES_BY_ROLE.get(primary_role, ["org"])

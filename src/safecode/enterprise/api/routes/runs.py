@@ -19,11 +19,12 @@ from safecode.enterprise.api.routes._deps import (
     get_app_state,
     get_backend,
     get_subject,
+    require_minimum_role,
     require_idempotency_key,
     require_tenant,
     require_tenant_header,
 )
-from safecode.enterprise.rbac.models import RBACSubject
+from safecode.enterprise.rbac.models import RBACSubject, Role
 from safecode.enterprise.worker.commands import cancel_run, command_queue_for, resume_run, start_run
 from safecode.enterprise.worker.models import RunAccepted
 
@@ -96,6 +97,7 @@ def start_run_endpoint(
     subject: Annotated[RBACSubject, Depends(get_subject)],
     state: Annotated[AppState, Depends(get_app_state)],
 ) -> dict[str, str]:
+    require_minimum_role(subject, Role.developer, action="start runs")
     state.rate_limiter.check_inflight(backend, tenant_id)
     queue = command_queue_for(backend)
     accepted = start_run(
@@ -129,7 +131,9 @@ def resume_run_endpoint(
     tenant_id: Annotated[str, Depends(require_tenant_header)],
     idempotency_key: Annotated[str, Depends(require_idempotency_key)],
     backend: Annotated[object, Depends(get_backend)],
+    subject: Annotated[RBACSubject, Depends(get_subject)],
 ) -> dict[str, str]:
+    require_minimum_role(subject, Role.developer, action="resume runs")
     queue = command_queue_for(backend)
     accepted = resume_run(
         backend,
@@ -149,7 +153,9 @@ def cancel_run_endpoint(
     tenant_id: Annotated[str, Depends(require_tenant_header)],
     idempotency_key: Annotated[str, Depends(require_idempotency_key)],
     backend: Annotated[object, Depends(get_backend)],
+    subject: Annotated[RBACSubject, Depends(get_subject)],
 ) -> dict[str, str]:
+    require_minimum_role(subject, Role.developer, action="cancel runs")
     queue = command_queue_for(backend)
     accepted = cancel_run(
         backend,

@@ -13,20 +13,11 @@ from safecode.enterprise.approvals.store import (
 )
 from safecode.enterprise.audit.events import AuditEventKind
 from safecode.enterprise.eval.cases import EvaluationResult
-from safecode.enterprise.persistence.exceptions import MissingTenantIdError, TenantBoundaryError
+from safecode.enterprise.persistence.exceptions import TenantBoundaryError
+from safecode.enterprise.tenancy import validate_tenant_id
 from safecode.enterprise.trace.events import TraceEvent, TraceEventType
 from safecode.enterprise.workflow.checkpoint import RunCheckpoint
 from safecode.enterprise.workflow.contracts import NodeCost
-
-
-def validate_tenant_id(tenant_id: str | None) -> str:
-    """Require a non-empty tenant identifier for every persistence operation."""
-    if tenant_id is None:
-        raise MissingTenantIdError("tenant_id is required")
-    normalized = tenant_id.strip()
-    if not normalized:
-        raise MissingTenantIdError("tenant_id is required")
-    return normalized
 
 
 def assert_tenant_match(expected: str, actual: str, *, operation: str) -> None:

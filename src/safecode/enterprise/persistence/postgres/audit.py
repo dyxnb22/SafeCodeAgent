@@ -5,8 +5,8 @@ from __future__ import annotations
 import hashlib
 import json
 from datetime import datetime, timezone
+from typing import Any
 
-from psycopg import Connection
 from pydantic import ValidationError
 
 from safecode.audit.models import AuditEvent
@@ -52,7 +52,7 @@ def build_audit_event(
     return event
 
 
-def last_event_hash(conn: Connection) -> str | None:
+def last_event_hash(conn: Any) -> str | None:
     row = conn.execute(
         "SELECT event_hash FROM enterprise.audit_events ORDER BY id DESC LIMIT 1"
     ).fetchone()
@@ -61,7 +61,7 @@ def last_event_hash(conn: Connection) -> str | None:
     return str(row[0])
 
 
-def append_audit_event(conn: Connection, event: AuditEvent, *, actor_id: str) -> AuditEvent:
+def append_audit_event(conn: Any, event: AuditEvent, *, actor_id: str) -> AuditEvent:
     conn.execute(
         """
         INSERT INTO enterprise.audit_events (
@@ -82,7 +82,7 @@ def append_audit_event(conn: Connection, event: AuditEvent, *, actor_id: str) ->
 
 
 def emit_audit_event(
-    conn: Connection,
+    conn: Any,
     kind: AuditEventKind,
     *,
     tenant_id: str,
@@ -105,7 +105,7 @@ def emit_audit_event(
     return append_audit_event(conn, event, actor_id=actor_id)
 
 
-def verify_audit_chain(conn: Connection) -> tuple[bool, str]:
+def verify_audit_chain(conn: Any) -> tuple[bool, str]:
     rows = conn.execute(
         "SELECT event FROM enterprise.audit_events ORDER BY id ASC"
     ).fetchall()
@@ -130,7 +130,7 @@ def verify_audit_chain(conn: Connection) -> tuple[bool, str]:
 
 
 def list_audit_events(
-    conn: Connection,
+    conn: Any,
     *,
     tenant_id: str,
     run_id: str | None = None,
@@ -156,7 +156,7 @@ def list_audit_events(
     return [AuditEvent(**row[0]) for row in rows]
 
 
-def tamper_first_audit_event(conn: Connection) -> None:
+def tamper_first_audit_event(conn: Any) -> None:
     row = conn.execute(
         "SELECT id, event FROM enterprise.audit_events ORDER BY id ASC LIMIT 1"
     ).fetchone()

@@ -43,7 +43,7 @@ DEFAULT_ORG_POLICY: dict[str, ApprovalTier | str | bool | list[str]] = {
     "mcp_read": "CONFIRM",
     "mcp_write": "BLOCK",
     "retrieval_source_access": "AUTO",
-    "memory_fact_inject": "AUTO",
+    "memory_fact_inject": "GATE",
     "policy_config_change": "BLOCK",
     "production_access": "BLOCK",
     "allow_as_role_flag": False,

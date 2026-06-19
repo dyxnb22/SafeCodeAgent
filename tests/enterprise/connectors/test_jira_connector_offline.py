@@ -152,6 +152,19 @@ def test_live_write_without_approval_is_blocked(tmp_path: Path):
     assert record.tool_name == "jira_write"
 
 
+def test_legacy_approved_boolean_cannot_replace_jira_grant(tmp_path: Path):
+    record = post_issue_comment(
+        sac_root=tmp_path / ".sac",
+        run_id=_RUN_ID,
+        node_name="finalize",
+        spec=IssueCommentWriteSpec(mode="live", issue_key=_ISSUE_KEY, api_base_url=_BASE_URL),
+        body="Planning update",
+        approved=True,
+        actor_id="user:test",
+    )
+    assert record.outcome == "blocked"
+
+
 def test_fixture_write_persists_redacted_body(tmp_path: Path):
     sac_root = tmp_path / ".sac"
     out = tmp_path / "comment.md"

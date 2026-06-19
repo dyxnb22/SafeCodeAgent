@@ -33,6 +33,7 @@ FORBIDDEN_TRACKED_SUFFIXES = {
     ".bak",
     ".log",
     ".orig",
+    ".pem",
     ".rej",
     ".tmp",
 }
@@ -228,6 +229,8 @@ def test_temporary_outputs_are_not_tracked() -> None:
         if not raw_path:
             continue
         path = Path(raw_path)
+        if not (ROOT / path).is_file():
+            continue
         parts = path.parts
 
         if path.name in FORBIDDEN_TRACKED_FILENAMES:

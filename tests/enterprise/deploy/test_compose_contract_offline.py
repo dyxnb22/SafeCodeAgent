@@ -55,8 +55,12 @@ def test_deploy_scripts_exist_and_are_executable_bash() -> None:
         assert first_line.startswith("#!/usr/bin/env bash")
 
 
-def test_compose_documents_pgvector_optional_profile() -> None:
-    text = _COMPOSE.read_text(encoding="utf-8")
-    assert "postgres" in text
-    assert "healthcheck" in text
-    assert "pgvector" in text.lower() or "vector" in text.lower() or "v2.4" in text
+def test_compose_uses_pgvector_capable_postgres_image() -> None:
+    payload = yaml.safe_load(_COMPOSE.read_text(encoding="utf-8"))
+    image = payload["services"]["postgres"]["image"]
+    assert image == "pgvector/pgvector:pg16"
+
+
+def test_no_development_private_key_is_committed() -> None:
+    assert not (_ROOT / "examples" / "enterprise" / "dev" / "signing-key.pem").exists()
+    assert "compose/.enterprise-dev-oidc/" in (_ROOT / ".gitignore").read_text(encoding="utf-8")

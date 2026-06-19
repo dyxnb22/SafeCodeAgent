@@ -100,14 +100,15 @@ Compose file: `compose/postgres-integration.yaml` (loopback-bound, tmpfs data).
 - `compose.enterprise.yaml` — loopback-bound API, worker, and PostgreSQL
 - `scripts/run-enterprise-dev.sh` — creates `compose/enterprise.dev.env` from
   the example file and boots the stack
-- `examples/enterprise/dev/jwks.json` — public JWKS for the development issuer
+- `scripts/issue-dev-token.py --prepare` — generates an ephemeral key and JWKS
+  under gitignored `compose/.enterprise-dev-oidc/`
 - `scripts/issue-dev-token.py` — prints a disposable bearer token for server
   mode CLI/API calls
 
 ### Security posture
 
 - API and PostgreSQL bind to `127.0.0.1` only
-- Development credentials live in `compose/enterprise.dev.env` (gitignored)
+- Development credentials and signing keys are generated locally and gitignored
 - No Docker socket mounts; no committed production secrets
 - Server mode rejects CLI `--actor`; identity comes from validated bearer tokens
 

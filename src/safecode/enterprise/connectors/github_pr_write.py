@@ -378,8 +378,9 @@ def post_pr_comment(
         )
         return record
 
-    if spec.mode == "live" and not approved:
+    if spec.mode == "live":
         record.outcome = "blocked"
+        record.output_excerpt = "live write requires a bound single-use approval grant"
         record.ended_at = _utc_now()
         emit_standalone_trace(
             sac_root,
@@ -389,7 +390,11 @@ def post_pr_comment(
             node_id=node_name,
             actor_id=actor_id,
             policy_snapshot_id=policy_snapshot_id,
-            payload={"tool_name": "github_write", "mode": "live"},
+            payload={
+                "tool_name": "github_write",
+                "mode": "live",
+                "reason": "missing_bound_grant",
+            },
         )
         return record
 
@@ -414,17 +419,4 @@ def post_pr_comment(
         )
         return record
 
-    record.outcome = "ok"
-    record.output_excerpt = "live write recorded (offline default)"
-    record.ended_at = _utc_now()
-    emit_standalone_trace(
-        sac_root,
-        run_id=run_id,
-        tenant_id=tenant_id,
-        event_type=TraceEventType.tool_executed,
-        node_id=node_name,
-        actor_id=actor_id,
-        policy_snapshot_id=policy_snapshot_id,
-        payload={"tool_name": "github_write", "mode": "live", "actor": actor_id},
-    )
-    return record
+    raise ValueError(f"unsupported PR comment write mode: {spec.mode}")

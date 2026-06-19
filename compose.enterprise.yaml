@@ -3,14 +3,11 @@
 # Loopback-bound API, disposable PostgreSQL, and a worker process.
 # Development credentials only — not a production deployment contract.
 #
-# PostgreSQL uses the stock image here; for pgvector retrieval (v2.4+),
-# swap to a pgvector-enabled image in on-prem profiles — the API and worker
-# contracts are unchanged.
+# PostgreSQL includes pgvector because migrations require the vector extension.
 
 services:
   postgres:
-    image: postgres:16-alpine
-    # Optional v2.4+ profile: ankane/pgvector or pgvector/pgvector:pg16
+    image: pgvector/pgvector:pg16
     env_file:
       - compose/enterprise.dev.env
     ports:
@@ -48,6 +45,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 12
+      start_period: 180s
 
   worker:
     image: python:3.12-slim
@@ -74,7 +72,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 6
-      start_period: 30s
+      start_period: 180s
 
   console:
     image: node:22-alpine

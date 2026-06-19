@@ -17,8 +17,11 @@ class MemoryFact(BaseModel):
     content: str
     provenance: str
     approver: str
+    approval_request_id: str
+    approval_grant_id: str
+    policy_snapshot_id: str
     admitted_at: str
-    expires_at: str | None = None
+    expires_at: str
     revoked_at: str | None = None
     status: MemoryFactStatus = "active"
     permission_scope: list[str] = Field(default_factory=lambda: ["org", "appsec"])

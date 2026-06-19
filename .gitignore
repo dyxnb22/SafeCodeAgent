@@ -18,6 +18,7 @@ pytest-report*.xml
 # SafeCode Agent runtime state for the current working project.
 .sac/
 compose/enterprise.dev.env
+compose/.enterprise-dev-oidc/
 console/node_modules/
 console/.next/
 console/tsconfig.tsbuildinfo

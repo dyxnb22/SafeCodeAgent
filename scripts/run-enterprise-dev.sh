@@ -16,6 +16,8 @@ if [[ ! -f "${ENV_FILE}" ]]; then
   echo "created ${ENV_FILE} from example; edit credentials locally if needed" >&2
 fi
 
+uv run --extra team-server python scripts/issue-dev-token.py --prepare >/dev/null
+
 cd "${ROOT}"
 docker compose -f "${COMPOSE_FILE}" config >/dev/null
 docker compose -f "${COMPOSE_FILE}" up -d --wait

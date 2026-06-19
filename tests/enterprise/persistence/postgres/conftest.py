@@ -7,13 +7,10 @@ from pathlib import Path
 
 import pytest
 
-pytest.importorskip("psycopg")
-pytest.importorskip("psycopg_pool")
-
-from psycopg import connect
-
-from safecode.enterprise.persistence.postgres.backend import PostgresBackend
-from safecode.enterprise.persistence.postgres.migrate import reset_schema_for_tests
+try:
+    from psycopg import connect
+except ImportError:  # pragma: no cover - exercised in the minimal dependency lane
+    connect = None
 
 
 DEFAULT_INTEGRATION_DSN = (
@@ -30,6 +27,8 @@ def integration_dsn() -> str | None:
 
 @pytest.fixture(scope="session")
 def postgres_dsn() -> str:
+    if connect is None:
+        pytest.skip("psycopg optional dependency is not installed")
     dsn = integration_dsn()
     if not dsn:
         pytest.skip("postgres integration DSN not configured")
@@ -43,6 +42,10 @@ def postgres_dsn() -> str:
 
 @pytest.fixture
 def postgres_backend(postgres_dsn: str, tmp_path: Path):
+    from safecode.enterprise.persistence.postgres.backend import PostgresBackend
+    from safecode.enterprise.persistence.postgres.migrate import reset_schema_for_tests
+
+    assert connect is not None
     with connect(postgres_dsn) as conn:
         reset_schema_for_tests(conn)
     backend = PostgresBackend.connect(postgres_dsn, tmp_path / ".sac")

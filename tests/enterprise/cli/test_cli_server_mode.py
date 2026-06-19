@@ -58,7 +58,7 @@ def test_server_mode_missing_token_fails(tmp_path: Path, monkeypatch) -> None:
         env={},
     )
     assert result.exit_code == 1
-    assert "token" in result.stderr.lower() or "token" in result.stdout.lower()
+    assert "token" in result.output.lower()
 
 
 def test_server_mode_rejects_actor_flag(tmp_path: Path, monkeypatch) -> None:
@@ -85,7 +85,7 @@ def test_server_mode_rejects_actor_flag(tmp_path: Path, monkeypatch) -> None:
         ],
     )
     assert result.exit_code == 1
-    assert "server mode rejects --actor" in result.stderr or "server mode rejects --actor" in result.stdout
+    assert "server mode rejects --actor" in result.output
 
 
 def test_local_and_server_mode_parity_for_fixture_run(tmp_path: Path, monkeypatch) -> None:

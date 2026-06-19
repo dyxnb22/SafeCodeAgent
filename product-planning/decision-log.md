@@ -794,7 +794,8 @@ file to list the superseding entry. Do not edit history.
 - **Status:** Accepted for v2.1.
 - **Decision:** Add one `team-server` optional extra containing FastAPI,
   Uvicorn, pydantic-settings, psycopg 3 with pooling, HTTPX for bounded OIDC/JWKS
-  retrieval, and PyJWT with cryptographic verification support. Base and
+  retrieval, PyYAML for the OpenAPI contract loader, psycopg's binary runtime
+  for slim containers, and PyJWT with cryptographic verification support. Base and
   `enterprise` extras remain unchanged. Team Server modules lazy-import these
   packages and perform no connection, discovery, or service startup at import
   time.
@@ -850,6 +851,40 @@ file to list the superseding entry. Do not edit history.
 - **Revisit trigger:** CI cannot run Docker/Compose, or the on-prem v2.5 profile
   requires a production orchestrator. Any replacement must preserve the real
   PostgreSQL acceptance lane.
+
+---
+
+## D32 - GA security remediation may fail closed on unsafe legacy inputs
+
+- **Date:** 2026-06-19.
+- **Status:** Accepted for the v3.0 candidate remediation.
+- **Decision:** Tenant identifiers use one path-safe ASCII contract across OIDC,
+  API, persistence, worker, and memory. Live connector writes recognize only a
+  target- and policy-bound single-use grant. Long-term memory admission requires
+  the same grant plus explicit expiry; legacy database facts without those
+  bindings migrate to `revoked`. Run command endpoints require at least the
+  developer role. These security corrections may reject inputs that the
+  pre-remediation candidate accepted.
+- **Rationale:** Preserving acceptance of path traversal, caller-asserted
+  approval, unauthorised run mutation, or unbound persistent memory would
+  preserve vulnerabilities rather than compatibility. The v2.0 RC data
+  contracts remain additive and snapshot-tested; only unsafe behavior changes.
+- **Alternatives considered:**
+  - Keep permissive inputs with warnings. Rejected because execution and
+    persistence boundaries must fail closed.
+  - Trust all legacy memory rows. Rejected because their approval provenance
+    cannot be reconstructed.
+  - Rewrite old migrations. Rejected because forward-only deployed databases
+    require a new compensating migration.
+- **Consequences:**
+  - Migration `008_memory_governance_binding.sql` records legacy provenance as
+    unverified and revokes facts that lacked expiry.
+  - Development OIDC keys are generated locally and never committed.
+  - The pre-remediation `enterprise-v3.0.0` tag remains historical candidate
+    evidence and is not an approved GA tag.
+- **Revisit trigger:** a customer migration identifies a valid tenant namespace
+  that cannot be represented by the canonical identifier; add an explicit,
+  tested mapping layer rather than relaxing path safety.
 
 ---
 

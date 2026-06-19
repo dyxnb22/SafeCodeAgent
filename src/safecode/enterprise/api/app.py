@@ -94,29 +94,6 @@ def create_app(
             allow_headers=["Authorization", "Content-Type", "X-Tenant-Id", "Idempotency-Key"],
         )
 
-    @app.middleware("http")
-    async def enforce_v2_rate_limits(request, call_next):
-        if request.url.path.startswith("/v2"):
-            tenant = (
-                request.headers.get("X-Tenant-Id")
-                or request.query_params.get("tenant_id")
-                or "local"
-            )
-            try:
-                rate_limiter.check_request(tenant)
-            except RateLimitExceeded as exc:
-                return JSONResponse(
-                    status_code=429,
-                    content={
-                        "type": "about:blank",
-                        "title": "Too Many Requests",
-                        "status": 429,
-                        "detail": exc.detail,
-                    },
-                    media_type="application/problem+json",
-                )
-        return await call_next(request)
-
     @app.get("/healthz")
     def healthz() -> dict[str, str]:
         return {"status": "ok"}

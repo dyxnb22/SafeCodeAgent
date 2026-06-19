@@ -1,6 +1,5 @@
-# Development-only OIDC material for the v2.1 Compose profile.
+# Development-only OIDC material
 
-- `jwks.json` is the public JWKS document mounted by the API.
-- `signing-key.pem` is a disposable development private key used only by
-  `scripts/issue-dev-token.py`.
-- Do not reuse these credentials outside local development.
+`scripts/issue-dev-token.py --prepare` generates an ephemeral key pair under
+the gitignored `compose/.enterprise-dev-oidc/` directory. No private key is
+committed. Delete that directory to rotate the local development identity.

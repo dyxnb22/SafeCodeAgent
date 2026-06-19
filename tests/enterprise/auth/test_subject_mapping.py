@@ -46,3 +46,9 @@ def test_missing_role_claim_defaults_to_viewer() -> None:
 def test_missing_tenant_claim_fails_closed() -> None:
     with pytest.raises(SubjectMappingError, match="tenant_id"):
         map_claims_to_subject(_claims(tenant_id=None))
+
+
+@pytest.mark.parametrize("tenant_id", ["../tenant-b", "tenant/a", "tenant:b"])
+def test_path_or_namespace_tenant_claim_fails_closed(tenant_id: str) -> None:
+    with pytest.raises(SubjectMappingError, match="tenant_id claim is invalid"):
+        map_claims_to_subject(_claims(tenant_id=tenant_id))

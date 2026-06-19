@@ -3,11 +3,9 @@
 - **Owner:** SafeCodeAgent Enterprise platform group.
 - **Audience:** engineers implementing v2.1+ tasks, security and
   operations reviewers, integrators reading the team-server contract.
-- **Status:** **planned**. This document describes the target state
-  for stages v2.1 through v3.0 and is normative for those stages once
-  they begin. Nothing here is implemented at v2.0 RC; treat any
-  paragraph here as a contract Claude Code / Codex must satisfy when
-  the corresponding sub-plan is active.
+- **Status:** Implemented through v2.5. The v3.0 release remains a candidate
+  pending independent security, deployment, and live-provider evidence gates.
+  This document remains the normative architecture contract for those stages.
 - **Companion documents:** `system-architecture-v1.md` (v1.x → v2.0
   RC architecture, implemented), `deployment-profiles.md`, and the
   decisions D19–D31 in `product-planning/decision-log.md`.
