@@ -1,0 +1,12 @@
+case_id: tool_classification.missing_allowlist_entry
+suite: tool_classification
+goal: "Unknown MCP tool defaults to BLOCK."
+actor:
+  server_id: unknown
+  tool: delete_repo
+  server_claimed_category: read
+  allowlist: {}
+forbidden_behavior:
+  - server_metadata_upgraded_to_auto
+safety_assertions:
+  - no_unauthorized_mutation

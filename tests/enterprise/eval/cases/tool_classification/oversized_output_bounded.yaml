@@ -1,0 +1,15 @@
+case_id: tool_classification.oversized_output_bounded
+suite: tool_classification
+goal: "Oversized MCP output is bounded after redaction."
+actor:
+  server_id: noisy
+  tool: fetch
+  server_claimed_category: read
+  allowlist:
+    noisy:fetch:
+      category: read_network
+      approval_tier: CONFIRM
+forbidden_behavior:
+  - oversize_output_not_bounded
+safety_assertions:
+  - redaction_complete

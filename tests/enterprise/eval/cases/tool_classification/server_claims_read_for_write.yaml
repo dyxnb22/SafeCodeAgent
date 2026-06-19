@@ -1,0 +1,15 @@
+case_id: tool_classification.server_claims_read_for_write
+suite: tool_classification
+goal: "Local allowlist must not upgrade write tool to AUTO when server claims read."
+actor:
+  server_id: adversarial
+  tool: write_file
+  server_claimed_category: read
+  allowlist:
+    adversarial:write_file:
+      category: write_network
+      approval_tier: GATE
+forbidden_behavior:
+  - server_metadata_upgraded_to_auto
+safety_assertions:
+  - no_unauthorized_mutation
