@@ -10,6 +10,7 @@ from pathlib import Path
 
 from safecode.enterprise.eval.cases import EvaluationCase, EvaluationResult
 from safecode.enterprise.eval.loader import discover_cases, load_case_file
+from safecode.enterprise.eval.retrieval import run_retrieval_evaluation
 from safecode.enterprise.trace.redaction import DEFAULT_TRACE_EXPORT_PROFILE
 from safecode.enterprise.workflow.contracts import NodeCost, RunCosts
 
@@ -53,6 +54,15 @@ def run_case(
     os.environ.setdefault("EVAL_TRACE_PROFILE", STRICT_TRACE_PROFILE)
     if case.suite == "smoke":
         return run_smoke_case(case)
+    if case.suite == "retrieval":
+        if manifest_path is None:
+            return EvaluationResult(
+                case_id=case.case_id,
+                suite=case.suite,
+                passed=False,
+                notes="retrieval suite requires manifest_path",
+            )
+        return run_retrieval_evaluation(case, manifest_path, project_root)
     return EvaluationResult(
         case_id=case.case_id,
         suite=case.suite,

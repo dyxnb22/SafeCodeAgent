@@ -3,57 +3,14 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-import yaml
-
+from safecode.enterprise.eval.cases import EvaluationCase, EvaluationResult
 from safecode.enterprise.rag.index_builder import build_chunks_from_manifest
 from safecode.enterprise.rag.retriever import HybridRetriever, RetrievalFilters
 from safecode.enterprise.rag.source_registry import SourceType
-
-
-@dataclass(frozen=True)
-class RetrievalEvalCase:
-    case_id: str
-    query: str
-    actor_scope: list[str]
-    actor_tenant: str
-    expected_source_ids: list[str]
-    forbidden_source_ids: list[str]
-    k: int
-    metrics: dict[str, float]
-
-
-@dataclass(frozen=True)
-class RetrievalEvalResult:
-    case_id: str
-    recall_at_k: float
-    mrr: float
-    grounding: float
-    retrieved_source_ids: list[str]
-    forbidden_hits: list[str]
-
-
-def load_eval_case(path: Path) -> RetrievalEvalCase:
-    raw = yaml.safe_load(path.read_text(encoding="utf-8"))
-    if not isinstance(raw, dict):
-        raise ValueError(f"invalid eval case: {path}")
-    filters = raw.get("filters") or {}
-    source_types = filters.get("source_types")
-    _ = source_types
-    metrics = raw.get("metrics") or {}
-    return RetrievalEvalCase(
-        case_id=str(raw["case_id"]),
-        query=str(raw["query"]),
-        actor_scope=[str(item) for item in raw.get("actor_scope", [])],
-        actor_tenant=str(raw.get("actor_tenant", "local")),
-        expected_source_ids=[str(item) for item in raw.get("expected_source_ids", [])],
-        forbidden_source_ids=[str(item) for item in raw.get("forbidden_source_ids", [])],
-        k=int(raw.get("k", 5)),
-        metrics={str(key): float(value) for key, value in metrics.items()},
-    )
+from safecode.enterprise.workflow.contracts import NodeCost, RunCosts
 
 
 def _build_filters(raw_filters: dict[str, Any] | None) -> RetrievalFilters | None:
@@ -71,16 +28,21 @@ def _build_filters(raw_filters: dict[str, Any] | None) -> RetrievalFilters | Non
     )
 
 
-def run_case(
-    case_path: Path,
+def run_retrieval_evaluation(
+    case: EvaluationCase,
     manifest_path: Path,
     project_root: Path,
-) -> RetrievalEvalResult:
-    raw = yaml.safe_load(case_path.read_text(encoding="utf-8"))
-    case = load_eval_case(case_path)
+) -> EvaluationResult:
+    if case.query is None:
+        return EvaluationResult(
+            case_id=case.case_id,
+            suite=case.suite,
+            passed=False,
+            notes="retrieval case missing query",
+        )
     chunks = build_chunks_from_manifest(manifest_path, project_root)
     retriever = HybridRetriever(chunks=chunks)
-    filters = _build_filters(raw.get("filters") if isinstance(raw, dict) else None)
+    filters = _build_filters(case.filters or None)
     citations = retriever.retrieve(
         case.query,
         case.k,
@@ -100,26 +62,36 @@ def run_case(
             break
     forbidden_hits = [source_id for source_id in top_k if source_id in forbidden]
     grounding = 1.0 - (len(forbidden_hits) / max(len(top_k), 1))
-    return RetrievalEvalResult(
+    metrics = {
+        "recall_at_k": recall,
+        "mrr": mrr,
+        "grounding": grounding,
+    }
+    passed = not forbidden_hits
+    if case.metrics:
+        for metric_name, floor in case.metrics.items():
+            if metrics.get(metric_name, 0.0) + 1e-9 < float(floor):
+                passed = False
+    costs = RunCosts(
+        total=NodeCost(latency_ms=1, provider="mock", request_count=1),
+    )
+    notes = ""
+    if forbidden_hits:
+        notes = f"forbidden hits: {forbidden_hits}"
+    return EvaluationResult(
         case_id=case.case_id,
-        recall_at_k=recall,
-        mrr=mrr,
-        grounding=grounding,
-        retrieved_source_ids=retrieved,
-        forbidden_hits=forbidden_hits,
+        suite=case.suite,
+        passed=passed,
+        expected_evidence_recall=recall,
+        forbidden_behavior_triggered=[f"forbidden_source:{item}" for item in forbidden_hits],
+        cost_used=costs,
+        notes=notes,
+        metrics=metrics,
     )
 
 
-def run_suite(
-    case_paths: list[Path],
-    manifest_path: Path,
-    project_root: Path,
-) -> list[RetrievalEvalResult]:
-    return [run_case(path, manifest_path, project_root) for path in case_paths]
-
-
 def compare_with_baseline(
-    results: list[RetrievalEvalResult],
+    results: list[EvaluationResult],
     baseline_path: Path,
     *,
     tolerance: float = 0.02,
@@ -132,17 +104,16 @@ def compare_with_baseline(
         if expected is None:
             failures.append(f"missing baseline entry for {result.case_id}")
             continue
-        for metric_name, actual in {
-            "recall_at_k": result.recall_at_k,
-            "mrr": result.mrr,
-            "grounding": result.grounding,
-        }.items():
+        for metric_name in ("recall_at_k", "mrr", "grounding"):
+            actual = float(result.metrics.get(metric_name, 0.0))
             floor = float(expected.get(metric_name, 0.0)) - tolerance
             if actual + 1e-9 < floor:
                 failures.append(
                     f"{result.case_id}.{metric_name} dropped below baseline "
                     f"({actual:.3f} < {floor:.3f})"
                 )
-        if result.forbidden_hits:
-            failures.append(f"{result.case_id} leaked forbidden sources: {result.forbidden_hits}")
+        if result.forbidden_behavior_triggered:
+            failures.append(
+                f"{result.case_id} leaked forbidden sources: {result.forbidden_behavior_triggered}"
+            )
     return failures
