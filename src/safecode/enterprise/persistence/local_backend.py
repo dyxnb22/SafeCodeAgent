@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -41,9 +42,12 @@ from safecode.enterprise.workflow.checkpoint import (
     RunCheckpoint,
     gc_runs,
     load_checkpoint,
+    run_dir,
     save_checkpoint,
 )
+from safecode.enterprise.workflow.exceptions import CheckpointCorruptedError
 from safecode.enterprise.workflow.contracts import NodeCost
+from safecode.enterprise.workflow.ids import validate_run_id
 
 
 class LocalRunStore:
@@ -62,6 +66,22 @@ class LocalRunStore:
         checkpoint = load_checkpoint(self.sac_root, run_id)
         assert_tenant_match(tenant, checkpoint.state.tenant_id, operation="load_checkpoint")
         return checkpoint
+
+    def resolve_run_tenant(self, *, run_id: str) -> str:
+        validate_run_id(run_id)
+        checkpoint = load_checkpoint(self.sac_root, run_id)
+        return validate_tenant_id(checkpoint.state.tenant_id)
+
+    def purge_run(self, *, tenant_id: str, run_id: str) -> None:
+        tenant = validate_tenant_id(tenant_id)
+        validate_run_id(run_id)
+        directory = run_dir(self.sac_root, run_id)
+        if not directory.is_dir():
+            return
+        if directory.is_dir() and (directory / "state.json").is_file():
+            checkpoint = load_checkpoint(self.sac_root, run_id)
+            assert_tenant_match(tenant, checkpoint.state.tenant_id, operation="purge_run")
+        shutil.rmtree(directory)
 
     def gc_runs(self, *, tenant_id: str, older_than_days: int) -> list[str]:
         validate_tenant_id(tenant_id)
@@ -262,6 +282,15 @@ class LocalAuditStore:
             run_id=run_id,
         )
 
+    def tamper_first_event_for_test(self) -> None:
+        if not self._chain.log_file.is_file():
+            raise RuntimeError("no audit events to tamper")
+        lines = self._chain.log_file.read_text(encoding="utf-8").splitlines()
+        payload = json.loads(lines[0])
+        payload["message"] = "tampered"
+        lines[0] = json.dumps(payload, ensure_ascii=False, sort_keys=True)
+        self._chain.log_file.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
 
 class LocalEvidenceStore:
     """Local filesystem evidence bundle store."""
@@ -381,3 +410,14 @@ class LocalBackend:
     @property
     def trace(self) -> LocalTraceStore:
         return LocalTraceStore(self.sac_root)
+
+    def probe(self) -> bool:
+        """Return whether the local backend storage is usable."""
+        try:
+            target = self.sac_root / "enterprise"
+            target.mkdir(parents=True, exist_ok=True)
+            probe_file = target / ".probe"
+            probe_file.write_text("ok", encoding="utf-8")
+            return probe_file.is_file()
+        except OSError:
+            return False

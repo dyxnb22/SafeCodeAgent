@@ -1,0 +1,19 @@
+# Disposable PostgreSQL for Enterprise persistence integration tests (D31).
+# Not the full v2.1.7 Team Server profile; PostgreSQL only.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: safecode
+      POSTGRES_PASSWORD: safecode_test
+      POSTGRES_DB: safecode_enterprise_test
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U safecode -d safecode_enterprise_test"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+    tmpfs:
+      - /var/lib/postgresql/data

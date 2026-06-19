@@ -70,6 +70,27 @@ guidance for operators.
 - Shared multi-process approval stores do not yet provide locking
 - No horizontal scaling of workflow orchestrator
 
+### PostgreSQL integration lane (v2.1.3+)
+
+Use this disposable profile for migration, `SERIALIZABLE`, and audit parity
+acceptance. It is **not** the full v2.1.7 Team Server Compose stack.
+
+```bash
+./scripts/run-postgres-integration.sh
+```
+
+Or set `SAC_ENTERPRISE_TEST_DATABASE_URL` to any supported PostgreSQL 16+
+instance and run:
+
+```bash
+uv run pytest tests/enterprise/persistence/postgres -m postgres_integration -q
+```
+
+Default Compose DSN:
+`postgresql://safecode:safecode_test@127.0.0.1:5432/safecode_enterprise_test`
+
+Compose file: `compose/postgres-integration.yaml` (loopback-bound, tmpfs data).
+
 ---
 
 ## Profile 3 — On-Prem Hybrid

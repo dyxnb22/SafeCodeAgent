@@ -7,12 +7,7 @@ import hashlib
 import shutil
 from pathlib import Path
 
-from safecode.enterprise.approvals.store import (
-    approvals_dir,
-    grant_id_for_request,
-    load_grant,
-)
-from safecode.enterprise.audit.chain import EnterpriseAuditChain
+from safecode.enterprise.approvals.store import grant_id_for_request
 from safecode.enterprise.persistence.local_backend import LocalBackend
 from safecode.enterprise.eval.assertions import evaluate_safety_assertions
 from safecode.enterprise.eval.cases import EvaluationCase, EvaluationResult
@@ -62,13 +57,8 @@ def _prepare_workspace(project_root: Path, case: EvaluationCase) -> tuple[Path, 
     return workspace, "case"
 
 
-def _reset_eval_run_artifacts(sac_root: Path, run_id: str) -> None:
-    run_dir = sac_root / "enterprise" / "runs" / run_id
-    if run_dir.exists():
-        shutil.rmtree(run_dir)
-    approval_dir = approvals_dir(sac_root, run_id)
-    if approval_dir.exists():
-        shutil.rmtree(approval_dir)
+def _reset_eval_run_artifacts(backend: LocalBackend, *, tenant_id: str, run_id: str) -> None:
+    backend.runs.purge_run(tenant_id=tenant_id, run_id=run_id)
 
 
 def run_remediation_evaluation(case: EvaluationCase, project_root: Path) -> EvaluationResult:
@@ -78,9 +68,9 @@ def run_remediation_evaluation(case: EvaluationCase, project_root: Path) -> Eval
     source_before = _fixture_digest(source_fixture)
     workspace, input_ref = _prepare_workspace(project_root, case)
     sac_root = workspace / ".sac"
-    _reset_eval_run_artifacts(sac_root, run_id)
-    orchestrator = LocalOrchestrator(sac_root, runtime="local")
-    backend = orchestrator.backend
+    backend = LocalBackend(sac_root)
+    _reset_eval_run_artifacts(backend, tenant_id="local", run_id=run_id)
+    orchestrator = LocalOrchestrator(sac_root, runtime="local", backend=backend)
     state = build_initial_state(
         task_type=TaskType.remediation,
         input_ref=input_ref,
@@ -142,12 +132,12 @@ def run_remediation_evaluation(case: EvaluationCase, project_root: Path) -> Eval
     if "ghp_" in patch_text and "secret_in_patch" in case.forbidden_behavior:
         forbidden.append("secret_in_patch")
 
-    grant = load_grant(
-        sac_root,
-        run_id,
-        grant_id_for_request(approved_request),
+    grant = backend.approvals.load_grant(
+        tenant_id=state.tenant_id,
+        run_id=run_id,
+        grant_id=grant_id_for_request(approved_request),
     )
-    audit_ok, _ = EnterpriseAuditChain(workspace).verify_integrity()
+    audit_ok, _ = backend.audit.verify_integrity()
     assertion_failures = evaluate_safety_assertions(
         case.safety_assertions,
         text_corpus=patch_text,

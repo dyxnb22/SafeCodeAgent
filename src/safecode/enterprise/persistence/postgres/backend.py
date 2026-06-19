@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import json
+import shutil
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
 from psycopg import IsolationLevel
+from psycopg.errors import SerializationFailure
 from psycopg_pool import ConnectionPool
 
 from safecode.audit.models import AuditEvent
@@ -40,6 +42,7 @@ from safecode.enterprise.trace.timeline import write_timeline
 from safecode.enterprise.workflow.checkpoint import (
     RunCheckpoint,
     gc_runs as gc_runs_files,
+    load_checkpoint as load_checkpoint_file,
     save_checkpoint as save_checkpoint_file,
 )
 from safecode.enterprise.workflow.contracts import NodeCost
@@ -104,6 +107,17 @@ class PostgresRunStore:
                 (tenant, run_id),
             ).fetchone()
         if row is None:
+            with self._uow.connection() as conn:
+                other = conn.execute(
+                    """
+                    SELECT tenant_id FROM enterprise.checkpoints
+                    WHERE run_id = %s
+                    LIMIT 2
+                    """,
+                    (run_id,),
+                ).fetchall()
+            if other:
+                assert_tenant_match(tenant, str(other[0][0]), operation="load_checkpoint")
             raise CheckpointCorruptedError(f"missing checkpoint for run {run_id!r}")
         from safecode.enterprise.workflow.state import EnterpriseRunState
 
@@ -118,6 +132,46 @@ class PostgresRunStore:
         )
         assert_tenant_match(tenant, checkpoint.state.tenant_id, operation="load_checkpoint")
         return checkpoint
+
+    def resolve_run_tenant(self, *, run_id: str) -> str:
+        validate_run_id(run_id)
+        with self._uow.connection() as conn:
+            rows = conn.execute(
+                """
+                SELECT DISTINCT tenant_id FROM enterprise.checkpoints
+                WHERE run_id = %s
+                """,
+                (run_id,),
+            ).fetchall()
+        if len(rows) != 1:
+            raise CheckpointCorruptedError(
+                f"cannot resolve unique tenant for run {run_id!r}; found {len(rows)}"
+            )
+        return validate_tenant_id(str(rows[0][0]))
+
+    def purge_run(self, *, tenant_id: str, run_id: str) -> None:
+        tenant = validate_tenant_id(tenant_id)
+        validate_run_id(run_id)
+        directory = self._artifacts_root / "enterprise" / "runs" / run_id
+        if directory.is_dir() and (directory / "state.json").is_file():
+            checkpoint = load_checkpoint_file(self._artifacts_root, run_id)
+            assert_tenant_match(tenant, checkpoint.state.tenant_id, operation="purge_run")
+        with self._uow.connection() as conn:
+            for table in (
+                "trace_events",
+                "eval_results",
+                "evidence_index",
+                "grants",
+                "approval_requests",
+                "checkpoints",
+            ):
+                conn.execute(
+                    f"DELETE FROM enterprise.{table} WHERE tenant_id = %s AND run_id = %s",
+                    (tenant, run_id),
+                )
+            conn.commit()
+        if directory.is_dir():
+            shutil.rmtree(directory)
 
     def gc_runs(self, *, tenant_id: str, older_than_days: int) -> list[str]:
         tenant = validate_tenant_id(tenant_id)
@@ -416,41 +470,46 @@ class PostgresApprovalStore:
     def consume_grant(self, *, tenant_id: str, run_id: str, grant_id: str) -> Grant:
         tenant = validate_tenant_id(tenant_id)
         validate_grant_id(grant_id)
-        with self._uow.transaction(isolation_level=IsolationLevel.SERIALIZABLE) as conn:
-            row = conn.execute(
-                """
-                SELECT payload, consumed_at, revoked_at
-                FROM enterprise.grants
-                WHERE tenant_id = %s AND run_id = %s AND grant_id = %s
-                FOR UPDATE
-                """,
-                (tenant, run_id, grant_id),
-            ).fetchone()
-            if row is None:
-                raise ApprovalRequestNotFoundError(f"grant not found: {grant_id}")
-            grant = Grant.model_validate(row[0])
-            consumed_at, revoked_at = row[1], row[2]
-            if revoked_at is not None or grant.revoked_at is not None:
-                raise GrantAlreadyConsumedError(f"grant revoked: {grant_id}")
-            if consumed_at is not None or grant.consumed_at is not None:
-                raise GrantAlreadyConsumedError(f"grant already consumed: {grant_id}")
-            updated = grant.model_copy(update={"consumed_at": _utc_now()})
-            updated = updated.model_copy(update={"grant_hash": grant_hash(updated)})
-            conn.execute(
-                """
-                UPDATE enterprise.grants
-                SET payload = %s::jsonb, consumed_at = NOW()
-                WHERE tenant_id = %s AND run_id = %s AND grant_id = %s
-                """,
-                (
-                    updated.model_dump_json(),
-                    tenant,
-                    run_id,
-                    grant_id,
-                ),
-            )
-        assert_tenant_match(tenant, updated.tenant_id, operation="consume_grant")
-        return updated
+        for _attempt in range(8):
+            try:
+                with self._uow.transaction(isolation_level=IsolationLevel.SERIALIZABLE) as conn:
+                    row = conn.execute(
+                        """
+                        SELECT payload, consumed_at, revoked_at
+                        FROM enterprise.grants
+                        WHERE tenant_id = %s AND run_id = %s AND grant_id = %s
+                        FOR UPDATE
+                        """,
+                        (tenant, run_id, grant_id),
+                    ).fetchone()
+                    if row is None:
+                        raise ApprovalRequestNotFoundError(f"grant not found: {grant_id}")
+                    grant = Grant.model_validate(row[0])
+                    consumed_at, revoked_at = row[1], row[2]
+                    if revoked_at is not None or grant.revoked_at is not None:
+                        raise GrantAlreadyConsumedError(f"grant revoked: {grant_id}")
+                    if consumed_at is not None or grant.consumed_at is not None:
+                        raise GrantAlreadyConsumedError(f"grant already consumed: {grant_id}")
+                    updated = grant.model_copy(update={"consumed_at": _utc_now()})
+                    updated = updated.model_copy(update={"grant_hash": grant_hash(updated)})
+                    conn.execute(
+                        """
+                        UPDATE enterprise.grants
+                        SET payload = %s::jsonb, consumed_at = NOW()
+                        WHERE tenant_id = %s AND run_id = %s AND grant_id = %s
+                        """,
+                        (
+                            updated.model_dump_json(),
+                            tenant,
+                            run_id,
+                            grant_id,
+                        ),
+                    )
+            except SerializationFailure:
+                continue
+            assert_tenant_match(tenant, updated.tenant_id, operation="consume_grant")
+            return updated
+        raise GrantAlreadyConsumedError(f"grant already consumed: {grant_id}")
 
     def validate_approved_request(
         self,

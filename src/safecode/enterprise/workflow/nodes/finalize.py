@@ -6,7 +6,6 @@ from pathlib import Path
 
 from safecode.context.redactor import redact_secrets
 from safecode.enterprise.approvals.binding import workflow_approval_binding
-from safecode.enterprise.approvals.store import consume_approved_request
 from safecode.enterprise.connectors.github_pr_write import PRCommentWriteSpec, post_pr_comment
 from safecode.enterprise.workflow.contracts import NodePatch
 from safecode.enterprise.workflow.nodes._helpers import build_patch
@@ -31,12 +30,14 @@ async def run(state: EnterpriseRunState) -> NodePatch:
     sac_root = project_root / ".sac"
 
     def consume_required_approval() -> str:
+        from safecode.enterprise.persistence.local_backend import LocalBackend
+
         action, target = workflow_approval_binding(state)
-        grant = consume_approved_request(
-            sac_root,
-            state.run_id,
-            f"approval-{state.run_id}",
+        backend = LocalBackend(sac_root)
+        grant = backend.approvals.consume_approved_request(
             tenant_id=state.tenant_id,
+            run_id=state.run_id,
+            request_id=f"approval-{state.run_id}",
             action=action,
             policy_snapshot_id=state.policy_snapshot_id,
             target=target,

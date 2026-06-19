@@ -10,14 +10,20 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from backend_contract import CONTRACT_EXERCISES, make_bundle
 from safecode.enterprise.persistence.local_backend import LocalBackend
+from safecode.enterprise.persistence.strict_fake import StrictFakeBackend
 
 
 def _local_factory(sac_root: Path) -> LocalBackend:
     return LocalBackend(sac_root)
 
 
+def _strict_fake_factory(sac_root: Path) -> StrictFakeBackend:
+    return StrictFakeBackend(sac_root)
+
+
 BACKEND_FACTORIES = {
     "local": _local_factory,
+    "strict_fake": _strict_fake_factory,
 }
 
 

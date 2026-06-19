@@ -18,6 +18,9 @@ from safecode.enterprise.persistence.protocols import (
     validate_tenant_id,
 )
 
+from safecode.enterprise.persistence.local_backend import LocalBackend
+from safecode.enterprise.persistence.strict_fake import StrictFakeBackend
+
 __all__ = [
     "ApprovalDecision",
     "ApprovalStore",
@@ -25,6 +28,7 @@ __all__ = [
     "EvalResultStore",
     "EvidenceStore",
     "LocalBackend",
+    "StrictFakeBackend",
     "MissingTenantIdError",
     "PersistenceError",
     "RunStore",

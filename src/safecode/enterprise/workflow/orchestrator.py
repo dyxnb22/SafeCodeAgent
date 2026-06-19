@@ -14,7 +14,6 @@ from safecode.enterprise.trace.session import TraceSession
 from safecode.enterprise.workflow.checkpoint import (
     CHECKPOINT_SCHEMA_VERSION,
     RunCheckpoint,
-    load_checkpoint as legacy_load_checkpoint,
 )
 from safecode.enterprise.workflow.exceptions import (
     InvalidWorkflowRuntimeError,
@@ -109,9 +108,7 @@ class LocalOrchestrator:
         return await self._run_local(state, completed_nodes=[])
 
     async def resume(self, run_id: str, *, tenant_id: str | None = None) -> EnterpriseRunState:
-        resolved_tenant = tenant_id
-        if resolved_tenant is None:
-            resolved_tenant = legacy_load_checkpoint(self.sac_root, run_id).state.tenant_id
+        resolved_tenant = tenant_id or self.backend.runs.resolve_run_tenant(run_id=run_id)
         checkpoint = self.backend.runs.load_checkpoint(
             tenant_id=resolved_tenant, run_id=run_id
         )

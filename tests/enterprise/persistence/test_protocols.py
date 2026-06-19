@@ -71,6 +71,13 @@ def test_protocols_are_subclassable() -> None:
             validate_tenant_id(tenant_id)
             raise NotImplementedError
 
+        def resolve_run_tenant(self, *, run_id: str) -> str:
+            validate_tenant_id("local")
+            return "local"
+
+        def purge_run(self, *, tenant_id: str, run_id: str) -> None:
+            validate_tenant_id(tenant_id)
+
         def gc_runs(self, *, tenant_id: str, older_than_days: int) -> list[str]:
             validate_tenant_id(tenant_id)
             return []
@@ -112,7 +119,13 @@ def test_all_v2_write_paths_have_protocol_methods() -> None:
     eval_methods = {name for name in EvalResultStore.__dict__ if not name.startswith("_")}
     trace_methods = {name for name in TraceStore.__dict__ if not name.startswith("_")}
 
-    assert run_methods >= {"save_checkpoint", "load_checkpoint", "gc_runs"}
+    assert run_methods >= {
+        "save_checkpoint",
+        "load_checkpoint",
+        "resolve_run_tenant",
+        "purge_run",
+        "gc_runs",
+    }
     assert approval_methods >= {
         "save_request",
         "load_request",

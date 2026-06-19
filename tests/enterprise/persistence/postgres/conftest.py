@@ -16,11 +16,16 @@ from safecode.enterprise.persistence.postgres.backend import PostgresBackend
 from safecode.enterprise.persistence.postgres.migrate import reset_schema_for_tests
 
 
+DEFAULT_INTEGRATION_DSN = (
+    "postgresql://safecode:safecode_test@127.0.0.1:5432/safecode_enterprise_test"
+)
+
+
 def integration_dsn() -> str | None:
     return os.environ.get(
         "SAC_ENTERPRISE_TEST_DATABASE_URL",
         os.environ.get("SAC_ENTERPRISE_DATABASE_URL"),
-    )
+    ) or DEFAULT_INTEGRATION_DSN
 
 
 @pytest.fixture(scope="session")

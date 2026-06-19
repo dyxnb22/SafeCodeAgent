@@ -68,18 +68,19 @@ def test_migration_files_are_deterministic() -> None:
     assert first[0][0] == "001_initial.sql"
 
 
-def _integration_dsn() -> str | None:
+def _integration_dsn() -> str:
     return os.environ.get(
         "SAC_ENTERPRISE_TEST_DATABASE_URL",
-        os.environ.get("SAC_ENTERPRISE_DATABASE_URL"),
+        os.environ.get(
+            "SAC_ENTERPRISE_DATABASE_URL",
+            "postgresql://safecode:safecode_test@127.0.0.1:5432/safecode_enterprise_test",
+        ),
     )
 
 
 @pytest.mark.postgres_integration
 def test_migrations_apply_idempotently_to_real_postgres() -> None:
     dsn = _integration_dsn()
-    if not dsn:
-        pytest.skip("postgres integration DSN not configured")
     try:
         with connect(dsn) as conn:
             reset_schema_for_tests(conn)

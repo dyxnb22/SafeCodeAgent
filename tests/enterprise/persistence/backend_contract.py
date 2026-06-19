@@ -21,6 +21,7 @@ from safecode.enterprise.eval.cases import EvaluationResult
 from safecode.enterprise.evidence.export import verify_export_bundle
 from safecode.enterprise.persistence.exceptions import TenantBoundaryError
 from safecode.enterprise.persistence.local_backend import LocalBackend
+from safecode.enterprise.persistence.strict_fake import StrictFakeBackend
 from safecode.enterprise.trace.events import TraceEventType
 from safecode.enterprise.workflow.checkpoint import RunCheckpoint
 from safecode.enterprise.workflow.exceptions import (
@@ -33,12 +34,12 @@ from safecode.enterprise.workflow.types import RiskTier, TaskType, WorkflowStatu
 
 
 class BackendFactory(Protocol):
-    def __call__(self, tmp_path: Path) -> LocalBackend: ...
+    def __call__(self, tmp_path: Path) -> LocalBackend | StrictFakeBackend: ...
 
 
 @dataclass(frozen=True)
 class BackendBundle:
-    backend: LocalBackend
+    backend: LocalBackend | StrictFakeBackend
     sac_root: Path
     tenant_id: str = "tenant-a"
     alt_tenant_id: str = "tenant-b"
