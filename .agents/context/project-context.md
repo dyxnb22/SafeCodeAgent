@@ -18,7 +18,7 @@ compliance evidence, and auditable tool-using security operations.
 - Enterprise planning and namespace stages: complete.
 - Last delivery stage completed: `v2.0 Enterprise Release Candidate`.
 - Current delivery stage: `v2.1 Team Server Foundation` (ready).
-- Next delivery task: `v2.1.1-T3` — planned `/v2` OpenAPI contract before handlers.
+- Next delivery task: `v2.1.2-T1` — persistence repository protocols.
   See `product-planning/execution-backlog.md`.
 - Post-RC platform architecture: `enterprise-docs/platform-architecture-v2.md`.
 - Machine-readable live status: `.agents/context/progress.json`.

@@ -1,0 +1,785 @@
+openapi: 3.1.0
+info:
+  title: SafeCodeAgent Enterprise Team Server API
+  version: 2.1.0-planned
+  description: |
+    Planned Team Server surface for SafeCodeAgent Enterprise (v2.1).
+    Handlers are not registered until later v2.1 milestones.
+  x-contract-status: planned
+
+servers:
+  - url: https://team-server.example
+    description: Planned Team Server base URL
+
+tags:
+  - name: probes
+    description: Unversioned health and readiness probes (data-free)
+  - name: runs
+    description: Workflow run lifecycle
+  - name: approvals
+    description: Human approval inbox and decisions
+  - name: evidence
+    description: Redacted evidence export
+  - name: eval
+    description: Evaluation baselines
+  - name: webhooks
+    description: External event ingest (v2.2)
+  - name: ci
+    description: CI callback ingest (v2.2)
+
+paths:
+  /healthz:
+    get:
+      tags: [probes]
+      operationId: getHealthz
+      summary: Liveness probe
+      responses:
+        "200":
+          description: Service process is alive
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProbeResponse"
+
+  /readyz:
+    get:
+      tags: [probes]
+      operationId: getReadyz
+      summary: Readiness probe
+      responses:
+        "200":
+          description: Dependencies are ready
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProbeResponse"
+        "503":
+          description: Dependency unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+
+  /version:
+    get:
+      tags: [probes]
+      operationId: getVersion
+      summary: Service version metadata
+      responses:
+        "200":
+          description: Version metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VersionResponse"
+
+  /v2/runs:
+    get:
+      tags: [runs]
+      operationId: listRuns
+      summary: List tenant-scoped runs
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/TenantIdQuery"
+        - $ref: "#/components/parameters/StatusQuery"
+        - $ref: "#/components/parameters/LimitQuery"
+        - $ref: "#/components/parameters/CursorQuery"
+      responses:
+        "200":
+          description: Run list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RunListResponse"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+    post:
+      tags: [runs]
+      operationId: startRun
+      summary: Start a workflow run
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/TenantIdHeader"
+        - $ref: "#/components/parameters/IdempotencyKeyHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StartRunRequest"
+      responses:
+        "202":
+          description: Run accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RunAcceptedResponse"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /v2/runs/{run_id}:
+    get:
+      tags: [runs]
+      operationId: getRun
+      summary: Get run detail
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/RunIdPath"
+        - $ref: "#/components/parameters/TenantIdQuery"
+      responses:
+        "200":
+          description: Run detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RunDetail"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /v2/runs/{run_id}/resume:
+    post:
+      tags: [runs]
+      operationId: resumeRun
+      summary: Resume a paused run
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/RunIdPath"
+        - $ref: "#/components/parameters/TenantIdHeader"
+        - $ref: "#/components/parameters/IdempotencyKeyHeader"
+      responses:
+        "202":
+          description: Resume accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RunAcceptedResponse"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /v2/runs/{run_id}/cancel:
+    post:
+      tags: [runs]
+      operationId: cancelRun
+      summary: Cancel a non-terminal run
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/RunIdPath"
+        - $ref: "#/components/parameters/TenantIdHeader"
+        - $ref: "#/components/parameters/IdempotencyKeyHeader"
+      responses:
+        "202":
+          description: Cancellation accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RunAcceptedResponse"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /v2/runs/{run_id}/timeline:
+    get:
+      tags: [runs]
+      operationId: getRunTimeline
+      summary: Typed run timeline
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/RunIdPath"
+        - $ref: "#/components/parameters/TenantIdQuery"
+      responses:
+        "200":
+          description: Timeline events
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TimelineResponse"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /v2/runs/{run_id}/trace:
+    get:
+      tags: [runs]
+      operationId: getRunTrace
+      summary: Redacted trace events
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/RunIdPath"
+        - $ref: "#/components/parameters/TenantIdQuery"
+      responses:
+        "200":
+          description: Redacted trace stream metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TraceResponse"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /v2/approvals:
+    get:
+      tags: [approvals]
+      operationId: listApprovals
+      summary: List approval requests
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/TenantIdQuery"
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/ApprovalStatus"
+      responses:
+        "200":
+          description: Approval list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApprovalListResponse"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /v2/approvals/{approval_id}/decide:
+    post:
+      tags: [approvals]
+      operationId: decideApproval
+      summary: Approve or reject a pending request
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ApprovalIdPath"
+        - $ref: "#/components/parameters/TenantIdHeader"
+        - $ref: "#/components/parameters/IdempotencyKeyHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApprovalDecisionRequest"
+      responses:
+        "200":
+          description: Decision recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApprovalDecisionResponse"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /v2/approvals/{approval_id}/revoke:
+    post:
+      tags: [approvals]
+      operationId: revokeApprovalGrant
+      summary: Revoke an unused grant
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ApprovalIdPath"
+        - $ref: "#/components/parameters/TenantIdHeader"
+        - $ref: "#/components/parameters/IdempotencyKeyHeader"
+      responses:
+        "200":
+          description: Grant revoked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApprovalDecisionResponse"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /v2/evidence/{run_id}:
+    get:
+      tags: [evidence]
+      operationId: exportEvidence
+      summary: Download redacted evidence bundle
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/RunIdPath"
+        - $ref: "#/components/parameters/TenantIdQuery"
+      responses:
+        "200":
+          description: Evidence zip stream
+          content:
+            application/zip:
+              schema:
+                type: string
+                format: binary
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /v2/eval/baselines:
+    get:
+      tags: [eval]
+      operationId: listEvalBaselines
+      summary: List eval baselines per suite
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/TenantIdQuery"
+      responses:
+        "200":
+          description: Eval baselines
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvalBaselineListResponse"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /v2/webhooks/github:
+    post:
+      tags: [webhooks]
+      operationId: ingestGithubWebhook
+      summary: Signed GitHub webhook ingest (v2.2)
+      x-planned-stage: v2.2
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/TenantIdHeader"
+        - $ref: "#/components/parameters/IdempotencyKeyHeader"
+        - name: X-Hub-Signature-256
+          in: header
+          required: true
+          schema:
+            type: string
+            maxLength: 256
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        "202":
+          description: Webhook accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebhookAcceptedResponse"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /v2/ci/callback:
+    post:
+      tags: [ci]
+      operationId: ingestCiCallback
+      summary: Typed CI result callback (v2.2)
+      x-planned-stage: v2.2
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/TenantIdHeader"
+        - $ref: "#/components/parameters/IdempotencyKeyHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CiCallbackRequest"
+      responses:
+        "202":
+          description: Callback accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CiCallbackResponse"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: OIDC bearer token validated against configured issuer and audience.
+
+  parameters:
+    TenantIdQuery:
+      name: tenant_id
+      in: query
+      required: true
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 128
+    TenantIdHeader:
+      name: X-Tenant-Id
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 128
+    IdempotencyKeyHeader:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 8
+        maxLength: 128
+    RunIdPath:
+      name: run_id
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 8
+        maxLength: 128
+    ApprovalIdPath:
+      name: approval_id
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 8
+        maxLength: 128
+    StatusQuery:
+      name: status
+      in: query
+      required: false
+      schema:
+        $ref: "#/components/schemas/RunStatus"
+    LimitQuery:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 200
+        default: 50
+    CursorQuery:
+      name: cursor
+      in: query
+      required: false
+      schema:
+        type: string
+        maxLength: 256
+
+  responses:
+    ProblemResponse:
+      description: Typed problem details
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/ProblemDetails"
+
+  schemas:
+    ProbeResponse:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+
+    VersionResponse:
+      type: object
+      additionalProperties: false
+      required: [service, api_version, contract_status]
+      properties:
+        service:
+          type: string
+          maxLength: 64
+        api_version:
+          type: string
+          maxLength: 32
+        contract_status:
+          type: string
+          enum: [planned]
+
+    ProblemDetails:
+      type: object
+      additionalProperties: false
+      required: [type, title, status]
+      properties:
+        type:
+          type: string
+          format: uri
+          maxLength: 256
+        title:
+          type: string
+          maxLength: 128
+        status:
+          type: integer
+          minimum: 400
+          maximum: 599
+        detail:
+          type: string
+          maxLength: 512
+        instance:
+          type: string
+          maxLength: 256
+        tenant_id:
+          type: string
+          maxLength: 128
+
+    RunStatus:
+      type: string
+      description: |
+        Workflow run status. `cancelled` denotes operator-initiated termination
+        distinct from policy `blocked` or approval `rejected` outcomes.
+      enum:
+        - pending
+        - running
+        - awaiting_approval
+        - succeeded
+        - failed
+        - rejected
+        - blocked
+        - cancelled
+
+    ApprovalStatus:
+      type: string
+      enum: [pending, approved, rejected, evidence_requested, revoked]
+
+    StartRunRequest:
+      type: object
+      additionalProperties: false
+      required: [task_type]
+      properties:
+        task_type:
+          type: string
+          enum: [pr_review, remediation, secure_planning, compliance_export]
+        input_ref:
+          type: string
+          maxLength: 512
+
+    RunSummary:
+      type: object
+      additionalProperties: false
+      required: [run_id, tenant_id, task_type, status, created_at, updated_at]
+      properties:
+        run_id:
+          type: string
+          maxLength: 128
+        tenant_id:
+          type: string
+          maxLength: 128
+        task_type:
+          type: string
+          maxLength: 64
+        status:
+          $ref: "#/components/schemas/RunStatus"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    RunDetail:
+      allOf:
+        - $ref: "#/components/schemas/RunSummary"
+        - type: object
+          additionalProperties: false
+          properties:
+            status_url:
+              type: string
+              format: uri
+              maxLength: 512
+
+    RunListResponse:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          maxItems: 200
+          items:
+            $ref: "#/components/schemas/RunSummary"
+        next_cursor:
+          type: string
+          maxLength: 256
+
+    RunAcceptedResponse:
+      type: object
+      additionalProperties: false
+      required: [run_id, status, status_url]
+      properties:
+        run_id:
+          type: string
+          maxLength: 128
+        status:
+          $ref: "#/components/schemas/RunStatus"
+        status_url:
+          type: string
+          format: uri
+          maxLength: 512
+
+    TimelineResponse:
+      type: object
+      additionalProperties: false
+      required: [run_id, events]
+      properties:
+        run_id:
+          type: string
+          maxLength: 128
+        events:
+          type: array
+          maxItems: 500
+          items:
+            type: object
+            additionalProperties: false
+            required: [event_type, timestamp]
+            properties:
+              event_type:
+                type: string
+                maxLength: 64
+              timestamp:
+                type: string
+                format: date-time
+              summary:
+                type: string
+                maxLength: 512
+
+    TraceResponse:
+      type: object
+      additionalProperties: false
+      required: [run_id, redaction_profile, events]
+      properties:
+        run_id:
+          type: string
+          maxLength: 128
+        redaction_profile:
+          type: string
+          enum: [strict]
+        events:
+          type: array
+          maxItems: 500
+          items:
+            type: object
+            additionalProperties: false
+            required: [event_type, timestamp]
+            properties:
+              event_type:
+                type: string
+                maxLength: 64
+              timestamp:
+                type: string
+                format: date-time
+
+    ApprovalSummary:
+      type: object
+      additionalProperties: false
+      required: [approval_id, run_id, tenant_id, status, created_at]
+      properties:
+        approval_id:
+          type: string
+          maxLength: 128
+        run_id:
+          type: string
+          maxLength: 128
+        tenant_id:
+          type: string
+          maxLength: 128
+        status:
+          $ref: "#/components/schemas/ApprovalStatus"
+        created_at:
+          type: string
+          format: date-time
+
+    ApprovalListResponse:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          maxItems: 200
+          items:
+            $ref: "#/components/schemas/ApprovalSummary"
+
+    ApprovalDecisionRequest:
+      type: object
+      additionalProperties: false
+      required: [decision]
+      properties:
+        decision:
+          type: string
+          enum: [approved, rejected]
+        rationale:
+          type: string
+          maxLength: 512
+
+    ApprovalDecisionResponse:
+      type: object
+      additionalProperties: false
+      required: [approval_id, status]
+      properties:
+        approval_id:
+          type: string
+          maxLength: 128
+        status:
+          $ref: "#/components/schemas/ApprovalStatus"
+
+    EvalBaselineListResponse:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          maxItems: 100
+          items:
+            type: object
+            additionalProperties: false
+            required: [suite, baseline_id]
+            properties:
+              suite:
+                type: string
+                maxLength: 64
+              baseline_id:
+                type: string
+                maxLength: 128
+
+    WebhookAcceptedResponse:
+      type: object
+      additionalProperties: false
+      required: [delivery_id, status]
+      properties:
+        delivery_id:
+          type: string
+          maxLength: 128
+        status:
+          type: string
+          enum: [accepted]
+
+    CiCallbackRequest:
+      type: object
+      additionalProperties: false
+      required: [delivery_id, run_id, outcome]
+      properties:
+        delivery_id:
+          type: string
+          maxLength: 128
+        run_id:
+          type: string
+          maxLength: 128
+        outcome:
+          type: string
+          enum: [passed, failed]
+
+    CiCallbackResponse:
+      type: object
+      additionalProperties: false
+      required: [delivery_id, status]
+      properties:
+        delivery_id:
+          type: string
+          maxLength: 128
+        status:
+          type: string
+          enum: [accepted]
