@@ -53,6 +53,7 @@ def create_app(
 
     from safecode.enterprise.api.routes import (
         approvals_router,
+        ci_callback_router,
         eval_router,
         evidence_router,
         runs_router,
@@ -75,6 +76,7 @@ def create_app(
     app.include_router(evidence_router)
     app.include_router(eval_router)
     app.include_router(webhooks_router)
+    app.include_router(ci_callback_router)
 
     @app.get("/healthz")
     def healthz() -> dict[str, str]:
