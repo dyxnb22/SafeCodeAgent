@@ -20,6 +20,9 @@ compliance evidence, and auditable tool-using security operations.
 - Current delivery stage: `v3.0` candidate blocked on external GA gates.
 - Next delivery task: none; independent sign-off, deployment evidence, and a
   stable live-provider run are required before GA promotion.
+- Portfolio track: `v3.1` ready; see `portfolio_track` in `progress.json`.
+  Portfolio delivery (`v3.1.2-T2` next) improves demo, narrative, and
+  recruiter-facing entry points without closing enterprise GA gates G1/G2/G3.
 - Post-RC platform architecture: `enterprise-docs/platform-architecture-v2.md`.
 - Machine-readable live status: `.agents/context/progress.json`.
 
@@ -105,6 +108,10 @@ regression analysis.
 | v2.4 | Enterprise knowledge, tickets, long-term memory | Complete | `enterprise-docs/platform-architecture-v2.md` |
 | v2.5 | Production hardening | Complete | `enterprise-docs/platform-architecture-v2.md` |
 | v3.0 | Enterprise GA | Blocked on external gates | `RELEASE-NOTES-v3.0.0.md` |
+| v3.1 | Portfolio release framing | Ready | `product-planning/post-ga-portfolio-roadmap.md` |
+| v3.2 | One-command demo | Planned | `product-planning/post-ga-portfolio-roadmap.md` |
+| v3.3 | Interview case study | Planned | `product-planning/post-ga-portfolio-roadmap.md` |
+| v3.4 | Recruiter README | Planned | `product-planning/post-ga-portfolio-roadmap.md` |
 
 Status details belong in `progress.json`; change this table only when stage
 scope, ownership, or architecture changes.
@@ -134,6 +141,7 @@ tests.
 | Trace or dashboard | AgentOps observability, security governance, evaluation plan |
 | Evaluation | evaluation plan, milestone acceptance, relevant domain design |
 | Demo or interview narrative | interview master narrative and implemented behavior only |
+| Portfolio track, README, demo packaging | post-GA portfolio roadmap, execution backlog, release notes, current code/tests |
 | Team Server API, persistence, worker, auth | platform architecture v2, decision log, security governance, data models |
 | Live GitHub, console, persistent knowledge | platform architecture v2, active stage roadmap and acceptance, relevant v1 domain plan |
 

@@ -121,6 +121,18 @@ def test_progress_state_is_valid_and_matches_backlog() -> None:
     if current["status"] == "blocked":
         assert progress["blockers"]
 
+    portfolio = progress.get("portfolio_track")
+    if portfolio:
+        assert portfolio["status"] in {"ready", "in_progress", "blocked", "completed"}
+        if portfolio.get("next_delivery_task"):
+            assert portfolio["next_delivery_task"] in backlog
+            assert portfolio["next_delivery_task"] in context
+        if portfolio["status"] == "ready":
+            assert portfolio["active_task"] is None
+        elif portfolio["status"] in {"in_progress", "blocked"}:
+            assert portfolio["active_task"]
+            date.fromisoformat(portfolio["active_task"]["started_at"])
+
     assert progress["stages"]["v1.0"] == "completed"
     if progress["stages"].get("v2.0") != "completed":
         assert progress["stages"]["v2.0"] in {"planned", "ready", "in_progress"}
