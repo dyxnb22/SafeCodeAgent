@@ -31,7 +31,7 @@ from safecode.enterprise.persistence.postgres import audit as pg_audit
 from safecode.enterprise.persistence.postgres.evidence import export_run_evidence_from_pg
 from safecode.enterprise.persistence.postgres.migrate import apply_migrations
 from safecode.enterprise.persistence.postgres.unit_of_work import UnitOfWork
-from safecode.enterprise.worker.postgres_queue import PostgresCommandQueue
+from safecode.enterprise.persistence.webhook_store import PostgresWebhookEventStore
 from safecode.enterprise.worker.lease import PostgresRunLeaseStore
 from safecode.enterprise.persistence.protocols import (
     ApprovalDecision,
@@ -829,6 +829,10 @@ class PostgresBackend:
     @property
     def leases(self) -> PostgresRunLeaseStore:
         return PostgresRunLeaseStore(self._uow)
+
+    @property
+    def webhooks(self) -> PostgresWebhookEventStore:
+        return PostgresWebhookEventStore(self._uow)
 
     def probe(self) -> bool:
         return self._uow.probe()

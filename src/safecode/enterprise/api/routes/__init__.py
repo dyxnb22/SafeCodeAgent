@@ -5,6 +5,7 @@ from safecode.enterprise.api.routes.eval import router as eval_router
 from safecode.enterprise.api.routes.evidence import router as evidence_router
 from safecode.enterprise.api.routes.runs import router as runs_router
 from safecode.enterprise.api.routes.traces import router as traces_router
+from safecode.enterprise.api.routes.webhooks import router as webhooks_router
 
 __all__ = [
     "approvals_router",
@@ -12,4 +13,5 @@ __all__ = [
     "evidence_router",
     "runs_router",
     "traces_router",
+    "webhooks_router",
 ]

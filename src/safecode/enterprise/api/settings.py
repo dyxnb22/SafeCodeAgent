@@ -27,6 +27,12 @@ DOCUMENTED_ENV_VARS: Final[tuple[str, ...]] = (
     f"{ENV_PREFIX}API_PORT",
     f"{ENV_PREFIX}SERVER_URL",
     f"{ENV_PREFIX}OPERATOR_ACTOR",
+    f"{ENV_PREFIX}GITHUB_APP_ID",
+    f"{ENV_PREFIX}GITHUB_INSTALLATION_ID",
+    f"{ENV_PREFIX}GITHUB_PRIVATE_KEY_PEM",
+    f"{ENV_PREFIX}GITHUB_WEBHOOK_SECRET",
+    f"{ENV_PREFIX}GITHUB_WEBHOOK_TENANT_ID",
+    f"{ENV_PREFIX}GITHUB_API_BASE_URL",
 )
 
 
@@ -44,8 +50,24 @@ class TeamServerSettings(BaseModel):
     api_port: int = Field(default=8080, ge=1, le=65535)
     server_url: str | None = None
     operator_actor: str | None = None
+    github_app_id: str | None = None
+    github_installation_id: str | None = None
+    github_private_key_pem: SecretStr | None = None
+    github_webhook_secret: SecretStr | None = None
+    github_webhook_tenant_id: str | None = None
+    github_api_base_url: str | None = None
 
-    @field_validator("oidc_issuer", "oidc_audience", "oidc_jwks_path", "server_url", "operator_actor")
+    @field_validator(
+        "oidc_issuer",
+        "oidc_audience",
+        "oidc_jwks_path",
+        "server_url",
+        "operator_actor",
+        "github_app_id",
+        "github_installation_id",
+        "github_webhook_tenant_id",
+        "github_api_base_url",
+    )
     @classmethod
     def _strip_optional_strings(cls, value: str | None) -> str | None:
         if value is None:
@@ -85,7 +107,13 @@ class TeamServerSettings(BaseModel):
             f"api_host={self.api_host!r}, "
             f"api_port={self.api_port}, "
             f"server_url={self.server_url!r}, "
-            f"operator_actor={self.operator_actor!r})"
+            f"operator_actor={self.operator_actor!r}, "
+            f"github_app_id={self.github_app_id!r}, "
+            f"github_installation_id={self.github_installation_id!r}, "
+            f"github_private_key_pem={self._secret_repr(self.github_private_key_pem)}, "
+            f"github_webhook_secret={self._secret_repr(self.github_webhook_secret)}, "
+            f"github_webhook_tenant_id={self.github_webhook_tenant_id!r}, "
+            f"github_api_base_url={self.github_api_base_url!r})"
         )
 
     @staticmethod
@@ -137,6 +165,12 @@ def load_team_server_settings_from_env() -> TeamServerSettings:
         api_port: int = Field(default=8080, ge=1, le=65535)
         server_url: str | None = None
         operator_actor: str | None = None
+        github_app_id: str | None = None
+        github_installation_id: str | None = None
+        github_private_key_pem: SecretStr | None = None
+        github_webhook_secret: SecretStr | None = None
+        github_webhook_tenant_id: str | None = None
+        github_api_base_url: str | None = None
 
     try:
         env_values = _EnvTeamServerSettings().model_dump()

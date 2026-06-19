@@ -34,6 +34,7 @@ from safecode.enterprise.persistence.protocols import (
     assert_tenant_match,
     validate_tenant_id,
 )
+from safecode.enterprise.persistence.webhook_store import LocalWebhookEventStore
 from safecode.enterprise.trace.emitter import TraceEmitter
 from safecode.enterprise.trace.events import TraceEvent, TraceEventType
 from safecode.enterprise.trace.session import project_root_for_sac
@@ -420,6 +421,10 @@ class LocalBackend:
     @property
     def leases(self) -> LocalRunLeaseStore:
         return LocalRunLeaseStore(self.sac_root)
+
+    @property
+    def webhooks(self) -> LocalWebhookEventStore:
+        return LocalWebhookEventStore(self.sac_root)
 
     def probe(self) -> bool:
         """Return whether the local backend storage is usable."""

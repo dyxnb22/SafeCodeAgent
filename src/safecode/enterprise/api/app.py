@@ -57,6 +57,7 @@ def create_app(
         evidence_router,
         runs_router,
         traces_router,
+        webhooks_router,
     )
 
     app = FastAPI(title="SafeCodeAgent Enterprise Team Server", version=API_VERSION)
@@ -73,6 +74,7 @@ def create_app(
     app.include_router(approvals_router)
     app.include_router(evidence_router)
     app.include_router(eval_router)
+    app.include_router(webhooks_router)
 
     @app.get("/healthz")
     def healthz() -> dict[str, str]:
