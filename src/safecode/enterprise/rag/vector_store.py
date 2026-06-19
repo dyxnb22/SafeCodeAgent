@@ -11,6 +11,8 @@ from safecode.enterprise.rag.models import Chunk
 from safecode.enterprise.rag.semantic import DeterministicEmbeddingBackend
 from safecode.index.embedding_backend import EmbeddingBackend
 
+FreshnessValue = str
+
 DEFAULT_VECTOR_DIMENSION = 384
 
 
@@ -50,6 +52,12 @@ class KnowledgeVectorStore(Protocol):
         *,
         backend: EmbeddingBackend | None = None,
     ) -> dict[str, float]: ...
+
+    def update_freshness(self, tenant_id: str, chunk_ids: list[str], freshness: FreshnessValue) -> int: ...
+
+    def update_permission_scope(
+        self, tenant_id: str, chunk_id: str, permission_scope: list[str]
+    ) -> None: ...
 
 
 @dataclass
@@ -107,6 +115,26 @@ class InMemoryKnowledgeVectorStore:
                 continue
             scores[chunk_id] = max(_cosine(query_vector, vector), 0.0)
         return normalize_scores(scores)
+
+    def update_freshness(self, tenant_id: str, chunk_ids: list[str], freshness: FreshnessValue) -> int:
+        updated = 0
+        for chunk_id in chunk_ids:
+            key = (tenant_id, chunk_id)
+            chunk = self._chunks.get(key)
+            if chunk is None:
+                continue
+            self._chunks[key] = chunk.model_copy(update={"freshness": freshness})  # type: ignore[arg-type]
+            updated += 1
+        return updated
+
+    def update_permission_scope(
+        self, tenant_id: str, chunk_id: str, permission_scope: list[str]
+    ) -> None:
+        key = (tenant_id, chunk_id)
+        chunk = self._chunks.get(key)
+        if chunk is None:
+            raise KeyError(chunk_id)
+        self._chunks[key] = chunk.model_copy(update={"permission_scope": permission_scope})
 
 
 def chunk_to_row(chunk: Chunk) -> dict[str, object]:

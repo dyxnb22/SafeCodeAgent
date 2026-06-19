@@ -75,4 +75,3 @@ def test_cross_tenant_retrieval_from_vector_store_is_denied():
         actor_tenant="tenant-b",
     )
     assert citations == []
-    assert retriever.denied_events

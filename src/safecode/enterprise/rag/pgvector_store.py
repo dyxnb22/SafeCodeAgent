@@ -138,6 +138,39 @@ class PgVectorKnowledgeStore:
         scores = {str(row[0]): max(float(row[1]), 0.0) for row in rows}
         return normalize_scores(scores)
 
+    def update_freshness(self, tenant_id: str, chunk_ids: list[str], freshness: str) -> int:
+        tenant = validate_tenant_id(tenant_id)
+        if not chunk_ids:
+            return 0
+        with self.pool.connection() as conn:
+            result = conn.execute(
+                """
+                UPDATE enterprise.knowledge_chunks
+                SET freshness = %s, updated_at = NOW()
+                WHERE tenant_id = %s AND chunk_id = ANY(%s)
+                """,
+                (freshness, tenant, chunk_ids),
+            )
+            conn.commit()
+            return result.rowcount or 0
+
+    def update_permission_scope(
+        self, tenant_id: str, chunk_id: str, permission_scope: list[str]
+    ) -> None:
+        tenant = validate_tenant_id(tenant_id)
+        with self.pool.connection() as conn:
+            result = conn.execute(
+                """
+                UPDATE enterprise.knowledge_chunks
+                SET permission_scope = %s::jsonb, updated_at = NOW()
+                WHERE tenant_id = %s AND chunk_id = %s
+                """,
+                (json.dumps(permission_scope), tenant, chunk_id),
+            )
+            conn.commit()
+            if result.rowcount == 0:
+                raise KeyError(chunk_id)
+
     @classmethod
     def connect(cls, dsn: str, *, dimension: int = DEFAULT_VECTOR_DIMENSION) -> PgVectorKnowledgeStore:
         pool = ConnectionPool(dsn, min_size=1, max_size=4, open=True)

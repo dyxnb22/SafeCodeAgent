@@ -31,3 +31,7 @@ class LoaderTooBigError(EnterpriseRagError):
 
 class LoaderParseError(EnterpriseRagError):
     """Raised when loader input cannot be parsed safely."""
+
+
+class AclSyncError(EnterpriseRagError):
+    """Raised when ACL propagation to the persistent index fails closed."""

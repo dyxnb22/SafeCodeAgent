@@ -69,6 +69,8 @@ class HybridRetriever:
         filters: RetrievalFilters | None = None,
     ) -> list[Citation]:
         effective_tenant = actor_tenant if actor_tenant is not None else self.actor_tenant
+        if self.vector_store is not None:
+            self.chunks = self.vector_store.list_chunks(effective_tenant)
         allowed = self._filter_candidates(actor_scope, effective_tenant, filters)
         if not allowed:
             return []
