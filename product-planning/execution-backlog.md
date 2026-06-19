@@ -2346,8 +2346,7 @@ track while preserving the `v3.0` candidate blockers.
 
 ### v3.3.3-T1 - Architecture poster
 - **Version / Dependencies:** v3.3.3; v3.3.1-T1.
-- **Files/Modules:** `docs/architecture-poster.svg` or
-  `docs/architecture-poster.md`, root README reference.
+- **Files/Modules:** `docs/architecture-poster.md`, root README reference.
 - **Public contract:** documentation asset.
 - **Persistence / migration impact:** none.
 - **Security boundary:** poster must reflect implemented boundaries and keep

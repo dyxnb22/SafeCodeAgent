@@ -41,7 +41,7 @@ The portfolio track may complete with all three gates still pending. Its
 acceptance criteria are reproducibility, clear documentation, deterministic
 offline demos, and interview readiness.
 
-Any document that says the project is "GA approved", "production deployed", or
-"externally signed" must link to real evidence for G1, G2, and G3. Without that
-evidence, the correct status is `candidate` or `portfolio final`.
-
+Do not use "GA approved" without real evidence for G1, G2, and G3.
+Do not use "production deployed" without that same evidence.
+Do not use "externally signed" without that same evidence. Until then, the
+correct status is `candidate` or `portfolio final`.

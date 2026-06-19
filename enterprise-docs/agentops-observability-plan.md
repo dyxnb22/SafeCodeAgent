@@ -435,8 +435,8 @@ consume the same `timeline.json`.
 - Breaking changes require:
   - Bump `schema_version`.
   - A migration note in `decision-log.md`.
-  - A `tests/enterprise/contracts/test_timeline_contract.py`
-    update with the new fixture.
+  - A `tests/enterprise/contracts/test_public_contract_v2_0.py` update with
+    `tests/enterprise/contracts/snapshots/timeline.json`.
 
 ---
 

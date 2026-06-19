@@ -347,9 +347,9 @@ on identical inputs.
 
 - Deterministic lane: mock embedding backend + canned BM25 fixtures.
   All tests in this lane must pass in CI on every PR.
-- Optional live lane: a separate suite under
-  `tests/enterprise/eval/live/` that uses the real provider; opt-in
-  via env var, not run in CI by default.
+- Optional live retrieval lane: not yet implemented. The existing
+  `src/safecode/eval/live.py` harness covers general coding-agent evaluation,
+  not the Enterprise retrieval suite described here.
 - A property test asserts the permission filter does not leak
   restricted chunks regardless of query.
 

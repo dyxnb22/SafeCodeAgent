@@ -391,9 +391,9 @@ scanners. A `NodeOutput` records the skip with an explicit reason.
 
 ### Tests
 
-- `tests/enterprise/workflow/tasks/test_secure_planning_basic.py`
-- `tests/enterprise/workflow/tasks/test_secure_planning_skip_validate.py`
-- `tests/enterprise/eval/cases/secure_planning/` (added in v1.8.5+)
+- `tests/enterprise/workflow/test_secure_planning_offline.py`
+- secure_planning eval cases are planned but not yet present under
+  `tests/enterprise/eval/cases/`
 
 ### Demo flow
 
@@ -500,8 +500,6 @@ Compliance export *reuses* the canonical nodes:
 ### Tests
 
 - `tests/enterprise/evidence/test_export_shape.py`
-- `tests/enterprise/evidence/test_export_redaction.py`
-- `tests/enterprise/evidence/test_chain_integrity_check.py`
 
 ### Demo flow
 

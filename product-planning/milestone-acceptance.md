@@ -155,9 +155,12 @@ For each stage:
   case.
 
 **Demo / interview acceptance**
-- A short Markdown walk-through under
-  `examples/enterprise/demos/v1.1/retrieve_walkthrough.md` shows the
-  command, inputs, and the cited output.
+- Historical artifact not retained:
+  `examples/enterprise/demos/v1.1/retrieve_walkthrough.md` is no longer present;
+  it was required to show the command, inputs, and cited output.
+- Current repository status: the later
+  `examples/enterprise/demos/v1.7/pr_review.md` demonstrates the downstream
+  cited PR-review flow, but is not a substitute for that artifact.
 
 **Yellow-risk policy**
 - Allowed yellow risks:

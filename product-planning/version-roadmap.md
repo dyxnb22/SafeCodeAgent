@@ -271,7 +271,7 @@ over), v1.7 (PR review cannot ground recommendations), v1.8
 - **New/changed tests:**
   - `tests/enterprise/rag/test_hybrid_retriever.py`
   - `tests/enterprise/rag/test_permission_filter.py`
-  - `tests/enterprise/rag/test_citation_shape.py`
+  - `tests/enterprise/rag/test_citation_model.py`
   - `tests/enterprise/cli/test_cli_retrieve.py`
 - **Acceptance:**
   - Given a fixture with two relevant policy chunks and ten unrelated
@@ -292,7 +292,7 @@ over), v1.7 (PR review cannot ground recommendations), v1.8
 - **Scope:** an eval suite with deterministic queries, expected
   citations, and a baseline JSON file.
 - **Tasks:**
-  - Add `tests/enterprise/eval/retrieval_cases/` with fixture
+  - Add `tests/enterprise/eval/cases/retrieval/` with fixture
     queries and expected `source_id` sets.
   - Add `tests/enterprise/eval/test_retrieval_quality.py` that
     computes recall@k, MRR, and citation grounding for each case and
