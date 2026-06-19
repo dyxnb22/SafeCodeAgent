@@ -61,5 +61,20 @@ services:
       api:
         condition: service_healthy
 
+  console:
+    image: node:22-alpine
+    working_dir: /app/console
+    volumes:
+      - ./console:/app/console
+    command: >
+      sh -c "npm install && npm run dev -- -H 0.0.0.0 -p 3000"
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      NEXT_PUBLIC_SAC_API_BASE_URL: http://127.0.0.1:8080
+
 volumes:
   enterprise-artifacts:

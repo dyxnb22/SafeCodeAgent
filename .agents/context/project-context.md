@@ -16,9 +16,9 @@ compliance evidence, and auditable tool-using security operations.
 
 - Legacy implemented baseline: `v7.1.5`.
 - Enterprise planning and namespace stages: complete.
-- Last delivery stage completed: `v2.2 Real GitHub Secure Change Workflow`.
-- Current delivery stage: `v2.3 Operator Console` (ready).
-- Next delivery task: `v2.3.1-T1` — Console shell, OIDC login, tenant-aware navigation.
+- Last delivery stage completed: `v2.3 Operator Console`.
+- Current delivery stage: `v2.4 Enterprise Knowledge, Tickets, and Memory` (ready).
+- Next delivery task: `v2.4.1-T1` — pgvector schema and migration.
   See `product-planning/execution-backlog.md`.
 - Post-RC platform architecture: `enterprise-docs/platform-architecture-v2.md`.
 - Machine-readable live status: `.agents/context/progress.json`.
@@ -101,8 +101,8 @@ regression analysis.
 | v2.0 | Enterprise release candidate | Complete | `RELEASE-NOTES-v2.0.0-rc.md` |
 | v2.1 | Team Server foundation (FastAPI + PostgreSQL + worker + OIDC) | Ready | `enterprise-docs/platform-architecture-v2.md` |
 | v2.2 | Real GitHub secure change workflow | Complete | `enterprise-docs/platform-architecture-v2.md` |
-| v2.3 | Operator console (React/Next.js) | Ready | `enterprise-docs/platform-architecture-v2.md` |
-| v2.4 | Enterprise knowledge, tickets, long-term memory | Planned | `enterprise-docs/platform-architecture-v2.md` |
+| v2.3 | Operator console (React/Next.js) | Complete | `enterprise-docs/platform-architecture-v2.md` |
+| v2.4 | Enterprise knowledge, tickets, long-term memory | Ready | `enterprise-docs/platform-architecture-v2.md` |
 | v2.5 | Production hardening | Planned | `enterprise-docs/platform-architecture-v2.md` |
 | v3.0 | Enterprise GA | Planned | `product-planning/version-roadmap.md` |
 

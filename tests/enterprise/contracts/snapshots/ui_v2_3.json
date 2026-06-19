@@ -1,0 +1,89 @@
+{
+  "api_read_paths": [
+    "/v2/runs",
+    "/v2/runs/{run_id}",
+    "/v2/runs/{run_id}/timeline",
+    "/v2/runs/{run_id}/trace",
+    "/v2/approvals",
+    "/v2/evidence/{run_id}",
+    "/v2/eval/baselines"
+  ],
+  "api_write_paths": [
+    "/v2/approvals/{approval_id}/decide"
+  ],
+  "console_routes": [
+    "/login",
+    "/t/{tenantId}/runs",
+    "/t/{tenantId}/runs/{runId}",
+    "/t/{tenantId}/runs/{runId}/evidence",
+    "/t/{tenantId}/approvals",
+    "/t/{tenantId}/eval"
+  ],
+  "console_source_digest": "5fa3b345c676c089f71f1d5d1da41a965622c756a4d3d71701a5dec02a32420d",
+  "console_source_files": [
+    "src/lib/api/client.ts",
+    "src/lib/api/runs.ts",
+    "src/lib/api/approvals.ts",
+    "src/lib/api/evidence.ts",
+    "src/lib/api/eval.ts",
+    "src/lib/redaction/display.ts",
+    "src/components/timeline/RunTimelineView.tsx",
+    "src/components/timeline/TraceEventsView.tsx",
+    "src/components/approvals/ApprovalList.tsx",
+    "src/components/approvals/ApprovalDecideForm.tsx",
+    "src/components/cost/CostSummary.tsx",
+    "src/app/t/[tenantId]/runs/page.tsx",
+    "src/app/t/[tenantId]/runs/[runId]/page.tsx",
+    "src/app/t/[tenantId]/runs/[runId]/evidence/page.tsx",
+    "src/app/t/[tenantId]/approvals/page.tsx",
+    "src/app/t/[tenantId]/eval/page.tsx"
+  ],
+  "contract": "OperatorConsoleV2_3",
+  "contract_status": "supported",
+  "offline_python_suites": [
+    "tests/enterprise/console/test_console_auth_contract.py",
+    "tests/enterprise/console/test_run_views_offline.py",
+    "tests/enterprise/console/test_approval_flow_offline.py",
+    "tests/enterprise/console/test_evidence_eval_readonly.py",
+    "tests/enterprise/console/test_console_e2e_offline.py"
+  ],
+  "redaction_profile_default": "strict",
+  "required_headers": {
+    "read": [
+      "Authorization",
+      "tenant_id"
+    ],
+    "write": [
+      "Authorization",
+      "X-Tenant-Id",
+      "Idempotency-Key"
+    ]
+  },
+  "session_storage_key": "safecode-console-session",
+  "strict_hidden_fields": [
+    "debug",
+    "debug_payload",
+    "raw_prompt",
+    "raw_model_prompt",
+    "file_content",
+    "secret",
+    "secrets"
+  ],
+  "timeline_sections": [
+    "Summary",
+    "Timeline",
+    "Citations",
+    "Tool Calls",
+    "Approvals",
+    "Validation",
+    "Cost and Token Summary",
+    "Safety Invariants",
+    "Failures"
+  ],
+  "vitest_suites": [
+    "tests/auth.test.ts",
+    "tests/runs.test.ts",
+    "tests/approvals.test.ts",
+    "tests/evidence-eval.test.ts"
+  ]
+}

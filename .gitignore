@@ -20,5 +20,6 @@ pytest-report*.xml
 compose/enterprise.dev.env
 console/node_modules/
 console/.next/
+console/tsconfig.tsbuildinfo
 !examples/fastapi-todo/.sac/
 !examples/fastapi-todo/.sac/project_profile.json
