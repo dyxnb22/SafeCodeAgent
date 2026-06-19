@@ -91,12 +91,12 @@
     {"id": "v1.6.3-T1", "completed_at": "2026-06-19", "evidence": "c3515dd"},
     {"id": "v1.6.4-T1", "completed_at": "2026-06-19", "evidence": "eaf30ba"},
     {"id": "v1.6.5-T1", "completed_at": "2026-06-19", "evidence": "ba4278a"},
-    {"id": "v1.7.1-T1", "completed_at": "2026-06-19", "evidence": "pending"},
-    {"id": "v1.7.1-T2", "completed_at": "2026-06-19", "evidence": "pending"},
-    {"id": "v1.7.2-T1", "completed_at": "2026-06-19", "evidence": "pending"},
-    {"id": "v1.7.3-T1", "completed_at": "2026-06-19", "evidence": "pending"},
-    {"id": "v1.7.4-T1", "completed_at": "2026-06-19", "evidence": "pending"},
-    {"id": "v1.7.4-T2", "completed_at": "2026-06-19", "evidence": "pending"}
+    {"id": "v1.7.1-T1", "completed_at": "2026-06-19", "evidence": "1326def"},
+    {"id": "v1.7.1-T2", "completed_at": "2026-06-19", "evidence": "1326def"},
+    {"id": "v1.7.2-T1", "completed_at": "2026-06-19", "evidence": "1326def"},
+    {"id": "v1.7.3-T1", "completed_at": "2026-06-19", "evidence": "1326def"},
+    {"id": "v1.7.4-T1", "completed_at": "2026-06-19", "evidence": "1326def"},
+    {"id": "v1.7.4-T2", "completed_at": "2026-06-19", "evidence": "1326def"}
   ],
   "recent_maintenance": [
     {"id": "maintenance-agent-context-governance", "completed_at": "2026-06-18", "evidence": "77 governance tests and full regression: 5778 passed, 4 skipped"},
