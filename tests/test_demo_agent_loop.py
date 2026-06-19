@@ -80,11 +80,11 @@ def test_run_demo_script_is_executable_and_uses_documented_sac_command() -> None
     assert "DEEPSEEK_API_KEY" not in text
 
 
-def test_demo_command_is_hidden_and_experimental() -> None:
+def test_demo_agent_loop_remains_experimental() -> None:
     help_result = CliRunner().invoke(app, ["--help"])
     command_help = CliRunner().invoke(app, ["demo", "agent-loop", "--help"])
 
     assert help_result.exit_code == 0
-    assert " demo " not in help_result.output
+    assert " demo " in help_result.output
     assert command_help.exit_code == 0
     assert "EXPERIMENTAL" in command_help.output

@@ -31,12 +31,12 @@ def test_redactor_strips_volatile_fields() -> None:
     sample = (
         "run-demoprreview at 2026-06-19T12:34:56Z /Users/demo/project "
         "approval-run-demoprreview grant-grant123 "
-        "Bearer sk-live-secret hostname.local"
+        "Bearer xxxxxxxxxxxxxxxxxxxx hostname.local"
     )
     redacted = redact_transcript(sample)
     assert "run-demoprreview" not in redacted
     assert "/Users/" not in redacted
-    assert "sk-live-secret" not in redacted
+    assert "xxxxxxxxxxxxxxxxxxxx" not in redacted
     assert "hostname.local" not in redacted
     assert "<run-id>" in redacted
     assert "<timestamp>" in redacted

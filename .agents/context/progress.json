@@ -15,16 +15,11 @@
     "next_delivery_task": null
   },
   "portfolio_track": {
-    "stage": "v3.1",
-    "milestone": "v3.1.2",
-    "status": "in_progress",
-    "active_task": {
-      "id": "v3.1.2-T1",
-      "kind": "delivery",
-      "title": "Portfolio track progress state",
-      "started_at": "2026-06-19"
-    },
-    "next_delivery_task": "v3.1.2-T2"
+    "stage": "v3.3",
+    "milestone": "v3.3.1",
+    "status": "ready",
+    "active_task": null,
+    "next_delivery_task": "v3.3.1-T1"
   },
   "stages": {
     "v1.0": "completed",
@@ -185,10 +180,16 @@
     {"id": "v3.0.1-T1", "completed_at": "2026-06-19", "evidence": "59056f3a"},
     {"id": "v3.0.2-T1", "completed_at": "2026-06-19", "evidence": "1702507b"},
     {"id": "v3.0.3-T1", "completed_at": "2026-06-19", "evidence": "3dcb9992"},
-    {"id": "v3.0.4-T1", "completed_at": "2026-06-19", "evidence": "48138d8c"}
+    {"id": "v3.0.4-T1", "completed_at": "2026-06-19", "evidence": "48138d8c"},
+    {"id": "v3.1.1-T1", "completed_at": "2026-06-19", "evidence": "3366faa6"},
+    {"id": "v3.1.1-T2", "completed_at": "2026-06-19", "evidence": "cb98697b"},
+    {"id": "v3.1.2-T1", "completed_at": "2026-06-19", "evidence": "f4a54177"},
+    {"id": "v3.1.2-T2", "completed_at": "2026-06-19", "evidence": "98af1780"},
+    {"id": "v3.2.1-T1", "completed_at": "2026-06-19", "evidence": "b2b167bd"},
+    {"id": "v3.2.2-T1", "completed_at": "2026-06-19", "evidence": "ca8bb321"}
   ],
   "recent_maintenance": [
-    {"id": "maintenance-v3.0-candidate-remediation", "completed_at": "2026-06-19", "evidence": "GA review findings remediated in code/docs/tests; full regression 6385 passed, 8 skipped, 17 deselected excluding postgres_integration; external sign-off, deployment evidence, and stable live-provider evidence remain required"},
+    {"id": "maintenance-portfolio-v3.1-v3.2-closeout", "completed_at": "2026-06-19", "evidence": "v3.1.1-T1..v3.2.2-T1 delivered; offline pr-review demo and transcript snapshots; v3.0 GA blockers G1/G2/G3 remain pending"},
     {"id": "maintenance-post-ga-portfolio-planning", "completed_at": "2026-06-19", "evidence": "Added v3.1-v3.4 portfolio roadmap, backlog, acceptance, external gates, and portfolio_track planning state; v3.0 GA blockers remain pending"},
     {"id": "maintenance-v2.5-production-hardening-closeout", "completed_at": "2026-06-19", "evidence": "v2.5.1..v2.5.6 delivered; 6342 passed excluding postgres_integration; full regression closeout"},
     {"id": "maintenance-v2.1.6-oidc-subject", "completed_at": "2026-06-19", "evidence": "v2.1.6-T1..T2 delivered; 408 enterprise passed excluding postgres_integration; full regression 6158 passed, 8 skipped"},
@@ -208,7 +209,7 @@
   "last_verification": {
     "recorded_at": "2026-06-19",
     "command": "PYTHONPATH=src python3 -m pytest -q",
-    "result": "6385 passed, 25 skipped",
-    "scope": "v3.0 candidate security remediation; external GA evidence gates pending"
+    "result": "6413 passed, 29 skipped",
+    "scope": "portfolio v3.1-v3.2 batch closeout; v3.0 GA external gates G1/G2/G3 pending"
   }
 }

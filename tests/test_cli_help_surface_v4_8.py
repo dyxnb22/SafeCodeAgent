@@ -190,8 +190,8 @@ class TestV48HiddenNotInRootHelp:
     def test_report_hidden(self):
         assert "report" not in _command_names_in_root_help()
 
-    def test_demo_hidden(self):
-        assert "demo" not in _command_names_in_root_help()
+    def test_demo_visible_for_portfolio(self):
+        assert "demo" in _command_names_in_root_help()
 
     def test_test_hidden(self):
         assert "test" not in _command_names_in_root_help()
