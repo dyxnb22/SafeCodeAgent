@@ -67,7 +67,7 @@ def test_approve_and_resume_completes(tmp_path: Path):
         decision="approved",
         decision_actor="user:approver",
     )
-    final = asyncio.run(orchestrator.resume(run_id))
+    final = asyncio.run(orchestrator.resume(run_id, tenant_id="local"))
     assert final.status == WorkflowStatus.succeeded
     request = load_request(sac_root, run_id, f"approval-{run_id}")
     grant = load_grant(sac_root, run_id, grant_id_for_request(request))
@@ -91,7 +91,7 @@ def test_resume_rejects_changed_approved_proposal(tmp_path: Path):
     proposal_path = Path(checkpoint.state.proposals[0].ref)
     proposal_path.write_text("changed after approval", encoding="utf-8")
     with pytest.raises(PermissionError, match="binding mismatch"):
-        asyncio.run(orchestrator.resume(run_id))
+        asyncio.run(orchestrator.resume(run_id, tenant_id="local"))
     grant = load_grant(sac_root, run_id, grant_id_for_request(request))
     assert grant.consumed_at is None
 
@@ -109,6 +109,6 @@ def test_reject_and_resume_is_terminal_without_finalize_success(tmp_path: Path):
         decision="rejected",
         decision_actor="user:approver",
     )
-    final = asyncio.run(orchestrator.resume(run_id))
+    final = asyncio.run(orchestrator.resume(run_id, tenant_id="local"))
     assert final.status == WorkflowStatus.rejected
     assert final.report is None

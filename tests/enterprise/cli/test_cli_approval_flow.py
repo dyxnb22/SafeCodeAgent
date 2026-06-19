@@ -102,7 +102,15 @@ def test_approval_list_show_approve_resume(tmp_path: Path, monkeypatch):
 
     resume_result = runner.invoke(
         enterprise_app,
-        ["workflow", "resume", "run-cliapprove1", "--root", str(tmp_path)],
+        [
+            "workflow",
+            "resume",
+            "run-cliapprove1",
+            "--tenant",
+            "local",
+            "--root",
+            str(tmp_path),
+        ],
     )
     assert resume_result.exit_code == 0
     assert json.loads(resume_result.stdout)["status"] == "succeeded"

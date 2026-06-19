@@ -108,6 +108,6 @@ def test_export_verifies_interleaved_global_audit_chain(tmp_path: Path):
         decision="approved",
         decision_actor="user:approver",
     )
-    asyncio.run(orchestrator.resume(first.run_id))
+    asyncio.run(orchestrator.resume(first.run_id, tenant_id="local"))
     bundle = export_run_evidence(sac_root, first.run_id, tenant_id="local")
     assert verify_export_bundle(bundle)[0] is True

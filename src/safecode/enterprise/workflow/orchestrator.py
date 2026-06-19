@@ -18,6 +18,7 @@ from safecode.enterprise.workflow.checkpoint import (
 from safecode.enterprise.workflow.exceptions import (
     InvalidWorkflowRuntimeError,
     LangGraphUnavailableError,
+    TenantContextRequiredError,
     UnknownTaskTypeError,
     UnsupportedWorkflowTaskError,
     WorkflowInterrupted,
@@ -121,10 +122,18 @@ class LocalOrchestrator:
             return await run_langgraph_workflow(self.backend, state)
         return await self._run_local(state, completed_nodes=[])
 
-    async def resume(self, run_id: str, *, tenant_id: str | None = None) -> EnterpriseRunState:
-        resolved_tenant = tenant_id or self.backend.runs.resolve_run_tenant(run_id=run_id)
+    async def resume(
+        self,
+        run_id: str,
+        *,
+        tenant_id: str | None = None,
+    ) -> EnterpriseRunState:
+        if tenant_id is None:
+            raise TenantContextRequiredError(
+                "resume requires tenant_id; callers must resolve tenant context before resuming"
+            )
         checkpoint = self.backend.runs.load_checkpoint(
-            tenant_id=resolved_tenant, run_id=run_id
+            tenant_id=tenant_id, run_id=run_id
         )
         state = checkpoint.state
         if state.status == WorkflowStatus.awaiting_approval:

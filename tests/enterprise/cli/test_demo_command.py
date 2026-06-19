@@ -67,12 +67,18 @@ def test_pr_review_offline_demo_output_is_stable_across_runs(tmp_path: Path) -> 
     assert outputs[0] == outputs[1]
 
 
-def test_pr_review_offline_demo_does_not_write_project_root_sac(tmp_path: Path) -> None:
+def test_pr_review_offline_demo_does_not_write_persistent_state(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
     root = _seed_demo_root(tmp_path)
+    user_anchor_dir = tmp_path / "user-audit-anchors"
+    monkeypatch.setenv("SAFECODE_AUDIT_ANCHOR_DIR", str(user_anchor_dir))
     runner = CliRunner()
     result = runner.invoke(demo_app, [*_COMMAND, "--root", str(root)])
     assert result.exit_code == 0, result.stdout + result.stderr
     assert not (root / ".sac" / "enterprise" / "runs" / "run-demoprreview").exists()
+    assert not user_anchor_dir.exists()
 
 
 def test_pr_review_offline_demo_from_repo_root_does_not_touch_repo_sac(monkeypatch) -> None:
@@ -101,6 +107,59 @@ def test_pr_review_output_dir_writes_persistent_workspace(tmp_path: Path) -> Non
     assert result.exit_code == 0, result.stdout + result.stderr
     assert (workspace / ".sac" / "enterprise" / "runs" / "run-demoprreview").exists()
     assert not (root / ".sac" / "enterprise" / "runs" / "run-demoprreview").exists()
+
+
+def test_pr_review_output_dir_rejects_project_root_without_mutation(tmp_path: Path) -> None:
+    root = _seed_demo_root(tmp_path)
+    fixture = root / "examples" / "enterprise" / "fixtures" / "pr_sql_injection" / "pr.json"
+    before = fixture.read_bytes()
+    runner = CliRunner()
+    result = runner.invoke(
+        demo_app,
+        [*_COMMAND, "--root", str(root), "--output-dir", str(root)],
+    )
+    assert result.exit_code == 1
+    assert "must differ from the project root" in result.output
+    assert fixture.read_bytes() == before
+    assert not (root / ".sac" / "enterprise" / "runs" / "run-demoprreview").exists()
+
+
+def test_pr_review_output_dir_preserves_unrelated_workspace_files(tmp_path: Path) -> None:
+    root = _seed_demo_root(tmp_path / "project")
+    workspace = tmp_path / "demo-workspace"
+    unrelated = workspace / "examples" / "enterprise" / "keep.txt"
+    unrelated.parent.mkdir(parents=True)
+    unrelated.write_text("keep", encoding="utf-8")
+    runner = CliRunner()
+    result = runner.invoke(
+        demo_app,
+        [*_COMMAND, "--root", str(root), "--output-dir", str(workspace)],
+    )
+    assert result.exit_code == 0, result.stdout + result.stderr
+    assert unrelated.read_text(encoding="utf-8") == "keep"
+
+
+def test_pr_review_keep_runs_reports_temporary_workspace(tmp_path: Path) -> None:
+    root = _seed_demo_root(tmp_path)
+    runner = CliRunner()
+    result = runner.invoke(
+        demo_app,
+        [*_COMMAND, "--root", str(root), "--keep-runs"],
+    )
+    assert result.exit_code == 0, result.stdout + result.stderr
+    workspace_line = next(
+        line for line in result.stdout.splitlines() if line.startswith("demo_workspace: ")
+    )
+    anchor_line = next(
+        line for line in result.stdout.splitlines() if line.startswith("audit_anchor_dir: ")
+    )
+    workspace = Path(workspace_line.removeprefix("demo_workspace: "))
+    anchor_dir = Path(anchor_line.removeprefix("audit_anchor_dir: "))
+    try:
+        assert (workspace / ".sac" / "enterprise" / "runs" / "run-demoprreview").is_dir()
+        assert anchor_dir.is_dir()
+    finally:
+        shutil.rmtree(workspace.parent, ignore_errors=True)
 
 
 def test_pr_review_show_run_metadata_exposes_raw_audit_chain_head(tmp_path: Path) -> None:

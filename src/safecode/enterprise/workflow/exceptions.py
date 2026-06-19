@@ -33,6 +33,10 @@ class WorkflowInterrupted(WorkflowError):
     """Raised when a workflow pauses for human approval."""
 
 
+class TenantContextRequiredError(WorkflowError):
+    """Raised when resume is called without an explicit tenant context."""
+
+
 class LangGraphUnavailableError(WorkflowError):
     """Raised when langgraph runtime is selected but dependency is missing."""
 

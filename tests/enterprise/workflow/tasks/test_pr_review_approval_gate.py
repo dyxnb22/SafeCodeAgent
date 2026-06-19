@@ -67,6 +67,6 @@ def test_pr_review_live_resume_records_gated_write():
         decision="approved",
         decision_actor="user:approver",
     )
-    final = asyncio.run(orchestrator.resume(run_id))
+    final = asyncio.run(orchestrator.resume(run_id, tenant_id="local"))
     assert final.status == WorkflowStatus.succeeded
     assert any(item.tool_name == "github_write" for item in final.tool_calls)

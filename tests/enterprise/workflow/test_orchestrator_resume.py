@@ -45,7 +45,7 @@ def test_resume_skips_completed_nodes(tmp_path: Path):
         ),
     )
     completed_before = len(partial)
-    final = asyncio.run(orchestrator.resume("run-resume0001"))
+    final = asyncio.run(orchestrator.resume("run-resume0001", tenant_id="local"))
     assert final.status == WorkflowStatus.succeeded
     assert len(load_checkpoint(sac_root, "run-resume0001").completed_nodes) >= completed_before
 

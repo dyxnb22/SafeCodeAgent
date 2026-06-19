@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Optional
 
 import typer
 
@@ -39,7 +40,7 @@ def register(demo_app: typer.Typer) -> None:
             "--root",
             help="Project root containing examples/enterprise fixtures.",
         ),
-        output_dir: Path | None = typer.Option(
+        output_dir: Optional[Path] = typer.Option(
             None,
             "--output-dir",
             help="Persistent demo workspace; writes .sac state under this directory.",
@@ -60,6 +61,9 @@ def register(demo_app: typer.Typer) -> None:
             typer.echo("Only --offline mode is supported for pr-review.", err=True)
             raise typer.Exit(code=1)
         project_root = (root or Path.cwd()).resolve()
+        if output_dir is not None and output_dir.resolve() == project_root:
+            typer.echo("--output-dir must differ from the project root.", err=True)
+            raise typer.Exit(code=1)
         fixture = project_root / "examples" / "enterprise" / "fixtures" / "pr_sql_injection"
         if not fixture.is_dir():
             typer.echo(
@@ -71,7 +75,7 @@ def register(demo_app: typer.Typer) -> None:
         transcript = run_pr_review_offline_demo(
             project_root,
             workspace_root=output_dir,
-            keep_runs=keep_runs or output_dir is not None,
+            keep_runs=keep_runs,
             show_run_metadata=show_run_metadata,
         )
         typer.echo(transcript, nl=False)

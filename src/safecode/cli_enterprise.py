@@ -15,12 +15,14 @@ import typer
 
 from safecode.enterprise.rag.index_builder import build_chunks_from_manifest
 from safecode.enterprise.rag.retriever import HybridRetriever
+from safecode.enterprise.persistence.exceptions import TenantBoundaryError
 from safecode.enterprise.persistence.local_backend import LocalBackend
 from safecode.enterprise.approvals.cli_render import render_pending_requests
 from safecode.enterprise.rbac.models import resolve_subject
 from safecode.enterprise.workflow.exceptions import (
     ApprovalRequestNotFoundError,
     RequestAlreadyConsumedError,
+    TenantContextRequiredError,
     UnsupportedWorkflowTaskError,
     WorkflowError,
     WorkflowInterrupted,
@@ -196,16 +198,50 @@ def workflow_run(
 def workflow_resume(
     run_id: str = typer.Argument(..., help="Run identifier."),
     root: Path = typer.Option(None, "--root", help="Project root (defaults to cwd)."),
+    tenant: Optional[str] = typer.Option(
+        None,
+        "--tenant",
+        help="Tenant identifier for the persisted run.",
+    ),
+    allow_tenant_infer: bool = typer.Option(
+        False,
+        "--allow-tenant-infer",
+        help="Local operator override: infer tenant from persisted run state.",
+    ),
 ) -> None:
     """Resume an interrupted workflow run."""
+    if tenant is not None and allow_tenant_infer:
+        typer.echo("--tenant and --allow-tenant-infer are mutually exclusive.", err=True)
+        raise typer.Exit(code=1)
+    if tenant is None and not allow_tenant_infer:
+        typer.echo(
+            "workflow resume requires --tenant or explicit --allow-tenant-infer "
+            "for local operator recovery.",
+            err=True,
+        )
+        raise typer.Exit(code=1)
     project_root = (root or Path.cwd()).resolve()
     sac_root = project_root / ".sac"
     orchestrator = LocalOrchestrator(sac_root)
     try:
-        final = asyncio.run(orchestrator.resume(run_id))
+        resolved_tenant = tenant
+        if resolved_tenant is None:
+            resolved_tenant = orchestrator.backend.runs.resolve_run_tenant(run_id=run_id)
+        final = asyncio.run(
+            orchestrator.resume(
+                run_id,
+                tenant_id=resolved_tenant,
+            )
+        )
     except WorkflowInterrupted:
         typer.echo(json.dumps({"run_id": run_id, "status": "awaiting_approval"}))
         raise typer.Exit(code=3)
+    except TenantBoundaryError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
+    except TenantContextRequiredError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
     except WorkflowError:
         typer.echo("Unable to resume workflow.", err=True)
         raise typer.Exit(code=1)

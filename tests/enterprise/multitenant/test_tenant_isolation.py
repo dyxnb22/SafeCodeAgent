@@ -80,7 +80,7 @@ def test_approval_events_preserve_workflow_tenant(tmp_path: Path):
         decision="approved",
         decision_actor="user:approver",
     )
-    asyncio.run(orchestrator.resume(run_id))
+    asyncio.run(orchestrator.resume(run_id, tenant_id="tenant-acme"))
     events = [
         json.loads(line)
         for line in (sac_root / "enterprise" / "runs" / run_id / "trace.jsonl")

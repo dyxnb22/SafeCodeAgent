@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import asyncio
+import os
 import shutil
 import tempfile
+from contextlib import contextmanager
 from pathlib import Path
+from typing import Iterator
 
 from safecode.enterprise.approvals.store import approvals_dir, decide_request
 from safecode.enterprise.audit.chain import EnterpriseAuditChain
@@ -33,16 +36,34 @@ def reset_demo_run_state(workspace_root: Path, *, run_id: str = DEMO_RUN_ID) -> 
 
 
 def prepare_demo_workspace(project_root: Path, workspace_root: Path) -> None:
-    """Copy enterprise fixtures into an isolated demo workspace."""
-    src = project_root.resolve() / "examples" / "enterprise"
-    dst = workspace_root.resolve() / "examples" / "enterprise"
+    """Copy required demo assets into an isolated workspace without deleting files."""
+    project = project_root.resolve()
+    workspace = workspace_root.resolve()
+    if workspace == project:
+        raise ValueError("demo workspace must differ from the project root")
+    src = project / "examples" / "enterprise"
+    dst = workspace / "examples" / "enterprise"
     if not src.is_dir():
         raise FileNotFoundError(
             f"Missing enterprise fixtures under {src}; run from the repository root."
         )
-    if dst.exists():
-        shutil.rmtree(dst)
-    shutil.copytree(src, dst)
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copytree(src, dst, dirs_exist_ok=True)
+
+
+@contextmanager
+def _isolated_audit_anchors(anchor_dir: Path) -> Iterator[None]:
+    """Keep demo audit anchors outside the workspace and user-level state."""
+    key = "SAFECODE_AUDIT_ANCHOR_DIR"
+    previous = os.environ.get(key)
+    os.environ[key] = str(anchor_dir)
+    try:
+        yield
+    finally:
+        if previous is None:
+            os.environ.pop(key, None)
+        else:
+            os.environ[key] = previous
 
 
 def run_pr_review_offline_demo(
@@ -54,26 +75,32 @@ def run_pr_review_offline_demo(
 ) -> str:
     """Run the offline PR review demo and return a human-readable transcript."""
     root = project_root.resolve()
-    owned_workspace: Path | None = None
+    owned_container: Path | None = None
     if workspace_root is not None:
         workspace = workspace_root.resolve()
         workspace.mkdir(parents=True, exist_ok=True)
-        prepare_demo_workspace(root, workspace)
         cleanup_workspace = False
+        anchor_dir = workspace.parent / f".{workspace.name}-audit-anchors"
     else:
-        owned_workspace = Path(tempfile.mkdtemp(prefix="sac-demo-"))
-        workspace = owned_workspace
-        prepare_demo_workspace(root, workspace)
+        owned_container = Path(tempfile.mkdtemp(prefix="sac-demo-"))
+        workspace = owned_container / "workspace"
+        anchor_dir = owned_container / "audit-anchors"
         cleanup_workspace = not keep_runs
 
     try:
-        return _run_pr_review_in_workspace(
-            workspace,
-            show_run_metadata=show_run_metadata,
-        )
+        prepare_demo_workspace(root, workspace)
+        with _isolated_audit_anchors(anchor_dir):
+            transcript = _run_pr_review_in_workspace(
+                workspace,
+                show_run_metadata=show_run_metadata,
+            )
+        if owned_container is not None and keep_runs:
+            transcript += f"demo_workspace: {workspace}\n"
+            transcript += f"audit_anchor_dir: {anchor_dir}\n"
+        return transcript
     finally:
-        if cleanup_workspace and owned_workspace is not None:
-            shutil.rmtree(owned_workspace, ignore_errors=True)
+        if cleanup_workspace and owned_container is not None:
+            shutil.rmtree(owned_container)
 
 
 def _run_pr_review_in_workspace(
@@ -103,7 +130,7 @@ def _run_pr_review_in_workspace(
         decision_actor="user:reviewer",
         decision_note="offline demo refuses gated write",
     )
-    final = asyncio.run(orchestrator.resume(DEMO_RUN_ID))
+    final = asyncio.run(orchestrator.resume(DEMO_RUN_ID, tenant_id=state.tenant_id))
     checkpoint = load_checkpoint(sac_root, DEMO_RUN_ID)
     return _format_transcript(
         workspace_root,
