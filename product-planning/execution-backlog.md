@@ -912,12 +912,111 @@ expanded into the same shape as v1.1–v1.4 tasks.
 - **Estimate:** 0.75 PR-day.
 
 ### v1.6 Evaluation and Regression
-- v1.6.1-T1 — EvaluationCase and EvaluationResult models.
-- v1.6.1-T2 — Eval runner + case loader.
-- v1.6.2-T1 — Migrate retrieval cases into the new runner.
-- v1.6.3-T1 — Prompt-injection eval cases (eight categories).
-- v1.6.4-T1 — Tool-classification adversarial cases.
-- v1.6.5-T1 — Dashboard renderer + ratchet enforcement.
+
+### v1.6.1-T1 — EvaluationCase and EvaluationResult models
+- **Dependencies:** v1.2.1-T2 (`RunCosts`, `NodeCost`), v1.5.2-T1 (`timeline.json`).
+- **Files/Modules:**
+  - `src/safecode/enterprise/eval/cases.py`
+  - `src/safecode/enterprise/eval/exceptions.py`
+  - `src/safecode/enterprise/eval/__init__.py` (extend)
+- **Tests:**
+  - `tests/enterprise/eval/test_case_schema.py`
+- **Acceptance:**
+  - `EvaluationCase` and `EvaluationResult` match `data-models.md`.
+  - `CostBudget` defaults are deterministic.
+  - YAML loads via `safe_load` only.
+- **Security constraints:**
+  - Case fixtures are untrusted data; never executed as instructions.
+  - Result artifacts use strict redaction profile by default.
+- **Non-goals:** Runner, baselines, CLI.
+- **Estimate:** 0.5 PR-day.
+
+### v1.6.1-T2 — Eval runner and case loader
+- **Dependencies:** v1.6.1-T1, v1.5.1-T1.
+- **Files/Modules:**
+  - `src/safecode/enterprise/eval/loader.py`
+  - `src/safecode/enterprise/eval/runner.py`
+- **Tests:**
+  - `tests/enterprise/eval/test_runner_round_trip.py`
+  - `tests/enterprise/eval/test_duplicate_case_id.py`
+- **Acceptance:**
+  - Discovers cases from `tests/enterprise/eval/cases/`.
+  - Trivial smoke case completes in <2 s on mock provider.
+  - Duplicate `case_id` raises `DuplicateCaseIdError`.
+- **Security constraints:**
+  - Mock provider only; no network in default lane.
+  - Trace export profile forced to `strict`.
+- **Non-goals:** Suite-specific workflow execution beyond smoke.
+- **Estimate:** 0.75 PR-day.
+
+### v1.6.2-T1 — Retrieval suite migration
+- **Dependencies:** v1.6.1-T2, v1.1.4-T2.
+- **Files/Modules:**
+  - `src/safecode/enterprise/eval/retrieval.py` (extend)
+  - `src/safecode/enterprise/eval/runner.py` (extend)
+- **Tests:**
+  - `tests/enterprise/eval/test_retrieval_quality.py` (extend)
+- **Acceptance:**
+  - Retrieval cases run through unified runner and meet
+    `retrieval_v1_1.json` baseline.
+  - Forbidden sources never appear in top-k.
+- **Security constraints:**
+  - Retrieved content treated as untrusted input.
+- **Non-goals:** New retrieval case categories beyond v1.1.4 set.
+- **Estimate:** 0.5 PR-day.
+
+### v1.6.3-T1 — Prompt-injection eval cases
+- **Dependencies:** v1.6.1-T2.
+- **Files/Modules:**
+  - `tests/enterprise/eval/cases/prompt_injection/*.yaml`
+  - `src/safecode/enterprise/eval/runner.py` (extend)
+  - `src/safecode/enterprise/eval/assertions.py`
+- **Tests:**
+  - `tests/enterprise/eval/test_prompt_injection_suite.py`
+- **Acceptance:**
+  - At least eight categories from `evaluation-plan.md`.
+  - Cases assert injection refusal via structured result fields.
+- **Security constraints:**
+  - Injection text in fixtures must not become workflow instructions.
+  - Strict redaction on eval outputs.
+- **Non-goals:** Non-English injection text.
+- **Estimate:** 0.75 PR-day.
+
+### v1.6.4-T1 — Tool-classification adversarial cases
+- **Dependencies:** v1.6.1-T2, v1.3.5-T1.
+- **Files/Modules:**
+  - `tests/enterprise/eval/cases/tool_classification/*.yaml`
+  - `src/safecode/enterprise/eval/runner.py` (extend)
+- **Tests:**
+  - `tests/enterprise/eval/test_tool_classification_suite.py`
+- **Acceptance:**
+  - Adversarial MCP metadata cannot upgrade tool tier to `AUTO`.
+  - Malformed discovery yields `BLOCK` or typed errors.
+- **Security constraints:**
+  - Local allowlist remains authoritative over server metadata.
+- **Non-goals:** In-process native-tool spoofing attacks.
+- **Estimate:** 0.5 PR-day.
+
+### v1.6.5-T1 — Dashboard and ratchet enforcement
+- **Dependencies:** v1.6.2-T1, v1.6.3-T1, v1.6.4-T1.
+- **Files/Modules:**
+  - `src/safecode/enterprise/eval/dashboard.py`
+  - `src/safecode/enterprise/eval/ratchet.py`
+  - `src/safecode/cli_enterprise.py` (extend)
+  - `tests/enterprise/eval/baselines/*.json`
+- **Tests:**
+  - `tests/enterprise/eval/test_ratchet_enforcement.py`
+  - `tests/enterprise/eval/test_eval_dashboard.py`
+  - `tests/enterprise/cli/test_cli_eval_run.py`
+- **Acceptance:**
+  - `sac enterprise eval run --suite all` writes results and dashboard.
+  - Baselines update only via `--update-baseline`.
+  - Ratchet does not silently lower thresholds.
+- **Security constraints:**
+  - `.sac/enterprise/eval/latest.md` not committed.
+  - Baseline files include date and commit metadata.
+- **Non-goals:** Web dashboard; live-provider merge gate.
+- **Estimate:** 0.75 PR-day.
 
 ### v1.7 PR Security Review MVP
 - v1.7.1-T1 — `pr_review` sub-graph wiring.
