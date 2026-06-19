@@ -33,6 +33,9 @@ DOCUMENTED_ENV_VARS: Final[tuple[str, ...]] = (
     f"{ENV_PREFIX}GITHUB_WEBHOOK_SECRET",
     f"{ENV_PREFIX}GITHUB_WEBHOOK_TENANT_ID",
     f"{ENV_PREFIX}GITHUB_API_BASE_URL",
+    f"{ENV_PREFIX}JIRA_BASE_URL",
+    f"{ENV_PREFIX}JIRA_EMAIL",
+    f"{ENV_PREFIX}JIRA_API_TOKEN",
     f"{ENV_PREFIX}CORS_ALLOWED_ORIGINS",
 )
 
@@ -57,6 +60,9 @@ class TeamServerSettings(BaseModel):
     github_webhook_secret: SecretStr | None = None
     github_webhook_tenant_id: str | None = None
     github_api_base_url: str | None = None
+    jira_base_url: str | None = None
+    jira_email: str | None = None
+    jira_api_token: SecretStr | None = None
     cors_allowed_origins: str | None = None
 
     @field_validator(
@@ -69,6 +75,8 @@ class TeamServerSettings(BaseModel):
         "github_installation_id",
         "github_webhook_tenant_id",
         "github_api_base_url",
+        "jira_base_url",
+        "jira_email",
         "cors_allowed_origins",
     )
     @classmethod
@@ -117,6 +125,9 @@ class TeamServerSettings(BaseModel):
             f"github_webhook_secret={self._secret_repr(self.github_webhook_secret)}, "
             f"github_webhook_tenant_id={self.github_webhook_tenant_id!r}, "
             f"github_api_base_url={self.github_api_base_url!r}, "
+            f"jira_base_url={self.jira_base_url!r}, "
+            f"jira_email={self.jira_email!r}, "
+            f"jira_api_token={self._secret_repr(self.jira_api_token)}, "
             f"cors_allowed_origins={self.cors_allowed_origins!r})"
         )
 
@@ -175,6 +186,9 @@ def load_team_server_settings_from_env() -> TeamServerSettings:
         github_webhook_secret: SecretStr | None = None
         github_webhook_tenant_id: str | None = None
         github_api_base_url: str | None = None
+        jira_base_url: str | None = None
+        jira_email: str | None = None
+        jira_api_token: SecretStr | None = None
         cors_allowed_origins: str | None = None
 
     try:

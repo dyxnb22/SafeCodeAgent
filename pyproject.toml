@@ -78,5 +78,6 @@ markers = [
     "timeout: tests that intentionally wait for timeout handling",
     "postgres_integration: tests requiring a real PostgreSQL instance",
     "live_github: opt-in tests against live GitHub providers",
+    "live_jira: opt-in tests against live Jira providers",
     "live_oidc: opt-in tests requiring a live OIDC issuer",
 ]

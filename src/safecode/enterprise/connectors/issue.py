@@ -7,7 +7,8 @@ import re
 from pathlib import Path
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict
+import httpx
+from pydantic import BaseModel, ConfigDict, SecretStr
 
 from safecode.context.redactor import redact_secrets
 from safecode.enterprise.connectors.models import IssueEvidence
@@ -29,9 +30,12 @@ _SEVERITY_MAP = {
 class IssueConnectorSpec(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
+    mode: Literal["fixture", "live"] = "fixture"
     source_kind: Literal["markdown", "jira_json"] = "markdown"
-    source_path: str
+    source_path: str = ""
     project_root: str = "."
+    issue_key: str | None = None
+    api_base_url: str = "https://example.atlassian.net"
 
 
 class IssueConnectorError(Exception):
@@ -82,7 +86,12 @@ def _from_jira_json(payload: dict) -> IssueEvidence:
     issue_id = str(payload.get("key") or payload.get("id") or "unknown")
     title = redact_secrets(str(fields.get("summary") or fields.get("title") or "Untitled"))[:MAX_TITLE_CHARS]
     body = redact_secrets(str(fields.get("description") or fields.get("body") or ""))[:MAX_BODY_CHARS]
-    labels = [str(item.get("name", item)) for item in fields.get("labels", []) if item]
+    labels: list[str] = []
+    for item in fields.get("labels", []):
+        if isinstance(item, dict):
+            labels.append(str(item.get("name", "")))
+        elif item:
+            labels.append(str(item))
     severity = _normalize_severity(
         (fields.get("priority") or {}).get("name") if isinstance(fields.get("priority"), dict) else fields.get("severity")
     )
@@ -102,7 +111,29 @@ def _from_jira_json(payload: dict) -> IssueEvidence:
     )
 
 
-def fetch_issue(spec: IssueConnectorSpec) -> IssueEvidence:
+def fetch_issue(
+    spec: IssueConnectorSpec,
+    *,
+    email: str | None = None,
+    api_token: SecretStr | None = None,
+    transport: httpx.BaseTransport | None = None,
+) -> IssueEvidence:
+    if spec.mode == "live":
+        from safecode.enterprise.connectors.jira_live import IssueLiveConnectorSpec, fetch_issue_live
+
+        issue_key = (spec.issue_key or "").strip()
+        if not issue_key:
+            raise IssueConnectorError("issue_key is required for live issue fetch")
+        if email is None or api_token is None:
+            raise IssueConnectorError("email and api_token are required for live issue fetch")
+        return fetch_issue_live(
+            IssueLiveConnectorSpec(issue_key=issue_key, api_base_url=spec.api_base_url),
+            email=email,
+            api_token=api_token,
+            transport=transport,
+        )
+    if not spec.source_path:
+        raise IssueConnectorError("source_path is required for fixture issue fetch")
     path = _resolve_source(spec)
     if spec.source_kind == "markdown":
         issue_id = re.sub(r"[^A-Za-z0-9_-]+", "-", path.stem)[:64] or "unknown"
