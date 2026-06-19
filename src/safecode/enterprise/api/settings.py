@@ -40,6 +40,8 @@ DOCUMENTED_ENV_VARS: Final[tuple[str, ...]] = (
     f"{ENV_PREFIX}OTEL_ENABLED",
     f"{ENV_PREFIX}OTEL_ENDPOINT",
     f"{ENV_PREFIX}OTEL_SERVICE_NAME",
+    f"{ENV_PREFIX}RATE_LIMIT_RPM",
+    f"{ENV_PREFIX}MAX_INFLIGHT_RUNS",
 )
 
 
@@ -70,6 +72,8 @@ class TeamServerSettings(BaseModel):
     otel_enabled: bool = False
     otel_endpoint: str | None = None
     otel_service_name: str = "safecode-enterprise"
+    rate_limit_rpm: int = Field(default=120, ge=1, le=10_000)
+    max_inflight_runs: int = Field(default=10, ge=1, le=1_000)
 
     @field_validator(
         "oidc_issuer",
@@ -143,7 +147,9 @@ class TeamServerSettings(BaseModel):
             f"cors_allowed_origins={self.cors_allowed_origins!r}, "
             f"otel_enabled={self.otel_enabled}, "
             f"otel_endpoint={self.otel_endpoint!r}, "
-            f"otel_service_name={self.otel_service_name!r})"
+            f"otel_service_name={self.otel_service_name!r}, "
+            f"rate_limit_rpm={self.rate_limit_rpm}, "
+            f"max_inflight_runs={self.max_inflight_runs})"
         )
 
     @staticmethod
@@ -208,6 +214,8 @@ def load_team_server_settings_from_env() -> TeamServerSettings:
         otel_enabled: bool = False
         otel_endpoint: str | None = None
         otel_service_name: str = "safecode-enterprise"
+        rate_limit_rpm: int = Field(default=120, ge=1, le=10_000)
+        max_inflight_runs: int = Field(default=10, ge=1, le=1_000)
 
     try:
         env_values = _EnvTeamServerSettings().model_dump()

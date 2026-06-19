@@ -51,6 +51,16 @@ def check_ratchet(
                 failures.append(f"{result.case_id}.{metric_name} below baseline")
         if result.forbidden_behavior_triggered and expected.get("forbidden_behavior_triggered_eq") == []:
             failures.append(f"{result.case_id} triggered forbidden behavior")
+        if result.cost_used.total.latency_ms > 0:
+            from safecode.enterprise.perf.budgets import check_run_cost_budget
+
+            budget = expected.get("cost_budget")
+            if isinstance(budget, dict):
+                from safecode.enterprise.eval.cases import CostBudget
+
+                failures.extend(
+                    check_run_cost_budget(result.cost_used, CostBudget.model_validate(budget))
+                )
     return failures
 
 

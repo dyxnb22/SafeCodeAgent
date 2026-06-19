@@ -19,6 +19,7 @@ from safecode.enterprise.api.exceptions import (
     IdempotencyKeyRequiredError,
     TenantScopeDeniedError,
 )
+from safecode.enterprise.api.rate_limit import InflightLimitExceeded, RateLimitExceeded, TenantRateLimiter
 from safecode.enterprise.api.settings import TeamServerSettings, parse_cors_allowed_origins
 from safecode.enterprise.auth.oidc import OidcValidator
 from safecode.enterprise.persistence.exceptions import TenantBoundaryError
@@ -34,6 +35,7 @@ class AppState:
     settings: TeamServerSettings
     backend: PersistenceBackend
     subject_resolver: SubjectResolver
+    rate_limiter: TenantRateLimiter
     oidc_validator: OidcValidator | None = None
     eval_baselines_root: Path | None = None
     project_root: Path | None = None
@@ -62,10 +64,12 @@ def create_app(
     )
 
     app = FastAPI(title="SafeCodeAgent Enterprise Team Server", version=API_VERSION)
+    rate_limiter = TenantRateLimiter.from_settings(settings)
     app.state.enterprise = AppState(
         settings=settings,
         backend=backend,
         subject_resolver=subject_resolver,
+        rate_limiter=rate_limiter,
         oidc_validator=oidc_validator,
         eval_baselines_root=eval_baselines_root,
         project_root=project_root,
@@ -89,6 +93,29 @@ def create_app(
             allow_methods=["GET", "POST", "OPTIONS"],
             allow_headers=["Authorization", "Content-Type", "X-Tenant-Id", "Idempotency-Key"],
         )
+
+    @app.middleware("http")
+    async def enforce_v2_rate_limits(request, call_next):
+        if request.url.path.startswith("/v2"):
+            tenant = (
+                request.headers.get("X-Tenant-Id")
+                or request.query_params.get("tenant_id")
+                or "local"
+            )
+            try:
+                rate_limiter.check_request(tenant)
+            except RateLimitExceeded as exc:
+                return JSONResponse(
+                    status_code=429,
+                    content={
+                        "type": "about:blank",
+                        "title": "Too Many Requests",
+                        "status": 429,
+                        "detail": exc.detail,
+                    },
+                    media_type="application/problem+json",
+                )
+        return await call_next(request)
 
     @app.get("/healthz")
     def healthz() -> dict[str, str]:
@@ -217,6 +244,32 @@ def create_app(
                 "title": "Bad Request",
                 "status": 400,
                 "detail": str(exc),
+            },
+            media_type="application/problem+json",
+        )
+
+    @app.exception_handler(RateLimitExceeded)
+    def rate_limit_exceeded(_request, exc: RateLimitExceeded) -> JSONResponse:
+        return JSONResponse(
+            status_code=429,
+            content={
+                "type": "about:blank",
+                "title": "Too Many Requests",
+                "status": 429,
+                "detail": exc.detail,
+            },
+            media_type="application/problem+json",
+        )
+
+    @app.exception_handler(InflightLimitExceeded)
+    def inflight_limit_exceeded(_request, exc: InflightLimitExceeded) -> JSONResponse:
+        return JSONResponse(
+            status_code=429,
+            content={
+                "type": "about:blank",
+                "title": "Too Many Requests",
+                "status": 429,
+                "detail": exc.detail,
             },
             media_type="application/problem+json",
         )

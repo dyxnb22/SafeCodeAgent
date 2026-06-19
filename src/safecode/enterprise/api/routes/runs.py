@@ -96,6 +96,7 @@ def start_run_endpoint(
     subject: Annotated[RBACSubject, Depends(get_subject)],
     state: Annotated[AppState, Depends(get_app_state)],
 ) -> dict[str, str]:
+    state.rate_limiter.check_inflight(backend, tenant_id)
     queue = command_queue_for(backend)
     accepted = start_run(
         backend,
