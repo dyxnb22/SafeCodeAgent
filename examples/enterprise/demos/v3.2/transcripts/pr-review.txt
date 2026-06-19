@@ -1,0 +1,41 @@
+=== SafeCodeAgent Enterprise Demo ===
+demo name: pr-review
+mode: offline
+
+--- classification ---
+task_type: pr_review
+input_kind: pr_fixture
+classification: classified task pr_review
+
+--- evidence ---
+fixture: examples/enterprise/fixtures/pr_sql_injection/pr.json
+evidence_source: pr_fixture (Add user lookup with SQL injection risk)
+
+--- citations ---
+citation_id: cite-cc5aae2ff70e5613032516d4 (source_id=scanner-semgrep-baseline)
+citation_id: cite-0ef3c262f1de572b747ca4eb (source_id=code-app)
+citation_id: cite-d7434eeab5021b81404d3344 (source_id=runbook-secret-leak)
+citation_id: cite-624a69f99685805170363d46 (source_id=policy-secure-sql-001)
+
+--- workflow timeline ---
+node: classify_request | classified task pr_review
+node: collect_repo_context | collected repository context
+node: retrieve_policy_and_code | retrieved policy and code citations
+node: analyze_security_risk | analyzed risk tier high
+node: plan_actions | planned actions
+node: propose_report_or_patch | proposed PR review artifacts
+node: validate | validation passed
+node: approval_gate | approval gate evaluated
+node: finalize | skipped
+
+--- approval gate ---
+workflow_status: rejected
+approval-gated action: refused
+gated_action: file_write
+decision: rejected
+
+--- audit chain ---
+audit_integrity: verified
+audit_summary: Audit log integrity verified with external anchor.
+audit_chain_head: <hash>
+completed_nodes: 8
