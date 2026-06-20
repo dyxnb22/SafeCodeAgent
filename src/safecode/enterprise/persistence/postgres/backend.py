@@ -43,7 +43,6 @@ from safecode.enterprise.trace.events import TraceEvent, TraceEventType
 from safecode.enterprise.trace.timeline import write_timeline
 from safecode.enterprise.workflow.checkpoint import (
     RunCheckpoint,
-    gc_runs as gc_runs_files,
     load_checkpoint as load_checkpoint_file,
     save_checkpoint as save_checkpoint_file,
 )
@@ -53,9 +52,11 @@ from safecode.enterprise.workflow.exceptions import (
     ApprovalRequestNotFoundError,
     ApprovalRequestTamperedError,
     CheckpointCorruptedError,
+    CheckpointNotFoundError,
     InvalidRunIdError,
     RequestAlreadyConsumedError,
 )
+from safecode.enterprise.persistence.run_artifact_lock import run_artifact_lock
 from safecode.enterprise.workflow.ids import validate_run_id
 
 
@@ -71,30 +72,35 @@ class PostgresRunStore:
     def save_checkpoint(self, *, tenant_id: str, checkpoint: RunCheckpoint) -> None:
         tenant = validate_tenant_id(tenant_id)
         assert_tenant_match(tenant, checkpoint.state.tenant_id, operation="save_checkpoint")
-        save_checkpoint_file(self._artifacts_root, checkpoint)
-        with self._uow.connection() as conn:
-            conn.execute(
-                """
-                INSERT INTO enterprise.checkpoints (
-                    tenant_id, run_id, schema_version, completed_nodes, next_node, state, updated_at
-                ) VALUES (%s, %s, %s, %s::jsonb, %s, %s::jsonb, NOW())
-                ON CONFLICT (tenant_id, run_id) DO UPDATE SET
-                    schema_version = EXCLUDED.schema_version,
-                    completed_nodes = EXCLUDED.completed_nodes,
-                    next_node = EXCLUDED.next_node,
-                    state = EXCLUDED.state,
-                    updated_at = NOW()
-                """,
-                (
-                    tenant,
-                    checkpoint.run_id,
-                    checkpoint.schema_version,
-                    json.dumps(list(checkpoint.completed_nodes)),
-                    checkpoint.next_node,
-                    checkpoint.state.model_dump_json(),
-                ),
-            )
-            conn.commit()
+        with run_artifact_lock(
+            self._artifacts_root,
+            tenant_id=tenant,
+            run_id=checkpoint.run_id,
+        ):
+            save_checkpoint_file(self._artifacts_root, checkpoint)
+            with self._uow.connection() as conn:
+                conn.execute(
+                    """
+                    INSERT INTO enterprise.checkpoints (
+                        tenant_id, run_id, schema_version, completed_nodes, next_node, state, updated_at
+                    ) VALUES (%s, %s, %s, %s::jsonb, %s, %s::jsonb, NOW())
+                    ON CONFLICT (tenant_id, run_id) DO UPDATE SET
+                        schema_version = EXCLUDED.schema_version,
+                        completed_nodes = EXCLUDED.completed_nodes,
+                        next_node = EXCLUDED.next_node,
+                        state = EXCLUDED.state,
+                        updated_at = NOW()
+                    """,
+                    (
+                        tenant,
+                        checkpoint.run_id,
+                        checkpoint.schema_version,
+                        json.dumps(list(checkpoint.completed_nodes)),
+                        checkpoint.next_node,
+                        checkpoint.state.model_dump_json(),
+                    ),
+                )
+                conn.commit()
 
     def load_checkpoint(self, *, tenant_id: str, run_id: str) -> RunCheckpoint:
         tenant = validate_tenant_id(tenant_id)
@@ -120,7 +126,7 @@ class PostgresRunStore:
                 ).fetchall()
             if other:
                 assert_tenant_match(tenant, str(other[0][0]), operation="load_checkpoint")
-            raise CheckpointCorruptedError(f"missing checkpoint for run {run_id!r}")
+            raise CheckpointNotFoundError(f"missing checkpoint for run {run_id!r}")
         from safecode.enterprise.workflow.state import EnterpriseRunState
 
         schema_version, loaded_run_id, completed_nodes, next_node, state_payload = row
@@ -154,45 +160,98 @@ class PostgresRunStore:
     def purge_run(self, *, tenant_id: str, run_id: str) -> None:
         tenant = validate_tenant_id(tenant_id)
         validate_run_id(run_id)
-        directory = self._artifacts_root / "enterprise" / "runs" / run_id
-        if directory.is_dir() and (directory / "state.json").is_file():
-            checkpoint = load_checkpoint_file(self._artifacts_root, run_id)
+        with run_artifact_lock(self._artifacts_root, tenant_id=tenant, run_id=run_id):
+            checkpoint = self.load_checkpoint(tenant_id=tenant, run_id=run_id)
             assert_tenant_match(tenant, checkpoint.state.tenant_id, operation="purge_run")
-        with self._uow.connection() as conn:
-            for table in (
-                "trace_events",
-                "eval_results",
-                "evidence_index",
-                "grants",
-                "approval_requests",
-                "checkpoints",
-            ):
-                conn.execute(
-                    f"DELETE FROM enterprise.{table} WHERE tenant_id = %s AND run_id = %s",
-                    (tenant, run_id),
-                )
-            conn.commit()
-        if directory.is_dir():
-            shutil.rmtree(directory)
+            directory = self._artifacts_root / "enterprise" / "runs" / run_id
+            if directory.is_symlink():
+                from safecode.enterprise.persistence.exceptions import TenantBoundaryError
+
+                raise TenantBoundaryError(f"refusing symlink run directory for purge_run: {run_id}")
+            with self._uow.connection() as conn:
+                for table in (
+                    "trace_events",
+                    "eval_results",
+                    "evidence_index",
+                    "grants",
+                    "approval_requests",
+                    "checkpoints",
+                ):
+                    conn.execute(
+                        f"DELETE FROM enterprise.{table} WHERE tenant_id = %s AND run_id = %s",
+                        (tenant, run_id),
+                    )
+                conn.commit()
+            if directory.is_dir():
+                shutil.rmtree(directory)
 
     def gc_runs(self, *, tenant_id: str, older_than_days: int) -> list[str]:
         tenant = validate_tenant_id(tenant_id)
-        removed_files = gc_runs_files(self._artifacts_root, older_than_days=older_than_days)
         if older_than_days < 1:
             raise ValueError("older_than_days must be at least 1")
         with self._uow.connection() as conn:
-            rows = conn.execute(
+            candidates = conn.execute(
                 """
-                DELETE FROM enterprise.checkpoints
+                SELECT run_id
+                FROM enterprise.checkpoints
                 WHERE tenant_id = %s
                   AND updated_at < NOW() - (%s || ' days')::interval
-                RETURNING run_id
+                ORDER BY run_id
                 """,
                 (tenant, str(older_than_days)),
             ).fetchall()
-            conn.commit()
-        pg_removed = [str(row[0]) for row in rows]
-        return sorted(set(removed_files) | set(pg_removed))
+        removed: list[str] = []
+        for row in candidates:
+            run_id = str(row[0])
+            with run_artifact_lock(self._artifacts_root, tenant_id=tenant, run_id=run_id):
+                with self._uow.connection() as conn:
+                    locked = conn.execute(
+                        """
+                        SELECT updated_at
+                        FROM enterprise.checkpoints
+                        WHERE tenant_id = %s
+                          AND run_id = %s
+                          AND updated_at < NOW() - (%s || ' days')::interval
+                        FOR UPDATE
+                        """,
+                        (tenant, run_id, str(older_than_days)),
+                    ).fetchone()
+                    if locked is None:
+                        conn.rollback()
+                        continue
+                    observed_at = locked[0]
+                    directory = self._artifacts_root / "enterprise" / "runs" / run_id
+                    if directory.is_symlink():
+                        conn.rollback()
+                        continue
+                    if directory.is_dir() and not directory.is_symlink():
+                        state_path = directory / "state.json"
+                        if state_path.is_file():
+                            try:
+                                checkpoint = load_checkpoint_file(self._artifacts_root, run_id)
+                                assert_tenant_match(
+                                    tenant, checkpoint.state.tenant_id, operation="gc_runs"
+                                )
+                            except Exception:
+                                conn.rollback()
+                                continue
+                            try:
+                                shutil.rmtree(directory)
+                            except OSError:
+                                conn.rollback()
+                                continue
+                    deleted = conn.execute(
+                        """
+                        DELETE FROM enterprise.checkpoints
+                        WHERE tenant_id = %s AND run_id = %s AND updated_at = %s
+                        RETURNING run_id
+                        """,
+                        (tenant, run_id, observed_at),
+                    ).fetchone()
+                    if deleted is not None:
+                        removed.append(run_id)
+                    conn.commit()
+        return sorted(removed)
 
 
 class PostgresApprovalStore:
@@ -885,6 +944,12 @@ class PostgresBackend:
     @property
     def webhooks(self) -> PostgresWebhookEventStore:
         return PostgresWebhookEventStore(self._uow)
+
+    @property
+    def api_idempotency(self):
+        from safecode.enterprise.api.idempotency import PostgresApiIdempotencyStore
+
+        return PostgresApiIdempotencyStore(self._uow)
 
     def probe(self) -> bool:
         return self._uow.probe()

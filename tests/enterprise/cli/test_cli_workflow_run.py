@@ -36,13 +36,37 @@ def test_workflow_run_returns_run_id(tmp_path: Path, monkeypatch):
 
 
 def test_workflow_gc_removes_old_runs(tmp_path: Path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    sac_runs = tmp_path / ".sac" / "enterprise" / "runs" / "run-gc00000001"
-    sac_runs.mkdir(parents=True)
-    old = time.time() - (8 * 86400)
     import os
 
+    monkeypatch.chdir(tmp_path)
+    sac_root = tmp_path / ".sac"
+    run_id = "run-gc00000001"
+    from safecode.enterprise.workflow.checkpoint import CHECKPOINT_SCHEMA_VERSION, RunCheckpoint, save_checkpoint
+    from safecode.enterprise.workflow.orchestrator import build_initial_state
+    from safecode.enterprise.workflow.types import TaskType
+
+    state = build_initial_state(
+        task_type=TaskType.pr_review,
+        input_ref="fixture.json",
+        actor_id="user:test",
+        repo_root=tmp_path,
+        run_id=run_id,
+        tenant_id="local",
+    )
+    save_checkpoint(
+        sac_root,
+        RunCheckpoint(
+            schema_version=CHECKPOINT_SCHEMA_VERSION,
+            run_id=run_id,
+            completed_nodes=[],
+            next_node="classify_request",
+            state=state,
+        ),
+    )
+    sac_runs = sac_root / "enterprise" / "runs" / run_id
+    old = time.time() - (8 * 86400)
     os.utime(sac_runs, (old, old))
+    os.utime(sac_runs / "state.json", (old, old))
     runner = CliRunner()
     result = runner.invoke(
         enterprise_app,
@@ -50,5 +74,5 @@ def test_workflow_gc_removes_old_runs(tmp_path: Path, monkeypatch):
     )
     assert result.exit_code == 0
     payload = json.loads(result.stdout)
-    assert "run-gc00000001" in payload["removed"]
+    assert run_id in payload["removed"]
     assert not sac_runs.exists()

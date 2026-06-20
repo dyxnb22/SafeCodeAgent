@@ -38,6 +38,7 @@ _OWNED_TABLES = (
     "knowledge_vectors",
     "memory_facts",
     "dlq",
+    "api_idempotency",
 )
 
 

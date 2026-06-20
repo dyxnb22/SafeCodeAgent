@@ -5,14 +5,22 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from safecode.enterprise.persistence.run_artifact_lock import run_artifact_lock
 from safecode.enterprise.persistence.protocols import validate_tenant_id
 from safecode.enterprise.rbac.models import RBACSubject
 from safecode.enterprise.worker.models import RunAccepted
-from safecode.enterprise.worker.queue import CommandQueue, LocalCommandQueue
+from safecode.enterprise.worker.queue import (
+    CommandQueue,
+    IdempotencyConflictError,
+    LocalCommandQueue,
+    ensure_command_enqueued,
+    validate_command_match,
+)
 from safecode.enterprise.worker.status import is_terminal
 from safecode.enterprise.workflow.checkpoint import CHECKPOINT_SCHEMA_VERSION, RunCheckpoint
 from safecode.enterprise.workflow.exceptions import (
     CheckpointCorruptedError,
+    CheckpointNotFoundError,
     UnsupportedWorkflowTaskError,
 )
 from safecode.enterprise.workflow.ids import generate_run_id, validate_run_id
@@ -45,6 +53,62 @@ def command_queue_for(backend: PersistenceBackend) -> CommandQueue:
 def _load_status(backend: PersistenceBackend, *, tenant_id: str, run_id: str) -> str:
     checkpoint = backend.runs.load_checkpoint(tenant_id=tenant_id, run_id=run_id)
     return checkpoint.state.status.value
+
+
+def _artifacts_root(backend: PersistenceBackend) -> Path:
+    root = getattr(backend, "sac_root", None)
+    if root is None:
+        root = getattr(backend, "artifacts_root", None)
+    if root is None:
+        raise TypeError("backend does not expose an artifact root")
+    return Path(root)
+
+
+def _ensure_start_checkpoint(
+    backend: PersistenceBackend,
+    *,
+    tenant_id: str,
+    run_id: str,
+    task_type: TaskType,
+    input_ref: str,
+    subject: RBACSubject,
+    project_root: Path,
+) -> RunCheckpoint:
+    """Create or recover the claimed start checkpoint exactly once."""
+    with run_artifact_lock(
+        _artifacts_root(backend),
+        tenant_id=tenant_id,
+        run_id=run_id,
+    ):
+        try:
+            checkpoint = backend.runs.load_checkpoint(tenant_id=tenant_id, run_id=run_id)
+        except CheckpointNotFoundError:
+            state = build_initial_state(
+                task_type=task_type,
+                input_ref=input_ref,
+                actor_id=subject.actor_id,
+                repo_root=project_root,
+                run_id=run_id,
+                tenant_id=tenant_id,
+            )
+            checkpoint = RunCheckpoint(
+                schema_version=CHECKPOINT_SCHEMA_VERSION,
+                run_id=run_id,
+                completed_nodes=[],
+                next_node="classify_request",
+                state=state,
+            )
+            backend.runs.save_checkpoint(tenant_id=tenant_id, checkpoint=checkpoint)
+        state = checkpoint.state
+        if (
+            state.task_type != task_type
+            or state.request.input_ref != input_ref
+            or state.actor_id != subject.actor_id
+        ):
+            raise IdempotencyConflictError(
+                "stored start checkpoint does not match the idempotent command binding"
+            )
+        return checkpoint
 
 
 def _save_cancelled(
@@ -88,14 +152,6 @@ def start_run(
 ) -> RunAccepted:
     tenant = validate_tenant_id(tenant_id)
     key = idempotency_key.strip()
-    existing = queue.get_command(tenant_id=tenant, idempotency_key=key)
-    if existing is not None:
-        status = _load_status(backend, tenant_id=tenant, run_id=existing.run_id)
-        return RunAccepted(
-            run_id=existing.run_id,
-            status=status,
-            status_url=f"/v2/runs/{existing.run_id}?tenant_id={tenant}",
-        )
     try:
         parsed_task = TaskType(task_type)
     except ValueError as exc:
@@ -106,42 +162,39 @@ def start_run(
         ensure_workflow_task_executable(parsed_task)
     except UnsupportedWorkflowTaskError as exc:
         raise ValueError(str(exc)) from exc
-    run_id = validate_run_id(generate_run_id())
-    state = build_initial_state(
-        task_type=parsed_task,
-        input_ref=input_ref,
-        actor_id=subject.actor_id,
-        repo_root=project_root,
-        run_id=run_id,
-        tenant_id=tenant,
-    )
-    backend.runs.save_checkpoint(
-        tenant_id=tenant,
-        checkpoint=RunCheckpoint(
-            schema_version=CHECKPOINT_SCHEMA_VERSION,
-            run_id=run_id,
-            completed_nodes=[],
-            next_node="classify_request",
-            state=state,
-        ),
-    )
-    queue.record_command(
+    payload = {
+        "task_type": task_type,
+        "input_ref": input_ref,
+        "actor_id": subject.actor_id,
+    }
+    proposed_run_id = validate_run_id(generate_run_id())
+    record = queue.record_command(
         tenant_id=tenant,
         idempotency_key=key,
         command="start",
-        run_id=run_id,
-        payload={"task_type": task_type, "input_ref": input_ref},
+        run_id=proposed_run_id,
+        payload=payload,
     )
-    queue.enqueue_job(
-        tenant_id=tenant,
-        run_id=run_id,
+    validate_command_match(
+        record,
         command="start",
-        payload={"task_type": task_type, "input_ref": input_ref},
+        run_id=record.run_id,
+        payload=payload,
     )
+    checkpoint = _ensure_start_checkpoint(
+        backend,
+        tenant_id=tenant,
+        run_id=record.run_id,
+        task_type=parsed_task,
+        input_ref=input_ref,
+        subject=subject,
+        project_root=project_root,
+    )
+    queue.enqueue_command_job(record)
     return RunAccepted(
-        run_id=run_id,
-        status=WorkflowStatus.pending.value,
-        status_url=f"/v2/runs/{run_id}?tenant_id={tenant}",
+        run_id=record.run_id,
+        status=checkpoint.state.status.value,
+        status_url=f"/v2/runs/{record.run_id}?tenant_id={tenant}",
     )
 
 
@@ -158,6 +211,12 @@ def resume_run(
     key = idempotency_key.strip()
     existing = queue.get_command(tenant_id=tenant, idempotency_key=key)
     if existing is not None:
+        validate_command_match(
+            existing,
+            command="resume",
+            run_id=run_id,
+        )
+        queue.enqueue_command_job(existing)
         status = _load_status(backend, tenant_id=tenant, run_id=existing.run_id)
         return RunAccepted(
             run_id=existing.run_id,
@@ -165,13 +224,13 @@ def resume_run(
             status_url=f"/v2/runs/{existing.run_id}?tenant_id={tenant}",
         )
     backend.runs.load_checkpoint(tenant_id=tenant, run_id=run_id)
-    queue.record_command(
+    ensure_command_enqueued(
+        queue,
         tenant_id=tenant,
         idempotency_key=key,
         command="resume",
         run_id=run_id,
     )
-    queue.enqueue_job(tenant_id=tenant, run_id=run_id, command="resume")
     status = _load_status(backend, tenant_id=tenant, run_id=run_id)
     return RunAccepted(
         run_id=run_id,
@@ -193,6 +252,12 @@ def cancel_run(
     key = idempotency_key.strip()
     existing = queue.get_command(tenant_id=tenant, idempotency_key=key)
     if existing is not None:
+        validate_command_match(
+            existing,
+            command="cancel",
+            run_id=run_id,
+        )
+        queue.enqueue_command_job(existing)
         status = _load_status(backend, tenant_id=tenant, run_id=existing.run_id)
         return RunAccepted(
             run_id=existing.run_id,
@@ -200,13 +265,13 @@ def cancel_run(
             status_url=f"/v2/runs/{existing.run_id}?tenant_id={tenant}",
         )
     status = _save_cancelled(backend, tenant_id=tenant, run_id=run_id)
-    queue.record_command(
+    ensure_command_enqueued(
+        queue,
         tenant_id=tenant,
         idempotency_key=key,
         command="cancel",
         run_id=run_id,
     )
-    queue.enqueue_job(tenant_id=tenant, run_id=run_id, command="cancel")
     return RunAccepted(
         run_id=run_id,
         status=status,
@@ -227,6 +292,7 @@ def resolve_existing_command(
     )
     if record is None:
         return None
+    queue.enqueue_command_job(record)
     try:
         status = _load_status(backend, tenant_id=record.tenant_id, run_id=record.run_id)
     except CheckpointCorruptedError:

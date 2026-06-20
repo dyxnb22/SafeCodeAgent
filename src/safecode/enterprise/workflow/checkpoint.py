@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -11,6 +12,7 @@ from typing import Any
 
 from safecode.enterprise.workflow.exceptions import (
     CheckpointCorruptedError,
+    CheckpointNotFoundError,
     InvalidRunIdError,
     InvalidStateSchemaVersionError,
 )
@@ -82,7 +84,7 @@ def save_checkpoint(sac_root: Path, checkpoint: RunCheckpoint) -> None:
 def load_checkpoint(sac_root: Path, run_id: str) -> RunCheckpoint:
     path = run_dir(sac_root, run_id) / "state.json"
     if not path.is_file():
-        raise CheckpointCorruptedError(f"missing checkpoint for run {run_id!r}")
+        raise CheckpointNotFoundError(f"missing checkpoint for run {run_id!r}")
     try:
         raw = json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
@@ -115,7 +117,11 @@ def load_checkpoint(sac_root: Path, run_id: str) -> RunCheckpoint:
     )
 
 
-def gc_runs(sac_root: Path, *, older_than_days: int) -> list[str]:
+def gc_runs(sac_root: Path, *, tenant_id: str, older_than_days: int) -> list[str]:
+    from safecode.enterprise.persistence.protocols import assert_tenant_match, validate_tenant_id
+    from safecode.enterprise.persistence.run_artifact_lock import run_artifact_lock
+
+    tenant = validate_tenant_id(tenant_id)
     if older_than_days < 1:
         raise ValueError("older_than_days must be at least 1")
     root = runs_root(sac_root)
@@ -124,7 +130,7 @@ def gc_runs(sac_root: Path, *, older_than_days: int) -> list[str]:
     cutoff = datetime.now(timezone.utc).timestamp() - (older_than_days * 86400)
     removed: list[str] = []
     for child in sorted(root.iterdir()):
-        if not child.is_dir():
+        if not child.is_dir() or child.is_symlink():
             continue
         try:
             validate_run_id(child.name)
@@ -132,13 +138,22 @@ def gc_runs(sac_root: Path, *, older_than_days: int) -> list[str]:
             continue
         if child.resolve().parent != root.resolve():
             continue
-        if child.stat().st_mtime >= cutoff:
-            continue
-        for path in sorted(child.rglob("*"), reverse=True):
-            if path.is_file():
-                path.unlink()
-            elif path.is_dir():
-                path.rmdir()
-        child.rmdir()
-        removed.append(child.name)
+        with run_artifact_lock(sac_root, tenant_id=tenant, run_id=child.name):
+            if not child.is_dir() or child.is_symlink():
+                continue
+            state_path = child / "state.json"
+            if not state_path.is_file():
+                continue
+            try:
+                checkpoint = load_checkpoint(sac_root, child.name)
+                assert_tenant_match(tenant, checkpoint.state.tenant_id, operation="gc_runs")
+            except Exception:
+                continue
+            if child.stat().st_mtime >= cutoff:
+                continue
+            try:
+                shutil.rmtree(child)
+            except OSError:
+                continue
+            removed.append(child.name)
     return removed

@@ -47,7 +47,6 @@ def decide_approval_endpoint(
     backend: Annotated[object, Depends(get_backend)],
     subject: Annotated[RBACSubject, Depends(get_subject)],
 ) -> dict[str, str]:
-    _ = idempotency_key
     return decide_approval(
         backend,
         tenant_id=tenant_id,
@@ -55,6 +54,7 @@ def decide_approval_endpoint(
         subject=subject,
         decision=body.decision,
         rationale=body.rationale,
+        idempotency_key=idempotency_key,
     )
 
 
@@ -66,10 +66,11 @@ def revoke_approval_endpoint(
     backend: Annotated[object, Depends(get_backend)],
     subject: Annotated[RBACSubject, Depends(get_subject)],
 ) -> dict[str, str]:
-    _ = idempotency_key
     return revoke_approval_grant(
         backend,
         tenant_id=tenant_id,
         approval_id=approval_id,
         subject=subject,
+        rationale="",
+        idempotency_key=idempotency_key,
     )

@@ -40,6 +40,7 @@ from safecode.enterprise.workflow.exceptions import (
     ApprovalRequestNotFoundError,
     ApprovalRequestTamperedError,
     CheckpointCorruptedError,
+    CheckpointNotFoundError,
     RequestAlreadyConsumedError,
 )
 from safecode.enterprise.workflow.ids import validate_run_id
@@ -71,7 +72,7 @@ class StrictFakeRunStore:
                     checkpoint = stored
                     break
         if checkpoint is None:
-            raise CheckpointCorruptedError(f"missing checkpoint for run {run_id!r}")
+            raise CheckpointNotFoundError(f"missing checkpoint for run {run_id!r}")
         assert_tenant_match(tenant, checkpoint.state.tenant_id, operation="load_checkpoint")
         return copy.deepcopy(checkpoint)
 
@@ -87,8 +88,11 @@ class StrictFakeRunStore:
     def purge_run(self, *, tenant_id: str, run_id: str) -> None:
         tenant = validate_tenant_id(tenant_id)
         validate_run_id(run_id)
-        if (tenant, run_id) in self._checkpoints:
-            self._checkpoints.pop((tenant, run_id))
+        checkpoint = self._checkpoints.get((tenant, run_id))
+        if checkpoint is None:
+            raise CheckpointCorruptedError(f"missing checkpoint for run {run_id!r}")
+        assert_tenant_match(tenant, checkpoint.state.tenant_id, operation="purge_run")
+        self._checkpoints.pop((tenant, run_id), None)
 
     def gc_runs(self, *, tenant_id: str, older_than_days: int) -> list[str]:
         validate_tenant_id(tenant_id)

@@ -37,6 +37,50 @@ def _job_id() -> str:
     return f"job-{secrets.token_hex(8)}"
 
 
+def command_job_id(*, tenant_id: str, idempotency_key: str) -> str:
+    tenant = validate_tenant_id(tenant_id)
+    key = _validate_idempotency_key(idempotency_key)
+    digest = hashlib.sha256(f"{tenant}\0{key}".encode("utf-8")).hexdigest()[:24]
+    return f"job-cmd-{digest}"
+
+
+def validate_command_match(
+    existing: RunCommandRecord,
+    *,
+    command: RunCommandKind,
+    run_id: str,
+    payload: dict[str, str] | None = None,
+) -> None:
+    payload_dict = _payload_dict(payload)
+    if (
+        existing.command != command
+        or existing.run_id != run_id
+        or existing.payload != payload_dict
+    ):
+        raise IdempotencyConflictError(
+            f"idempotency key {existing.idempotency_key!r} already bound to another command"
+        )
+
+
+def validate_command_binding(
+    existing: RunCommandRecord,
+    *,
+    command: RunCommandKind,
+    run_id: str,
+    payload: dict[str, str] | None = None,
+) -> None:
+    """Validate a proposed command against a stored record, allowing start run_id races."""
+    payload_dict = _payload_dict(payload)
+    if existing.command != command or existing.payload != payload_dict:
+        raise IdempotencyConflictError(
+            f"idempotency key {existing.idempotency_key!r} already bound to another command"
+        )
+    if command != "start" and existing.run_id != run_id:
+        raise IdempotencyConflictError(
+            f"idempotency key {existing.idempotency_key!r} already bound to another command"
+        )
+
+
 @runtime_checkable
 class CommandQueue(Protocol):
     def get_command(
@@ -62,6 +106,8 @@ class CommandQueue(Protocol):
         payload: dict[str, str] | None = None,
     ) -> QueueJob: ...
 
+    def enqueue_command_job(self, record: RunCommandRecord) -> QueueJob: ...
+
     def poll_pending_job(self) -> QueueJob | None: ...
 
     def complete_job(self, job_id: str) -> None: ...
@@ -75,6 +121,10 @@ class CommandQueue(Protocol):
 
 def _commands_root(sac_root: Path) -> Path:
     return sac_root / "enterprise" / "worker" / "run_commands"
+
+
+def _payload_dict(payload: dict[str, str] | None) -> dict[str, str]:
+    return dict(payload or {})
 
 
 def _queue_root(sac_root: Path) -> Path:
@@ -102,6 +152,55 @@ def _queue_lock_path(sac_root: Path) -> Path:
     return lock_path_for(_queue_root(sac_root) / "queue.state")
 
 
+def _job_from_record(record: RunCommandRecord) -> QueueJob:
+    return QueueJob(
+        job_id=command_job_id(
+            tenant_id=record.tenant_id,
+            idempotency_key=record.idempotency_key,
+        ),
+        tenant_id=record.tenant_id,
+        run_id=record.run_id,
+        command=record.command,
+        status="pending",
+        payload=dict(record.payload),
+        created_at=_utc_now(),
+    )
+
+
+def ensure_command_enqueued(
+    queue: CommandQueue,
+    *,
+    tenant_id: str,
+    idempotency_key: str,
+    command: RunCommandKind,
+    run_id: str,
+    payload: dict[str, str] | None = None,
+) -> RunCommandRecord:
+    """Record a command and idempotently enqueue its durable command job."""
+    tenant = validate_tenant_id(tenant_id)
+    key = _validate_idempotency_key(idempotency_key)
+    payload_dict = _payload_dict(payload)
+    existing = queue.get_command(tenant_id=tenant, idempotency_key=key)
+    if existing is not None:
+        validate_command_match(
+            existing,
+            command=command,
+            run_id=run_id,
+            payload=payload_dict,
+        )
+        queue.enqueue_command_job(existing)
+        return existing
+    record = queue.record_command(
+        tenant_id=tenant,
+        idempotency_key=key,
+        command=command,
+        run_id=run_id,
+        payload=payload_dict,
+    )
+    queue.enqueue_command_job(record)
+    return record
+
+
 @dataclass(frozen=True)
 class LocalCommandQueue:
     sac_root: Path
@@ -119,6 +218,40 @@ class LocalCommandQueue:
             return None
         return RunCommandRecord.model_validate(json.loads(path.read_text(encoding="utf-8")))
 
+    def _find_command_job_locked(self, job_id: str) -> QueueJob | None:
+        root = _queue_root(self.sac_root)
+        for filename in ("pending.jsonl", "active.jsonl", "completed.jsonl", "failed.jsonl"):
+            path = root / filename
+            if not path.is_file():
+                continue
+            for line in path.read_text(encoding="utf-8").splitlines():
+                if not line.strip():
+                    continue
+                job = QueueJob.model_validate(json.loads(line))
+                if job.job_id == job_id:
+                    return job
+        dlq_path = _dlq_path(self.sac_root)
+        if dlq_path.is_file():
+            for line in dlq_path.read_text(encoding="utf-8").splitlines():
+                if not line.strip():
+                    continue
+                raw = json.loads(line)
+                if str(raw.get("job_id")) != job_id:
+                    continue
+                return QueueJob.model_validate(
+                    {
+                        "job_id": raw["job_id"],
+                        "tenant_id": raw["tenant_id"],
+                        "run_id": raw["run_id"],
+                        "command": raw["command"],
+                        "status": "failed",
+                        "payload": dict(raw.get("payload") or {}),
+                        "created_at": str(raw.get("created_at", _utc_now())),
+                        "attempts": int(raw.get("attempts", 0)),
+                    }
+                )
+        return None
+
     def record_command(
         self,
         *,
@@ -134,10 +267,12 @@ class LocalCommandQueue:
         with keyed_exclusive_lock(str(path.resolve()), lock_path_for(path)):
             existing = self.get_command(tenant_id=tenant, idempotency_key=key)
             if existing is not None:
-                if existing.command != command or existing.run_id != run_id:
-                    raise IdempotencyConflictError(
-                        f"idempotency key {key!r} already bound to another command"
-                    )
+                validate_command_binding(
+                    existing,
+                    command=command,
+                    run_id=run_id,
+                    payload=_payload_dict(payload),
+                )
                 return existing
             record = RunCommandRecord(
                 tenant_id=tenant,
@@ -169,6 +304,18 @@ class LocalCommandQueue:
             created_at=_utc_now(),
         )
         with self._with_queue_lock():
+            root = _queue_root(self.sac_root)
+            pending_path = root / "pending.jsonl"
+            with pending_path.open("a", encoding="utf-8") as handle:
+                handle.write(json.dumps(json.loads(job.model_dump_json()), sort_keys=True) + "\n")
+        return job
+
+    def enqueue_command_job(self, record: RunCommandRecord) -> QueueJob:
+        job = _job_from_record(record)
+        with self._with_queue_lock():
+            existing = self._find_command_job_locked(job.job_id)
+            if existing is not None:
+                return existing
             root = _queue_root(self.sac_root)
             pending_path = root / "pending.jsonl"
             with pending_path.open("a", encoding="utf-8") as handle:

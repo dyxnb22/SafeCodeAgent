@@ -11,11 +11,25 @@ from safecode.enterprise.worker.models import QueueJob, RunCommandKind, RunComma
 from safecode.enterprise.worker.queue import (
     IdempotencyConflictError,
     MAX_QUEUE_ATTEMPTS,
+    _payload_dict,
     _job_id,
+    _job_from_record,
     _redact_queue_error,
     _utc_now,
     _validate_idempotency_key,
+    validate_command_binding,
 )
+
+
+def _record_from_row(row) -> RunCommandRecord:
+    return RunCommandRecord(
+        tenant_id=str(row[0]),
+        idempotency_key=str(row[1]),
+        command=row[2],  # type: ignore[arg-type]
+        run_id=str(row[3]),
+        payload=dict(row[4] or {}),
+        created_at=row[5].isoformat().replace("+00:00", "+00:00"),
+    )
 
 
 @dataclass(frozen=True)
@@ -38,13 +52,47 @@ class PostgresCommandQueue:
             ).fetchone()
         if row is None:
             return None
-        return RunCommandRecord(
-            tenant_id=str(row[0]),
-            idempotency_key=str(row[1]),
-            command=row[2],  # type: ignore[arg-type]
-            run_id=str(row[3]),
-            payload=dict(row[4] or {}),
-            created_at=row[5].isoformat().replace("+00:00", "+00:00"),
+        return _record_from_row(row)
+
+    def _load_queue_job(self, conn, job_id: str) -> QueueJob | None:
+        row = conn.execute(
+            """
+            SELECT job_id, tenant_id, run_id, command, status, payload, created_at, attempts
+            FROM enterprise.queue
+            WHERE job_id = %s
+            """,
+            (job_id,),
+        ).fetchone()
+        if row is not None:
+            return QueueJob(
+                job_id=str(row[0]),
+                tenant_id=str(row[1]),
+                run_id=str(row[2]),
+                command=row[3],  # type: ignore[arg-type]
+                status=row[4],  # type: ignore[arg-type]
+                payload=dict(row[5] or {}),
+                created_at=row[6].isoformat().replace("+00:00", "+00:00"),
+                attempts=int(row[7]),
+            )
+        dlq = conn.execute(
+            """
+            SELECT job_id, tenant_id, run_id, command, payload, attempts, created_at
+            FROM enterprise.dlq
+            WHERE job_id = %s
+            """,
+            (job_id,),
+        ).fetchone()
+        if dlq is None:
+            return None
+        return QueueJob(
+            job_id=str(dlq[0]),
+            tenant_id=str(dlq[1]),
+            run_id=str(dlq[2]),
+            command=dlq[3],  # type: ignore[arg-type]
+            status="failed",
+            payload=dict(dlq[4] or {}),
+            created_at=dlq[6].isoformat().replace("+00:00", "+00:00"),
+            attempts=int(dlq[5]),
         )
 
     def record_command(
@@ -58,39 +106,46 @@ class PostgresCommandQueue:
     ) -> RunCommandRecord:
         tenant = validate_tenant_id(tenant_id)
         key = _validate_idempotency_key(idempotency_key)
-        existing = self.get_command(tenant_id=tenant, idempotency_key=key)
-        if existing is not None:
-            if existing.command != command or existing.run_id != run_id:
-                raise IdempotencyConflictError(
-                    f"idempotency key {key!r} already bound to another command"
-                )
-            return existing
-        record = RunCommandRecord(
-            tenant_id=tenant,
-            idempotency_key=key,
-            command=command,
-            run_id=run_id,
-            payload=dict(payload or {}),
-            created_at=_utc_now(),
-        )
+        payload_dict = _payload_dict(payload)
+        created_at = _utc_now()
         with self.uow.connection() as conn:
-            conn.execute(
+            row = conn.execute(
                 """
                 INSERT INTO enterprise.run_commands (
                     tenant_id, idempotency_key, command, run_id, payload, created_at
                 ) VALUES (%s, %s, %s, %s, %s::jsonb, %s)
+                ON CONFLICT (tenant_id, idempotency_key) DO NOTHING
+                RETURNING tenant_id, idempotency_key, command, run_id, payload, created_at
                 """,
                 (
                     tenant,
                     key,
                     command,
                     run_id,
-                    json.dumps(record.payload),
-                    record.created_at,
+                    json.dumps(payload_dict),
+                    created_at,
                 ),
-            )
+            ).fetchone()
+            if row is None:
+                row = conn.execute(
+                    """
+                    SELECT tenant_id, idempotency_key, command, run_id, payload, created_at
+                    FROM enterprise.run_commands
+                    WHERE tenant_id = %s AND idempotency_key = %s
+                    """,
+                    (tenant, key),
+                ).fetchone()
+                if row is None:
+                    raise RuntimeError(f"command insert lost race for {key!r}")
             conn.commit()
-        return record
+        existing = _record_from_row(row)
+        validate_command_binding(
+            existing,
+            command=command,
+            run_id=run_id,
+            payload=payload_dict,
+        )
+        return existing
 
     def enqueue_job(
         self,
@@ -129,6 +184,48 @@ class PostgresCommandQueue:
             )
             conn.commit()
         return job
+
+    def enqueue_command_job(self, record: RunCommandRecord) -> QueueJob:
+        job = _job_from_record(record)
+        with self.uow.connection() as conn:
+            existing = self._load_queue_job(conn, job.job_id)
+            if existing is not None:
+                return existing
+            row = conn.execute(
+                """
+                INSERT INTO enterprise.queue (
+                    job_id, tenant_id, run_id, command, status, payload, created_at
+                ) VALUES (%s, %s, %s, %s, %s, %s::jsonb, %s)
+                ON CONFLICT (job_id) DO NOTHING
+                RETURNING job_id, tenant_id, run_id, command, status, payload, created_at, attempts
+                """,
+                (
+                    job.job_id,
+                    job.tenant_id,
+                    job.run_id,
+                    job.command,
+                    job.status,
+                    json.dumps(job.payload),
+                    job.created_at,
+                ),
+            ).fetchone()
+            if row is None:
+                existing = self._load_queue_job(conn, job.job_id)
+                if existing is None:
+                    raise RuntimeError(f"command job insert lost race for {job.job_id!r}")
+                conn.commit()
+                return existing
+            conn.commit()
+        return QueueJob(
+            job_id=str(row[0]),
+            tenant_id=str(row[1]),
+            run_id=str(row[2]),
+            command=row[3],  # type: ignore[arg-type]
+            status=row[4],  # type: ignore[arg-type]
+            payload=dict(row[5] or {}),
+            created_at=row[6].isoformat().replace("+00:00", "+00:00"),
+            attempts=int(row[7]),
+        )
 
     def poll_pending_job(self) -> QueueJob | None:
         with self.uow.connection() as conn:

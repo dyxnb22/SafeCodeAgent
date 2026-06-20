@@ -9,9 +9,8 @@
 数据根目录为 ``sac_root``（通常 ``SAC_ENTERPRISE_ARTIFACTS_ROOT``），
 各租户/run 按目录分层存放。所有跨租户访问经 ``assert_tenant_match`` 拦截。
 
-潜在问题：
-- ``load_checkpoint`` 先按 run_id 加载再校验 tenant，run_id 全局唯一假设需保持
-- ``purge_run`` 在目录存在但无 state.json 时可能跳过租户校验直接 rmtree
+边界说明：``load_checkpoint`` 先按 run_id 加载再校验 tenant，因此 run_id
+必须继续保持全局唯一；purge/GC 对缺失、损坏或符号链接检查点均 fail closed。
 """
 
 from __future__ import annotations
@@ -49,6 +48,8 @@ from safecode.enterprise.persistence.protocols import (
     assert_tenant_match,
     validate_tenant_id,
 )
+from safecode.enterprise.persistence.exceptions import TenantBoundaryError
+from safecode.enterprise.persistence.run_artifact_lock import run_artifact_lock
 from safecode.enterprise.persistence.webhook_store import LocalWebhookEventStore
 from safecode.enterprise.trace.emitter import TraceEmitter
 from safecode.enterprise.trace.events import TraceEvent, TraceEventType
@@ -84,7 +85,12 @@ class LocalRunStore:
         """持久化检查点：含已完成节点列表、下一节点名与完整 EnterpriseRunState。"""
         tenant = validate_tenant_id(tenant_id)
         assert_tenant_match(tenant, checkpoint.state.tenant_id, operation="save_checkpoint")
-        save_checkpoint(self.sac_root, checkpoint)
+        with run_artifact_lock(
+            self.sac_root,
+            tenant_id=tenant,
+            run_id=checkpoint.run_id,
+        ):
+            save_checkpoint(self.sac_root, checkpoint)
 
     def load_checkpoint(self, *, tenant_id: str, run_id: str) -> RunCheckpoint:
         """加载检查点供 worker resume 或 API 查询；租户不匹配则拒绝。"""
@@ -101,17 +107,22 @@ class LocalRunStore:
     def purge_run(self, *, tenant_id: str, run_id: str) -> None:
         tenant = validate_tenant_id(tenant_id)
         validate_run_id(run_id)
-        directory = run_dir(self.sac_root, run_id)
-        if not directory.is_dir():
-            return
-        if directory.is_dir() and (directory / "state.json").is_file():
+        with run_artifact_lock(self.sac_root, tenant_id=tenant, run_id=run_id):
+            directory = run_dir(self.sac_root, run_id)
+            if not directory.is_dir():
+                return
+            if directory.is_symlink():
+                raise TenantBoundaryError(f"refusing symlink run directory for purge_run: {run_id}")
+            state_path = directory / "state.json"
+            if not state_path.is_file():
+                raise CheckpointCorruptedError(f"missing checkpoint for run {run_id!r}")
             checkpoint = load_checkpoint(self.sac_root, run_id)
             assert_tenant_match(tenant, checkpoint.state.tenant_id, operation="purge_run")
-        shutil.rmtree(directory)
+            shutil.rmtree(directory)
 
     def gc_runs(self, *, tenant_id: str, older_than_days: int) -> list[str]:
         validate_tenant_id(tenant_id)
-        return gc_runs(self.sac_root, older_than_days=older_than_days)
+        return gc_runs(self.sac_root, tenant_id=tenant_id, older_than_days=older_than_days)
 
 
 class LocalApprovalStore:
@@ -452,6 +463,12 @@ class LocalBackend:
     @property
     def webhooks(self) -> LocalWebhookEventStore:
         return LocalWebhookEventStore(self.sac_root)
+
+    @property
+    def api_idempotency(self):
+        from safecode.enterprise.api.idempotency import LocalApiIdempotencyStore
+
+        return LocalApiIdempotencyStore(self.sac_root)
 
     def probe(self) -> bool:
         """Return whether the local backend storage is usable."""

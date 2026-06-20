@@ -23,7 +23,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from safecode.enterprise.persistence.local_backend import LocalBackend
-from safecode.enterprise.worker.lease import LocalRunLeaseStore, RunLeaseStore
+from safecode.enterprise.worker.heartbeat import LeaseHeartbeatGuard, LeaseOwnershipLostError
+from safecode.enterprise.worker.lease import LeaseHeldError, LocalRunLeaseStore, RunLeaseStore
 from safecode.enterprise.worker.models import QueueJob
 from safecode.enterprise.worker.queue import CommandQueue, LocalCommandQueue, MAX_QUEUE_ATTEMPTS
 from safecode.enterprise.worker.status import is_terminal
@@ -86,23 +87,70 @@ class WorkerRunner:
             # 租约被其他 worker 持有，重新入队等待下次轮询
             self._requeue(job)
             return False
+        fence_token = self.leases.read_fence_token(
+            tenant_id=job.tenant_id,
+            run_id=job.run_id,
+            worker_id=self.worker_id,
+        )
+        if fence_token is None:
+            self._requeue(job)
+            return False
+        heartbeat = LeaseHeartbeatGuard(
+            leases=self.leases,
+            tenant_id=job.tenant_id,
+            run_id=job.run_id,
+            worker_id=self.worker_id,
+            fence_token=fence_token,
+            ttl_seconds=self.lease_ttl_seconds,
+        )
+        heartbeat.start()
+        completed = False
         try:
             self._execute(job)
-            self.queue.complete_job(job.job_id)
+            if heartbeat.ownership_lost():
+                error = heartbeat.heartbeat_error()
+                raise LeaseOwnershipLostError(
+                    error or "lease heartbeat failed while executing job"
+                )
+            if not self.leases.execute_if_owned(
+                tenant_id=job.tenant_id,
+                run_id=job.run_id,
+                worker_id=self.worker_id,
+                fence_token=fence_token,
+                operation=lambda: self.queue.complete_job(job.job_id),
+            ):
+                raise LeaseOwnershipLostError("lease ownership lost before job completion")
+            completed = True
         except ValueError as exc:
             if str(exc).startswith("unsupported queue command"):
                 self.queue.dlq_job(job.job_id, message=str(exc), poison=True)
             else:
                 self._handle_failure(job, exc)
+        except LeaseOwnershipLostError as exc:
+            self._handle_lease_lost(job, exc)
         except Exception as exc:
             self._handle_failure(job, exc)
         finally:
-            self.leases.release(
+            heartbeat.stop()
+            if completed or self.leases.holds_lease(
                 tenant_id=job.tenant_id,
                 run_id=job.run_id,
                 worker_id=self.worker_id,
-            )
+                fence_token=fence_token,
+            ):
+                try:
+                    self.leases.release(
+                        tenant_id=job.tenant_id,
+                        run_id=job.run_id,
+                        worker_id=self.worker_id,
+                        fence_token=fence_token,
+                    )
+                except LeaseHeldError:
+                    pass
         return True
+
+    def _handle_lease_lost(self, job: QueueJob, exc: Exception) -> None:
+        self._handle_failure(job, exc)
 
     def _handle_failure(self, job: QueueJob, exc: Exception) -> None:
         if job.attempts + 1 >= MAX_ATTEMPTS:
@@ -152,20 +200,31 @@ class WorkerRunner:
         raise ValueError(f"unsupported queue command: {job.command}")
 
     def heartbeat_active_leases(self) -> int:
-        root = _artifacts_root(self.backend) / "enterprise" / "worker" / "leases"
-        if not root.is_dir():
-            return 0
+        """Refresh leases owned by this worker when idle between jobs."""
         refreshed = 0
-        for tenant_dir in root.iterdir():
-            if not tenant_dir.is_dir():
-                continue
-            for lease_file in tenant_dir.glob("*.json"):
-                run_id = lease_file.stem
-                if self.leases.heartbeat(
-                    tenant_id=tenant_dir.name,
-                    run_id=run_id,
-                    worker_id=self.worker_id,
-                    ttl_seconds=self.lease_ttl_seconds,
-                ):
-                    refreshed += 1
+        if isinstance(self.leases, LocalRunLeaseStore):
+            root = _artifacts_root(self.backend) / "enterprise" / "worker" / "leases"
+            if not root.is_dir():
+                return 0
+            for tenant_dir in root.iterdir():
+                if not tenant_dir.is_dir():
+                    continue
+                for lease_file in tenant_dir.glob("*.json"):
+                    run_id = lease_file.stem
+                    fence = self.leases.read_fence_token(
+                        tenant_id=tenant_dir.name,
+                        run_id=run_id,
+                        worker_id=self.worker_id,
+                    )
+                    if fence is None:
+                        continue
+                    if self.leases.heartbeat(
+                        tenant_id=tenant_dir.name,
+                        run_id=run_id,
+                        worker_id=self.worker_id,
+                        ttl_seconds=self.lease_ttl_seconds,
+                        fence_token=fence,
+                    ):
+                        refreshed += 1
+            return refreshed
         return refreshed

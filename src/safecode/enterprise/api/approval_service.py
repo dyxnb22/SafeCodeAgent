@@ -3,11 +3,18 @@
 from __future__ import annotations
 
 from safecode.enterprise.api.exceptions import ApprovalForbiddenError, ApprovalRequestNotFoundError
+from safecode.enterprise.api.idempotency import (
+    ApprovalIdempotencyRecord,
+    api_idempotency_for,
+    approval_request_fingerprint,
+)
 from safecode.enterprise.api.read_service import list_approvals
+from safecode.enterprise.approvals.resume import ensure_approval_resume_enqueued
 from safecode.enterprise.approvals.store import ApprovalRequest
 from safecode.enterprise.audit.events import AuditEventKind
 from safecode.enterprise.rbac.models import RBACSubject, ROLE_RANK
 from safecode.enterprise.rbac.permissions import minimum_approval_role
+from safecode.enterprise.worker.queue import IdempotencyConflictError
 from safecode.enterprise.workflow.exceptions import RequestAlreadyConsumedError
 
 
@@ -45,11 +52,27 @@ def decide_approval(
     subject: RBACSubject,
     decision: str,
     rationale: str = "",
+    idempotency_key: str,
 ) -> dict[str, str]:
     if decision not in {"approved", "rejected"}:
         raise ValueError("decision must be approved or rejected")
+    store = api_idempotency_for(backend)
+    fingerprint = approval_request_fingerprint(
+        operation="decide",
+        approval_id=approval_id,
+        decision=decision,
+        rationale=rationale,
+    )
     request = resolve_approval(backend, tenant_id=tenant_id, approval_id=approval_id)
     _assert_can_decide(subject, request)
+    cached = store.get(tenant_id=tenant_id, idempotency_key=idempotency_key)
+    if cached is not None:
+        if cached.request_fingerprint != fingerprint:
+            raise IdempotencyConflictError(
+                f"idempotency key {idempotency_key!r} already bound to another request"
+            )
+        return dict(cached.response)
+
     try:
         updated = backend.approvals.decide_request(
             tenant_id=tenant_id,
@@ -60,18 +83,43 @@ def decide_approval(
             decision_note=rationale,
         )
     except RequestAlreadyConsumedError as exc:
-        raise ApprovalForbiddenError(str(exc)) from exc
-    backend.audit.emit(
-        AuditEventKind.approval_decided,
+        updated = backend.approvals.load_request(
+            tenant_id=tenant_id,
+            run_id=request.run_id,
+            request_id=request.request_id,
+        )
+        if updated.status != decision:
+            raise ApprovalForbiddenError(str(exc)) from exc
+
+    ensure_approval_resume_enqueued(
+        backend,
         tenant_id=tenant_id,
-        run_id=request.run_id,
-        actor_id=subject.actor_id,
-        payload={
-            "approval_id": approval_id,
-            "decision": decision,
-        },
+        request=updated,
+        decision=decision,
     )
-    return {"approval_id": updated.request_id, "status": updated.status}
+    response = {"approval_id": updated.request_id, "status": updated.status}
+    store.save(
+        ApprovalIdempotencyRecord(
+            tenant_id=tenant_id,
+            idempotency_key=idempotency_key,
+            operation="decide",
+            request_fingerprint=fingerprint,
+            response=response,
+            created_at=updated.decision_at or "",
+        )
+    )
+    if cached is None:
+        backend.audit.emit(
+            AuditEventKind.approval_decided,
+            tenant_id=tenant_id,
+            run_id=request.run_id,
+            actor_id=subject.actor_id,
+            payload={
+                "approval_id": approval_id,
+                "decision": decision,
+            },
+        )
+    return response
 
 
 def revoke_approval_grant(
@@ -81,9 +129,24 @@ def revoke_approval_grant(
     approval_id: str,
     subject: RBACSubject,
     rationale: str = "",
+    idempotency_key: str,
 ) -> dict[str, str]:
+    store = api_idempotency_for(backend)
+    fingerprint = approval_request_fingerprint(
+        operation="revoke",
+        approval_id=approval_id,
+        rationale=rationale,
+    )
     request = resolve_approval(backend, tenant_id=tenant_id, approval_id=approval_id)
     _assert_can_decide(subject, request)
+    cached = store.get(tenant_id=tenant_id, idempotency_key=idempotency_key)
+    if cached is not None:
+        if cached.request_fingerprint != fingerprint:
+            raise IdempotencyConflictError(
+                f"idempotency key {idempotency_key!r} already bound to another request"
+            )
+        return dict(cached.response)
+
     try:
         updated = backend.approvals.revoke_request(
             tenant_id=tenant_id,
@@ -93,15 +156,40 @@ def revoke_approval_grant(
             decision_note=rationale,
         )
     except RequestAlreadyConsumedError as exc:
-        raise ApprovalForbiddenError(str(exc)) from exc
-    backend.audit.emit(
-        AuditEventKind.approval_decided,
+        updated = backend.approvals.load_request(
+            tenant_id=tenant_id,
+            run_id=request.run_id,
+            request_id=request.request_id,
+        )
+        if updated.status != "revoked":
+            raise ApprovalForbiddenError(str(exc)) from exc
+
+    ensure_approval_resume_enqueued(
+        backend,
         tenant_id=tenant_id,
-        run_id=request.run_id,
-        actor_id=subject.actor_id,
-        payload={
-            "approval_id": approval_id,
-            "decision": "revoked",
-        },
+        request=updated,
+        decision="revoked",
     )
-    return {"approval_id": updated.request_id, "status": updated.status}
+    response = {"approval_id": updated.request_id, "status": updated.status}
+    store.save(
+        ApprovalIdempotencyRecord(
+            tenant_id=tenant_id,
+            idempotency_key=idempotency_key,
+            operation="revoke",
+            request_fingerprint=fingerprint,
+            response=response,
+            created_at=updated.decision_at or "",
+        )
+    )
+    if cached is None:
+        backend.audit.emit(
+            AuditEventKind.approval_decided,
+            tenant_id=tenant_id,
+            run_id=request.run_id,
+            actor_id=subject.actor_id,
+            payload={
+                "approval_id": approval_id,
+                "decision": "revoked",
+            },
+        )
+    return response

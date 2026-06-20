@@ -85,7 +85,7 @@ def test_symlink_escape_not_followed_for_gc(tmp_path: Path):
     runs.mkdir(parents=True)
     link = runs / "run-link00001"
     link.symlink_to(outside, target_is_directory=True)
-    removed = gc_runs(sac_root, older_than_days=1)
+    removed = gc_runs(sac_root, tenant_id="local", older_than_days=1)
     assert "run-link00001" not in removed
     assert (outside / "secret.txt").exists()
 

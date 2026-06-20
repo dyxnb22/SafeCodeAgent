@@ -29,6 +29,10 @@ class CheckpointCorruptedError(WorkflowError):
     """Raised when checkpoint JSON is malformed or incomplete."""
 
 
+class CheckpointNotFoundError(CheckpointCorruptedError):
+    """Raised when a run has no durable checkpoint yet."""
+
+
 class WorkflowInterrupted(WorkflowError):
     """Raised when a workflow pauses for human approval."""
 
