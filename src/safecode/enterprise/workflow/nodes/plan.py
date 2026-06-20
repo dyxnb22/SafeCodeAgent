@@ -1,4 +1,11 @@
-"""plan_actions node."""
+"""plan_actions 工作流节点（九步流水线第 5 步）。
+
+- **流水线位置**：第 5 步 / 9 — 生成带风险排序与审批要求的行动 ``Plan``。
+- **输入**：``findings``、``citations``、``risk_tier`` 及任务专属证据。
+- **输出**：结构化 ``plan``（``PlanAction`` 列表，含 ``requires_approval`` 标记）。
+- **安全治理**：计划为模型或确定性规则的提案，不触发工具执行；高风险动作在计划中
+  显式标记需人工审批，供 ``approval_gate`` 与 ``finalize`` 消费。
+"""
 
 from __future__ import annotations
 
@@ -12,6 +19,7 @@ NODE_NAME = "plan_actions"
 
 
 async def run(state: EnterpriseRunState) -> NodePatch:
+    """按任务类型构建修复、PR 审查或安全实施计划。"""
     if remediation.is_remediation_task(state) and state.findings:
         plan_obj = remediation.build_remediation_plan(state, state.findings, state.citations)
         return build_patch(

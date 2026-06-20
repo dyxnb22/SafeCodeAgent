@@ -1,3 +1,9 @@
+/**
+ * 审批收件箱，路由：/t/[tenantId]/approvals。
+ * 调用 Team Server listApprovals(session, { status: "pending" }) 拉取待决项；
+ * ApprovalList 展示摘要表，每项下方 ApprovalDecideForm 供操作员批准/拒绝（含 rationale）。
+ * 决策成功后仅更新本地列表状态，不自动刷新全量列表。
+ */
 "use client";
 
 import { useParams } from "next/navigation";
@@ -24,6 +30,7 @@ export default function ApprovalsPage() {
     }
     let cancelled = false;
     setLoading(true);
+    // 仅拉取 pending，与审批收件箱语义一致
     listApprovals(session, { status: "pending" })
       .then((payload) => {
         if (!cancelled) {

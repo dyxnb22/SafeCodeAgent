@@ -1,4 +1,18 @@
-"""Enterprise workflow run state models."""
+"""企业工作流运行状态模型（EnterpriseRunState 及关联类型）。
+
+``EnterpriseRunState`` 是工作流唯一权威状态载体，序列化后写入检查点 ``state.json``。
+各节点通过 ``NodePatch`` 增量更新字段，禁止整对象替换以保留审计连续性。
+
+关键字段分组：
+- 身份与租户：run_id, tenant_id, actor_id, subject, policy_snapshot_id
+- 输入上下文：request, repo, pull_request_evidence, issue_evidence
+- 分析产物：findings, citations, risk_tier, plan, proposals
+- 治理记录：tool_calls, approvals, validation, failures
+- 控制标志：missing_evidence, validation_failed, awaiting_human_approval
+- 进度索引：node_outputs（每节点摘要，非检查点 completed_nodes 的替代）
+
+schema_version 当前为 ``1.2.0``；不兼容版本将拒绝加载。
+"""
 
 from __future__ import annotations
 
@@ -18,6 +32,7 @@ SUPPORTED_STATE_SCHEMA_VERSIONS = frozenset({STATE_SCHEMA_VERSION})
 
 
 class RunRequest(BaseModel):
+    """工作流启动请求：任务类型、输入引用与额外键值参数。"""
     model_config = ConfigDict(extra="forbid")
 
     task_type: TaskType
@@ -35,6 +50,7 @@ class RunRequest(BaseModel):
 
 
 class RepoContext(BaseModel):
+    """仓库上下文：根路径、分支、提交 SHA 与受保护分支列表。"""
     model_config = ConfigDict(extra="forbid")
 
     repo_root: str
@@ -54,6 +70,7 @@ class Location(BaseModel):
 
 
 class SecurityFinding(BaseModel):
+    """安全发现项：来源扫描器或代理分析，含位置与严重级别。"""
     model_config = ConfigDict(extra="forbid")
 
     finding_id: str
@@ -77,6 +94,7 @@ class PlanAction(BaseModel):
 
 
 class Plan(BaseModel):
+    """修复/审查计划：动作列表、备选方案与需引用的 citation_ids。"""
     model_config = ConfigDict(extra="forbid")
 
     plan_id: str
@@ -140,6 +158,7 @@ class ApprovalRecord(BaseModel):
 
 
 class ToolCallRecord(BaseModel):
+    """工具调用审计记录：类别、策略决策、grant 消费与脱敏输入/输出。"""
     model_config = ConfigDict(extra="forbid")
 
     call_id: str
@@ -187,6 +206,11 @@ class FailureRecord(BaseModel):
 
 
 class EnterpriseRunState(BaseModel):
+    """工作流全局状态 — 检查点持久化的核心载荷。
+
+    状态机由 ``status``（WorkflowStatus）驱动；审批中断时
+    ``awaiting_human_approval=True`` 且 status 为 awaiting_approval。
+    """
     model_config = ConfigDict(extra="forbid")
 
     schema_version: str = STATE_SCHEMA_VERSION
@@ -216,9 +240,9 @@ class EnterpriseRunState(BaseModel):
     audit_anchor_id: str | None = None
     created_at: str
     updated_at: str
-    missing_evidence: bool = False
-    validation_failed: bool = False
-    awaiting_human_approval: bool = False
+    missing_evidence: bool = False  # 为 True 时 LangGraph 路由补检索；本地模式仍执行 retrieve
+    validation_failed: bool = False  # 为 True 时 LangGraph 路由至 repair_or_blocker
+    awaiting_human_approval: bool = False  # approval_gate 置位，resume 前须人审
 
     @field_validator("schema_version")
     @classmethod

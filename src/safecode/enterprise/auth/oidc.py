@@ -1,4 +1,9 @@
-"""OIDC discovery and JWT validation for the Team Server (v2.1.6-T1)."""
+"""OIDC discovery and JWT validation for the Team Server (v2.1.6-T1).
+
+OIDC 发现与 JWT 校验：Team Server 认证入口。
+校验 issuer、audience、签名算法与过期时间；通过后产出 TokenClaims 供主体映射。
+校验失败一律拒绝，无降级匿名访问。
+"""
 
 from __future__ import annotations
 
@@ -11,9 +16,9 @@ import jwt
 from jwt.exceptions import InvalidTokenError
 from pydantic import BaseModel, ConfigDict
 
-DEFAULT_ALLOWED_ALGORITHMS: tuple[str, ...] = ("RS256",)
-DEFAULT_CLOCK_SKEW_SECONDS = 60
-DEFAULT_JWKS_CACHE_TTL_SECONDS = 300
+DEFAULT_ALLOWED_ALGORITHMS: tuple[str, ...] = ("RS256",)  # 仅允许非对称算法，禁止 none/HS256 降级
+DEFAULT_CLOCK_SKEW_SECONDS = 60  # 时钟偏差容忍窗口
+DEFAULT_JWKS_CACHE_TTL_SECONDS = 300  # JWKS 内存缓存 TTL
 
 
 class TokenValidationError(Exception):
@@ -21,7 +26,11 @@ class TokenValidationError(Exception):
 
 
 class TokenClaims(BaseModel):
-    """Validated OIDC token claims used for subject mapping."""
+    """校验通过的 OIDC 令牌声明，用于主体映射。
+
+    extra='allow' 以容纳 IdP 自定义声明（如 tenant_id/roles）；
+    额外字段须经 map_claims_to_subject 显式提取，不可直接信任为指令。
+    """
 
     model_config = ConfigDict(extra="allow", frozen=True)
 
@@ -102,7 +111,11 @@ class StaticJwksProvider:
 
 
 class OidcValidator:
-    """Validate bearer tokens against configured issuer, audience, and JWKS."""
+    """针对配置的 issuer、audience 与 JWKS 校验 Bearer 令牌。
+
+    要求 exp/sub/iss/aud 声明；算法须在 allowed_algorithms 白名单内。
+    潜在问题：StaticJwksProvider 不自动轮换密钥，生产环境须确保 JWKS 及时更新。
+    """
 
     def __init__(
         self,

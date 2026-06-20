@@ -1,4 +1,8 @@
-"""Role-to-action permission map for enterprise governance."""
+"""Role-to-action permission map for enterprise governance.
+
+RBAC 动作权限裁决：将主体角色映射到 ApprovalTier（AUTO/CONFIRM/GATE/BLOCK）。
+与 PolicyResolver 产出的策略层叠加时取更严格结果；RBAC 单独不得放宽 org 策略。
+"""
 
 from __future__ import annotations
 
@@ -14,12 +18,15 @@ ApprovalContext = dict[str, str]
 
 @dataclass(frozen=True)
 class ActionPermission:
+    """单动作 RBAC 权限描述：最低执行角色、可批准角色、默认 RBAC 层级。"""
+
     action: Action
     minimum_role: Role
     approve_role: Role | None
     default_rbac_tier: ApprovalTier = "AUTO"
 
 
+# 动作 → RBAC 权限映射表；approve_role 为 None 表示该动作无需人工批准角色（如只读）
 ACTION_PERMISSIONS: dict[Action, ActionPermission] = {
     Action.file_write: ActionPermission(Action.file_write, Role.maintainer, Role.maintainer, "GATE"),
     Action.command_execute: ActionPermission(Action.command_execute, Role.developer, Role.developer, "CONFIRM"),
@@ -65,6 +72,18 @@ def rbac_tier_for_action(
     risk_tier: RiskTier = RiskTier.low,
     context: ApprovalContext | None = None,
 ) -> ApprovalTier:
+    """根据主体角色、动作类型与上下文计算 RBAC 审批层级。
+
+    关键权限边界检查：
+    - retrieval_source_access：scope=denied 时 BLOCK（RAG 权限边界）
+    - memory_fact_inject：未批准事实（fact_status != approved）时 BLOCK
+    - mcp_*：未知服务器或高风险写入时 BLOCK
+    - github_*：受保护分支、live 模式须 maintainer 角色
+    - policy_config_change / production_access：须显式 unlock 标志 + 足够角色
+
+    潜在问题：fixture 模式下 github_write_comment/issue_comment 返回 AUTO，
+    仅适用于测试夹具，live 部署须确保 context.mode 正确传递。
+    """
     ctx = dict(context or {})
     permission = ACTION_PERMISSIONS[action]
 
@@ -146,6 +165,7 @@ def can_approve_action(
     risk_tier: RiskTier = RiskTier.low,
     context: ApprovalContext | None = None,
 ) -> bool:
+    """判断主体是否具备执行/发起该动作的 RBAC 资格（tier != BLOCK）。"""
     tier = rbac_tier_for_action(subject, action, risk_tier=risk_tier, context=context)
     return tier != "BLOCK"
 

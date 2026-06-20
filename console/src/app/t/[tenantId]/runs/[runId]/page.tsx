@@ -1,3 +1,9 @@
+/**
+ * 单次 Run 详情页，路由：/t/[tenantId]/runs/[runId]。
+ * 并行请求 Team Server：getRun、getRunTimeline、getRunTrace；
+ * 展示时间线（RunTimelineView）、追踪事件（TraceEventsView）与成本摘要。
+ * Evidence 导出链至同租户 /runs/[runId]/evidence。
+ */
 "use client";
 
 import Link from "next/link";
@@ -40,6 +46,7 @@ export default function RunDetailPage() {
     }
     let cancelled = false;
     setLoading(true);
+    // 并行拉取 Run 元数据、结构化时间线与原始 trace
     Promise.all([getRun(session, runId), getRunTimeline(session, runId), getRunTrace(session, runId)])
       .then(([runSummary, timelineResponse, traceResponse]) => {
         if (!cancelled) {

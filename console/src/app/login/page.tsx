@@ -1,3 +1,10 @@
+/**
+ * 登录页：建立与 Team Server 交互所需的 Bearer 会话。
+ * 职责：
+ * - OIDC PKCE 跳转至 IdP，回调后由 session 层解析 access token；
+ * - 开发模式支持粘贴 Bearer token（token 仅存 sessionStorage，不入 URL）。
+ * 登录成功后按 JWT 中的 tenantId 重定向至租户作用域路径 /t/{tenantId}/runs。
+ */
 "use client";
 
 import { useRouter } from "next/navigation";
@@ -14,12 +21,14 @@ export default function LoginPage() {
   const [tokenInput, setTokenInput] = useState("");
   const [error, setError] = useState<string | null>(null);
 
+  // 已有会话时直接进入租户 Run 列表，避免重复登录
   useEffect(() => {
     if (session) {
       router.replace(tenantScopedPath(session.tenantId, "/runs"));
     }
   }, [router, session]);
 
+  // 启动 OIDC 授权码 + PKCE 流程，state/verifier 暂存于 sessionStorage
   async function startOidc() {
     setError(null);
     try {
@@ -37,6 +46,7 @@ export default function LoginPage() {
     }
   }
 
+  // 开发用：解析粘贴的 access token，写入会话并跳转租户 Run 页
   function submitDevToken() {
     setError(null);
     try {

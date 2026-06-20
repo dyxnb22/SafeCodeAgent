@@ -1,4 +1,9 @@
-"""Unified command policy for shell, hooks, and future tools."""
+"""Unified command policy for shell, hooks, and future tools.
+
+中文模块说明：Shell/命令统一策略引擎（CommandPolicy）。
+- 基于 allowlist 与参数级启发式检测危险子命令；高风险默认拒绝，中风险可要求审批。
+- 本地内核策略层，与 Enterprise PolicyResolver 互补；未知可执行体或无 token 时 fail-closed。
+"""
 
 from dataclasses import dataclass
 
@@ -8,7 +13,10 @@ from safecode.shell.risk import RiskLevel, ShellRisk, ShellRiskClassifier
 
 @dataclass(frozen=True)
 class CommandDecision:
-    """Policy decision for a command."""
+    """Policy decision for a command.
+
+    命令策略裁决结果；``allowed=False`` 时不得执行，``requires_approval=True`` 须人类确认后带 approved 重评。
+    """
 
     command: str
     risk: ShellRisk
@@ -18,20 +26,28 @@ class CommandDecision:
 
 
 class CommandPolicy:
-    """Evaluate command allowlist and argument-level risks."""
+    """Evaluate command allowlist and argument-level risks.
+
+    评估命令 allowlist 与参数级风险；依赖 SafeCodeConfig.shell 旋钮。
+    安全不变量：可执行名不在 allowlist 则拒绝；block_high_risk 为真时 HIGH 一律拒绝。
+    """
 
     def __init__(self, config: SafeCodeConfig) -> None:
         self.config = config
         self.classifier = ShellRiskClassifier()
 
     def evaluate(self, command: str, approved: bool = False) -> CommandDecision:
-        """Return a command execution decision."""
+        """Return a command execution decision.
+
+        返回命令是否允许执行；中风险且 require_confirm_for_medium 时需 approved=True。
+        """
         risk = self.classifier.classify(command)
         if not risk.tokens:
             return CommandDecision(command, risk, False, False, "No executable tokens found.")
 
         arg_risk = self._arg_level_risk(risk.tokens)
         if arg_risk:
+            # 参数级风险直接升格为 HIGH 并拒绝，不依赖分类器单独评级。
             high_risk = ShellRisk(RiskLevel.HIGH, [arg_risk], risk.tokens)
             return CommandDecision(command, high_risk, False, False, arg_risk)
 
@@ -48,7 +64,10 @@ class CommandPolicy:
         return CommandDecision(command, risk, True, False, "Command allowed.")
 
     def _arg_level_risk(self, tokens: list[str]) -> str | None:
-        """Detect dangerous subcommands and arguments."""
+        """Detect dangerous subcommands and arguments.
+
+        检测 git/python/npm 等危险参数模式；命中则整条命令拒绝。
+        """
         executable = tokens[0]
         lowered = [token.lower() for token in tokens]
 
@@ -75,7 +94,10 @@ class CommandPolicy:
         return None
 
     def _git_arg_risk(self, tokens: list[str], lowered: list[str]) -> str | None:
-        """Detect git flags and subcommands that escape the project boundary or shell out."""
+        """Detect git flags and subcommands that escape the project boundary or shell out.
+
+        检测 git -C、-c、config 等可越界或 shell out 的用法；checkout/merge 等视为改变仓库状态。
+        """
         for index, token in enumerate(tokens[1:], start=1):
             if token == "-C" or token.startswith("-C") or token.startswith("--work-tree") or token.startswith("--git-dir"):
                 return "git path override can operate outside the project boundary."
@@ -110,7 +132,10 @@ class CommandPolicy:
         return None
 
     def _git_config_is_dangerous(self, token: str) -> bool:
-        """Return true for git config keys that can shell out or change hooks."""
+        """Return true for git config keys that can shell out or change hooks.
+
+        危险 git config 键（alias、hookspath、以 ! 开头的值等）可导致任意命令执行。
+        """
         key = token.split("=", 1)[0].lower()
         value = token.split("=", 1)[1] if "=" in token else ""
         return (

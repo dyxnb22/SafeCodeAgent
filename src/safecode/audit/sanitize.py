@@ -1,4 +1,9 @@
-"""Sanitize audit events before hash-chain persistence."""
+"""Sanitize audit events before hash-chain persistence.
+
+中文模块说明：审计事件持久化前脱敏。
+- 对 message/error/command、files、metadata 等字段调用 redact_secrets，避免密钥进入哈希链与磁盘。
+- 脱敏在 write() 计算哈希之前执行，保证链上存的是已脱敏内容。
+"""
 
 from __future__ import annotations
 
@@ -15,7 +20,10 @@ def _redact_optional(value: str | None) -> str | None:
 
 
 def sanitize_audit_event(event: AuditEvent) -> AuditEvent:
-    """Return an audit event with secret-like fields redacted for persistence."""
+    """Return an audit event with secret-like fields redacted for persistence.
+
+    返回脱敏后的新副本；无敏感内容时返回原对象引用。
+    """
     updates: dict[str, object] = {}
     for field in _PERSISTENCE_STRING_FIELDS:
         current = getattr(event, field)
@@ -27,6 +35,7 @@ def sanitize_audit_event(event: AuditEvent) -> AuditEvent:
         if redacted_files != event.files:
             updates["files"] = redacted_files
     if event.metadata:
+        # metadata 值统一转 str 再脱敏；嵌套结构不会递归展开，复杂对象可能漏脱敏。
         redacted_metadata = {
             str(key): redact_secrets(str(value)) for key, value in event.metadata.items()
         }
@@ -38,7 +47,10 @@ def sanitize_audit_event(event: AuditEvent) -> AuditEvent:
 
 
 def apply_audit_event_sanitization(event: AuditEvent) -> None:
-    """Mutate *event* in place with sanitized persistence fields."""
+    """Mutate *event* in place with sanitized persistence fields.
+
+    原地脱敏，供 AuditLogger.write 在哈希前调用；不改变 AuditEvent 字段集合。
+    """
     sanitized = sanitize_audit_event(event)
     if sanitized is event:
         return

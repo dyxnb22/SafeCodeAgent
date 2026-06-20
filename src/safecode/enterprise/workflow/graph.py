@@ -1,4 +1,18 @@
-"""LangGraph adapter for enterprise workflows (optional dependency)."""
+"""LangGraph 企业工作流适配层（可选依赖）。
+
+将 ``WORKFLOW_NODE_ORDER`` 中的节点注册为 LangGraph 状态图，并在三处引入条件边：
+- ``collect_repo_context`` 之后：缺证据则补检索，否则直接分析
+- ``analyze_security_risk`` 之后：高/极高风险走审批门，否则直接规划
+- ``validate`` 之后：校验失败进入 ``repair_or_blocker`` 终止为 blocked
+
+与本地编排器的差异：本地模式始终线性执行全部 9 个节点；LangGraph 可跳过
+``retrieve_policy_and_code`` 或 ``approval_gate``。恢复时 ``resume_langgraph_workflow``
+实际委托给 ``LocalOrchestrator.resume``，并非 LangGraph 原生 checkpoint 恢复。
+
+潜在问题：
+- ``run_langgraph_workflow`` 结束时将 ``completed_nodes`` 固定为全部节点，即使图中途结束
+- 未安装 langgraph 时抛出 ``LangGraphUnavailableError``
+"""
 
 from __future__ import annotations
 
@@ -18,6 +32,7 @@ REPAIR_OR_BLOCKER_NODE = "repair_or_blocker"
 EXPECTED_WORKFLOW_NODES: tuple[str, ...] = WORKFLOW_NODE_ORDER + (REPAIR_OR_BLOCKER_NODE,)
 
 CONDITIONAL_EDGES: dict[str, tuple[str, str]] = {
+    # 路由名 -> (条件为真时的目标, 条件为假时的目标) — 仅作文档索引，实际路由在下方函数中
     "missing_evidence": ("collect_repo_context", "retrieve_policy_and_code"),
     "high_risk": ("analyze_security_risk", "approval_gate"),
     "validation_failed": ("validate", REPAIR_OR_BLOCKER_NODE),
@@ -39,6 +54,7 @@ def _import_langgraph():
 
 
 def _route_missing_evidence(state: GraphState) -> str:
+    """缺证据时补检索，否则跳过 retrieve 直接分析风险。"""
     current = EnterpriseRunState.model_validate(state["enterprise_state"])
     if current.missing_evidence:
         return "retrieve_policy_and_code"
@@ -46,6 +62,7 @@ def _route_missing_evidence(state: GraphState) -> str:
 
 
 def _route_high_risk(state: GraphState) -> str:
+    """高/极高风险必须经过 approval_gate，低风险可跳过审批直接 finalize 路径。"""
     current = EnterpriseRunState.model_validate(state["enterprise_state"])
     if current.risk_tier in {RiskTier.high, RiskTier.critical}:
         return "approval_gate"
@@ -78,6 +95,7 @@ def _repair_or_blocker(state: GraphState) -> GraphState:
 
 
 def build_state_graph():
+    """构建并编译 LangGraph 状态图。节点顺序与 registry.WORKFLOW_NODE_ORDER 对齐。"""
     StateGraph, START, END = _import_langgraph()
     graph = StateGraph(GraphState)
     for node_name in WORKFLOW_NODE_ORDER:
@@ -100,6 +118,10 @@ def build_state_graph():
 async def run_langgraph_workflow(
     backend: LocalBackend, state: EnterpriseRunState
 ) -> EnterpriseRunState:
+    """一次性执行完整 LangGraph 图，结束后写检查点。
+
+    注意：无论实际经过哪些节点，completed_nodes 均记为全部 WORKFLOW_NODE_ORDER。
+    """
     compiled = build_state_graph()
     result = await compiled.ainvoke({"enterprise_state": state.model_dump(mode="python")})
     final = EnterpriseRunState.model_validate(result["enterprise_state"])
@@ -119,5 +141,6 @@ async def run_langgraph_workflow(
 async def resume_langgraph_workflow(
     backend: LocalBackend, checkpoint: RunCheckpoint
 ) -> EnterpriseRunState:
+    """LangGraph 模式的恢复入口 — 实际回落到本地编排器 resume，非图内断点续跑。"""
     local = LocalOrchestrator(backend.sac_root, runtime="local", backend=backend)
     return await local.resume(checkpoint.run_id, tenant_id=checkpoint.state.tenant_id)

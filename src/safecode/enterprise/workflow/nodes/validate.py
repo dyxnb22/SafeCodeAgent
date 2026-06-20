@@ -1,4 +1,11 @@
-"""validate node."""
+"""validate 工作流节点（九步流水线第 7 步）。
+
+- **流水线位置**：第 7 步 / 9 — 对提案运行测试、扫描器或策略一致性检查。
+- **输入**：``proposals``、任务证据及（remediation）补丁提案引用。
+- **输出**：``validation``（``ValidationResult``）与 ``validation_failed`` 标志。
+- **安全治理**：工具驱动、确定性校验；校验失败时节点状态为 ``soft_failure``，
+  阻断 ``approval_gate`` 放行；secure_planning 路径显式跳过扫描器并记录原因。
+"""
 
 from __future__ import annotations
 
@@ -11,6 +18,7 @@ NODE_NAME = "validate"
 
 
 async def run(state: EnterpriseRunState) -> NodePatch:
+    """执行任务相关的预应用或默认校验，记录通过/失败结果。"""
     if secure_planning.is_secure_planning_task(state):
         validation = ValidationResult(
             passed=True,

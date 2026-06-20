@@ -1,4 +1,9 @@
-"""Policy layer resolver with precedence and no-weakening enforcement."""
+"""Policy layer resolver with precedence and no-weakening enforcement.
+
+策略层解析器：合并多层策略并强制「不可弱化」约束。
+优先级：workflow(0) < env(1) < project(2) < user(3) < org(4)，数值越大越优先。
+低层尝试放宽审批层级（如 GATE→AUTO）时记录为 blocked_override，最终仍采用更严格值。
+"""
 
 from __future__ import annotations
 
@@ -23,6 +28,7 @@ from safecode.enterprise.policy.models import (
     normalize_policy_key,
 )
 
+# 各策略层的合并优先级；org 层为最终兜底，项目/用户层不得削弱 org 约束
 LAYER_PRIORITY: dict[PolicyLayerName, int] = {
     "workflow": 0,
     "env": 1,
@@ -31,6 +37,7 @@ LAYER_PRIORITY: dict[PolicyLayerName, int] = {
     "org": 4,
 }
 
+# 内置组织默认策略：最严格基线；本地 project/user 配置只能同等或更严，不能更松
 DEFAULT_ORG_POLICY: dict[str, ApprovalTier | str | bool | list[str]] = {
     "file_write": "GATE",
     "command_execute": "GATE",
@@ -133,6 +140,13 @@ def workflow_layer(overrides: dict[str, Any] | None) -> PolicyLayer:
 
 
 def merge_layers(layers: list[PolicyLayer]) -> tuple[dict[str, PolicyValue], tuple[PolicyOverrideBlocked, ...]]:
+    """合并多层策略，检测并记录被阻断的弱化尝试。
+
+    对每个策略键取最高优先级层的值作为最终值；同时扫描低层是否有「放宽」企图。
+    blocked 列表供审计与 CLI 展示，不自动应用被阻断的宽松值。
+
+    潜在问题：非 ApprovalTier 类型的键（如 allow_as_role_flag）不走弱化检测分支。
+    """
     by_key: dict[str, list[tuple[int, PolicyLayerName, PolicyValue]]] = {}
     for layer in layers:
         priority = LAYER_PRIORITY[layer.name]
@@ -177,7 +191,11 @@ def snapshot_id_for(layers: list[PolicyLayer], merged: dict[str, PolicyValue]) -
 
 
 class PolicyResolver:
-    """Resolve policy layers into an immutable snapshot."""
+    """将多层策略解析为不可变 PolicySnapshot。
+
+    快照 ID 由全部层内容与合并结果哈希生成；审批绑定的 policy_snapshot_id 须与此一致。
+    执行时若策略已重新解析（ID 变化），旧审批授权自动失效。
+    """
 
     def __init__(
         self,

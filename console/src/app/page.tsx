@@ -1,3 +1,8 @@
+/**
+ * 公开首页（未登录可访问）。
+ * 职责：介绍 Console 并引导至 /login；不承载租户路由（/t/[tenantId]/…）。
+ * Team Server API 在此页不发起调用。
+ */
 import Link from "next/link";
 
 export default function HomePage() {

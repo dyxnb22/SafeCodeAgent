@@ -1,4 +1,9 @@
-"""Create checkpoints and restore them during rollback."""
+"""Create checkpoints and restore them during rollback.
+
+中文模块说明：检查点创建与回滚。
+- 在 patch 应用前备份受影响文件，元数据记录 sha256；回滚前校验备份完整性（B13）。
+- 经 FilesystemBoundary 校验路径，防止越界写入或恢复。
+"""
 
 import hashlib
 import json
@@ -17,6 +22,8 @@ class CheckpointIntegrityError(RuntimeError):
     Prevents silent restoration of corrupt or tampered checkpoint backups.
     The checkpoint_id and path are recorded; never attempt a restore of an
     integrity-failing backup — investigate and delete the checkpoint if corrupt.
+
+    备份 sha256 与元数据不一致时抛出；禁止继续恢复，须调查或删除损坏的检查点。
     """
 
     def __init__(self, path: str, checkpoint_id: str, expected: str, actual: str) -> None:
@@ -42,7 +49,10 @@ def _sha256_of_file(path: Path) -> str:
 
 
 class CheckpointManager:
-    """Manage .sac/checkpoints."""
+    """Manage .sac/checkpoints.
+
+    管理 ``.sac/checkpoints`` 目录下的备份与元数据；所有目标路径经 FilesystemBoundary 校验。
+    """
 
     def __init__(self, project_root: Path) -> None:
         self.project_root = project_root.resolve()
@@ -50,7 +60,10 @@ class CheckpointManager:
         self.filesystem = FilesystemBoundary(self.project_root)
 
     def create(self, proposal: PatchProposal) -> CheckpointMetadata:
-        """Create a checkpoint before applying a patch."""
+        """Create a checkpoint before applying a patch.
+
+        在应用 patch 前为每个受影响文件创建备份并记录 backup_sha256。
+        """
         checkpoint_id = f"{utc_now_iso().replace(':', '-')}_{proposal.id}"
         checkpoint_dir = self.checkpoints_dir / checkpoint_id
         files_dir = checkpoint_dir / "files"
@@ -125,6 +138,7 @@ class CheckpointManager:
                     data = json.loads(metadata_path.read_text(encoding="utf-8"))
                     result.append(CheckpointMetadata(**data))
                 except Exception:
+                    # 损坏的 metadata.json 被静默跳过，调用方可能误以为检查点不存在。
                     pass
         return result
 
@@ -135,15 +149,18 @@ class CheckpointManager:
         stored sha256 doesn't match the actual backup, raises
         CheckpointIntegrityError and aborts the restore without touching any
         target files.
+
+        先对所有备份做完整性预检，再修改目标文件；任一备份失败则整次回滚中止。
+        无 backup_sha256 的旧检查点跳过校验（向后兼容），存在被篡改却无法检测的风险。
         """
         checkpoint_dir = self.checkpoints_dir / metadata.checkpoint_id
 
-        # Pre-flight integrity check: verify all backups before touching any target file.
+        # 预检：在触碰任何目标文件之前验证所有备份 sha256。
         for operation in metadata.file_operations:
             if not operation.existed_before or operation.backup_path is None:
                 continue
             if operation.backup_sha256 is None:
-                # Old checkpoint without sha256 — skip verification (backward compat).
+                # 旧版检查点无 sha256：跳过校验，向后兼容但无法检测备份被篡改。
                 continue
             backup_file = checkpoint_dir / operation.backup_path
             if not backup_file.exists():

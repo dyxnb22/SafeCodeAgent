@@ -1,3 +1,8 @@
+/**
+ * Run 时间线只读视图：将 Team Server timeline API 归一化后的 RunTimeline 分节展示。
+ * 涵盖摘要、节点、引用、工具调用、审批记录、校验、成本、安全不变量与失败项；
+ * 敏感字段经 redactFieldForDisplay 脱敏。不发起 API 请求，数据由 Run 详情页注入。
+ */
 "use client";
 
 import type { ReactNode } from "react";
@@ -144,6 +149,7 @@ function ToolCallsSection({ timeline }: { timeline: RunTimeline }) {
   );
 }
 
+// 时间线内嵌的审批记录区块（历史决策，非收件箱操作入口）
 function ApprovalsSection({ timeline }: { timeline: RunTimeline }) {
   return (
     <Section title={TIMELINE_SECTION_ORDER[4]}>
@@ -259,6 +265,7 @@ function FailuresSection({ timeline }: { timeline: RunTimeline }) {
   );
 }
 
+// 按固定章节顺序渲染完整时间线（与 Team Server timeline schema 对齐）
 export function RunTimelineView({ timeline }: { timeline: RunTimeline }) {
   return (
     <div>

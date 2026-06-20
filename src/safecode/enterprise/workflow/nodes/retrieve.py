@@ -1,4 +1,11 @@
-"""retrieve_policy_and_code node."""
+"""retrieve_policy_and_code 工作流节点（九步流水线第 3 步）。
+
+- **流水线位置**：第 3 步 / 9 — 在 actor 权限范围内执行混合 RAG 检索。
+- **输入**：上一步产出的 ``findings``、``pull_request_evidence`` 或 ``issue_evidence``。
+- **输出**：带溯源的 ``citations`` 列表；无引用时 ``missing_evidence=True``。
+- **安全治理**：检索结果经权限过滤与引用签名；文档与代码片段为不可信输入，仅供
+  分析与计划引用，不直接驱动写入；遵守租户与 RBAC 边界。
+"""
 
 from __future__ import annotations
 
@@ -11,6 +18,7 @@ NODE_NAME = "retrieve_policy_and_code"
 
 
 async def run(state: EnterpriseRunState) -> NodePatch:
+    """按任务类型检索策略文档与代码引用，写入 ``citations``。"""
     updates: dict = {}
     if remediation.is_remediation_task(state) and state.findings:
         citations = remediation.retrieve_citations(state, state.findings)

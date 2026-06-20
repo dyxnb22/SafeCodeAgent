@@ -1,4 +1,12 @@
-"""approval_gate node."""
+"""approval_gate 工作流节点（九步流水线第 8 步）。
+
+- **流水线位置**：第 8 步 / 9 — 评估提案是否需人工审批，可中断工作流等待 HITL。
+- **输入**：``validation_failed``、``risk_tier``、``proposals``、``request`` 元数据。
+- **输出**：需审批时设置 ``status=awaiting_approval`` 与
+  ``awaiting_human_approval=True``；校验失败时置 ``blocked``。
+- **安全治理**：确定性审批门；高风险、实时 PR 评论、补丁应用或工单发帖须人工批准；
+  模型与 Agent 不能自行批准；未消耗审批_grant 前 ``finalize`` 不得执行受控写入。
+"""
 
 from __future__ import annotations
 
@@ -12,6 +20,7 @@ NODE_NAME = "approval_gate"
 
 
 async def run(state: EnterpriseRunState) -> NodePatch:
+    """根据风险等级与提案类型判定是否进入人工审批等待态。"""
     if state.validation_failed:
         return build_patch(
             state,

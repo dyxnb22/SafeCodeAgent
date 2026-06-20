@@ -1,4 +1,8 @@
-"""Approval request persistence."""
+"""Approval request persistence.
+
+审批请求与授权（grant）的本地持久化。
+安全要点：request/grant 均带哈希防篡改；消费为单次；模型主体不得决策。
+"""
 
 from __future__ import annotations
 
@@ -29,26 +33,39 @@ from safecode.utils.file_lock import atomic_replace_text, keyed_exclusive_lock, 
 
 
 class Action(str, Enum):
-    file_write = "file_write"
-    command_execute = "command_execute"
-    scanner_run = "scanner_run"
-    github_read = "github_read"
-    github_write_comment = "github_write_comment"
-    github_branch_push = "github_branch_push"
-    github_pr_create = "github_pr_create"
-    issue_comment = "issue_comment"
-    mcp_read = "mcp_read"
-    mcp_write = "mcp_write"
-    retrieval_source_access = "retrieval_source_access"
-    memory_fact_inject = "memory_fact_inject"
-    policy_config_change = "policy_config_change"
-    production_access = "production_access"
+    """待审批的动作类型枚举，与策略键及 RBAC 权限表一一对应。
+
+    每项代表一类可能产生副作用的操作；实际执行前须经策略层 + RBAC + 人工审批（如需）。
+    模型输出或工具提案仅映射到此处枚举，本身不构成执行授权。
+    """
+
+    file_write = "file_write"  # 本地/沙箱文件写入
+    command_execute = "command_execute"  # 命令执行
+    scanner_run = "scanner_run"  # 安全扫描器运行
+    github_read = "github_read"  # GitHub 只读访问
+    github_write_comment = "github_write_comment"  # PR 评论写入
+    github_branch_push = "github_branch_push"  # 分支推送（受保护分支策略约束）
+    github_pr_create = "github_pr_create"  # 创建 PR
+    issue_comment = "issue_comment"  # 工单/议题评论（如 Jira）
+    mcp_read = "mcp_read"  # MCP 只读调用
+    mcp_write = "mcp_write"  # MCP 写入调用
+    retrieval_source_access = "retrieval_source_access"  # RAG 检索源访问（权限边界）
+    memory_fact_inject = "memory_fact_inject"  # 已批准记忆事实注入上下文
+    policy_config_change = "policy_config_change"  # 策略配置变更（默认 BLOCK）
+    production_access = "production_access"  # 生产环境访问（默认 BLOCK）
 
 
 ApprovalStatus = Literal["pending", "approved", "rejected", "evidence_requested", "revoked"]
 
 
 class ApprovalRequest(BaseModel):
+    """审批请求持久化模型。
+
+    绑定字段：action、target（含 proposal 快照）、policy_snapshot_id、tenant_id。
+    任一绑定字段在执行时与 grant 不一致则拒绝消费。
+    preview 仅存脱敏后的预览文本，不可作为执行依据。
+    """
+
     model_config = ConfigDict(extra="forbid")
 
     request_id: str
@@ -70,6 +87,8 @@ class ApprovalRequest(BaseModel):
 
 
 class ApprovalDecisionRecord(BaseModel):
+    """审批决策记录（审计用），与 ApprovalRequest 分离存储。"""
+
     model_config = ConfigDict(extra="forbid")
 
     request_id: str
@@ -86,6 +105,7 @@ def _utc_now() -> str:
 
 
 def request_hash(request: ApprovalRequest) -> str:
+    """对请求体（不含 request_hash 字段）计算 SHA-256，用于篡改检测。"""
     payload = request.model_copy(update={"request_hash": ""}).model_dump_json()
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
@@ -168,6 +188,12 @@ def list_requests(sac_root: Path, run_id: str) -> list[ApprovalRequest]:
 
 
 class Grant(BaseModel):
+    """单次消费授权。
+
+    批准时由 decide_request 创建，与 request 共享 action/target/policy_snapshot_id 绑定。
+    consumed_at 非空或 revoked_at 非空时不可再次消费。
+    """
+
     model_config = ConfigDict(extra="forbid")
 
     grant_id: str
@@ -278,7 +304,11 @@ def validate_approved_request(
     policy_snapshot_id: str,
     target: dict[str, str],
 ) -> tuple[ApprovalRequest, Grant]:
-    """Validate an approval and its grant against the exact pending action."""
+    """校验已批准请求及其 grant 是否与当前待执行动作完全一致。
+
+    四元组 (tenant_id, action, policy_snapshot_id, target) 须与 request 和 grant 均匹配。
+    策略快照变更后旧 grant 自动失效——这是防止策略弱化后仍用旧授权的关键检查点。
+    """
     request = load_request(sac_root, run_id, request_id)
     if request.status != "approved":
         raise PermissionError(f"approval request is not approved: {request_id}")
@@ -326,6 +356,7 @@ def decide_request(
     decision_actor: str,
     decision_note: str = "",
 ) -> ApprovalRequest:
+    # 安全不变量：模型主体不得批准自身提案（模型输出非执行权威）
     if decision_actor.startswith("model:"):
         raise PermissionError("model actors cannot approve their own requests")
     path = approvals_dir(sac_root, run_id) / f"{request_id}.json"

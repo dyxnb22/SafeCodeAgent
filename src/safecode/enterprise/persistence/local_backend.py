@@ -1,4 +1,18 @@
-"""File-backed persistence adapter implementing v2.1.2 repository protocols."""
+"""基于文件系统的持久化适配器，实现 v2.1.2 仓储协议。
+
+架构概览（前 80 行涉及的核心结构）：
+- ``LocalRunStore``：工作流检查点（``state.json`` + completed_nodes），租户隔离校验
+- ``LocalApprovalStore``：审批请求与 grant 的读写、消费与撤销
+- ``LocalBackend``（文件后部）：聚合 runs/approvals/audit/trace/evidence/eval/
+  commands/leases/webhooks 等子存储，作为 API 与 Worker 的统一注入点
+
+数据根目录为 ``sac_root``（通常 ``SAC_ENTERPRISE_ARTIFACTS_ROOT``），
+各租户/run 按目录分层存放。所有跨租户访问经 ``assert_tenant_match`` 拦截。
+
+潜在问题：
+- ``load_checkpoint`` 先按 run_id 加载再校验 tenant，run_id 全局唯一假设需保持
+- ``purge_run`` 在目录存在但无 state.json 时可能跳过租户校验直接 rmtree
+"""
 
 from __future__ import annotations
 
@@ -57,17 +71,23 @@ if TYPE_CHECKING:
 
 
 class LocalRunStore:
-    """Local filesystem run checkpoint store."""
+    """本地文件系统运行检查点存储。
+
+    每个 run 对应 ``sac_root/enterprise/runs/<run_id>/`` 下的检查点文件；
+    ``save_checkpoint`` / ``load_checkpoint`` 均强制 tenant_id 与状态内 tenant 一致。
+    """
 
     def __init__(self, sac_root: Path) -> None:
         self.sac_root = sac_root
 
     def save_checkpoint(self, *, tenant_id: str, checkpoint: RunCheckpoint) -> None:
+        """持久化检查点：含已完成节点列表、下一节点名与完整 EnterpriseRunState。"""
         tenant = validate_tenant_id(tenant_id)
         assert_tenant_match(tenant, checkpoint.state.tenant_id, operation="save_checkpoint")
         save_checkpoint(self.sac_root, checkpoint)
 
     def load_checkpoint(self, *, tenant_id: str, run_id: str) -> RunCheckpoint:
+        """加载检查点供 worker resume 或 API 查询；租户不匹配则拒绝。"""
         tenant = validate_tenant_id(tenant_id)
         checkpoint = load_checkpoint(self.sac_root, run_id)
         assert_tenant_match(tenant, checkpoint.state.tenant_id, operation="load_checkpoint")
@@ -95,7 +115,7 @@ class LocalRunStore:
 
 
 class LocalApprovalStore:
-    """Local filesystem approval and grant store."""
+    """本地审批与 grant 存储，与 workflow approval_gate 及 API approvals 路由共用。"""
 
     def __init__(self, sac_root: Path) -> None:
         self.sac_root = sac_root

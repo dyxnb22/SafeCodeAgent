@@ -1,4 +1,14 @@
-"""Enterprise authentication helpers (v2.1.6)."""
+"""Enterprise authentication helpers (v2.1.6).
+
+中文说明
+--------
+企业认证辅助：OIDC 发现/JWKS 缓存、JWT 签名校验（``OidcValidator``），
+以及将令牌声明映射为 ``RBACSubject``（租户、角色）。API 层在 SERVER 模式下
+启用 OIDC；本地模式使用可配置的静态主体解析器。
+
+安全要点：认证仅确立身份与租户边界，不授予写操作执行权；
+模型输出与令牌自定义声明均不可信，执行仍须经策略门控与人工审批。
+"""
 
 from safecode.enterprise.auth.oidc import (
     DEFAULT_ALLOWED_ALGORITHMS,

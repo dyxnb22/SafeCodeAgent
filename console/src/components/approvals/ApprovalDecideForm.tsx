@@ -1,3 +1,9 @@
+/**
+ * 单条审批的决策表单（审批流程 UI 核心）。
+ * 仅 status === "pending" 时显示 Rationale + Approve/Reject；
+ * 调用 Team Server decideApproval(session, approvalId, decision, rationale)，
+ * 成功后通过 onDecided 回调更新父组件本地状态。已决项只读展示决策结果。
+ */
 "use client";
 
 import { useState } from "react";

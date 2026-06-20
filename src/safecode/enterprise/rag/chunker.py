@@ -1,4 +1,9 @@
-"""Enterprise chunker adapter over RawRecords."""
+"""Enterprise chunker adapter over RawRecords.
+
+将 loader 产出的 RawRecord 切分为带权限边界的 Chunk。
+每个 Chunk 继承 source.permission_scope 与 tenant_id，供检索阶段按主体过滤。
+分块前对文本做秘密脱敏；chunk_id 由来源、路径、行号与内容哈希稳定生成。
+"""
 
 from __future__ import annotations
 
@@ -11,10 +16,14 @@ from safecode.enterprise.rag.models import Chunk
 from safecode.enterprise.rag.source_registry import KnowledgeSource, RawRecord, SourceType
 
 _H2_RE = re.compile(r"^## (.+)$", re.MULTILINE)
-_MAX_CHUNK_CHARS = 8192
+_MAX_CHUNK_CHARS = 8192  # 单块字符上限，防止超大块绕过上下文预算或拖慢检索
 
 
 def _freshness_for_source(source: KnowledgeSource) -> str:
+    """根据刷新节奏标注新鲜度；非 static 源目前均标为 unknown。
+
+    潜在问题：daily 与其它动态源未区分，可能影响新鲜度感知与排序。
+    """
     if source.refresh_cadence == "static":
         return "current"
     if source.refresh_cadence == "daily":
@@ -58,6 +67,11 @@ def _split_oversized(text: str) -> list[str]:
 
 
 def _record_to_chunks(record: RawRecord, source: KnowledgeSource) -> list[Chunk]:
+    """将单条 RawRecord 转为一个或多个 Chunk，携带 permission_scope 与脱敏文本。
+
+    文档类 source_type 按 ## 标题切分；其它类型整段切分后再按 _MAX_CHUNK_CHARS 拆分。
+    permission_scope 从 source 继承——检索时必须与主体权限范围求交，不可默认全量可见。
+    """
     if source.source_type in {
         SourceType.security_policy,
         SourceType.secure_coding_standard,
@@ -102,7 +116,7 @@ def _record_to_chunks(record: RawRecord, source: KnowledgeSource) -> list[Chunk]
 
 
 def chunk_records(records: list[RawRecord], source: KnowledgeSource) -> list[Chunk]:
-    """Convert loader records into enterprise Chunk objects."""
+    """将 loader 记录批量转为企业 Chunk 对象，按路径与行号排序。"""
     chunks: list[Chunk] = []
     for record in records:
         chunks.extend(_record_to_chunks(record, source))
@@ -114,6 +128,6 @@ def chunk_source_records(
     records: list[RawRecord],
     project_root: Path | None = None,
 ) -> list[Chunk]:
-    """Chunk records for a source; project_root reserved for legacy adapter hooks."""
+    """为指定 source 分块；project_root 保留给遗留适配钩子，当前未使用。"""
     _ = project_root
     return chunk_records(records, source)

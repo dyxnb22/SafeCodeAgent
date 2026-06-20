@@ -1,3 +1,8 @@
+/**
+ * 全站认证上下文：ConsoleSession（含 tenantId、Bearer token）的读写与登出。
+ * 会话持久化在浏览器 sessionStorage；后续 lib/api/* 请求携带 token 调用 Team Server API。
+ * 不执行租户路由校验——由 ProtectedShell 与 evaluateTenantAccess 负责。
+ */
 "use client";
 
 import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
@@ -17,6 +22,7 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+// SSR 时使用空存储桩，避免访问 window；客户端挂载后使用 sessionStorage
 function browserSessionStore() {
   if (typeof window === "undefined") {
     return createSessionStore({

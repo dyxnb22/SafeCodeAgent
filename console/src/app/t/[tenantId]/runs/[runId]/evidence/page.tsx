@@ -1,3 +1,7 @@
+/**
+ * Run 合规证据包只读导出页，路由：/t/[tenantId]/runs/[runId]/evidence。
+ * 调用 Team Server downloadEvidence，将 zip bundle 触发浏览器下载；无写操作。
+ */
 "use client";
 
 import Link from "next/link";

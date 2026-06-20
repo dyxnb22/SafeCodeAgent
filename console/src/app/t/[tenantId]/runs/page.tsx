@@ -1,3 +1,8 @@
+/**
+ * 租户 Run 列表页，路由：/t/[tenantId]/runs。
+ * 通过 listRuns(session) 调用 Team Server GET /runs（Bearer + 会话内租户）。
+ * ProtectedShell 保证 URL tenantId 与会话一致；详情链至同租户下的 /runs/[runId]。
+ */
 "use client";
 
 import Link from "next/link";
@@ -24,6 +29,7 @@ export default function TenantRunsPage() {
     }
     let cancelled = false;
     setLoading(true);
+    // Bearer 会话驱动 Team Server runs 列表 API
     listRuns(session)
       .then((payload) => {
         if (!cancelled) {

@@ -1,4 +1,16 @@
-"""FastAPI application factory for the Team Server (v2.1.4-T1)."""
+"""FastAPI 应用工厂 — Team Server HTTP 层（v2.1.4-T1）。
+
+``create_app`` 注册业务路由（runs、traces、approvals、evidence、eval、webhooks、
+ci_callback），挂载 ``AppState`` 到 ``app.state.enterprise``，并统一将领域异常
+映射为 RFC 7807 problem+json 响应。
+
+健康检查：
+- ``/healthz``：进程存活
+- ``/readyz``：持久化后端 ``probe()`` 可用性
+- ``/version``：服务名、API 版本与契约状态
+
+限流与 CORS 由 ``TeamServerSettings`` 配置；写操作路由要求 Idempotency-Key。
+"""
 
 from __future__ import annotations
 
@@ -32,6 +44,7 @@ API_VERSION = "3.0.0"
 
 @dataclass(frozen=True)
 class AppState:
+    """注入 FastAPI 请求的共享运行时状态（后端、认证、限流、eval 路径）。"""
     settings: TeamServerSettings
     backend: PersistenceBackend
     subject_resolver: SubjectResolver
@@ -50,6 +63,7 @@ def create_app(
     eval_baselines_root: Path | None = None,
     project_root: Path | None = None,
 ) -> Any:
+    """创建并配置 FastAPI 实例。测试与 Uvicorn 均通过此工厂注入依赖。"""
     FastAPI = import_fastapi()
     from fastapi.responses import JSONResponse
 
@@ -82,6 +96,7 @@ def create_app(
     app.include_router(webhooks_router)
     app.include_router(ci_callback_router)
 
+    # CORS：仅当 settings 配置了允许源时启用；写操作头含 Idempotency-Key
     cors_origins = parse_cors_allowed_origins(settings.cors_allowed_origins)
     if cors_origins:
         from fastapi.middleware.cors import CORSMiddleware

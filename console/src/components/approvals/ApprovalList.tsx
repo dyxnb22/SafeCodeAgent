@@ -1,3 +1,8 @@
+/**
+ * 待审批请求摘要表（纯展示）。
+ * 数据来自父页 listApprovals；Run 列链接至租户作用域 /t/{tenantId}/runs/{run_id}。
+ * 不含决策操作——由 ApprovalDecideForm 处理。
+ */
 "use client";
 
 import Link from "next/link";

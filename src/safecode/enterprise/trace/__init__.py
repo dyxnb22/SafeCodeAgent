@@ -1,4 +1,9 @@
-"""Enterprise trace events and persistence."""
+"""Enterprise trace events and persistence.
+
+中文包说明：企业运行追踪与持久化。
+- 记录节点、审批、策略等运行时事件，供可观测性与排障。
+- 追踪载荷须经脱敏；不得将 trace 内容当作策略或执行依据。
+"""
 
 __all__ = [
     "TRACE_SCHEMA_VERSION",

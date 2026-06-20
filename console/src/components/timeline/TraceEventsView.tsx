@@ -1,3 +1,8 @@
+/**
+ * Run 原始追踪事件只读视图。
+ * 数据来自 Team Server getRunTrace；展示事件类型/时间戳及经脱敏的 JSON 详情。
+ * redaction_profile 标明服务端应用的脱敏配置，与审计/合规导出一致。
+ */
 "use client";
 
 import type { TraceApiResponse } from "@/components/timeline/types";

@@ -1,4 +1,12 @@
-"""propose_report_or_patch node."""
+"""propose_report_or_patch 工作流节点（九步流水线第 6 步）。
+
+- **流水线位置**：第 6 步 / 9 — 产出报告、补丁、评论或工单等 ``Proposal`` 草稿。
+- **输入**：``plan``、``findings``、``citations``、``risk_tier`` 及任务上下文。
+- **输出**：``proposals`` 列表；在运行目录 ``.sac/enterprise/runs/<run_id>/`` 写入
+  本地草稿文件（报告、补丁、评论等）。
+- **安全治理**：仅生成提案与本地草稿，不直接写入仓库或外部系统；补丁与应用、
+  PR/工单发帖须经 ``approval_gate`` 审批后在 ``finalize`` 中经策略门控执行。
+"""
 
 from __future__ import annotations
 
@@ -17,6 +25,7 @@ NODE_NAME = "propose_report_or_patch"
 
 
 async def run(state: EnterpriseRunState) -> NodePatch:
+    """渲染任务专属报告并构建待审批的 ``proposals`` 列表。"""
     run_dir = Path(state.repo.repo_root) / ".sac" / "enterprise" / "runs" / state.run_id
     run_dir.mkdir(parents=True, exist_ok=True)
 

@@ -1,4 +1,11 @@
-"""analyze_security_risk node."""
+"""analyze_security_risk 工作流节点（九步流水线第 4 步）。
+
+- **流水线位置**：第 4 步 / 9 — 基于证据与引用进行安全分析与风险定级。
+- **输入**：``findings`` 或 PR/Issue 证据，以及 ``citations``。
+- **输出**：``risk_tier``；PR/规划任务额外产出结构化 ``findings``。
+- **安全治理**：模型输出仅作分析与定级提案，不具执行权威；结果经 schema 校验后
+  写入状态，供计划与审批门引用；无证据时回退到确定性默认定级。
+"""
 
 from __future__ import annotations
 
@@ -12,6 +19,7 @@ NODE_NAME = "analyze_security_risk"
 
 
 async def run(state: EnterpriseRunState) -> NodePatch:
+    """聚合或分析安全风险，确定 ``risk_tier`` 与可选 ``findings``。"""
     if remediation.is_remediation_task(state) and state.findings:
         tier = remediation.aggregate_risk_tier(state.findings)
         return build_patch(

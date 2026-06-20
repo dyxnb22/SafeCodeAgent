@@ -1,4 +1,15 @@
-"""Uvicorn entrypoint for the Team Server (v2.1.7-T2)."""
+"""Team Server Uvicorn 入口（v2.1.7-T2）。
+
+``build_application`` 是 Uvicorn factory 目标：从环境变量加载
+``TeamServerSettings``，构建持久化后端与认证解析器，再调用 ``create_app``。
+
+环境变量要点：
+- ``SAC_ENTERPRISE_ARTIFACTS_ROOT``：本地/文件后端根目录（默认 /var/lib/safecode）
+- ``SAC_ENTERPRISE_API_HOST`` / ``PORT``：监听地址
+- ``RuntimeMode.SERVER`` 时启用 OIDC；本地模式使用静态主体解析器
+
+潜在问题：SERVER 模式下 ``subject_resolver`` 被赋值两次，均为 fail_closed，冗余但无害。
+"""
 
 from __future__ import annotations
 
@@ -16,6 +27,7 @@ from safecode.enterprise.api.settings import RuntimeMode, load_team_server_setti
 
 
 def build_application():
+    """组装 Team Server 应用实例，供 ``uvicorn.run(..., factory=True)`` 调用。"""
     settings = load_team_server_settings_from_env()
     artifacts_root = Path(
         os.environ.get("SAC_ENTERPRISE_ARTIFACTS_ROOT", "/var/lib/safecode")
@@ -25,7 +37,7 @@ def build_application():
     subject_resolver = fail_closed_subject_resolver(settings)
     if settings.runtime_mode is RuntimeMode.SERVER:
         oidc_validator = build_oidc_validator_from_settings(settings)
-        subject_resolver = fail_closed_subject_resolver(settings)
+        subject_resolver = fail_closed_subject_resolver(settings)  # OIDC 校验在路由依赖中完成
     else:
         subject_resolver = build_local_subject_resolver(settings)
     baselines_root = os.environ.get("SAC_ENTERPRISE_EVAL_BASELINES_ROOT")

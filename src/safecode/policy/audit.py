@@ -1,4 +1,9 @@
-"""Policy audit helpers for presets, aliases, and safety invariants."""
+"""Policy audit helpers for presets, aliases, and safety invariants.
+
+中文模块说明：策略预设审计与 diff 辅助。
+- 校验 KNOWN_POLICY_NAMES、遗留别名、预设不变量（block_high_risk、restrict_to_project_root、network_enabled）。
+- 未知项目/环境策略名记录为 issue，不信任未知配置。
+"""
 
 from __future__ import annotations
 
@@ -19,7 +24,10 @@ from safecode.core.diagnostic import Diagnostic
 
 @dataclass(frozen=True)
 class PolicyAuditResult:
-    """Structured result of a policy audit."""
+    """Structured result of a policy audit.
+
+    策略审计结构化结果；``ok`` 为真表示无 issues。
+    """
 
     known_names: list[str]
     aliases_ok: bool
@@ -111,6 +119,7 @@ def _read_project_policy(project_root: Path) -> str | None:
 
 
 def _preset_invariant_issues() -> list[str]:
+    """检查所有预设是否满足内核安全不变量。"""
     issues: list[str] = []
     for name, preset in sorted(POLICY_PRESETS.items()):
         if preset.get("block_high_risk") is not True:
@@ -118,6 +127,7 @@ def _preset_invariant_issues() -> list[str]:
         if preset.get("restrict_to_project_root") is not True:
             issues.append(f"{name}: restrict_to_project_root must be true.")
         if preset.get("network_enabled") is not False:
+            # 预设默认必须关闭网络，防止发布配置意外放宽。
             issues.append(f"{name}: network_enabled must be false by default.")
     return issues
 
@@ -187,7 +197,10 @@ def render_policy_diff(result: PolicyDiffResult) -> str:
 
 
 def audit_policy(project_root: Path, *, env_policy: str | None = None) -> PolicyAuditResult:
-    """Audit policy names, aliases, project/env values, and preset invariants."""
+    """Audit policy names, aliases, project/env values, and preset invariants.
+
+    审计策略名、别名、项目/环境配置与预设不变量；未知策略名记入 issues 且不会被信任。
+    """
     env_value = env_policy if env_policy is not None else os.getenv("SAFECODE_POLICY")
     project_policy = _read_project_policy(project_root)
     issues: list[str] = []
@@ -210,6 +223,7 @@ def audit_policy(project_root: Path, *, env_policy: str | None = None) -> Policy
     if project_policy is not None and not is_known_policy_name(project_policy):
         issues.append(f"Project policy {project_policy!r} is unknown and will not be trusted.")
     if env_value and not is_known_policy_name(env_value):
+        # 环境变量中的未知策略名应被忽略，避免通过 SAFECODE_POLICY 注入弱化配置。
         issues.append(f"SAFECODE_POLICY {env_value!r} is unknown and will be ignored.")
 
     return PolicyAuditResult(

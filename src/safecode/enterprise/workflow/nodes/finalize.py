@@ -1,4 +1,13 @@
-"""finalize node."""
+"""finalize 工作流节点（九步流水线第 9 步）。
+
+- **流水线位置**：第 9 步 / 9 — 落盘最终 ``Report``、执行经审批的受控写入并收敛终态。
+- **输入**：``proposals``、``validation``、审批_grant（经 ``consume_required_approval``）、
+  连接器凭据与会话。
+- **输出**：``report``、最终 ``status``（``succeeded`` / ``failed`` / ``blocked``）、
+  ``tool_calls`` 审计记录。
+- **安全治理**：唯一可执行补丁应用、PR 评论与工单发帖的节点；写入前必须消耗与动作
+  绑定的单次审批_grant；补丁经 checkpoint/rollback；连接器写入受策略快照与 RBAC 约束。
+"""
 
 from __future__ import annotations
 
@@ -26,12 +35,14 @@ NODE_NAME = "finalize"
 
 
 async def run(state: EnterpriseRunState) -> NodePatch:
+    """按任务类型终局化报告，并在审批通过后执行受治理的写入与回滚。"""
     tool_calls = list(state.tool_calls)
     project_root = Path(state.repo.repo_root).resolve()
     sac_root = project_root / ".sac"
     run_dir = sac_root / "enterprise" / "runs" / state.run_id
 
     def consume_required_approval() -> str:
+        """消耗与当前工作流动作绑定的单次人工审批_grant，返回 grant_id。"""
         from safecode.enterprise.persistence.local_backend import LocalBackend
 
         action, target = workflow_approval_binding(state)

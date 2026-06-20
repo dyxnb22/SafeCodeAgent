@@ -1,4 +1,9 @@
-"""Append-only JSONL audit logger."""
+"""Append-only JSONL audit logger.
+
+中文模块说明：仅追加的 JSONL 审计日志器。
+- 事件经脱敏后写入哈希链；``fsync`` 与外部锚点用于检测日志被重写或截断。
+- 读取路径（read_recent/iter_events）不写入；完整性校验要求非空日志必须有 anchor。
+"""
 
 import hashlib
 import json
@@ -15,7 +20,10 @@ from safecode.utils.file_lock import keyed_exclusive_lock, lock_path_for
 
 
 class AuditLogger:
-    """Write auditable project events."""
+    """Write auditable project events.
+
+    将可审计事件追加到项目 ``.sac/logs/events.jsonl``；写入持锁并更新哈希链与锚点。
+    """
 
     def __init__(self, project_root: Path, config: SafeCodeConfig | None = None) -> None:
         self.project_root = project_root
@@ -28,6 +36,9 @@ class AuditLogger:
 
         If task_id is provided it is stored in the existing metadata mapping under
         the key "task_id". The AuditEvent field set is not changed.
+
+        追加单条事件：先脱敏再计算 ``previous_hash`` / ``event_hash``，持独占锁写入并 fsync。
+        安全不变量：哈希在脱敏后的载荷上计算，篡改任一历史行会导致 verify 失败。
         """
         if task_id is not None:
             event.metadata = dict(event.metadata)
@@ -43,7 +54,7 @@ class AuditLogger:
             with self.log_file.open("a", encoding="utf-8") as file:
                 file.write(line + "\n")
                 file.flush()
-                os.fsync(file.fileno())
+                os.fsync(file.fileno())  # 尽力保证崩溃后链尾一致，仍依赖 anchor 检测整文件替换
             line_count = self._line_count_unlocked()
             self.anchor_store.write(self.log_file, line_count, event.event_hash)
 
@@ -75,6 +86,8 @@ class AuditLogger:
 
         Missing or unknown task id returns an empty list, never crashes.
         Output is redacted by the caller (this method returns raw events).
+
+        按 task_id 过滤读取；返回原始事件，调用方负责展示前再次脱敏。
         """
         if not task_id or not self.log_file.exists():
             return []
@@ -95,7 +108,10 @@ class AuditLogger:
             return []
 
     def verify_integrity(self) -> tuple[bool, str]:
-        """Verify the audit hash chain."""
+        """Verify the audit hash chain.
+
+        校验哈希链与外部锚点；非空日志无 anchor 时视为不可信（返回失败）。
+        """
         if not self.log_file.exists():
             return True, "No audit log found."
 
@@ -104,7 +120,10 @@ class AuditLogger:
             return self._verify_integrity_unlocked()
 
     def _verify_integrity_unlocked(self) -> tuple[bool, str]:
-        """Verify the audit hash chain while the caller holds the log lock."""
+        """Verify the audit hash chain while the caller holds the log lock.
+
+        在已持锁前提下校验；逐行验证 previous_hash 与 event_hash 链接。
+        """
         if not self.log_file.exists():
             return True, "No audit log found."
 
@@ -132,6 +151,7 @@ class AuditLogger:
                 return False, "Audit anchor mismatch; the log may have been rewritten."
             return True, "Audit log integrity verified with external anchor."
         if line_count > 0:
+            # 安全不变量：有内容的日志必须能对照 anchor，否则无法排除整文件被替换。
             return False, "Audit anchor missing for non-empty log; integrity cannot be trusted."
         return True, "Audit log integrity verified."
 
@@ -157,7 +177,10 @@ class AuditLogger:
         return sum(1 for line in self.log_file.read_text(encoding="utf-8").splitlines() if line.strip())
 
     def _hash_event(self, event: AuditEvent) -> str:
-        """Hash event content excluding event_hash itself."""
+        """Hash event content excluding event_hash itself.
+
+        对除 event_hash 外的规范化 JSON 做 SHA-256；排序键保证确定性。
+        """
         data = event.model_dump()
         data["event_hash"] = None
         payload = json.dumps(data, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
