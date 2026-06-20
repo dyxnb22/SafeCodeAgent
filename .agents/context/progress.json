@@ -196,7 +196,8 @@
     {"id": "v3.4.4-T1", "completed_at": "2026-06-19", "evidence": "90ffe69d"}
   ],
   "recent_maintenance": [
-    {"id": "maintenance-learning-zh-comments", "completed_at": "2026-06-20", "evidence": "94 files: Chinese module/function docstrings across kernel, enterprise workflow/API/worker/governance/RAG/approvals, 9 workflow nodes, and operator console; comment-only, no logic changes; kernel gate/audit 153 passed; enterprise workflow/worker/api 171 passed; governance 59 passed; console typecheck + 26 tests passed"},
+    {"id": "maintenance-r7-lock-reentrancy-closeout", "completed_at": "2026-06-20", "evidence": "R7: keyed_exclusive_lock reentrant by canonical lock-file identity; forked children discard inherited thread ownership; outermost depth acquires OS flock/msvcrt once; test_file_lock 9 passed x10; R6 concurrency lane 11 passed, 4 skipped; enterprise 861 passed, 25 skipped; full regression 6636 passed, 31 skipped (PG integration lane skipped, no DSN); v3.0 GA blockers G1/G2/G3 remain pending"},
+    {"id": "maintenance-learning-zh-comments", "completed_at": "2026-06-20", "evidence": "94 files: Chinese module/function docstrings across kernel, enterprise workflow/API/worker/governance/RAG/approvals, 9 workflow nodes, and operator console; comment-only, no logic changes; operator-console contract digests synchronized; kernel gate/audit 153 passed; enterprise workflow/worker/api 171 passed; governance 59 passed; console typecheck + 26 tests passed"},
     {"id": "maintenance-r6-concurrency-integrity", "completed_at": "2026-06-20", "evidence": "R6: symlink-safe file locks and atomic replace; linear local/PG audit writes; approval/queue/lease exclusion; request revocation invalidates grants; actor_id and reserved audit metadata hash coverage; concurrency tests repeat across threads/processes; eval 43 passed; enterprise 861 passed, 25 skipped; full regression 6629 passed, 31 skipped (PG integration lane skipped, no DSN); v3.0 GA blockers G1/G2/G3 remain pending"},
     {"id": "maintenance-r5-trust-boundary", "completed_at": "2026-06-20", "evidence": "R5: last_verification command aligned to uv run --extra enterprise; eval fixture refs reject . and backslash traversal; shared audit sanitize before persistence; PostgreSQL append_audit_event direct-writer sanitization; eval 43 passed; enterprise 851 passed, 22 skipped; full regression 6609 passed, 28 skipped; v3.0 GA blockers G1/G2/G3 remain pending"},
     {"id": "maintenance-r4-eval-workspace-boundary", "completed_at": "2026-06-20", "evidence": "Eval staging rejects absolute, traversal, and escaping symlink fixture paths; eval 38 passed x2; enterprise 846 passed, 22 skipped x2; full regression 6596 passed, 28 skipped x2 via uv run --extra enterprise python -m pytest -q"},
@@ -204,9 +205,7 @@
     {"id": "maintenance-r4-audit-remediation-closeout", "completed_at": "2026-06-19", "evidence": "R1-R3 findings remediated; enterprise 817 passed, 21 skipped; full regression 6569 passed, 25 skipped; v3.0 external gates remain pending"},
     {"id": "maintenance-portfolio-v3.4-final-closeout", "completed_at": "2026-06-19", "evidence": "v3.3.1-T1..v3.4.4-T1 delivered; portfolio_track completed; v3.0 GA blockers G1/G2/G3 remain pending"},
     {"id": "maintenance-post-ga-portfolio-planning", "completed_at": "2026-06-19", "evidence": "Added v3.1-v3.4 portfolio roadmap, backlog, acceptance, external gates, and portfolio_track planning state; v3.0 GA blockers remain pending"},
-    {"id": "maintenance-v2.5-production-hardening-closeout", "completed_at": "2026-06-19", "evidence": "v2.5.1..v2.5.6 delivered; 6342 passed excluding postgres_integration; full regression closeout"},
-    {"id": "maintenance-v2.1.6-oidc-subject", "completed_at": "2026-06-19", "evidence": "v2.1.6-T1..T2 delivered; 408 enterprise passed excluding postgres_integration; full regression 6158 passed, 8 skipped"},
-    {"id": "maintenance-v2.1.5-command-worker-cli", "completed_at": "2026-06-19", "evidence": "v2.1.5-T1..T4 delivered; 393 enterprise passed excluding postgres_integration; full regression 6142 passed, 8 skipped"}
+    {"id": "maintenance-v2.5-production-hardening-closeout", "completed_at": "2026-06-19", "evidence": "v2.5.1..v2.5.6 delivered; 6342 passed excluding postgres_integration; full regression closeout"}
   ],
   "blockers": [
     "Independent security reviewer signature is required before GA promotion.",
@@ -217,7 +216,7 @@
   "last_verification": {
     "recorded_at": "2026-06-20",
     "command": "uv run --extra enterprise python -m pytest -q",
-    "result": "6629 passed, 31 skipped",
-    "scope": "R6 concurrency and transactional integrity closeout; tests/enterprise/eval 43 passed; enterprise 861 passed, 25 skipped; PostgreSQL integration lane skipped (no DSN); v3.0 GA external gates G1/G2/G3 pending"
+    "result": "6636 passed, 31 skipped",
+    "scope": "R7 lock reentrancy closeout; tests/test_file_lock.py 9 passed x10; R6 concurrency lane 11 passed, 4 skipped; enterprise 861 passed, 25 skipped; operator-console contract snapshots synchronized after comment-only digest drift; PostgreSQL integration lane skipped (no DSN); v3.0 GA external gates G1/G2/G3 pending"
   }
 }

@@ -30,7 +30,7 @@
   "openapi_info_version": "3.0.0",
   "openapi_x_contract_status": "supported",
   "operator_console_contract": "OperatorConsoleV2_3",
-  "operator_console_digest": "21e4a69871171399016a3dbc8dde6c0a9677d94e780a5fe72d7586148809559b",
+  "operator_console_digest": "116945eb9e5fd3b3a33eecc89244493cfb7916ecc56db37d0be2786adedd014c",
   "service_plane_paths": [
     "/healthz",
     "/readyz",
