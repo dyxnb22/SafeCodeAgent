@@ -80,6 +80,42 @@ def test_model_cannot_approve_itself(tmp_path: Path):
         )
 
 
+def test_self_approval_rejected(tmp_path: Path):
+    sac_root = tmp_path / ".sac"
+    req = save_request(sac_root, _request())
+    with pytest.raises(PermissionError, match="self-approval"):
+        decide_request(
+            sac_root,
+            req.run_id,
+            req.request_id,
+            decision="approved",
+            decision_actor=req.requesting_actor,
+        )
+    loaded = load_request(sac_root, req.run_id, req.request_id)
+    assert loaded.status == "pending"
+
+
+def test_decide_request_rejects_cross_tenant_before_write(tmp_path: Path):
+    sac_root = tmp_path / ".sac"
+    req = save_request(
+        sac_root,
+        _request(run_id="run-tenant-guard1", request_id="approval-tenant-guard1").model_copy(
+            update={"tenant_id": "tenant-a"}
+        ),
+    )
+    with pytest.raises(PermissionError, match="tenant boundary violation"):
+        decide_request(
+            sac_root,
+            req.run_id,
+            req.request_id,
+            decision="approved",
+            decision_actor="user:approver",
+            expected_tenant_id="tenant-b",
+        )
+    loaded = load_request(sac_root, req.run_id, req.request_id)
+    assert loaded.status == "pending"
+
+
 def test_tampered_request_invalidates(tmp_path: Path):
     sac_root = tmp_path / ".sac"
     req = save_request(sac_root, _request())

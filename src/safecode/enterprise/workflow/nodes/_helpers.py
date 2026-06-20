@@ -40,7 +40,7 @@ def build_patch(
     node_outputs = dict(state.node_outputs)
     node_outputs[node_name] = NodeOutput(
         node_name=node_name,
-        status="ok",
+        status=status,
         summary=summary,
         started_at=state.updated_at,
         ended_at=utc_now_iso(),

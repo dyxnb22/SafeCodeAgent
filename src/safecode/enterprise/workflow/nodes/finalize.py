@@ -150,6 +150,7 @@ async def run(state: EnterpriseRunState) -> NodePatch:
                     tenant_id=state.tenant_id,
                     policy_snapshot_id=state.policy_snapshot_id,
                     request_id=f"approval-{state.run_id}" if governed_write else None,
+                    proposal_ref=comment_proposals[0].ref if governed_write else None,
                     access_token=access_token,
                     transport=transport,
                 )
@@ -206,6 +207,7 @@ async def run(state: EnterpriseRunState) -> NodePatch:
                     tenant_id=state.tenant_id,
                     policy_snapshot_id=state.policy_snapshot_id,
                     request_id=f"approval-{state.run_id}" if governed_write else None,
+                    proposal_ref=ticket_proposals[0].ref if governed_write else None,
                     email=email,
                     api_token=api_token,
                     transport=transport,

@@ -28,7 +28,7 @@ def test_known_claim_maps_to_expected_role() -> None:
     assert subject.actor_id == "user:reviewer"
     assert subject.tenant_id == "tenant-a"
     assert subject.roles == (Role.security_reviewer,)
-    assert "security" in subject.permission_scopes
+    assert {"security", "appsec", "secops"}.issubset(subject.permission_scopes)
 
 
 def test_unknown_role_defaults_to_viewer() -> None:

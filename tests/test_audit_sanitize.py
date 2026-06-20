@@ -27,6 +27,9 @@ def test_sanitize_audit_event_redacts_secret_fields():
         message=f"token={_SECRET}",
         error=f"failed with {_SECRET}",
         command=f"curl -H 'Authorization: Bearer {_SECRET}'",
+        patch_id=f"patch-{_SECRET}",
+        checkpoint_id=f"cp-{_SECRET}",
+        trace_id=f"trace-{_SECRET}",
         files=[f"/tmp/{_SECRET}.txt"],
         metadata={"token": _SECRET, "scope": "in_scope"},
     )
@@ -36,6 +39,9 @@ def test_sanitize_audit_event_redacts_secret_fields():
     assert _SECRET not in (sanitized.message or "")
     assert _SECRET not in (sanitized.error or "")
     assert _SECRET not in (sanitized.command or "")
+    assert _SECRET not in (sanitized.patch_id or "")
+    assert _SECRET not in (sanitized.checkpoint_id or "")
+    assert _SECRET not in (sanitized.trace_id or "")
     assert all(_SECRET not in path for path in sanitized.files)
     assert _SECRET not in sanitized.metadata["token"]
     assert sanitized.metadata["scope"] == "in_scope"

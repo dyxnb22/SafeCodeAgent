@@ -152,6 +152,8 @@ class StrictFakeApprovalStore:
         if decision_actor.startswith("model:"):
             raise PermissionError("model actors cannot approve their own requests")
         request = self.load_request(tenant_id=tenant_id, run_id=run_id, request_id=request_id)
+        if decision_actor == request.requesting_actor:
+            raise PermissionError("self-approval is not permitted")
         if request.status not in {"pending", "evidence_requested"} and decision in {
             "approved",
             "rejected",
@@ -348,9 +350,6 @@ class StrictFakeAuditStore:
             if event.metadata.get("tenant_id") == tenant
             and (run_id is None or event.metadata.get("run_id") == run_id)
         ]
-
-    def tamper_first_event_for_test(self) -> None:
-        self._local.tamper_first_event_for_test()
 
 
 @dataclass

@@ -178,7 +178,7 @@ def start_run(
     validate_command_match(
         record,
         command="start",
-        run_id=record.run_id,
+        run_id=record.run_id,  # server-assigned; payload check guards binding divergence
         payload=payload,
     )
     checkpoint = _ensure_start_checkpoint(

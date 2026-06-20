@@ -15,6 +15,7 @@ import httpx
 from pydantic import BaseModel, ConfigDict, SecretStr
 
 from safecode.context.redactor import redact_secrets
+from safecode.enterprise.approvals.digest import merge_proposal_sha256
 from safecode.enterprise.approvals.store import Action, consume_approved_request
 from safecode.enterprise.audit.chain import EnterpriseAuditChain
 from safecode.enterprise.audit.events import AuditEventKind
@@ -28,6 +29,14 @@ from safecode.enterprise.workflow.state import ApprovalDecision, ApprovalDecisio
 _JIRA_TOKEN_RE = re.compile(r"ATATT[A-Za-z0-9_-]{20,}")
 _MAX_RESPONSE_BYTES = 1_048_576
 MAX_COMMENT_BODY_CHARS = 32_768
+
+
+def _resolve_fixture_output_path(output_path: str, project_root: Path) -> Path:
+    resolved = (project_root / output_path).resolve()
+    root_resolved = project_root.resolve()
+    if root_resolved not in resolved.parents and resolved != root_resolved:
+        raise ValueError(f"fixture output_path escapes project root: {output_path!r}")
+    return resolved
 
 
 class IssueLiveConnectorSpec(BaseModel):
@@ -312,6 +321,7 @@ def post_issue_comment(
     tenant_id: str = "local",
     policy_snapshot_id: str = "snapshot-local",
     request_id: str | None = None,
+    proposal_ref: str | None = None,
     email: str | None = None,
     api_token: SecretStr | None = None,
     transport: httpx.BaseTransport | None = None,
@@ -363,6 +373,8 @@ def post_issue_comment(
 
         issue_key = _validate_live_write_spec(spec)
         target = comment_approval_target(issue_key=issue_key, body=body)
+        if proposal_ref:
+            target = merge_proposal_sha256(target, proposal_ref)
         if email is None or api_token is None:
             record = _blocked_record(
                 call_id=call_id,
@@ -500,7 +512,8 @@ def post_issue_comment(
     if spec.mode == "fixture":
         if not spec.output_path:
             raise ValueError("output_path is required for fixture mode")
-        path = Path(spec.output_path)
+        project_root = project_root_for_sac(sac_root)
+        path = _resolve_fixture_output_path(spec.output_path, project_root)
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(redacted_body, encoding="utf-8")
         record.outcome = "ok"

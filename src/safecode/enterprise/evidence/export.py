@@ -8,6 +8,7 @@ import zipfile
 from pathlib import Path
 
 from safecode.audit.models import AuditEvent
+from safecode.audit.sanitize import sanitize_audit_event
 from safecode.enterprise.approvals.store import list_requests
 from safecode.enterprise.audit.chain import EnterpriseAuditChain
 from safecode.enterprise.audit.tenant import filter_audit_events_by_tenant
@@ -33,12 +34,42 @@ def _hash_audit_event(event: AuditEvent) -> str:
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
-def _verify_audit_segment(events: list[AuditEvent]) -> tuple[bool, str]:
+def _verify_audit_segment(
+    events: list[AuditEvent],
+    *,
+    allow_interleaved_gaps: bool = False,
+) -> tuple[bool, str]:
     if not events:
         return True, "no audit events in bundle"
     for index, event in enumerate(events, start=1):
         if event.event_hash != _hash_audit_event(event):
             return False, f"audit hash mismatch at event {index}"
+        if index == 1:
+            if not allow_interleaved_gaps and (event.previous_hash or "") != "":
+                return (
+                    False,
+                    "event "
+                    f"{index} chain linkage broken: expected previous_hash='', "
+                    f"got {event.previous_hash!r}",
+                )
+            continue
+        previous = events[index - 2]
+        if (event.previous_hash or "") == (previous.event_hash or ""):
+            continue
+        if allow_interleaved_gaps:
+            prior_hashes = {item.event_hash for item in events[: index - 1]}
+            if (event.previous_hash or "") in prior_hashes:
+                return (
+                    False,
+                    f"event {index} chain linkage broken: skipped in-segment predecessor",
+                )
+            continue
+        return (
+            False,
+            "event "
+            f"{index} chain linkage broken: expected previous_hash={previous.event_hash!r}, "
+            f"got {event.previous_hash!r}",
+        )
     return True, "audit event hashes intact"
 
 
@@ -107,9 +138,18 @@ def export_run_evidence(sac_root: Path, run_id: str, *, tenant_id: str) -> Path:
     audit_events = filter_audit_events_by_tenant(
         audit.iter_events(), state.tenant_id, run_id=run_id
     )
-    audit_lines = "\n".join(
-        json.dumps(event.model_dump(), ensure_ascii=False, sort_keys=True) for event in audit_events
-    )
+    serialized_audit_events: list[str] = []
+    for event in audit_events:
+        sanitized = sanitize_audit_event(event)
+        if sanitized != event:
+            raise ValueError(
+                "source audit event contains content requiring redaction; "
+                "refusing to export a hash-invalid derived event"
+            )
+        serialized_audit_events.append(
+            json.dumps(event.model_dump(), ensure_ascii=False, sort_keys=True)
+        )
+    audit_lines = "\n".join(serialized_audit_events)
     if audit_lines:
         files["audit_chain.jsonl"] = (audit_lines + "\n").encode("utf-8")
 
@@ -158,4 +198,4 @@ def verify_export_bundle(zip_path: Path) -> tuple[bool, str]:
             for line in archive.read("audit_chain.jsonl").decode("utf-8").splitlines()
             if line.strip()
         ]
-        return _verify_audit_segment(events)
+        return _verify_audit_segment(events, allow_interleaved_gaps=True)

@@ -19,7 +19,7 @@ import json
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NoReturn
 
 from safecode.audit.models import AuditEvent
 from safecode.enterprise.approvals.store import (
@@ -131,6 +131,12 @@ class LocalApprovalStore:
     def __init__(self, sac_root: Path) -> None:
         self.sac_root = sac_root
 
+    @staticmethod
+    def _reraise_tenant_boundary(exc: PermissionError) -> NoReturn:
+        if str(exc).startswith("tenant boundary violation"):
+            raise TenantBoundaryError(str(exc)) from exc
+        raise exc
+
     def save_request(self, *, tenant_id: str, request: ApprovalRequest) -> ApprovalRequest:
         tenant = validate_tenant_id(tenant_id)
         assert_tenant_match(tenant, request.tenant_id, operation="save_request")
@@ -167,16 +173,18 @@ class LocalApprovalStore:
         decision_note: str = "",
     ) -> ApprovalRequest:
         tenant = validate_tenant_id(tenant_id)
-        request = decide_request(
-            self.sac_root,
-            run_id,
-            request_id,
-            decision=decision,
-            decision_actor=decision_actor,
-            decision_note=decision_note,
-        )
-        assert_tenant_match(tenant, request.tenant_id, operation="decide_request")
-        return request
+        try:
+            return decide_request(
+                self.sac_root,
+                run_id,
+                request_id,
+                decision=decision,
+                decision_actor=decision_actor,
+                decision_note=decision_note,
+                expected_tenant_id=tenant,
+            )
+        except PermissionError as exc:
+            self._reraise_tenant_boundary(exc)
 
     def request_evidence(
         self,
@@ -188,15 +196,18 @@ class LocalApprovalStore:
         decision_note: str,
     ) -> ApprovalRequest:
         tenant = validate_tenant_id(tenant_id)
-        request = request_evidence(
-            self.sac_root,
-            run_id,
-            request_id,
-            decision_actor=decision_actor,
-            decision_note=decision_note,
-        )
-        assert_tenant_match(tenant, request.tenant_id, operation="request_evidence")
-        return request
+        try:
+            return request_evidence(
+                self.sac_root,
+                run_id,
+                request_id,
+                decision_actor=decision_actor,
+                decision_note=decision_note,
+                expected_tenant_id=tenant,
+            )
+        except PermissionError as exc:
+            self._reraise_tenant_boundary(exc)
+            raise
 
     def revoke_request(
         self,
@@ -208,15 +219,17 @@ class LocalApprovalStore:
         decision_note: str = "",
     ) -> ApprovalRequest:
         tenant = validate_tenant_id(tenant_id)
-        request = revoke_request(
-            self.sac_root,
-            run_id,
-            request_id,
-            decision_actor=decision_actor,
-            decision_note=decision_note,
-        )
-        assert_tenant_match(tenant, request.tenant_id, operation="revoke_request")
-        return request
+        try:
+            return revoke_request(
+                self.sac_root,
+                run_id,
+                request_id,
+                decision_actor=decision_actor,
+                decision_note=decision_note,
+                expected_tenant_id=tenant,
+            )
+        except PermissionError as exc:
+            self._reraise_tenant_boundary(exc)
 
     def save_grant(self, *, tenant_id: str, grant: Grant) -> Grant:
         tenant = validate_tenant_id(tenant_id)
@@ -318,15 +331,6 @@ class LocalAuditStore:
             validate_tenant_id(tenant_id),
             run_id=run_id,
         )
-
-    def tamper_first_event_for_test(self) -> None:
-        if not self._chain.log_file.is_file():
-            raise RuntimeError("no audit events to tamper")
-        lines = self._chain.log_file.read_text(encoding="utf-8").splitlines()
-        payload = json.loads(lines[0])
-        payload["message"] = "tampered"
-        lines[0] = json.dumps(payload, ensure_ascii=False, sort_keys=True)
-        self._chain.log_file.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 class LocalEvidenceStore:

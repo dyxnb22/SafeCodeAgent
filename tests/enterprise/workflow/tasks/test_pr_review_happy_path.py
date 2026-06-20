@@ -7,6 +7,7 @@ import pytest
 
 from safecode.enterprise.approvals.store import approvals_dir
 from safecode.enterprise.rag.source_registry import SourceType
+from safecode.enterprise.rbac.models import RBACSubject, Role
 from safecode.enterprise.workflow.checkpoint import load_checkpoint
 from safecode.enterprise.workflow.exceptions import WorkflowInterrupted
 from safecode.enterprise.workflow.orchestrator import LocalOrchestrator, build_initial_state
@@ -39,6 +40,23 @@ def test_pr_review_sql_injection_fixture_produces_cited_high_risk_report(tmp_pat
         actor_id="user:security",
         repo_root=_ROOT,
         run_id=run_id,
+    )
+    state = state.model_copy(
+        update={
+            "subject": RBACSubject(
+                actor_id="user:security",
+                tenant_id=state.tenant_id,
+                roles=(Role.security_reviewer,),
+                    permission_scopes=(
+                        "org",
+                        "project",
+                        "engineering",
+                        "security",
+                        "appsec",
+                        "secops",
+                    ),
+            )
+        }
     )
     with pytest.raises(WorkflowInterrupted):
         asyncio.run(orchestrator.run(state))

@@ -91,10 +91,15 @@ def test_local_mode_allows_operator_actor() -> None:
 
 
 def test_secret_values_are_redacted_from_repr_and_validation_text() -> None:
-    settings = load_team_server_settings(database_url=_SECRET_DSN)
+    callback_secret = "callback-secret-value"
+    settings = load_team_server_settings(
+        database_url=_SECRET_DSN,
+        ci_callback_secret=callback_secret,
+    )
     rendered = repr(settings)
     assert _SECRET_DSN not in rendered
     assert "super-secret-password" not in rendered
+    assert callback_secret not in rendered
     assert "**********" in rendered
 
     with pytest.raises(SettingsValidationError) as excinfo:
@@ -137,12 +142,15 @@ def test_load_from_env_uses_documented_variables(monkeypatch: pytest.MonkeyPatch
     monkeypatch.setenv("SAC_ENTERPRISE_API_HOST", "0.0.0.0")
     monkeypatch.setenv("SAC_ENTERPRISE_API_PORT", "9000")
     monkeypatch.setenv("SAC_ENTERPRISE_SERVER_URL", "https://team.example/v2")
+    monkeypatch.setenv("SAC_ENTERPRISE_CI_CALLBACK_SECRET", "ci-callback-secret")
 
     settings = load_team_server_settings_from_env()
     assert settings.runtime_mode is RuntimeMode.SERVER
     assert settings.api_host == "0.0.0.0"
     assert settings.api_port == 9000
     assert settings.server_url == "https://team.example/v2"
+    assert settings.ci_callback_secret is not None
+    assert settings.ci_callback_secret.get_secret_value() == "ci-callback-secret"
 
 
 def test_team_server_settings_model_rejects_unknown_fields() -> None:

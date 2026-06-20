@@ -114,9 +114,7 @@ def collect_issue(
 
 
 def retrieval_actor_scope(state: EnterpriseRunState) -> list[str]:
-    scopes = set(state.subject.permission_scopes)
-    scopes.update({"org", "appsec", "secops", "engineering"})
-    return sorted(scopes)
+    return sorted(set(state.subject.permission_scopes))
 
 
 def build_retrieval_queries(evidence: IssueEvidence) -> list[str]:
@@ -144,7 +142,13 @@ def retrieve_citations(state: EnterpriseRunState, evidence: IssueEvidence) -> li
     chunks = build_chunks_from_manifest(manifest, project_root)
     sac_root = project_root / ".sac"
     memory_store = MemoryFactStore(sac_root)
-    chunks.extend(active_memory_chunks(memory_store, state.tenant_id))
+    chunks.extend(
+        active_memory_chunks(
+            memory_store,
+            state.tenant_id,
+            actor_scope=set(retrieval_actor_scope(state)),
+        )
+    )
     retriever = HybridRetriever(chunks=chunks)
     actor_scope = retrieval_actor_scope(state)
     seen: dict[str, Citation] = {}

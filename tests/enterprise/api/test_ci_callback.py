@@ -46,7 +46,8 @@ def _settings() -> TeamServerSettings:
         {
             "runtime_mode": RuntimeMode.LOCAL,
             "operator_actor": "user:dev",
-            "github_webhook_secret": CALLBACK_SECRET,
+            "ci_callback_secret": CALLBACK_SECRET,
+            "github_webhook_secret": "different-webhook-secret",
             "github_app_id": "123456",
             "github_installation_id": "987654",
             "github_private_key_pem": _generate_private_key_pem(),
@@ -230,6 +231,31 @@ def test_missing_secret_configuration_fails_closed(tmp_path: Path) -> None:
         {
             "runtime_mode": RuntimeMode.LOCAL,
             "operator_actor": "user:dev",
+        }
+    )
+    app = create_app(
+        settings=settings,
+        backend=backend,
+        subject_resolver=lambda: RBACSubject(
+            actor_id="user:dev",
+            tenant_id=TENANT_ID,
+            roles=(Role.developer,),
+        ),
+        project_root=tmp_path,
+    )
+    client = TestClient(app)
+    response = _signed_request(client, payload=_payload(run_id=run_id))
+    assert response.status_code == 503
+
+
+def test_webhook_secret_cannot_authenticate_ci_callback(tmp_path: Path) -> None:
+    backend = LocalBackend(tmp_path / ".sac")
+    run_id = _seed_run(backend, tmp_path)
+    settings = TeamServerSettings.model_validate(
+        {
+            "runtime_mode": RuntimeMode.LOCAL,
+            "operator_actor": "user:dev",
+            "github_webhook_secret": CALLBACK_SECRET,
         }
     )
     app = create_app(

@@ -113,9 +113,7 @@ def ingest_findings(repo_root: Path, input_ref: str) -> list[SecurityFinding]:
 
 
 def retrieval_actor_scope(state: EnterpriseRunState) -> list[str]:
-    scopes = set(state.subject.permission_scopes)
-    scopes.update({"org", "appsec", "secops"})
-    return sorted(scopes)
+    return sorted(set(state.subject.permission_scopes))
 
 
 def build_retrieval_queries(findings: list[SecurityFinding]) -> list[str]:

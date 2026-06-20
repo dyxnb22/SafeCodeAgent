@@ -32,6 +32,8 @@ def test_postgres_audit_chain_verifies_after_append(postgres_backend) -> None:
 
 
 def test_postgres_tampering_breaks_chain(postgres_backend) -> None:
+    from tests.enterprise.helpers.audit_tamper import tamper_first_postgres_audit
+
     audit = postgres_backend.audit
     audit.emit(
         AuditEventKind.workflow_start,
@@ -39,7 +41,7 @@ def test_postgres_tampering_breaks_chain(postgres_backend) -> None:
         run_id="run-pgaudit002",
         actor_id="user:test",
     )
-    audit.tamper_first_event_for_test()
+    tamper_first_postgres_audit(postgres_backend)
     ok, _message = audit.verify_integrity()
     assert not ok
 

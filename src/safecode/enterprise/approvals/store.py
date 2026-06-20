@@ -27,6 +27,7 @@ from safecode.enterprise.workflow.exceptions import (
     RequestAlreadyConsumedError,
     WorkflowError,
 )
+from safecode.enterprise.tenancy import validate_tenant_id
 from safecode.enterprise.workflow.ids import validate_run_id
 from safecode.enterprise.workflow.types import RiskTier
 from safecode.utils.file_lock import atomic_replace_text, keyed_exclusive_lock, lock_path_for
@@ -355,6 +356,7 @@ def decide_request(
     decision: Literal["approved", "rejected", "evidence_requested", "revoked"],
     decision_actor: str,
     decision_note: str = "",
+    expected_tenant_id: str | None = None,
 ) -> ApprovalRequest:
     # 安全不变量：模型主体不得批准自身提案（模型输出非执行权威）
     if decision_actor.startswith("model:"):
@@ -362,6 +364,15 @@ def decide_request(
     path = approvals_dir(sac_root, run_id) / f"{request_id}.json"
     with keyed_exclusive_lock(str(path.resolve()), lock_path_for(path)):
         request = load_request(sac_root, run_id, request_id)
+        if expected_tenant_id is not None:
+            expected = validate_tenant_id(expected_tenant_id)
+            if expected != validate_tenant_id(request.tenant_id):
+                raise PermissionError(
+                    f"tenant boundary violation for decide_request: expected {expected!r}, "
+                    f"got {request.tenant_id!r}"
+                )
+        if decision_actor == request.requesting_actor:
+            raise PermissionError("self-approval is not permitted")
         if request.status not in {"pending", "evidence_requested"} and decision in {"approved", "rejected"}:
             raise RequestAlreadyConsumedError(f"approval request already decided: {request_id}")
         if decision == "revoked" and request.status not in {"pending", "evidence_requested", "approved"}:
@@ -432,6 +443,7 @@ def request_evidence(
     *,
     decision_actor: str,
     decision_note: str,
+    expected_tenant_id: str | None = None,
 ) -> ApprovalRequest:
     if not decision_note.strip():
         raise ValueError("evidence request requires a note")
@@ -442,6 +454,7 @@ def request_evidence(
         decision="evidence_requested",
         decision_actor=decision_actor,
         decision_note=decision_note,
+        expected_tenant_id=expected_tenant_id,
     )
 
 
@@ -452,6 +465,7 @@ def revoke_request(
     *,
     decision_actor: str,
     decision_note: str = "",
+    expected_tenant_id: str | None = None,
 ) -> ApprovalRequest:
     return decide_request(
         sac_root,
@@ -460,6 +474,7 @@ def revoke_request(
         decision="revoked",
         decision_actor=decision_actor,
         decision_note=decision_note,
+        expected_tenant_id=expected_tenant_id,
     )
 
 

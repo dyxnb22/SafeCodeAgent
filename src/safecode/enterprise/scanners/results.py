@@ -10,12 +10,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
 from safecode.enterprise.persistence.protocols import validate_tenant_id
 from safecode.enterprise.persistence.webhook_store import payload_digest
 from safecode.enterprise.trace.events import TraceEventType
 from safecode.enterprise.workflow.checkpoint import CHECKPOINT_SCHEMA_VERSION, RunCheckpoint
+from safecode.enterprise.workflow.exceptions import InvalidRunIdError
+from safecode.enterprise.workflow.ids import validate_run_id
 from safecode.enterprise.workflow.orchestrator import utc_now_iso
 from safecode.enterprise.workflow.state import ValidationResult
 
@@ -42,6 +44,14 @@ class CiCallbackRequest(BaseModel):
     commit_sha: str | None = Field(default=None, min_length=40, max_length=40)
     scanner: str | None = Field(default=None, max_length=64)
     tool_version: str | None = Field(default=None, max_length=64)
+
+    @field_validator("run_id")
+    @classmethod
+    def _validate_run_id(cls, value: str) -> str:
+        try:
+            return validate_run_id(value)
+        except InvalidRunIdError as exc:
+            raise ValueError(str(exc)) from exc
 
 
 class CiCallbackResponse(BaseModel):
@@ -119,6 +129,7 @@ def _utc_now() -> str:
 
 
 def _result_path(sac_root: Path, run_id: str, delivery_id: str) -> Path:
+    validate_run_id(run_id)
     digest = hashlib.sha256(delivery_id.encode("utf-8")).hexdigest()[:32]
     return sac_root / "enterprise" / "ci" / "results" / run_id / f"{digest}.json"
 

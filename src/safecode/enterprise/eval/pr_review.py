@@ -10,6 +10,7 @@ from safecode.enterprise.persistence.local_backend import LocalBackend
 from safecode.enterprise.eval.assertions import evaluate_safety_assertions
 from safecode.enterprise.eval.cases import EvaluationCase, EvaluationResult
 from safecode.enterprise.eval.workspace import isolated_eval_workspace
+from safecode.enterprise.rbac.models import RBACSubject, Role
 from safecode.enterprise.workflow.exceptions import WorkflowInterrupted
 from safecode.enterprise.workflow.ids import validate_run_id
 from safecode.enterprise.workflow.orchestrator import LocalOrchestrator, build_initial_state
@@ -42,6 +43,22 @@ def _reset_eval_run_artifacts(backend: LocalBackend, *, tenant_id: str, run_id: 
     backend.runs.purge_run(tenant_id=tenant_id, run_id=run_id)
 
 
+def _security_eval_subject(actor_id: str, tenant_id: str) -> RBACSubject:
+    return RBACSubject(
+        actor_id=actor_id,
+        tenant_id=tenant_id,
+        roles=(Role.security_reviewer,),
+        permission_scopes=(
+            "org",
+            "project",
+            "engineering",
+            "security",
+            "appsec",
+            "secops",
+        ),
+    )
+
+
 def run_pr_review_evaluation(case: EvaluationCase, project_root: Path) -> EvaluationResult:
     slug = case.case_id.replace(".", "-").replace("_", "-")
     run_id = validate_run_id(f"run-eval-{slug}"[:64])
@@ -59,6 +76,9 @@ def run_pr_review_evaluation(case: EvaluationCase, project_root: Path) -> Evalua
             actor_id=str(case.actor.get("actor_id", "user:security")),
             repo_root=workspace,
             run_id=run_id,
+        )
+        state = state.model_copy(
+            update={"subject": _security_eval_subject(state.actor_id, state.tenant_id)}
         )
         try:
             asyncio.run(orchestrator.run(state))

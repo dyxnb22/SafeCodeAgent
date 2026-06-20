@@ -14,6 +14,7 @@ import httpx
 from pydantic import BaseModel, ConfigDict, SecretStr
 
 from safecode.context.redactor import redact_secrets
+from safecode.enterprise.approvals.digest import merge_proposal_sha256
 from safecode.enterprise.approvals.store import (
     Action,
     consume_approved_request,
@@ -29,6 +30,14 @@ from safecode.enterprise.workflow.state import ApprovalDecision, ApprovalDecisio
 
 _GH_TOKEN_RE = re.compile(r"gh[psur]_[A-Za-z0-9]{20,}")
 MAX_COMMENT_BODY_CHARS = 65_536
+
+
+def _resolve_fixture_output_path(output_path: str, project_root: Path) -> Path:
+    resolved = (project_root / output_path).resolve()
+    root_resolved = project_root.resolve()
+    if root_resolved not in resolved.parents and resolved != root_resolved:
+        raise ValueError(f"fixture output_path escapes project root: {output_path!r}")
+    return resolved
 
 
 class PRCommentWriteSpec(BaseModel):
@@ -213,6 +222,7 @@ def post_pr_comment(
     tenant_id: str = "local",
     policy_snapshot_id: str = "snapshot-local",
     request_id: str | None = None,
+    proposal_ref: str | None = None,
     access_token: SecretStr | None = None,
     transport: httpx.BaseTransport | None = None,
 ) -> ToolCallRecord:
@@ -263,6 +273,8 @@ def post_pr_comment(
 
         owner, repo, pr_number = _validate_live_spec(spec)
         target = comment_approval_target(owner=owner, repo=repo, pr_number=pr_number, body=body)
+        if proposal_ref:
+            target = merge_proposal_sha256(target, proposal_ref)
         if access_token is None:
             record = _blocked_record(
                 call_id=call_id,
@@ -401,7 +413,8 @@ def post_pr_comment(
     if spec.mode == "fixture":
         if not spec.output_path:
             raise ValueError("output_path is required for fixture mode")
-        path = Path(spec.output_path)
+        project_root = project_root_for_sac(sac_root)
+        path = _resolve_fixture_output_path(spec.output_path, project_root)
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(redacted_body, encoding="utf-8")
         record.outcome = "ok"

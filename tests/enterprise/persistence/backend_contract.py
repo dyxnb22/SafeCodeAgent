@@ -276,6 +276,8 @@ def exercise_audit_chain_append_and_verify(bundle: BackendBundle) -> None:
 
 
 def exercise_corrupted_audit_fails_verification(bundle: BackendBundle) -> None:
+    from tests.enterprise.helpers.audit_tamper import tamper_backend_first_audit_event
+
     run_id = "run-auditcorrupt1"
     bundle.backend.audit.emit(
         AuditEventKind.workflow_start,
@@ -283,18 +285,7 @@ def exercise_corrupted_audit_fails_verification(bundle: BackendBundle) -> None:
         run_id=run_id,
         actor_id="user:test",
     )
-    if hasattr(bundle.backend.audit, "tamper_first_event_for_test"):
-        bundle.backend.audit.tamper_first_event_for_test()
-    else:
-        audit = bundle.backend.audit
-        chain = getattr(audit, "_chain", None)
-        if chain is None or not chain.log_file.is_file():
-            pytest.skip("backend does not expose a tamperable local audit log")
-        lines = chain.log_file.read_text(encoding="utf-8").splitlines()
-        payload = json.loads(lines[0])
-        payload["message"] = "tampered"
-        lines[0] = json.dumps(payload, ensure_ascii=False, sort_keys=True)
-        chain.log_file.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    tamper_backend_first_audit_event(bundle.backend)
     ok, _message = bundle.backend.audit.verify_integrity()
     assert not ok
 

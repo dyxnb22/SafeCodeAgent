@@ -39,10 +39,28 @@ ROLE_RANK: dict[Role, int] = {
 
 DEFAULT_SCOPES_BY_ROLE: dict[Role, list[str]] = {
     Role.viewer: ["org"],
-    Role.developer: ["org", "project"],
-    Role.security_reviewer: ["org", "project", "security"],
-    Role.maintainer: ["org", "project", "security", "maintain"],
-    Role.platform_admin: ["org", "project", "security", "maintain", "admin"],
+    Role.developer: ["org", "project", "engineering"],
+    Role.security_reviewer: [
+        "org",
+        "project",
+        "engineering",
+        "security",
+        "appsec",
+        "secops",
+    ],
+    Role.maintainer: [
+        "org", "project", "engineering", "security", "appsec", "secops", "maintain"
+    ],
+    Role.platform_admin: [
+        "org",
+        "project",
+        "engineering",
+        "security",
+        "appsec",
+        "secops",
+        "maintain",
+        "admin",
+    ],
 }
 
 

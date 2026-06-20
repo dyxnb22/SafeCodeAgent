@@ -8,7 +8,11 @@ from pathlib import Path
 import pytest
 
 from safecode.enterprise.approvals.store import decide_request
-from safecode.enterprise.evidence.export import export_run_evidence, verify_export_bundle
+from safecode.enterprise.evidence.export import (
+    _verify_audit_segment,
+    export_run_evidence,
+    verify_export_bundle,
+)
 from safecode.enterprise.workflow.exceptions import WorkflowInterrupted
 from safecode.enterprise.workflow.orchestrator import LocalOrchestrator, build_initial_state
 from safecode.enterprise.workflow.types import TaskType
@@ -110,4 +114,48 @@ def test_export_verifies_interleaved_global_audit_chain(tmp_path: Path):
     )
     asyncio.run(orchestrator.resume(first.run_id, tenant_id="local"))
     bundle = export_run_evidence(sac_root, first.run_id, tenant_id="local")
+    assert verify_export_bundle(bundle)[0] is True
+
+
+def test_verify_audit_segment_rejects_deleted_middle_event(tmp_path: Path) -> None:
+    from safecode.enterprise.audit.events import AuditEventKind
+    from safecode.enterprise.persistence.local_backend import LocalBackend
+
+    sac_root = tmp_path / ".sac"
+    backend = LocalBackend(sac_root)
+    run_id = "run-evidence06"
+    tenant_id = "tenant-a"
+    for _ in range(3):
+        backend.audit.emit(
+            AuditEventKind.workflow_start,
+            tenant_id=tenant_id,
+            run_id=run_id,
+            actor_id="user:test",
+        )
+    events = backend.audit.list_events(tenant_id=tenant_id, run_id=run_id)
+    assert len(events) == 3
+    ok, message = _verify_audit_segment(events)
+    assert ok, message
+    tampered = [events[0], events[2]]
+    ok, message = _verify_audit_segment(tampered)
+    assert not ok
+    assert "chain linkage broken" in message
+
+
+def test_export_audit_chain_is_redacted(tmp_path: Path) -> None:
+    sac_root = tmp_path / ".sac"
+    orchestrator = LocalOrchestrator(sac_root, runtime="local")
+    secret = "ghp_1234567890123456789012345678901234"
+    state = build_initial_state(
+        task_type=TaskType.pr_review,
+        input_ref=f"fixture-{secret}.json",
+        actor_id="user:test",
+        repo_root=tmp_path,
+        run_id="run-evidence08",
+    )
+    asyncio.run(orchestrator.run(state))
+    bundle = export_run_evidence(sac_root, state.run_id, tenant_id="local")
+    with zipfile.ZipFile(bundle, "r") as archive:
+        audit_text = archive.read("audit_chain.jsonl").decode("utf-8")
+    assert secret not in audit_text
     assert verify_export_bundle(bundle)[0] is True

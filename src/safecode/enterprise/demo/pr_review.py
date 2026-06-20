@@ -12,6 +12,7 @@ from typing import Iterator
 
 from safecode.enterprise.approvals.store import approvals_dir, decide_request
 from safecode.enterprise.audit.chain import EnterpriseAuditChain
+from safecode.enterprise.rbac.models import RBACSubject, Role
 from safecode.enterprise.workflow.checkpoint import load_checkpoint
 from safecode.enterprise.workflow.exceptions import WorkflowInterrupted
 from safecode.enterprise.workflow.nodes.registry import WORKFLOW_NODE_ORDER
@@ -117,6 +118,23 @@ def _run_pr_review_in_workspace(
         actor_id="user:demo",
         repo_root=workspace_root,
         run_id=DEMO_RUN_ID,
+    )
+    state = state.model_copy(
+        update={
+            "subject": RBACSubject(
+                actor_id=state.actor_id,
+                tenant_id=state.tenant_id,
+                roles=(Role.security_reviewer,),
+                permission_scopes=(
+                    "org",
+                    "project",
+                    "engineering",
+                    "security",
+                    "appsec",
+                    "secops",
+                ),
+            )
+        }
     )
     try:
         asyncio.run(orchestrator.run(state))

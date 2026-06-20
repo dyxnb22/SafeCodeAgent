@@ -31,6 +31,7 @@ DOCUMENTED_ENV_VARS: Final[tuple[str, ...]] = (
     f"{ENV_PREFIX}GITHUB_INSTALLATION_ID",
     f"{ENV_PREFIX}GITHUB_PRIVATE_KEY_PEM",
     f"{ENV_PREFIX}GITHUB_WEBHOOK_SECRET",
+    f"{ENV_PREFIX}CI_CALLBACK_SECRET",
     f"{ENV_PREFIX}GITHUB_WEBHOOK_TENANT_ID",
     f"{ENV_PREFIX}GITHUB_API_BASE_URL",
     f"{ENV_PREFIX}JIRA_BASE_URL",
@@ -63,6 +64,7 @@ class TeamServerSettings(BaseModel):
     github_installation_id: str | None = None
     github_private_key_pem: SecretStr | None = None
     github_webhook_secret: SecretStr | None = None
+    ci_callback_secret: SecretStr | None = None
     github_webhook_tenant_id: str | None = None
     github_api_base_url: str | None = None
     jira_base_url: str | None = None
@@ -139,6 +141,7 @@ class TeamServerSettings(BaseModel):
             f"github_installation_id={self.github_installation_id!r}, "
             f"github_private_key_pem={self._secret_repr(self.github_private_key_pem)}, "
             f"github_webhook_secret={self._secret_repr(self.github_webhook_secret)}, "
+            f"ci_callback_secret={self._secret_repr(self.ci_callback_secret)}, "
             f"github_webhook_tenant_id={self.github_webhook_tenant_id!r}, "
             f"github_api_base_url={self.github_api_base_url!r}, "
             f"jira_base_url={self.jira_base_url!r}, "
@@ -205,6 +208,7 @@ def load_team_server_settings_from_env() -> TeamServerSettings:
         github_installation_id: str | None = None
         github_private_key_pem: SecretStr | None = None
         github_webhook_secret: SecretStr | None = None
+        ci_callback_secret: SecretStr | None = None
         github_webhook_tenant_id: str | None = None
         github_api_base_url: str | None = None
         jira_base_url: str | None = None

@@ -7,10 +7,12 @@ import hashlib
 from pathlib import Path
 
 from safecode.enterprise.approvals.store import grant_id_for_request
+from safecode.enterprise.api.approval_service import decide_approval
 from safecode.enterprise.persistence.local_backend import LocalBackend
 from safecode.enterprise.eval.assertions import evaluate_safety_assertions
 from safecode.enterprise.eval.cases import EvaluationCase, EvaluationResult
 from safecode.enterprise.eval.workspace import isolated_eval_workspace
+from safecode.enterprise.rbac.models import RBACSubject, Role
 from safecode.enterprise.workflow.exceptions import WorkflowInterrupted
 from safecode.enterprise.workflow.ids import validate_run_id
 from safecode.enterprise.workflow.orchestrator import LocalOrchestrator, build_initial_state
@@ -56,6 +58,23 @@ def run_remediation_evaluation(case: EvaluationCase, project_root: Path) -> Eval
             repo_root=workspace,
             run_id=run_id,
         )
+        state = state.model_copy(
+            update={
+                "subject": RBACSubject(
+                    actor_id=state.actor_id,
+                    tenant_id=state.tenant_id,
+                    roles=(Role.security_reviewer,),
+                    permission_scopes=(
+                        "org",
+                        "project",
+                        "engineering",
+                        "security",
+                        "appsec",
+                        "secops",
+                    ),
+                )
+            }
+        )
 
         try:
             asyncio.run(orchestrator.run(state))
@@ -72,12 +91,23 @@ def run_remediation_evaluation(case: EvaluationCase, project_root: Path) -> Eval
                 notes="workflow checkpoint missing",
             )
 
-        approved_request = backend.approvals.decide_request(
+        approval_id = f"approval-{run_id}"
+        decide_approval(
+            backend,
+            tenant_id=state.tenant_id,
+            approval_id=approval_id,
+            subject=RBACSubject(
+                actor_id="user:approver",
+                tenant_id=state.tenant_id,
+                roles=(Role.maintainer,),
+            ),
+            decision="approved",
+            idempotency_key=f"eval-remediation-{run_id}",
+        )
+        approved_request = backend.approvals.load_request(
             tenant_id=state.tenant_id,
             run_id=run_id,
-            request_id=f"approval-{run_id}",
-            decision="approved",
-            decision_actor="user:approver",
+            request_id=approval_id,
         )
         final = asyncio.run(orchestrator.resume(run_id, tenant_id=state.tenant_id))
 

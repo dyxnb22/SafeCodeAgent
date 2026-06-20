@@ -76,6 +76,30 @@ def test_local_backend_rejects_cross_tenant_checkpoint_load(tmp_path: Path) -> N
         backend.runs.load_checkpoint(tenant_id="tenant-b", run_id=state.run_id)
 
 
+def test_local_backend_rejects_cross_tenant_decide_before_write(tmp_path: Path) -> None:
+    import sys
+
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from backend_contract import sample_request  # noqa: E402
+
+    backend = LocalBackend(tmp_path / ".sac")
+    run_id = "run-tenant-decide01"
+    request = sample_request(run_id=run_id, request_id="approval-tenant-dec01", tenant_id="tenant-a")
+    backend.approvals.save_request(tenant_id="tenant-a", request=request)
+    with pytest.raises(TenantBoundaryError):
+        backend.approvals.decide_request(
+            tenant_id="tenant-b",
+            run_id=run_id,
+            request_id=request.request_id,
+            decision="approved",
+            decision_actor="user:approver",
+        )
+    loaded = backend.approvals.load_request(
+        tenant_id="tenant-a", run_id=run_id, request_id=request.request_id
+    )
+    assert loaded.status == "pending"
+
+
 def test_invalid_run_id_outside_run_root_fails_closed(tmp_path: Path) -> None:
     backend = LocalBackend(tmp_path / ".sac")
     with pytest.raises(InvalidRunIdError):

@@ -31,7 +31,9 @@ async def run(state: EnterpriseRunState) -> NodePatch:
     }:
         try:
             findings = remediation.ingest_findings(repo_root, state.request.input_ref)
-        except Exception:
+        except ValueError:
+            raise
+        except (FileNotFoundError, OSError):
             findings = []
         if not findings:
             updates["missing_evidence"] = True

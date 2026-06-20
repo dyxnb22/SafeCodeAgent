@@ -62,6 +62,7 @@ def decide_approval(
         approval_id=approval_id,
         decision=decision,
         rationale=rationale,
+        actor_id=subject.actor_id,
     )
     request = resolve_approval(backend, tenant_id=tenant_id, approval_id=approval_id)
     _assert_can_decide(subject, request)
@@ -136,6 +137,7 @@ def revoke_approval_grant(
         operation="revoke",
         approval_id=approval_id,
         rationale=rationale,
+        actor_id=subject.actor_id,
     )
     request = resolve_approval(backend, tenant_id=tenant_id, approval_id=approval_id)
     _assert_can_decide(subject, request)

@@ -121,9 +121,7 @@ def collect_pull_request(
 
 
 def retrieval_actor_scope(state: EnterpriseRunState) -> list[str]:
-    scopes = set(state.subject.permission_scopes)
-    scopes.update({"org", "appsec", "secops"})
-    return sorted(scopes)
+    return sorted(set(state.subject.permission_scopes))
 
 
 def build_retrieval_queries(evidence: PullRequestEvidence) -> list[str]:

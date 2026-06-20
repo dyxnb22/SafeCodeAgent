@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Header, Request, Response
@@ -26,6 +27,7 @@ from safecode.enterprise.scanners.results import (
 )
 
 router = APIRouter(prefix="/v2/ci", tags=["ci"])
+_logger = logging.getLogger(__name__)
 
 
 def _problem(status: int, detail: str) -> JSONResponse:
@@ -49,10 +51,7 @@ def _problem(status: int, detail: str) -> JSONResponse:
 
 
 def _callback_secret(state: AppState) -> SecretStr | None:
-    secret = getattr(state.settings, "ci_callback_secret", None)
-    if secret is not None:
-        return secret
-    return state.settings.github_webhook_secret
+    return state.settings.ci_callback_secret
 
 
 @router.post("/callback")
@@ -67,6 +66,7 @@ async def ci_callback(
 ) -> dict[str, str]:
     secret = _callback_secret(state)
     if secret is None:
+        _logger.warning("ci callback rejected: ci_callback_secret is not configured")
         return _problem(503, "ci callback secret is not configured")
 
     body = await request.body()

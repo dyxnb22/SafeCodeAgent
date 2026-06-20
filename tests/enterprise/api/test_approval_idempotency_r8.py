@@ -19,8 +19,10 @@ from safecode.enterprise.api.approval_service import decide_approval
 from safecode.enterprise.api.exceptions import ApprovalForbiddenError
 from safecode.enterprise.api.idempotency import approval_resume_idempotency_key
 from safecode.enterprise.api.settings import RuntimeMode, TeamServerSettings
+from safecode.enterprise.approvals.resume import ensure_approval_resume_enqueued
 from safecode.enterprise.persistence.local_backend import LocalBackend
 from safecode.enterprise.rbac.models import RBACSubject, Role
+from safecode.enterprise.worker.queue import IdempotencyConflictError
 
 _HEADERS = {
     "X-Tenant-Id": "tenant-a",
@@ -80,19 +82,36 @@ def test_decide_same_key_replay_returns_identical_payload(tmp_path: Path) -> Non
 
 def test_same_key_different_decision_returns_409(tmp_path: Path) -> None:
     client, backend = _client(tmp_path)
-    request_id = _seed_pending(backend)
+    request_id = _seed_pending(backend, request_id="approval-idem-dec01")
+    headers = {**_HEADERS, "Idempotency-Key": "approval-idem-dec02"}
     first = client.post(
         f"/v2/approvals/{request_id}/decide",
-        headers=_HEADERS,
+        headers=headers,
         json={"decision": "approved"},
     )
     assert first.status_code == 200
     conflict = client.post(
         f"/v2/approvals/{request_id}/decide",
-        headers={**_HEADERS, "Idempotency-Key": _HEADERS["Idempotency-Key"]},
+        headers=headers,
         json={"decision": "rejected"},
     )
     assert conflict.status_code == 409
+    assert "idempotency" in conflict.json()["detail"].lower()
+
+    with pytest.raises(IdempotencyConflictError, match="idempotency key"):
+        decide_approval(
+            backend,
+            tenant_id="tenant-a",
+            approval_id=request_id,
+            subject=RBACSubject(
+                actor_id="user:reviewer",
+                tenant_id="tenant-a",
+                roles=(Role.maintainer,),
+            ),
+            decision="rejected",
+            rationale="",
+            idempotency_key=headers["Idempotency-Key"],
+        )
 
 
 def test_same_key_different_approval_id_returns_409(tmp_path: Path) -> None:
@@ -205,6 +224,7 @@ def test_replay_does_not_duplicate_resume_or_audit(tmp_path: Path) -> None:
     )
     assert first.status_code == 200
     audit_count = len(backend.audit.list_events(tenant_id="tenant-a", run_id="run-approval001"))
+    assert audit_count >= 1
     second = client.post(
         f"/v2/approvals/{request_id}/decide",
         headers=headers,
@@ -245,3 +265,55 @@ def test_cached_replay_still_enforces_approval_authorization(tmp_path: Path) -> 
             rationale="ok",
             idempotency_key=_HEADERS["Idempotency-Key"],
         )
+
+
+def test_cross_actor_idempotency_key_conflict(tmp_path: Path) -> None:
+    client, backend = _client(tmp_path)
+    request_id = _seed_pending(backend)
+    headers = {**_HEADERS, "Idempotency-Key": "approval-actor-001"}
+    first = client.post(
+        f"/v2/approvals/{request_id}/decide",
+        headers=headers,
+        json={"decision": "approved", "rationale": "ok"},
+    )
+    assert first.status_code == 200
+
+    with pytest.raises(IdempotencyConflictError):
+        decide_approval(
+            backend,
+            tenant_id="tenant-a",
+            approval_id=request_id,
+            subject=RBACSubject(
+                actor_id="user:other-reviewer",
+                tenant_id="tenant-a",
+                roles=(Role.maintainer,),
+            ),
+            decision="approved",
+            rationale="ok",
+            idempotency_key=headers["Idempotency-Key"],
+        )
+
+
+def test_approval_resume_idempotency_key_within_limit(tmp_path: Path) -> None:
+    tenant_id = "t" + ("a" * 127)
+    approval_id = "approval-" + ("x" * 64)
+    key = approval_resume_idempotency_key(
+        tenant_id=tenant_id,
+        approval_id=approval_id,
+        decision="approved",
+    )
+    assert len(key) <= 128
+    assert key.startswith("apr-")
+
+    backend = LocalBackend(tmp_path / ".sac")
+    run_id = "run-resume-key01"
+    checkpoint = sample_checkpoint(run_id=run_id, tenant_id=tenant_id)
+    backend.runs.save_checkpoint(tenant_id=tenant_id, checkpoint=checkpoint)
+    request = sample_request(run_id=run_id, request_id=approval_id, tenant_id=tenant_id)
+    ensure_approval_resume_enqueued(
+        backend,
+        tenant_id=tenant_id,
+        request=request,
+        decision="approved",
+    )
+    assert backend.commands.get_command(tenant_id=tenant_id, idempotency_key=key) is not None

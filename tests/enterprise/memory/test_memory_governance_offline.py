@@ -205,6 +205,20 @@ def test_future_expiry_stays_active(tmp_path: Path):
     assert len(store.list_active(_TENANT)) == 1
 
 
+def test_list_active_filters_by_actor_scope(tmp_path: Path) -> None:
+    sac_root = tmp_path / ".sac"
+    store = MemoryFactStore(sac_root)
+    _admit(
+        store,
+        content="Privileged remediation note.",
+        provenance="run:scope-test",
+        fact_id="fact-scope-01",
+    )
+    assert len(store.list_active(_TENANT)) == 1
+    assert store.list_active(_TENANT, actor_scope={"org"}) == []
+    assert len(store.list_active(_TENANT, actor_scope={"org", "appsec"})) == 1
+
+
 def test_tenant_path_escape_is_rejected_without_writing(tmp_path: Path):
     sac_root = tmp_path / ".sac"
     store = MemoryFactStore(sac_root)

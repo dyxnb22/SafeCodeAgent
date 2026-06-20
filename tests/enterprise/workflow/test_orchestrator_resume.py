@@ -114,3 +114,33 @@ def test_atomic_write_leaves_valid_json(tmp_path: Path):
     payload = json.loads((run_dir(sac_root, state.run_id) / "state.json").read_text(encoding="utf-8"))
     assert payload["run_id"] == state.run_id
     assert not list(run_dir(sac_root, state.run_id).glob("*.tmp"))
+
+
+def test_resume_of_terminal_run_is_idempotent(tmp_path: Path):
+    sac_root = tmp_path / ".sac"
+    orchestrator = LocalOrchestrator(sac_root, runtime="local")
+    state = build_initial_state(
+        task_type=TaskType.pr_review,
+        input_ref="fixture.json",
+        actor_id="user:test",
+        repo_root=tmp_path,
+        run_id="run-terminal001",
+    )
+    from safecode.enterprise.workflow.checkpoint import CHECKPOINT_SCHEMA_VERSION, RunCheckpoint
+
+    terminal = state.model_copy(update={"status": WorkflowStatus.succeeded})
+    save_checkpoint(
+        sac_root,
+        RunCheckpoint(
+            schema_version=CHECKPOINT_SCHEMA_VERSION,
+            run_id=terminal.run_id,
+            completed_nodes=list(WORKFLOW_NODE_ORDER),
+            next_node=None,
+            state=terminal,
+        ),
+    )
+    before = load_checkpoint(sac_root, terminal.run_id)
+    final = asyncio.run(orchestrator.resume(terminal.run_id, tenant_id="local"))
+    assert final.status == WorkflowStatus.succeeded
+    after = load_checkpoint(sac_root, terminal.run_id)
+    assert after.completed_nodes == before.completed_nodes

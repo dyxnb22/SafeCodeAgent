@@ -3,7 +3,7 @@
 执行流程（``process_once``）：
 1. ``poll_pending_job`` 从队列取待处理任务
 2. ``leases.acquire`` 获取 run 级租约（默认 TTL 30s），失败则重新入队
-3. 按 command 调用编排器：start → run，resume → resume，cancel → 无操作
+3. 按 command 调用编排器：start → run，resume → resume，cancel → 持久化 cancelled
 4. 成功则 ``complete_job``；可重试失败则 retry，超限或毒消息进 DLQ
 5. ``finally`` 中释放租约
 
@@ -13,7 +13,6 @@
 潜在问题：
 - ``asyncio.run`` 在同步 ``process_once`` 内调用，若外层已有事件循环会失败
 - 租约获取失败时 ``_requeue`` 直接重新 enqueue，可能产生重复队列项
-- cancel 命令仅 return，不更新检查点状态为 cancelled
 """
 
 from __future__ import annotations
@@ -23,6 +22,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from safecode.enterprise.persistence.local_backend import LocalBackend
+from safecode.enterprise.worker.commands import _save_cancelled
 from safecode.enterprise.worker.heartbeat import LeaseHeartbeatGuard, LeaseOwnershipLostError
 from safecode.enterprise.worker.lease import LeaseHeldError, LocalRunLeaseStore, RunLeaseStore
 from safecode.enterprise.worker.models import QueueJob
@@ -195,7 +195,7 @@ class WorkerRunner:
                 return
             return
         if job.command == "cancel":
-            # 潜在问题：未将检查点 status 更新为 cancelled
+            _save_cancelled(self.backend, tenant_id=job.tenant_id, run_id=job.run_id)
             return
         raise ValueError(f"unsupported queue command: {job.command}")
 

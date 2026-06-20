@@ -184,6 +184,21 @@ def test_fixture_write_persists_redacted_body(tmp_path: Path):
     assert "super_secret" not in written
 
 
+def test_fixture_write_rejects_output_path_outside_project_root(tmp_path: Path):
+    sac_root = tmp_path / ".sac"
+    outside = tmp_path.parent / "outside-jira-comment.md"
+    with pytest.raises(ValueError, match="escapes project root"):
+        post_issue_comment(
+            sac_root=sac_root,
+            run_id="run-jiraoffline03",
+            node_name="finalize",
+            spec=IssueCommentWriteSpec(mode="fixture", output_path=str(outside)),
+            body="blocked",
+            approved=False,
+            actor_id="user:test",
+        )
+
+
 def test_governed_live_write_posts_once(tmp_path: Path):
     sac_root = tmp_path / ".sac"
     body = "Secure planning draft attached."

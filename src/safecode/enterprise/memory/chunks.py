@@ -34,5 +34,13 @@ def memory_fact_to_chunk(fact: MemoryFact) -> Chunk:
     )
 
 
-def active_memory_chunks(store: MemoryFactStore, tenant_id: str) -> list[Chunk]:
-    return [memory_fact_to_chunk(fact) for fact in store.list_active(tenant_id)]
+def active_memory_chunks(
+    store: MemoryFactStore,
+    tenant_id: str,
+    *,
+    actor_scope: set[str] | None = None,
+) -> list[Chunk]:
+    return [
+        memory_fact_to_chunk(fact)
+        for fact in store.list_active(tenant_id, actor_scope=actor_scope)
+    ]

@@ -23,6 +23,7 @@ from pathlib import Path
 from safecode.enterprise.approvals.binding import workflow_approval_binding
 from safecode.enterprise.persistence.local_backend import LocalBackend
 from safecode.enterprise.policy.resolver import resolve_policy
+from safecode.enterprise.worker.status import is_terminal
 from safecode.enterprise.trace.events import TraceEventType
 from safecode.enterprise.trace.session import TraceSession
 from safecode.enterprise.workflow.checkpoint import (
@@ -160,6 +161,8 @@ class LocalOrchestrator:
             tenant_id=tenant_id, run_id=run_id
         )
         state = checkpoint.state
+        if is_terminal(state.status):
+            return state
         if state.status == WorkflowStatus.awaiting_approval:
             request_id = f"approval-{run_id}"
             request = self.backend.approvals.load_request(

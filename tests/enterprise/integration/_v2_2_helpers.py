@@ -77,6 +77,7 @@ def team_server_settings() -> TeamServerSettings:
             "github_installation_id": INSTALLATION_ID,
             "github_private_key_pem": generate_private_key_pem(),
             "github_webhook_secret": WEBHOOK_SECRET,
+            "ci_callback_secret": CALLBACK_SECRET,
             "github_webhook_tenant_id": TENANT_ID,
         }
     )

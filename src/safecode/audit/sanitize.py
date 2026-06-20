@@ -10,7 +10,7 @@ from __future__ import annotations
 from safecode.audit.models import AuditEvent
 from safecode.context.redactor import redact_secrets
 
-_PERSISTENCE_STRING_FIELDS = ("message", "error", "command")
+_PERSISTENCE_STRING_FIELDS = ("message", "error", "command", "patch_id", "checkpoint_id", "trace_id")
 
 
 def _redact_optional(value: str | None) -> str | None:

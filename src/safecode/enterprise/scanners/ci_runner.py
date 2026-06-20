@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Callable, Protocol
 
 from safecode.config import SafeCodeConfig
+from safecode.context.redactor import redact_secrets
 from safecode.sandbox.execution import SandboxExecutionGate, SandboxExecutionProposal
 from safecode.sandbox.factory import SandboxAdapterFactory
 from safecode.sandbox.filesystem import FilesystemBoundary
@@ -211,11 +212,11 @@ class CiScannerRunner:
             )
             duration_ms = int((time.monotonic() - started) * 1000)
             stdout, stdout_truncated = _bound_output(
-                completed.stdout or "",
+                redact_secrets(completed.stdout or ""),
                 max_bytes=self.max_output_bytes,
             )
             stderr, stderr_truncated = _bound_output(
-                completed.stderr or "",
+                redact_secrets(completed.stderr or ""),
                 max_bytes=self.max_output_bytes,
             )
             if stdout_truncated or stderr_truncated:
@@ -242,6 +243,7 @@ class CiScannerRunner:
             ) from exc
         except OSError as exc:
             duration_ms = int((time.monotonic() - started) * 1000)
+            stderr_clean = redact_secrets(str(exc))
             return CiScannerRunResult(
                 schema_version=CI_SCANNER_RESULT_SCHEMA_VERSION,
                 scanner=spec.scanner,
@@ -251,11 +253,11 @@ class CiScannerRunner:
                 executed=False,
                 exit_code=None,
                 stdout="",
-                stderr=str(exc),
+                stderr=stderr_clean,
                 duration_ms=duration_ms,
                 output_truncated=False,
                 proposal_id=proposal.proposal_id,
-                message=str(exc),
+                message=stderr_clean[:500],
             )
 
     def _prepare_spec(self, spec: CiScannerInvocationSpec) -> list[str]:

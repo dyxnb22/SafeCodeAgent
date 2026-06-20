@@ -3,6 +3,8 @@
 import json
 from pathlib import Path
 
+import pytest
+
 from safecode.enterprise.connectors.github_pr_write import PRCommentWriteSpec, post_pr_comment
 
 
@@ -44,6 +46,21 @@ def test_fixture_write_persists_redacted_body(tmp_path: Path):
         event.get("type") == "tool.executed" and event.get("payload", {}).get("tool_name") == "github_write"
         for event in events
     )
+
+
+def test_fixture_write_rejects_output_path_outside_project_root(tmp_path: Path):
+    sac_root = tmp_path / ".sac"
+    outside = tmp_path.parent / "outside-comment.md"
+    with pytest.raises(ValueError, match="escapes project root"):
+        post_pr_comment(
+            sac_root=sac_root,
+            run_id="run-gate00000003",
+            node_name="finalize",
+            spec=PRCommentWriteSpec(mode="fixture", output_path=str(outside)),
+            body="blocked",
+            approved=False,
+            actor_id="user:test",
+        )
 
 
 def test_live_write_boolean_approval_is_not_execution_authority(tmp_path: Path):

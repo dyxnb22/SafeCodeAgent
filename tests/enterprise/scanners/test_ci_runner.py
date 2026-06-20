@@ -143,6 +143,30 @@ def test_workspace_escape_rejected(tmp_path: Path):
         CiScannerRunner(project_root, workspace_root=outside)
 
 
+def test_runner_redacts_output_before_storage(tmp_path: Path):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    secret = "ghp_1234567890123456789012345678901234"
+
+    def run_fn(argv, *, cwd, timeout, capture_output):
+        return subprocess.CompletedProcess(
+            argv,
+            1,
+            stdout=f"finding included token {secret}",
+            stderr=f"error: token {secret}",
+        )
+
+    runner = CiScannerRunner(
+        tmp_path,
+        workspace_root=workspace,
+        run_fn=run_fn,
+    )
+    result = runner.run(_spec(argv=["echo", "fail"]))
+    assert secret not in result.stdout
+    assert secret not in result.stderr
+    assert secret not in result.message
+
+
 def test_propose_creates_sandbox_proposal(tmp_path: Path):
     workspace = tmp_path / "workspace"
     workspace.mkdir()

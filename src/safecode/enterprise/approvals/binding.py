@@ -7,9 +7,9 @@
 
 from __future__ import annotations
 
-import hashlib
 from pathlib import Path
 
+from safecode.enterprise.approvals.digest import merge_proposal_sha256, proposal_digest
 from safecode.enterprise.approvals.store import Action
 from safecode.enterprise.connectors.github_pr_write import comment_approval_target
 from safecode.enterprise.connectors.jira_live import comment_approval_target as jira_comment_approval_target
@@ -18,16 +18,7 @@ from safecode.enterprise.workflow.types import TaskType
 
 
 def _proposal_digest(proposal: Proposal | None) -> str:
-    """计算 proposal 引用文件的 SHA-256，用于检测审批后内容被篡改。
-
-    潜在问题：proposal.ref 指向的文件不存在时返回空串，调用方须将空摘要视为绑定不完整。
-    """
-    if proposal is None:
-        return ""
-    path = Path(proposal.ref)
-    if not path.is_file():
-        return ""
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+    return proposal_digest(proposal)
 
 
 def workflow_approval_binding(state: EnterpriseRunState) -> tuple[Action, dict[str, str]]:
@@ -57,12 +48,16 @@ def workflow_approval_binding(state: EnterpriseRunState) -> tuple[Action, dict[s
             except ValueError:
                 pr_number = 0
             if owner and repo and pr_number > 0:
-                return action, comment_approval_target(
-                    owner=owner,
-                    repo=repo,
-                    pr_number=pr_number,
-                    body=body,
+                target = merge_proposal_sha256(
+                    comment_approval_target(
+                        owner=owner,
+                        repo=repo,
+                        pr_number=pr_number,
+                        body=body,
+                    ),
+                    proposal.ref,
                 )
+                return action, target
     elif state.task_type == TaskType.secure_planning and state.request.extra.get("post_to_ticket") == "1":
         action = Action.issue_comment
         proposal = next((item for item in state.proposals if item.kind == "ticket"), None)
@@ -70,7 +65,11 @@ def workflow_approval_binding(state: EnterpriseRunState) -> tuple[Action, dict[s
             body = Path(proposal.ref).read_text(encoding="utf-8")
             issue_key = state.request.extra.get("issue_key", "")
             if issue_key:
-                return action, jira_comment_approval_target(issue_key=issue_key, body=body)
+                target = merge_proposal_sha256(
+                    jira_comment_approval_target(issue_key=issue_key, body=body),
+                    proposal.ref,
+                )
+                return action, target
     else:
         action = Action.file_write
         proposal = next(iter(state.proposals), None)

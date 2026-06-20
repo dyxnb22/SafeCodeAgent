@@ -197,18 +197,3 @@ def list_audit_events(
             (tenant_id, run_id),
         ).fetchall()
     return [AuditEvent(**row[0]) for row in rows]
-
-
-def tamper_first_audit_event(conn: Any) -> None:
-    row = conn.execute(
-        "SELECT id, event FROM enterprise.audit_events ORDER BY id ASC LIMIT 1"
-    ).fetchone()
-    if row is None:
-        raise RuntimeError("no audit events to tamper")
-    event_id, payload = row
-    event = dict(payload)
-    event["message"] = "tampered"
-    conn.execute(
-        "UPDATE enterprise.audit_events SET event = %s::jsonb WHERE id = %s",
-        (json.dumps(event, ensure_ascii=False, sort_keys=True), event_id),
-    )

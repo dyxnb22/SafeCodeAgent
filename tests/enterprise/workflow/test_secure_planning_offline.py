@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 
+from safecode.enterprise.rbac.models import RBACSubject, Role
 from safecode.enterprise.workflow.orchestrator import LocalOrchestrator, build_initial_state
 from safecode.enterprise.workflow.tasks.secure_planning import policy_citations
 from safecode.enterprise.workflow.types import RiskTier, TaskType
@@ -26,17 +27,39 @@ def _cleanup_run(sac_root: Path, run_id: str) -> None:
         shutil.rmtree(approval_dir)
 
 
+def _security_subject(state) -> object:
+    return state.model_copy(
+        update={
+            "subject": RBACSubject(
+                actor_id=state.actor_id,
+                tenant_id=state.tenant_id,
+                roles=(Role.security_reviewer,),
+                permission_scopes=(
+                    "org",
+                    "project",
+                    "engineering",
+                    "security",
+                    "appsec",
+                    "secops",
+                ),
+            )
+        }
+    )
+
+
 def test_secure_planning_ticket_produces_cited_plan_with_alternatives(tmp_path: Path):
     sac_root = _ROOT / ".sac"
     run_id = "run-secureplan01"
     _cleanup_run(sac_root, run_id)
     orchestrator = LocalOrchestrator(sac_root, runtime="local")
-    state = build_initial_state(
-        task_type=TaskType.secure_planning,
-        input_ref=_FIXTURE,
-        actor_id="user:security",
-        repo_root=_ROOT,
-        run_id=run_id,
+    state = _security_subject(
+        build_initial_state(
+            task_type=TaskType.secure_planning,
+            input_ref=_FIXTURE,
+            actor_id="user:security",
+            repo_root=_ROOT,
+            run_id=run_id,
+        )
     )
     assert state.request.input_kind == "ticket"
     final = asyncio.run(orchestrator.run(state))
@@ -76,12 +99,14 @@ def test_secure_planning_validation_skipped(tmp_path: Path):
     run_id = "run-secureplan03"
     _cleanup_run(sac_root, run_id)
     orchestrator = LocalOrchestrator(sac_root, runtime="local")
-    state = build_initial_state(
-        task_type=TaskType.secure_planning,
-        input_ref=_FIXTURE,
-        actor_id="user:security",
-        repo_root=_ROOT,
-        run_id=run_id,
+    state = _security_subject(
+        build_initial_state(
+            task_type=TaskType.secure_planning,
+            input_ref=_FIXTURE,
+            actor_id="user:security",
+            repo_root=_ROOT,
+            run_id=run_id,
+        )
     )
     final = asyncio.run(orchestrator.run(state))
     assert final.validation is not None

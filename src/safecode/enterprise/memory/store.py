@@ -224,9 +224,17 @@ class MemoryFactStore:
     def get(self, *, tenant_id: str, fact_id: str) -> MemoryFact | None:
         return self._load(tenant_id).get(fact_id)
 
-    def list_active(self, tenant_id: str) -> list[MemoryFact]:
+    def list_active(
+        self,
+        tenant_id: str,
+        *,
+        actor_scope: set[str] | None = None,
+    ) -> list[MemoryFact]:
         self.expire_due(tenant_id=tenant_id, actor_id="system:memory")
-        return [fact for fact in self._load(tenant_id).values() if fact.status == "active"]
+        facts = [fact for fact in self._load(tenant_id).values() if fact.status == "active"]
+        if actor_scope is not None:
+            facts = [fact for fact in facts if set(fact.permission_scope).issubset(actor_scope)]
+        return facts
 
     def list_all(self, tenant_id: str) -> list[MemoryFact]:
         return list(self._load(tenant_id).values())

@@ -384,6 +384,8 @@ class PostgresApprovalStore:
                     request = self._load_request_row_for_update(
                         conn, tenant_id=tenant, run_id=run_id, request_id=request_id
                     )
+                    if decision_actor == request.requesting_actor:
+                        raise PermissionError("self-approval is not permitted")
                     if request.status not in {"pending", "evidence_requested"} and decision in {
                         "approved",
                         "rejected",
@@ -711,11 +713,6 @@ class PostgresAuditStore:
         tenant = validate_tenant_id(tenant_id)
         with self._uow.connection() as conn:
             return pg_audit.list_audit_events(conn, tenant_id=tenant, run_id=run_id)
-
-    def tamper_first_event_for_test(self) -> None:
-        with self._uow.connection() as conn:
-            pg_audit.tamper_first_audit_event(conn)
-            conn.commit()
 
 
 class PostgresEvalResultStore:

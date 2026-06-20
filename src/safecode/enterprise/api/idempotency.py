@@ -35,12 +35,14 @@ def approval_request_fingerprint(
     approval_id: str,
     decision: str | None = None,
     rationale: str = "",
+    actor_id: str = "",
 ) -> str:
     payload = {
         "operation": operation,
         "approval_id": approval_id,
         "decision": decision or "",
         "rationale": rationale,
+        "actor_id": actor_id,
     }
     digest = hashlib.sha256(
         json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
@@ -50,7 +52,8 @@ def approval_request_fingerprint(
 
 def approval_resume_idempotency_key(*, tenant_id: str, approval_id: str, decision: str) -> str:
     tenant = validate_tenant_id(tenant_id)
-    return f"approval-resume:{tenant}:{approval_id}:{decision}"
+    digest = hashlib.sha256(f"{tenant}:{approval_id}:{decision}".encode("utf-8")).hexdigest()[:60]
+    return f"apr-{digest}"
 
 
 @runtime_checkable
