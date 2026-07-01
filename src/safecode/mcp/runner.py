@@ -1,4 +1,10 @@
-"""Read-only MCP runner with policy enforcement."""
+"""Read-only MCP runner with policy enforcement.
+
+中文模块说明：内核 MCP 只读执行器，在调用外部 MCP 工具前做策略分类与门控。
+- 架构位置：Integration 平面底层；Enterprise 通过 ``mcp_adapter`` 注册 allowlist 工具。
+- 安全不变量：argv 列表调用，禁止 shell=True；未知工具默认拒绝；输出视为不可信输入。
+- 学习路径：读 ``mcp/proposal.py``（写提案）与 ``enterprise/connectors/mcp_allowlist.py``。
+"""
 
 from __future__ import annotations
 

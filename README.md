@@ -40,9 +40,69 @@ uv run sac demo --list
 uv run sac demo pr-review --offline
 ```
 
+Without `uv`:
+
+```bash
+pip install -e ".[dev,enterprise]"
+PYTHONPATH=src sac demo pr-review --offline
+```
+
 The offline demo runs in a disposable workspace by default. A deterministic
 transcript is available at
 [examples/enterprise/demos/v3.2/transcripts/pr-review.txt](examples/enterprise/demos/v3.2/transcripts/pr-review.txt).
+
+## Learning and interview
+
+For portfolio walkthroughs and technical interviews, you do not need GA
+sign-off, live model providers, or production deployment evidence. The
+offline demo and optional Docker stack are enough.
+
+### Offline demo (fastest)
+
+```bash
+pip install -e ".[dev,enterprise]"
+PYTHONPATH=src sac demo pr-review --offline
+```
+
+Fifteen-minute narrative:
+[product-planning/case-study-secure-change-platform.md](product-planning/case-study-secure-change-platform.md).
+
+**Suggested code reading order** (module docstrings are in Chinese throughout
+``src/safecode/enterprise/``):
+
+1. `src/safecode/enterprise/workflow/orchestrator.py` — workflow engine
+2. `src/safecode/enterprise/rag/retriever.py` — permission-aware RAG
+3. `src/safecode/enterprise/approvals/store.py` — grants and single-use consumption
+4. `src/safecode/enterprise/policy/resolver.py` — policy precedence
+5. `src/safecode/enterprise/api/routes/runs.py` + `worker/commands.py` — Team Server
+6. `src/safecode/enterprise/evidence/export.py` — audit bundles
+
+### Docker full stack (API + worker + PostgreSQL + console)
+
+Requires Docker Compose v2. Uses disposable development credentials only.
+
+```bash
+bash scripts/enterprise-dev-up.sh
+```
+
+The script copies `compose/enterprise.dev.env.example` when needed, prepares
+local OIDC signing material, starts
+[compose.enterprise.yaml](compose.enterprise.yaml), and prints a bearer token for
+the console login page.
+
+- API: http://127.0.0.1:8080
+- Console: http://127.0.0.1:3000
+- Tenant: `tenant-dev`
+
+Stop the stack:
+
+```bash
+docker compose -f compose.enterprise.yaml down -v
+```
+
+`scripts/enterprise-up.sh` is for production-like startup and refuses the
+committed development credentials. Use `enterprise-dev-up.sh` for learning and
+interviews.
 
 ## System Map
 

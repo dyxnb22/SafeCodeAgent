@@ -1,4 +1,10 @@
-"""Lexical BM25-ish scorer for enterprise RAG."""
+"""Lexical BM25-ish scorer for enterprise RAG.
+
+中文模块说明：RAG 词法打分支路，确定性 BM25 风格评分，无外部模型依赖。
+- 架构位置：``retriever.py`` 混合检索的第一路；v1.1 起默认足够（决策 D15）。
+- 安全不变量：纯本地计算，适合离线 demo 与面试复现。
+- 学习路径：读 ``retriever.py`` 的分数融合逻辑。
+"""
 
 from __future__ import annotations
 

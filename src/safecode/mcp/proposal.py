@@ -1,4 +1,10 @@
-"""MCP write proposal models and persistence."""
+"""MCP write proposal models and persistence.
+
+中文模块说明：MCP 写操作的提案模型与持久化，写之前必须经审批与策略绑定。
+- 架构位置：连接 MCP 写路径与 kernel/enterprise 审批链。
+- 安全不变量：提案含 digest；未消耗 grant 前不得执行；模型不能自批。
+- 学习路径：对照 ``enterprise/approvals/store.py`` 的 ``consume_approved_request``。
+"""
 
 from __future__ import annotations
 

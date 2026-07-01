@@ -1,4 +1,10 @@
-"""API idempotency persistence for approval commands (R8)."""
+"""API idempotency persistence for approval commands (R8).
+
+中文模块说明：写 API 的幂等键持久化，防止重试导致重复 grant 或重复 resume。
+- 架构位置：Service 平面横切；run/approval 命令共用。
+- 安全不变量：相同 Idempotency-Key 重放须返回同一结果或冲突错误，不得双写。
+- 学习路径：读 ``worker/queue.py`` 的 command 幂等与 ``test_run_commands.py`` 重放用例。
+"""
 
 from __future__ import annotations
 

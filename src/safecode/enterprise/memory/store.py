@@ -1,4 +1,10 @@
-"""Governed long-term memory fact store (v2.4.6)."""
+"""Governed long-term memory fact store (v2.4.6).
+
+中文模块说明：经审批准入的长期记忆事实存储，仅保存脱敏且带 grant 的事实。
+- 架构位置：RAG/memory 平面；admission 消耗单次 grant（修复 GA-H1 类风险）。
+- 安全不变量：``memory_admission_target`` 绑定 digest；tenant 路径不可逃逸。
+- 学习路径：读 ``test_memory_governance_offline.py`` 与 ``memory/chunks.py``。
+"""
 
 from __future__ import annotations
 

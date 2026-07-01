@@ -1,4 +1,10 @@
-"""Run lease persistence for worker coordination (v2.1.5-T3)."""
+"""Run lease persistence for worker coordination (v2.1.5-T3).
+
+中文模块说明：worker 对 run 的租约、心跳与 fence_token，防止并发双执行。
+- 架构位置：Workflow 平面；runner 执行前 acquire，完成后带 fence 释放。
+- 安全不变量：过期租约可被抢占；fence 不匹配则拒绝完成，避免 TOCTOU。
+- 学习路径：读 ``worker/runner.py`` 与 R8 concurrency 测试。
+"""
 
 from __future__ import annotations
 

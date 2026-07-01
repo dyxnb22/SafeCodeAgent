@@ -1,4 +1,10 @@
-"""Human checkpoint prompts for approval-gated actions."""
+"""Human checkpoint prompts for approval-gated actions.
+
+中文模块说明：内核本地模式的人工审批交互（CLI 提示），非 Team Server API 路径。
+- 架构位置：kernel agent 工具循环在 CONFIRM/GATE 时调用。
+- 安全不变量：展示 proposal digest；用户决定才是权威；模型不能代替用户点批准。
+- 学习路径：对比 Enterprise ``approvals/store.py``（持久化 grant）与 console/API 审批流。
+"""
 
 from __future__ import annotations
 

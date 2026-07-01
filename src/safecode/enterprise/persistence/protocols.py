@@ -1,4 +1,11 @@
-"""Repository protocol definitions for Enterprise persistence (v2.1.2)."""
+"""Repository protocol definitions for Enterprise persistence (v2.1.2).
+
+中文模块说明：定义 Enterprise 持久化层的 Protocol 契约（Run、Approval、Audit、Command 等）。
+- 架构位置：Data 平面核心；LocalBackend 与 PostgresBackend 均实现这些接口。
+- 安全不变量：所有 store 方法以 tenant_id 为作用域；``assert_tenant_match`` 在读写时 fail-closed。
+- 与内核关系：审计事件复用 ``safecode.audit.models.AuditEvent``，但持久化语义由 Enterprise 扩展。
+- 学习路径：先读 ``local_backend.py``，再对照 ``postgres/backend.py``；API/Worker 只依赖 Protocol。
+"""
 
 from __future__ import annotations
 

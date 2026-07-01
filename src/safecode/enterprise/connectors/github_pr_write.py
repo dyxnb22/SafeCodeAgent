@@ -1,4 +1,10 @@
-"""GitHub PR comment writer (fixture-first, governed live mode v2.2.3-T1)."""
+"""GitHub PR comment writer (fixture-first, governed live mode v2.2.3-T1).
+
+中文模块说明：向 GitHub PR 发帖/评论的受控写连接器。
+- 架构位置：Integration 平面写路径；finalize 前须消耗 bound grant（GA-M1）。
+- 安全不变量：无 grant 返回 BLOCK，不伪造成功；输出 redact。
+- 学习路径：读 ``test_github_pr_comment_gated.py`` 与 approval 流程。
+"""
 
 from __future__ import annotations
 

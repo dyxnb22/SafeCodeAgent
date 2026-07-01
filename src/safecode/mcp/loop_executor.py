@@ -1,4 +1,10 @@
-"""MCP tool executors for the agent loop (v2.2.3)."""
+"""MCP tool executors for the agent loop (v2.2.3).
+
+中文模块说明：Agent 主循环中的 MCP 工具执行器，连接 loop 与 MCP runner。
+- 架构位置：kernel Agent 平面；Enterprise 注册 allowlisted 工具后进循环。
+- 安全不变量：执行结果视为不可信；写工具走 proposal + approval 路径。
+- 学习路径：读 ``mcp/runner.py`` 与 ``agent/loop_dispatcher.py``。
+"""
 
 from __future__ import annotations
 

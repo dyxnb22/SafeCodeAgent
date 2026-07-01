@@ -1,4 +1,10 @@
-"""MCP allowlist schema and loader."""
+"""MCP allowlist schema and loader.
+
+中文模块说明：MCP 工具 allowlist 的 schema 与加载器，定义工具类别与审批 tier。
+- 架构位置：连接器注册前的本地权威分类源。
+- 安全不变量：``DEFAULT_BLOCK_TIER``；未知工具/能力默认拒绝。
+- 学习路径：配合 ``mcp_adapter.py`` 与 ``security-governance-plan.md`` 工具矩阵。
+"""
 
 from __future__ import annotations
 

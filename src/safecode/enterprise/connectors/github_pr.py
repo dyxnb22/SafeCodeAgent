@@ -1,4 +1,10 @@
-"""GitHub pull request connector (fixture-first, live adapter v2.2.2-T1)."""
+"""GitHub pull request connector (fixture-first, live adapter v2.2.2-T1).
+
+中文模块说明：PR 证据连接器，默认离线 fixture，可选 live GitHub 读取。
+- 架构位置：Integration 平面；PR review workflow 的 collect 节点入口。
+- 安全不变量：live 路径需凭证与策略允许；输出经 redaction；写操作另走 grant。
+- 学习路径：读 ``demo/pr_review.py`` 与 ``fixtures/pr_sql_injection``。
+"""
 
 from __future__ import annotations
 

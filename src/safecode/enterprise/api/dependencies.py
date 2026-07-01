@@ -1,4 +1,10 @@
-"""FastAPI dependency injection for the Team Server (v2.1.4)."""
+"""FastAPI dependency injection for the Team Server (v2.1.4).
+
+中文模块说明：FastAPI Depends 注入：解析 Bearer/OIDC 主体、backend、租户作用域。
+- 架构位置：Service 平面；所有 ``routes/*`` 通过 ``_deps.py`` 复用。
+- 安全不变量：server 模式拒绝匿名 ``--actor``；租户从 token 与 header 交叉校验。
+- 学习路径：读 ``auth/oidc.py``、``routes/_deps.py``，再打开 ``routes/runs.py``。
+"""
 
 from __future__ import annotations
 

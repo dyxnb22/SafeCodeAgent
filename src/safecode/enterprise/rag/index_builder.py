@@ -1,4 +1,10 @@
-"""Build in-memory chunk index from a knowledge manifest."""
+"""Build in-memory chunk index from a knowledge manifest.
+
+中文模块说明：从知识库 manifest 构建内存 chunk 索引，供检索器查询。
+- 架构位置：RAG ingest 与离线 demo 的数据准备步骤。
+- 安全不变量：chunk 携带 source_id、permission_scope；manifest 经 schema 校验。
+- 学习路径：配合 ``source_registry.py`` 与 ``rag/pipeline.py``。
+"""
 
 from __future__ import annotations
 

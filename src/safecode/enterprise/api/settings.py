@@ -1,4 +1,10 @@
-"""Runtime mode and Team Server settings contracts (D22)."""
+"""Runtime mode and Team Server settings contracts (D22).
+
+中文模块说明：``LOCAL`` vs ``SERVER`` 运行时配置与 Team Server 环境变量契约。
+- 架构位置：``api/app.py`` 与 ``worker/serve.py`` 的启动配置源。
+- 安全不变量：local 可用 ``--actor``；server 必须 OIDC；rate limit 绑定已认证租户。
+- 学习路径：对照 ``deployment-profiles.md`` Profile 1/2 与 ``test_cli_server_mode.py``。
+"""
 
 from __future__ import annotations
 

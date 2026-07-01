@@ -1,4 +1,10 @@
-"""Permission scope assignment and filtering for enterprise RAG."""
+"""Permission scope assignment and filtering for enterprise RAG.
+
+中文模块说明：把 RBAC 角色映射为检索作用域（org/appsec/repo 等），并过滤 chunk。
+- 架构位置：``retriever.py`` 在打分后调用 ``actor_can_access_chunk``。
+- 安全不变量：显式 scope 不随角色自动扩张；viewer 通常仅 org 级；缺权限即不可见。
+- 学习路径：对照 ``rbac/models.py`` 与 ``workflow/test_retrieval_actor_scope.py``。
+"""
 
 from __future__ import annotations
 

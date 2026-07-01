@@ -1,4 +1,10 @@
-"""Tenant identifier validation shared by all Enterprise layers."""
+"""Tenant identifier validation shared by all Enterprise layers.
+
+中文模块说明：全 Enterprise 层共用的 tenant_id 校验与规范化（修复路径逃逸类风险）。
+- 架构位置：Identity/Data 横切；API、worker、persistence、memory 入口均调用。
+- 安全不变量：拒绝 ``.``、``..`` 与非法字符；长度 1–128；用于 SQL 与本地路径键。
+- 学习路径：grep ``validate_tenant_id`` 看调用链；读 ``test_memory_governance_offline.py``。
+"""
 
 from __future__ import annotations
 

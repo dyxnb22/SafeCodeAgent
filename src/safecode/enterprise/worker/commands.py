@@ -1,4 +1,10 @@
-"""Run command handlers for the Team Server API (v2.1.5-T1)."""
+"""Run command handlers for the Team Server API (v2.1.5-T1).
+
+中文模块说明：将 API 的 start/resume/cancel 命令映射到 orchestrator 与队列。
+- 架构位置：Service ↔ Workflow 边界；start 前先初始化 checkpoint（R8）。
+- 安全不变量：tenant/run_id 校验；不支持的任务 fail-closed；artifact 锁保护并发写。
+- 学习路径：从 ``routes/runs.py`` 跟到 ``workflow/orchestrator.py``。
+"""
 
 from __future__ import annotations
 

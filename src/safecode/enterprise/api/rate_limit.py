@@ -1,4 +1,10 @@
-"""Tenant-scoped API rate limiting (v2.5.3)."""
+"""Tenant-scoped API rate limiting (v2.5.3).
+
+中文模块说明：按已认证租户限流（RPM + 并发 run 上限），修复 caller 控桶问题（GA-H4）。
+- 架构位置：``app.py`` 中间件；在 tenant 解析之后执行。
+- 安全不变量：``/healthz`` 不限流；bucket 键为服务端 canonical tenant_id。
+- 学习路径：读 ``test_rate_limits.py``。
+"""
 
 from __future__ import annotations
 

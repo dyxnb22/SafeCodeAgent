@@ -1,4 +1,10 @@
-"""Postgres-backed command queue (v2.1.5-T1)."""
+"""Postgres-backed command queue (v2.1.5-T1).
+
+中文模块说明：Team Server 的 PostgreSQL 命令队列，与 ``queue.py`` 协议一致。
+- 架构位置：Workflow 平面；``INSERT ON CONFLICT`` 保证幂等入队（R8）。
+- 安全不变量：终端/DLQ 任务不重放；binding 校验防错 tenant/run。
+- 学习路径：对照 local ``queue.py`` 与 PG integration 测试（需 DSN）。
+"""
 
 from __future__ import annotations
 

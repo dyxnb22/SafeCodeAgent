@@ -1,4 +1,10 @@
-"""External audit anchors for detecting full project-log rewrites."""
+"""External audit anchors for detecting full project-log rewrites.
+
+中文模块说明：审计日志外部锚点，检测整文件替换式篡改。
+- 架构位置：内核 Audit 平面；Enterprise 复用同一 hash chain 语义。
+- 安全不变量：append-only；锚点由环境目录配置，不写入业务数据。
+- 学习路径：读 ``audit/logger.py`` 与 ``enterprise/audit/chain.py``。
+"""
 
 import hashlib
 import json
