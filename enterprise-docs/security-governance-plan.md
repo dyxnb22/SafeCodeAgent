@@ -1,6 +1,7 @@
-# Security Governance Plan
+# Security Governance Contract
 
-**Implementation status (v1.9):** Executable contracts through v1.9 are implemented; see `.agents/context/progress.json` for live stage state.
+**Implementation status:** Implemented and maintained as the normative
+governance contract for the v3.0 candidate.
 This is the normative reference for policy, RBAC, approvals, audit,
 secrets, and the action matrix used by the workflow's approval gate.
 It anchors on the existing SafeCodeAgent safety kernel and adds only
@@ -418,27 +419,7 @@ action.
 ## What This Layer Is Not
 
 - Not a configuration-management UI.
-- Not a centralized policy service. (Reserved as a swap behind the
-  resolver interface; not built before v2.x.)
-- Not an SSO/identity provider integration. (Reserved as a swap
-  behind RBAC subject loader.)
-- Not an external policy decision point (PDP/PEP) such as OPA.
-  (Could be wired later via a custom policy source loader; out of
-  MVP scope.)
-
----
-
-## Mapping to Implementation Stages
-
-| Capability | First implemented | Hardened |
-|------------|-------------------|----------|
-| Policy precedence + no-weakening | v1.4.1 | v1.9.1 (tenant scoping) |
-| RBAC subject and roles | v1.4.2 | v1.9.1 (tenant scoping) |
-| Approval engine decision matrix | v1.4.3 | v2.0 (contract snapshot) |
-| Single-use grants | v1.4.3 | v1.9 (time-bound grants optional) |
-| Approval CLI inbox | v1.2.4 / v1.4.4 | v1.9.4 (docs) |
-| Audit taxonomy | v1.4.5 | v1.9.2 (evidence export) |
-| Sandbox lifecycle (legacy) | inherited | v2.0 review |
-| MCP allowlist | v1.3.5 | v1.6.4 (adversarial eval) |
-| Trace redaction profiles | v1.5.4 | v2.0 |
-| Production-like unlock | v1.9.4 (planned) | v2.0 |
+- Not a centralized policy distribution service.
+- Not an identity provider. Team Server validates configured OIDC identities;
+  the organization still owns its IdP.
+- Not an external policy decision point such as OPA.

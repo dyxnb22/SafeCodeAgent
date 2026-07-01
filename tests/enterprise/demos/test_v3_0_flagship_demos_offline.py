@@ -9,11 +9,11 @@ _ROOT = Path(__file__).resolve().parents[3]
 _DEMOS = _ROOT / "examples" / "enterprise" / "demos" / "v3.0"
 
 _REQUIRED_DEMOS = (
-    "pr_review_ga.md",
-    "remediation_ga.md",
-    "secure_planning_ga.md",
-    "evidence_export_ga.md",
-    "console_approval_ga.md",
+    "pr_review_candidate.md",
+    "remediation_candidate.md",
+    "secure_planning_candidate.md",
+    "evidence_export_candidate.md",
+    "console_approval_candidate.md",
     "security_check.md",
     "deployment_evidence.md",
 )
@@ -46,6 +46,6 @@ def test_v3_0_demos_reference_existing_offline_targets() -> None:
     assert not missing, "missing referenced paths:\n" + "\n".join(missing)
 
 
-def test_v3_0_demos_reference_ga_contract_tests() -> None:
-    text = (_DEMOS / "pr_review_ga.md").read_text(encoding="utf-8")
+def test_v3_0_demos_reference_candidate_contract_tests() -> None:
+    text = (_DEMOS / "pr_review_candidate.md").read_text(encoding="utf-8")
     assert "test_public_contract_v3_0.py" in text

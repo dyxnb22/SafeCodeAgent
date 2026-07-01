@@ -1,6 +1,8 @@
 # MCP And Tool Integration
 
-**Implementation status (v1.9):** Executable contracts through v1.9 are implemented; see `.agents/context/progress.json` for live stage state.
+**Implementation status:** Native tools, scanners, connectors, and MCP gates are
+implemented for the v3.0 candidate.
+
 ## Principle
 
 Tools are capabilities, not trust. Native tools and MCP connectors must share

@@ -1,6 +1,7 @@
 # FastAPI Demo
 
-This demo shows the full SafeCode Agent v0.1 loop on a small FastAPI project.
+This demo shows the local SafeCodeAgent edit, approval, audit, and rollback loop
+on a small FastAPI project.
 
 Run from this directory:
 

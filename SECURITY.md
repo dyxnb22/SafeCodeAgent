@@ -1,33 +1,40 @@
 # Security Policy
 
-## Supported Versions
+## Release Status
 
-| Version | Supported |
-|---------|-----------|
-| 5.x     | Yes       |
-| < 5.0   | No        |
+The repository contains a `v3.0` candidate, not an approved Enterprise GA
+release. Independent security sign-off, production-like deployment evidence,
+and stable live-provider evidence remain open external gates.
 
 ## Reporting a Vulnerability
 
-Please report security vulnerabilities by opening a GitHub issue with the
-`security` label, or by contacting the maintainer directly.
+Report vulnerabilities privately to the maintainer or through the repository
+host's private security-advisory channel. Do not place exploit details,
+credentials, customer data, or proof-of-concept code in a public issue.
 
-Do **not** include exploit details or proof-of-concept code in a public issue.
-A maintainer will respond within 7 days with a plan for a fix and coordinated
-disclosure.
+Include the affected commit or version, impacted surface, reproduction
+conditions, and any known mitigation. The maintainer should acknowledge the
+report, coordinate remediation, and disclose only after a safe fix is available.
 
 ## Security Model
 
-SafeCode Agent is a local terminal tool. Its security model is documented in
-[docs/security/threat-model-v3.6.md](docs/security/threat-model-v3.6.md).
+The maintained threat model is
+[enterprise-docs/security/threat-model-v2.5.md](enterprise-docs/security/threat-model-v2.5.md).
+Current candidate findings and unresolved external gates are documented in:
 
-Key invariants:
-- Patch writes require explicit user approval before any file is modified.
-- Shell commands are policy-gated; high-risk commands are blocked by default.
-- Project-local config cannot lower user-level safety policy.
-- Secrets are redacted from context before being sent to an LLM provider.
-- Audit logs are append-only with a SHA-256 hash chain.
-- All writes are checkpointed with rollback support.
+- [security review](enterprise-docs/security/security-review-v3.0.md)
+- [external GA gates](enterprise-docs/security/external-gates.md)
 
-The threat model covers prompt injection, path traversal, sandbox escape,
-and supply-chain integrity. Semi-annual threat model reviews are scheduled.
+Core invariants:
+
+- Model output is never execution authority.
+- Writes, commands, MCP operations, and connector mutations pass deterministic
+  policy and approval gates.
+- Unknown capabilities and network access are denied by default.
+- Project configuration cannot weaken user or organization policy.
+- Retrieved and external content is untrusted and permission filtered.
+- Secrets are redacted before model use, persistence, logging, or export.
+- Audit events are append-only and hash chained.
+- Mutating workflows preserve rollback or audited compensation.
+- Tenant identity and approval bindings are validated at every persistence and
+  execution boundary.

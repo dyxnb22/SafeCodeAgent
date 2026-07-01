@@ -3,7 +3,6 @@
 This demo is based on a real Arrow issue:
 
 - Project: [`arrow-py/arrow`](https://github.com/arrow-py/arrow)
-- Repository signal: GitHub currently shows roughly 9k stars.
 - Issue: [`arrow.get` raised wrong exception #535](https://github.com/arrow-py/arrow/issues/535)
 - Reported behavior: `arrow.get('20171017', ['YYYY.M.D'])` raised a raw
   `ValueError: month must be in 1..12`.

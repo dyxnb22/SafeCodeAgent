@@ -154,4 +154,3 @@ def test_no_unqualified_false_ga_claims(relative_path: str) -> None:
 
 def test_scanner_includes_release_notes() -> None:
     assert "RELEASE-NOTES-v3.0.0.md" in documentation_surface_paths()
-    assert "RELEASE-NOTES-v2.0.0-rc.md" in documentation_surface_paths()

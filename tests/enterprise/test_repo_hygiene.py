@@ -79,7 +79,7 @@ def test_agent_entrypoints_use_canonical_governance() -> None:
         assert path in cursor
         assert path in skill
     assert "enterprise-docs/platform-architecture-v2.md" in skill
-    assert "normative for v2.1+" in skill
+    assert "Maintained Final Documentation" in skill
 
 
 def test_tool_entrypoints_remain_thin() -> None:
@@ -98,7 +98,7 @@ def test_project_context_is_compact_and_routable() -> None:
     for heading in (
         "## Source Precedence",
         "## Architecture At A Glance",
-        "## Feature And Stage Map",
+        "## Implemented Capability Map",
         "## Task-To-Context Routing",
         "## Impact Check Before Code Changes",
         "## Broad Scan Triggers",
@@ -107,9 +107,8 @@ def test_project_context_is_compact_and_routable() -> None:
         assert heading in context
 
 
-def test_progress_state_is_valid_and_matches_backlog() -> None:
+def test_progress_state_is_valid() -> None:
     progress = json.loads(_read(".agents/context/progress.json"))
-    backlog = _read("product-planning/execution-backlog.md")
     context = _read(".agents/context/project-context.md")
 
     assert progress["schema_version"] == 1
@@ -120,7 +119,6 @@ def test_progress_state_is_valid_and_matches_backlog() -> None:
     assert current["status"] in {"ready", "in_progress", "blocked", "completed"}
     assert current["stage"] in progress["stages"]
     if current.get("next_delivery_task"):
-        assert current["next_delivery_task"] in backlog
         assert current["next_delivery_task"] in context
 
     if current["status"] == "ready":
@@ -139,7 +137,6 @@ def test_progress_state_is_valid_and_matches_backlog() -> None:
     if portfolio:
         assert portfolio["status"] in {"ready", "in_progress", "blocked", "completed"}
         if portfolio.get("next_delivery_task"):
-            assert portfolio["next_delivery_task"] in backlog
             assert portfolio["next_delivery_task"] in context
         if portfolio["status"] == "ready":
             assert portfolio["active_task"] is None
@@ -155,27 +152,9 @@ def test_progress_state_is_valid_and_matches_backlog() -> None:
     completed_ids = [task["id"] for task in completed]
     assert len(completed_ids) == len(set(completed_ids))
     for task in completed:
-        assert task["id"] in backlog
+        assert re.fullmatch(r"v\d+\.\d+\.\d+-T\d+", task["id"])
         date.fromisoformat(task["completed_at"])
         assert task["evidence"].strip()
-
-    backlog_task_ids = set(
-        re.findall(r"^### (v\d+\.\d+\.\d+-T\d+)\b", backlog, re.MULTILINE)
-    )
-    backlog_task_id_list = re.findall(
-        r"^### (v\d+\.\d+\.\d+-T\d+)\b", backlog, re.MULTILINE
-    )
-    assert len(backlog_task_id_list) == len(set(backlog_task_id_list))
-    for stage, status in progress["stages"].items():
-        if status != "completed":
-            continue
-        expected = {
-            task_id for task_id in backlog_task_ids if task_id.startswith(f"{stage}.")
-        }
-        assert expected <= set(completed_ids), (
-            f"completed stage {stage} is missing task evidence: "
-            f"{sorted(expected - set(completed_ids))}"
-        )
 
     assert len(progress["recent_maintenance"]) <= 10
     for task in progress["recent_maintenance"]:
@@ -184,7 +163,7 @@ def test_progress_state_is_valid_and_matches_backlog() -> None:
         assert task["evidence"].strip()
 
     for decision in progress["decisions_required"]:
-        assert decision["required_before"] in backlog
+        assert decision["required_before"].strip()
         assert decision["summary"].strip()
 
     verification = progress["last_verification"]
@@ -199,36 +178,15 @@ def test_progress_state_is_valid_and_matches_backlog() -> None:
         assert "passed" in verification["result"]
 
 
-def test_ready_post_rc_tasks_have_executable_contracts() -> None:
-    backlog = _read("product-planning/execution-backlog.md")
-    sections = re.split(r"^### ", backlog, flags=re.MULTILINE)[1:]
-    required_labels = (
-        "dependencies",
-        "files/modules",
-        "public contract",
-        "persistence / migration impact",
-        "security boundary",
-        "positive",
-        "negative",
-        "acceptance",
-        "non-goals",
-        "estimate",
-        "rollback / compatibility",
+def test_feature_frozen_tree_does_not_restore_delivery_backlogs() -> None:
+    retired = (
+        "product-planning/version-roadmap.md",
+        "product-planning/milestone-acceptance.md",
+        "product-planning/execution-backlog.md",
+        "product-planning/post-ga-portfolio-roadmap.md",
     )
-
-    checked: list[str] = []
-    for section in sections:
-        heading = section.splitlines()[0]
-        match = re.match(r"(v(?:2\.1|2\.2)\.\d+-T\d+)\b", heading)
-        if not match:
-            continue
-        task_id = match.group(1)
-        checked.append(task_id)
-        lowered = section.lower()
-        missing = [label for label in required_labels if label not in lowered]
-        assert not missing, f"{task_id} is missing executable fields: {missing}"
-
-    assert checked
+    for relative_path in retired:
+        assert not (ROOT / relative_path).exists()
 
 
 @pytest.mark.parametrize("relative_path", LEGACY_CLAUDE_POLICY_FILES)

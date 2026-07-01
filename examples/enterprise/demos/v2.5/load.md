@@ -3,7 +3,8 @@
 Run the offline load profile ratchet:
 
 ```bash
-uv run pytest tests/enterprise/perf/test_load_profile_offline.py -q
+uv run --extra enterprise python -m pytest -q \
+  tests/enterprise/perf/test_load_profile_offline.py
 ```
 
 The documented `LOAD_PROFILE_MS` envelope stays under

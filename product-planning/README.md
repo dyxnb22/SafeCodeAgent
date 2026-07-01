@@ -1,76 +1,19 @@
-# SafeCodeAgent Enterprise Planning
+# Final Project Notes
 
-**Implementation status (v3.0 candidate + portfolio track):** v1.0–v2.5 are
-implemented; v3.0 is a candidate blocked on external GA gates; portfolio
-`v3.1`–`v3.4` hardening is complete for presentation (see root `README.md`
-and `docs/architecture-poster.md`). See `.agents/context/progress.json` for
-live delivery state.
-SafeCodeAgent Enterprise turns the finished SafeCodeAgent terminal coding agent
-into an enterprise security engineering agent platform.
+SafeCodeAgent Enterprise is feature-frozen. Detailed version roadmaps,
+milestone checklists, and PR-sized execution backlogs were development tools;
+Git history now preserves them without presenting them as active work.
 
-The old product proved the hard local invariants: policy-gated writes,
-checkpoint and rollback, hash-chain audit logs, bounded context, multi-provider
-LLM clients, MCP proposal gates, sandbox approval, project memory, and live
-evaluation. This branch should reuse those assets while moving the product goal
-from "safe local coding agent" to "auditable enterprise security workflow
-agent".
+This directory keeps only durable material:
 
-## Product Thesis
+- `decision-log.md` — architectural decisions, alternatives, and revisit
+  triggers. Read this before changing a settled boundary.
+- `case-study-secure-change-platform.md` — an end-to-end secure-change
+  walkthrough for learning, review, and interviews.
 
-Enterprises do not need another generic RAG chatbot. They need agents that can
-take a security issue, PR, incident, or engineering request and drive it through
-a governed workflow: gather context, retrieve policy, plan, call tools, propose
-changes, verify, ask for approval at risk boundaries, and leave an audit trail.
+Current product behavior is documented in the root `README.md` and
+`../enterprise-docs/`. Live release state remains in
+`../.agents/context/progress.json`.
 
-## Primary Workstreams
-
-1. RAG and knowledge grounding for security policies, code context, historical
-   fixes, architecture docs, runbooks, and PR history.
-2. LangGraph workflow orchestration for resumable, stateful, auditable agent
-   runs with conditional routing and human interrupts.
-3. Enterprise tool and MCP integration for GitHub, Jira, CI, document stores,
-   scanners, and internal systems.
-4. Security governance with policy gates, RBAC, approval tiers, secret
-   redaction, prompt-injection resistance, sandboxing, and audit.
-5. AgentOps observability and evaluation: traces, tool calls, retrieval
-   evidence, cost, latency, failure taxonomy, and regression fixtures.
-
-## Planning Files
-
-Foundation (set the direction and shape; background only):
-
-- `product-vision.md` — target users, scenarios, and positioning.
-- `roadmap.md` — MVP / Beta / Enterprise phase narrative (foundation).
-- `implementation-backlog.md` — coarse-grained engineering themes (foundation).
-- `interview-talking-points.md` — short technical narrative (foundation).
-
-Executable planning (new, authoritative for delivery):
-
-- `version-roadmap.md` — stage versions `v1.0`–`v3.0` with sub-plans
-  (`v1.1.1`, …, `v2.1.1`, …). The single source of truth for the order
-  of work.
-- `post-ga-portfolio-roadmap.md` — scoped `v3.1`–`v3.4` portfolio
-  hardening plan: honest release framing, one-command demo, interview
-  case study, and recruiter-facing README.
-- `milestone-acceptance.md` — engineering, product, security, eval,
-  and demo gate criteria per stage, including the post-RC stages
-  `v2.1`–`v3.0`.
-- `execution-backlog.md` — PR-sized tasks with files, tests, and
-  acceptance criteria, fully detailed for `v1.1`–`v1.4` and the
-  post-RC `v2.1` / `v2.2` plans.
-- `interview-master-narrative.md` — structured interview material
-  organized by talking points and demo flows.
-- `case-study-secure-change-platform.md` — PR secure-change walkthrough
-  with implementation and test citations for portfolio interviews.
-- `decision-log.md` — durable record of architectural decisions
-  with rationale, alternatives, and revisit triggers.
-- `claude-code-execution-guide.md` — operating contract for any AI
-  agent (Claude Code, Codex) executing tasks on this branch.
-
-Portfolio review assets:
-
-- `../README.md` — recruiter-facing entry point and quickstart.
-- `../docs/architecture-poster.md` — lightweight architecture poster.
-- `case-study-secure-change-platform.md` — secure-change interview walkthrough.
-
-Technical design lives in `../enterprise-docs/`.
+Historical planning can be recovered from Git tags and history when needed; it
+is not a source of current truth.

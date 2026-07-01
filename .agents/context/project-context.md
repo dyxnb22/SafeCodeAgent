@@ -35,12 +35,9 @@ Use sources in this order for Enterprise delivery work:
 1. Security invariants and working rules in `AGENTS.md`.
 2. Live task state in `.agents/context/progress.json`.
 3. Accepted decisions in `product-planning/decision-log.md`.
-4. Milestone scope and acceptance in `product-planning/version-roadmap.md` and
-   `product-planning/milestone-acceptance.md`.
-5. PR-sized task contracts in `product-planning/execution-backlog.md`.
-6. Domain design in the relevant `enterprise-docs/` plan.
-7. Current code and durable tests for implemented behavior.
-8. Foundation overview documents for background only.
+4. Final architecture and domain contracts indexed by
+   `enterprise-docs/README.md`.
+5. Current code and durable tests for implemented behavior.
 
 Code is evidence of current behavior, not authority to weaken an accepted
 security contract. If sources disagree, report and resolve the conflict before
@@ -64,8 +61,8 @@ Control flows downward through typed contracts. Tool execution does not bypass
 governance. Audit, redaction, approval, checkpoint, and rollback are cross-layer
 requirements rather than optional adapters.
 
-Implemented v2.0 architecture: `enterprise-docs/system-architecture-v1.md`.
-Normative v2.1+ target architecture: `enterprise-docs/platform-architecture-v2.md`.
+Concise architecture: `enterprise-docs/architecture.md`.
+Detailed architecture: `enterprise-docs/platform-architecture-v2.md`.
 Authoritative models: `enterprise-docs/data-models.md`.
 
 ## Reusable Kernel Boundaries
@@ -87,38 +84,23 @@ Do not modify the reusable kernel when composition from `safecode.enterprise`
 can satisfy the contract. Kernel changes require explicit compatibility and
 regression analysis.
 
-## Feature And Stage Map
+## Implemented Capability Map
 
-| Stage | Capability | Status | Primary design |
-|---|---|---|---|
-| v1.0 | Enterprise branch, plans, namespace | Complete | `product-planning/` |
-| v1.1 | Permission-aware RAG knowledge base | Complete | `enterprise-docs/rag-implementation-plan.md` |
-| v1.2 | Typed workflow state and orchestration | Complete | `enterprise-docs/workflow-design.md` |
-| v1.3 | Native, connector, scanner, and MCP layer | Complete | `enterprise-docs/system-architecture-v1.md` |
-| v1.4 | Policy, RBAC, approval, and audit governance | Complete | `enterprise-docs/security-governance-plan.md` |
-| v1.5 | AgentOps trace and dashboard | Complete | `enterprise-docs/agentops-observability-plan.md` |
-| v1.6 | Evaluation and regression platform | Complete | `enterprise-docs/evaluation-plan.md` |
-| v1.7 | PR security review workflow | Complete | `enterprise-docs/workflow-design.md` |
-| v1.8 | Vulnerability remediation workflow | Complete | `enterprise-docs/workflow-design.md` |
-| v1.9 | Enterprise beta hardening | Complete | `product-planning/version-roadmap.md` |
-| v2.0 | Enterprise release candidate | Complete | `RELEASE-NOTES-v2.0.0-rc.md` |
-| v2.1 | Team Server foundation (FastAPI + PostgreSQL + worker + OIDC) | Complete | `enterprise-docs/platform-architecture-v2.md` |
-| v2.2 | Real GitHub secure change workflow | Complete | `enterprise-docs/platform-architecture-v2.md` |
-| v2.3 | Operator console (React/Next.js) | Complete | `enterprise-docs/platform-architecture-v2.md` |
-| v2.4 | Enterprise knowledge, tickets, long-term memory | Complete | `enterprise-docs/platform-architecture-v2.md` |
-| v2.5 | Production hardening | Complete | `enterprise-docs/platform-architecture-v2.md` |
-| v3.0 | Enterprise GA | Blocked on external gates | `RELEASE-NOTES-v3.0.0.md` |
-| v3.1 | Portfolio release framing | Complete | `product-planning/post-ga-portfolio-roadmap.md` |
-| v3.2 | One-command demo | Complete | `product-planning/post-ga-portfolio-roadmap.md` |
-| v3.3 | Interview case study | Complete | `product-planning/case-study-secure-change-platform.md` |
-| v3.4 | Recruiter README | Complete | `README.md` |
+| Capability | Status | Primary reference |
+|---|---|---|
+| PR review, remediation, secure planning | Implemented | `enterprise-docs/workflow-design.md` |
+| Permission-aware RAG and memory | Implemented | `enterprise-docs/rag-and-context.md` |
+| Tools, MCP, GitHub, Jira, CI, scanners | Implemented | `enterprise-docs/mcp-and-tools.md` |
+| Policy, RBAC, approval, audit, redaction | Implemented | `enterprise-docs/security-governance-plan.md` |
+| Trace, evidence, evaluation | Implemented | `enterprise-docs/observability-and-evaluation.md` |
+| Team Server and operator console | Implemented | `enterprise-docs/platform-architecture-v2.md` |
+| Enterprise GA promotion | External gates pending | `enterprise-docs/security/external-gates.md` |
 
-Status details belong in `progress.json`; change this table only when stage
-scope, ownership, or architecture changes.
+Version history belongs in Git and `progress.json`, not in this navigation map.
 
-### Post-RC Plane Map
+### Plane Map
 
-| Plane | Owning module (planned) | Live source of truth |
+| Plane | Owning module | Live source of truth |
 |---|---|---|
 | Service (FastAPI `/v2`) | `src/safecode/enterprise/api/` | `platform-architecture-v2.md` § Service plane |
 | Workflow (durable worker) | `src/safecode/enterprise/worker/` | `platform-architecture-v2.md` § Workflow plane |
@@ -133,26 +115,23 @@ tests.
 
 | Task type | Required authoritative context |
 |---|---|
-| Prioritization or scope | version roadmap, milestone acceptance, execution backlog, decision log |
-| RAG or citations | RAG implementation, data models, security governance, evaluation plan |
-| Workflow or state | workflow design, data models, system architecture, security governance |
-| Connectors, tools, scanners, MCP | system architecture, security governance, workflow design, data models |
-| Policy, RBAC, approval, audit | security governance, data models, decision log, system architecture |
-| Trace or dashboard | AgentOps observability, security governance, evaluation plan |
-| Evaluation | evaluation plan, milestone acceptance, relevant domain design |
-| Demo or interview narrative | interview master narrative and implemented behavior only |
-| Portfolio track, README, demo packaging | post-GA portfolio roadmap, execution backlog, release notes, current code/tests |
-| Team Server API, persistence, worker, auth | platform architecture v2, decision log, security governance, data models |
-| Live GitHub, console, persistent knowledge | platform architecture v2, active stage roadmap and acceptance, relevant v1 domain plan |
+| Prioritization or scope | decision log, final architecture, current code/tests |
+| RAG, citations, or memory | RAG/context, data models, security governance |
+| Workflow or state | workflow design, data models, platform architecture, security governance |
+| Connectors, tools, scanners, MCP | MCP/tools, platform architecture, security governance |
+| Policy, RBAC, approval, audit | security governance, data models, decision log |
+| Trace, evidence, or evaluation | observability/evaluation, security governance |
+| Demo or interview narrative | case study and implemented behavior only |
+| Team Server API, persistence, worker, auth | platform architecture, decision log, security governance, data models |
 
-The filenames for all authoritative documents are indexed in
-`.agents/skills/current/SKILL.md` and the two planning README files.
+The maintained document set is indexed in `enterprise-docs/README.md` and
+`.agents/skills/current/SKILL.md`.
 
 ## Impact Check Before Code Changes
 
 Before editing, identify in working notes or the user update:
 
-- active task ID and acceptance criteria;
+- active task ID and requested outcome;
 - affected feature and owning module;
 - architecture layer and trust boundary;
 - reused kernel components;
@@ -172,16 +151,16 @@ Do not rescan the whole repository by default. A broad scan is justified when:
 - broad regression failures indicate an unknown dependency;
 - a public contract, dependency, or trust boundary is being changed.
 
-Otherwise inspect the routed plans, owning modules, callers, and tests only.
+Otherwise inspect the routed context, owning modules, callers, and tests only.
 
 ## Verification Commands
 
 ```bash
 # Closest Enterprise tests
-PYTHONPATH=src python3 -m pytest -q tests/enterprise
+uv run --extra enterprise python -m pytest -q tests/enterprise
 
 # Full regression
-PYTHONPATH=src python3 -m pytest -q
+uv run --extra enterprise python -m pytest -q
 
 # Working tree and whitespace audit
 git status --short
@@ -196,6 +175,6 @@ network access in deterministic tests.
 - Update `.agents/context/progress.json` for every progress-bearing task.
 - Update this file only when architecture boundaries, feature ownership,
   context routing, stable risks, or common verification commands change.
-- Update authoritative planning/design documents only when their contract or
-  accepted status changes.
+- Update maintained design documents only when their contract or accepted
+  status changes.
 - Never paste task history, command logs, or per-run file lists into this file.

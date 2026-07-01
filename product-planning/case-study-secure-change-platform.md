@@ -5,8 +5,8 @@ SafeCodeAgent Enterprise platform. It is written for a 15-minute interview
 walkthrough. It describes implemented behavior in this repository; it does
 **not** claim enterprise GA approval or close external GA gates G1/G2/G3.
 
-**Status:** `v3.0` candidate blocked on external evidence; portfolio track
-documentation only.
+**Status:** Portfolio-ready walkthrough of the `v3.0` candidate; not Enterprise
+GA evidence.
 
 **Demo fixture:** `examples/enterprise/fixtures/pr_sql_injection/pr.json`
 
@@ -214,5 +214,5 @@ read-only compliance artifact, not a write path.
   production-like deployment evidence, stable live-provider workflow evidence.
 - **Portfolio final:** presentation and reproducibility; not enterprise GA.
 
-See `product-planning/post-ga-portfolio-roadmap.md` and
-`.agents/context/progress.json` for live track state.
+See `.agents/context/progress.json` for live release state. Historical
+portfolio planning remains available in Git history.

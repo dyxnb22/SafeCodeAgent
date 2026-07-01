@@ -1,4 +1,4 @@
-# Platform Architecture v2 (Post-RC Target)
+# Platform Architecture v2
 
 - **Owner:** SafeCodeAgent Enterprise platform group.
 - **Audience:** engineers implementing v2.1+ tasks, security and
@@ -6,8 +6,7 @@
 - **Status:** Implemented through v2.5. The v3.0 release remains a candidate
   pending independent security, deployment, and live-provider evidence gates.
   This document remains the normative architecture contract for those stages.
-- **Companion documents:** `system-architecture-v1.md` (v1.x → v2.0
-  RC architecture, implemented), `deployment-profiles.md`, and the
+- **Companion documents:** `architecture.md`, `deployment-profiles.md`, and
   decisions D19–D31 in `product-planning/decision-log.md`.
 
 The v1 architecture covers a single-operator, file-backed,
@@ -19,9 +18,9 @@ RC safety contracts; the local-first CLI mode keeps working unchanged.
 
 ---
 
-## v2.0 Current State vs. v2.1+ Target State
+## Local Baseline and Team Server
 
-| Concern | v2.0 RC (implemented) | v2.1+ target (planned) |
+| Concern | Local mode | Team Server |
 |---|---|---|
 | Service surface | None; CLI is the entry point | FastAPI `/v2` service plus thin-client CLI in `server` mode |
 | Storage | `.sac/enterprise/...` filesystem | PostgreSQL (relational) + optional `pgvector` from v2.4 |
@@ -42,7 +41,7 @@ adds capability; it does not remove any existing one.
 
 ---
 
-## Layered Architecture (Planned)
+## Layered Architecture
 
 ```mermaid
 flowchart TB
@@ -119,7 +118,7 @@ plane never bypasses the governance plane.
 
 ---
 
-## Service Plane (v2.1)
+## Service Plane
 
 Decisions: D21 (FastAPI), D22 (runtime modes), D23 (OIDC), D29 (`/v2`
 prefix), D30 (Team Server dependencies), D31 (development orchestration).
@@ -127,7 +126,7 @@ prefix), D30 (Team Server dependencies), D31 (development orchestration).
 - **Framework:** FastAPI with Pydantic v2 models.
 - **Versioning:** `/v2/...` for every endpoint; `/healthz`, `/readyz`,
   `/version` are unversioned probes.
-- **Surfaces planned:**
+- **Surfaces:**
   - `GET /v2/runs[/{id}]` — list and detail.
   - `POST /v2/runs` — start a run (idempotent with `Idempotency-Key`).
   - `POST /v2/runs/{id}/resume` — resume a paused run.
@@ -182,7 +181,7 @@ sequenceDiagram
 
 ---
 
-## Workflow Plane (v2.1)
+## Workflow Plane
 
 Decision: D20 (durable worker), D25 (LangGraph stays optional).
 
@@ -234,7 +233,7 @@ sequenceDiagram
 
 ---
 
-## Data Plane (v2.1 + v2.4)
+## Data Plane
 
 Decisions: D19 (PostgreSQL + pgvector single store), D30 (psycopg boundary),
 D31 (real-PostgreSQL development and integration profile).
@@ -259,17 +258,16 @@ Every owned table has a non-null `tenant_id` column. Indexes pair
 
 ### Filesystem backend coexistence
 
-The legacy `.sac/enterprise/` filesystem layout (v2.0 RC) is the
-default for `local` mode and tests. The v2.1.2 persistence protocols
-hide the difference from upstream code. The two backends are not
+The `.sac/enterprise/` filesystem layout is the default for `local` mode and
+tests. Persistence protocols hide the difference from upstream code. The two backends are not
 mixed within one run: a run starts in one backend and stays there.
 
 ### Evidence bundles
 
 Evidence bundles remain zip artifacts. In `server` mode they are
 written to object storage (or a configured shared filesystem) and
-referenced from `evidence_index`. The contents and the chain
-verification are unchanged from v1.9.
+referenced from `evidence_index`. Bundle contents and hash-chain verification
+follow the same contract in both modes.
 
 ### Migration strategy
 
@@ -285,7 +283,7 @@ verification are unchanged from v1.9.
 
 ---
 
-## Integration Plane (v2.2 + v2.4)
+## Integration Plane
 
 - **GitHub:** v2.2 introduces the App, webhook validation, live PR
   read, governed comment / branch / PR write, sandboxed scanner
@@ -313,8 +311,8 @@ verification are unchanged from v1.9.
 
 ## Governance Plane
 
-No new governance surface lands in v2.x; v2.0 RC governance is
-composed by the new planes. Specifically:
+The service, data, and integration planes compose the same governance
+contracts. Specifically:
 
 - **Policy precedence (v1.4.1):** unchanged. The resolver feeds the
   API handlers and the worker the same `PolicySnapshot`.
@@ -350,9 +348,8 @@ it composes the existing one.
 
 ## Authenticated Identity and Tenant Boundary
 
-- `tenant_id` was reserved in v1.0 and enforced in v1.9. v2.1
-  enforces it across the API, the worker, the PostgreSQL backend, and
-  the evidence index.
+- `tenant_id` is enforced across the API, worker, local/PostgreSQL backends,
+  retrieval, audit, and evidence index.
 - Identity in `server` mode is the OIDC subject. The `RBACSubject`
   carries `(tenant_id, role)`; the role is derived from validated
   claims.
@@ -385,7 +382,7 @@ it composes the existing one.
 
 ---
 
-## Deployment Profiles (planned cross-reference)
+## Deployment Profiles
 
 The detailed profile content stays in `deployment-profiles.md`. This
 document fixes the boundaries between profiles:
@@ -402,7 +399,7 @@ identity, storage, and observability binding is active.
 
 ---
 
-## Trust Boundaries (planned)
+## Trust Boundaries
 
 ```mermaid
 flowchart LR
@@ -443,7 +440,7 @@ Rules carried forward from v1:
 
 ---
 
-## Non-Goals (v2.x)
+## Explicit Non-Goals
 
 - Multi-region high availability.
 - Hosted SaaS multi-tenant operation with strong noisy-neighbor
@@ -457,12 +454,12 @@ Rules carried forward from v1:
 - Real-time WebSocket APIs as the default consumer surface.
 - A general-purpose plugin system for the workflow nodes.
 
-If a v2.x task drifts into any of these, stop and reopen the
+If a maintenance task drifts into any of these, stop and reopen the
 corresponding decision in `decision-log.md`.
 
 ---
 
-## Extension Points Reserved for Later
+## Reserved Extension Interfaces
 
 - A streaming trace endpoint for the operator console (Server-Sent
   Events) without changing the file format.

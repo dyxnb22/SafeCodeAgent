@@ -1,191 +1,99 @@
 # Enterprise Deployment Profiles
 
-**Implementation status (v2.0):** Planning document for RC; profiles describe
-supported deployment shapes. Implementation of hosted variants may follow v2.0.
+SafeCodeAgent Enterprise supports the same safety contracts in local and Team
+Server modes. A profile changes identity, persistence, and operational
+ownership; it does not weaken policy, approval, audit, or redaction.
 
-This document describes three deployment profiles for SafeCodeAgent Enterprise.
-Each profile lists components, security posture, dependencies, and known
-limitations. Executable behavior is defined by code and tests; this file is
-guidance for operators.
+## Profile 1 — Local
 
----
+Use for individual development, offline demos, and deterministic evaluation.
 
-## Profile 1 — Local Single-User
+| Concern | Binding |
+|---|---|
+| Interface | `sac enterprise` CLI |
+| Identity | Explicit local actor resolved to `RBACSubject` |
+| Persistence | Project-local `.sac/enterprise/` filesystem |
+| Workflow | In-process orchestrator with checkpoints and resume |
+| Retrieval | Local manifests, lexical/optional semantic retrieval |
+| Audit | Local append-only hash chain |
+| Network | Denied unless explicitly configured and approved |
 
-### Components
-
-- `sac enterprise` Typer CLI on a developer workstation
-- `.sac/` runtime state under the project root (runs, traces, approvals, audit)
-- Local knowledge manifest (`examples/enterprise/knowledge_sources.yaml`)
-- Optional mock LLM provider (default eval/workflow lane)
-
-### Security posture
-
-- Policy, RBAC, and approval gates enforced locally
-- No network I/O in default offline workflow and connector modes
-- Strict trace and evidence redaction profiles by default
-- Audit hash chain at `.sac/logs/events.jsonl`
-- `tenant_id` defaults to `local`; single-tenant operation
-
-### Dependencies
-
-- Python 3.11+
-- Repository install (`uv sync` / editable install)
-- No database, no external object store
-
-### Known limitations
-
-- No multi-user concurrency controls on `.sac/` (single operator assumed)
-- No centralized policy distribution
-- Live provider and GitHub modes require explicit configuration and approval
-
----
+Local mode requires Python 3.11+ and repository dependencies. It remains the
+default test profile and does not require PostgreSQL, OIDC, or provider keys.
 
 ## Profile 2 — Team Server
 
-### Components
+Use for authenticated multi-user operation.
 
-- Shared filesystem or volume mount for `.sac/` per project workspace
-- Same CLI entrypoint; operators SSH or use a shared build agent
-- Tenant-tagged retrieval records and audit filtering via `tenant_id` (v1.9.1+)
-- Eval baselines and dashboards under `.sac/enterprise/eval/`
+| Concern | Binding |
+|---|---|
+| Interface | FastAPI `/v2`, thin CLI client, operator console |
+| Identity | OIDC bearer token mapped to tenant-scoped `RBACSubject` |
+| Persistence | PostgreSQL 16 + pgvector |
+| Workflow | Durable queue, worker lease, heartbeat, fencing, retry, DLQ |
+| Integration | GitHub App, Jira, CI callback, governed MCP/tools |
+| Audit | PostgreSQL-backed hash chain and redacted evidence export |
+| Observability | Trace/timeline APIs and optional OpenTelemetry export |
 
-### Security posture
+Required configuration includes the database URL, OIDC issuer/audience, and
+separate connector secrets. Credentials must come from environment or an
+operator-managed secret store, never the repository.
 
-- Tenant isolation enforced in RAG retrieval, audit reads, and evidence export
-- Approval inbox shared; human approvers must use distinct actor IDs
-- Evidence export produces redacted zip bundles per run
-- Org/user/project policy precedence unchanged from local profile
+Every request is authenticated before tenant resolution. Persistence methods
+revalidate tenant identity, approval grants are snapshot-bound and single-use,
+and live writes fail closed when credentials or grants are absent.
 
-### Dependencies
+## Profile 3 — On-Premises Team Server
 
-- Python 3.11+ on server
-- Shared POSIX filesystem with appropriate UNIX permissions
-- Optional CI runner for eval ratchet (`PYTHONPATH=src pytest`)
+This profile uses the Team Server contract inside an organization-controlled
+network and adds operator-owned infrastructure:
 
-### Known limitations
+- managed PostgreSQL/pgvector with backup, restore, and retention policy;
+- organization OIDC and secret management;
+- restricted egress and internal GitHub/Jira/MCP endpoints;
+- centralized OpenTelemetry collection;
+- signed images, deployment policy, and independent security review.
 
-- No built-in web UI or SSO (CLI only through v2.0)
-- No built-in authentication or SSO; filesystem identity remains the operator boundary
-- Shared multi-process approval stores do not yet provide locking
-- No horizontal scaling of workflow orchestrator
+The repository does not claim production readiness for a specific environment.
+Operators must supply the external evidence listed in
+`security/external-gates.md` before GA promotion.
 
-### PostgreSQL integration lane (v2.1.3+)
+## Compose Development Profile
 
-Use this disposable profile for migration, `SERIALIZABLE`, and audit parity
-acceptance. It is **not** the full v2.1.7 Team Server Compose stack.
+`compose.enterprise.yaml` starts the API, PostgreSQL/pgvector, and worker for
+development and integration testing. It is not production deployment evidence.
 
 ```bash
+docker compose -f compose.enterprise.yaml up --build
+```
+
+Use the upgrade/rollback and recovery walkthroughs under
+`examples/enterprise/demos/v2.5/` when rehearsing schema or artifact changes.
+
+## Verification
+
+```bash
+# Local and package contracts
+uv run python scripts/verify-package.py
+uv run --extra enterprise python -m pytest -q tests/enterprise
+
+# PostgreSQL concurrency and migration lane
 ./scripts/run-postgres-integration.sh
+
+# Full offline regression
+uv run --extra enterprise python -m pytest -q
 ```
 
-Or set `SAC_ENTERPRISE_TEST_DATABASE_URL` to any supported PostgreSQL 16+
-instance and run:
+PostgreSQL and live-provider lanes require operator-owned environment
+configuration. A skipped lane is not successful production evidence.
 
-```bash
-uv run pytest tests/enterprise/persistence/postgres -m postgres_integration -q
-```
+## Selection Guide
 
-Default Compose DSN:
-`postgresql://safecode:safecode_test@127.0.0.1:5432/safecode_enterprise_test`
+| Need | Profile |
+|---|---|
+| Offline learning, local development, deterministic CI | Local |
+| Authenticated shared workflows and operator console | Team Server |
+| Organization-controlled network and infrastructure | On-Premises Team Server |
 
-Compose file: `compose/postgres-integration.yaml` (loopback-bound, tmpfs data).
-
----
-
-## Profile 2b — Team Server Compose Development (v2.1.7)
-
-### Components
-
-- `compose.enterprise.yaml` — loopback-bound API, worker, and PostgreSQL
-- `scripts/run-enterprise-dev.sh` — creates `compose/enterprise.dev.env` from
-  the example file and boots the stack
-- `scripts/issue-dev-token.py --prepare` — generates an ephemeral key and JWKS
-  under gitignored `compose/.enterprise-dev-oidc/`
-- `scripts/issue-dev-token.py` — prints a disposable bearer token for server
-  mode CLI/API calls
-
-### Security posture
-
-- API and PostgreSQL bind to `127.0.0.1` only
-- Development credentials and signing keys are generated locally and gitignored
-- No Docker socket mounts; no committed production secrets
-- Server mode rejects CLI `--actor`; identity comes from validated bearer tokens
-
-### Upgrade and rollback rehearsal
-
-1. Boot a fresh stack: `./scripts/run-enterprise-dev.sh`
-2. Verify probes: `curl -fsS http://127.0.0.1:8080/healthz`
-3. Run authenticated integration tests against the offline fake lane
-4. Roll back by discarding volumes: `docker compose -f compose.enterprise.yaml down -v`
-5. Local single-user mode remains the fallback operator path
-
-Schema apply uses the same forward-only migrations as the PostgreSQL integration
-lane (`001_initial.sql`, `002_worker_queue.sql`, `003_run_leases.sql`). Moving
-from local `.sac/` artifacts to PostgreSQL is a manual export/import outside the
-v2.1.7 scope; the rehearsal validates schema apply and service health on disposable
-volumes.
-
-### Dependencies
-
-- Docker with Compose v2
-- Python 3.11+ with the `team-server` optional extra
-- Loopback access to ports `8080` and `5432`
-
----
-
-## Profile 3 — On-Prem Hybrid
-
-### Components
-
-- Enterprise CLI and workflows on-premises
-- Optional live LLM providers (Anthropic/OpenAI) via configured endpoints
-- Optional GitHub connector for PR read/write (gated, offline by default)
-- MCP servers from local allowlist (`examples/enterprise/mcp_allowlist.yaml`)
-- Compliance evidence export to air-gapped review workstations
-
-### Security posture
-
-- Network egress denied unless explicitly allowed by policy and sandbox
-- MCP and connector writes require classification + approval tiers
-- Evidence export excludes debug artifacts unless `allow_debug_traces` policy bit
-- Scanner invocation through sandbox proposal pipeline
-
-### Dependencies
-
-- Python 3.11+
-- Corporate proxy/CA trust store if providers use TLS inspection
-- Semgrep/pip-audit on PATH for scanner nodes (optional)
-- GitHub token in user-level config (never committed)
-
-### Known limitations
-
-- Hybrid profile does not include hosted multi-region HA
-- Provider latency and availability are customer-operated concerns
-- OpenTelemetry export reserved post-v2.0
-
----
-
-## Profile Selection Guide
-
-| Requirement | Recommended profile |
-|---------------|---------------------|
-| Individual developer, offline demo | Local single-user |
-| Small AppSec team, shared repo | Team server |
-| Regulated environment, approved providers | On-prem hybrid |
-
----
-
-## RC Verification Commands
-
-```bash
-# Package and regression
-python3 scripts/verify-package.py
-PYTHONPATH=src python3 -m pytest -q tests/enterprise/contracts
-
-# Flagship workflows (local profile)
-sac enterprise workflow run --task pr_review --input examples/enterprise/fixtures/pr_sql_injection --root .
-sac enterprise workflow run --task remediation --input examples/enterprise/fixtures/remediation/sql_injection --root .
-sac enterprise evidence export --run <run_id> --tenant local --root .
-sac enterprise eval run --suite all --root .
-```
+Start local. Move to Team Server only when shared identity, durable multi-user
+state, or live integrations justify the operational cost.

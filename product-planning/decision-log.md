@@ -1,8 +1,9 @@
 # Decision Log
 
-**Implementation status (v2.0 RC):** Decisions D1–D18 are in effect through
-v2.0 RC. Decisions D19–D31 are post-RC and govern v2.1+ planning. See
-`.agents/context/progress.json` for live stage state.
+**Implementation status:** Accepted architecture decisions remain in effect for
+the feature-frozen v3.0 candidate. See `.agents/context/progress.json` for live
+release state. References to retired roadmaps and backlogs are historical and
+remain available in Git history.
 This file is the durable record of architectural and product
 decisions for SafeCodeAgent Enterprise. Every entry follows the
 same shape and is written as if a future contributor will read it
@@ -27,6 +28,8 @@ file to list the superseding entry. Do not edit history.
 
 ## D1 — Use a two-level version structure (`vX.Y` and `vX.Y.Z`)
 
+- **Status:** Superseded by D34 for the feature-frozen working tree; retained as
+  delivery-history rationale.
 - **Date:** 2026-06-18.
 - **Decision:** Plan with stage versions `v1.0`, `v1.1`, …
   and sub-plans `v1.1.1`, `v1.1.2`, …. Every sub-plan is sized for
@@ -40,8 +43,9 @@ file to list the superseding entry. Do not edit history.
     too coarse and led to dropped scope and silent re-prioritization.
   - Plain task lists (no versions). Rejected because we lose the
     ability to gate features behind acceptance.
-- **Consequences:** Every sub-plan in `version-roadmap.md` lists
-  files, tests, and acceptance. Every `execution-backlog.md` task
+- **Consequences:** Every sub-plan in historical `version-roadmap.md` (no longer
+  retained in the final tree) listed files, tests, and acceptance. Every
+  historical `execution-backlog.md` (no longer retained in the final tree) task
   rolls up to a sub-plan.
 - **Revisit trigger:** If the average sub-plan grows beyond 1.5
   PR-days for two stages in a row, the structure is failing and we
@@ -57,7 +61,7 @@ file to list the superseding entry. Do not edit history.
   walk-throughs, version notes, and release ledgers from the old
   product are not restored.
 - **Rationale:** Legacy docs were already extracted into
-  `enterprise-docs/legacy-assets.md` for the parts worth carrying
+  the final architecture documents for the parts worth carrying
   forward. Keeping the old material in tree confuses readers about
   what the current direction is. The `main` and
   `archive/safecodeagent-final` branches remain as historical
@@ -102,6 +106,7 @@ file to list the superseding entry. Do not edit history.
 
 ## D4 — CLI + Markdown dashboard first; web UI later
 
+- **Status:** Superseded by D26 after the operator console was introduced.
 - **Date:** 2026-06-18.
 - **Decision:** Until v2.0, the user surface is a Typer CLI plus
   Markdown and static-HTML reports. No web server, no UI
@@ -187,6 +192,7 @@ file to list the superseding entry. Do not edit history.
 
 ## D7 — Planning lives only in `product-planning/` and `enterprise-docs/`
 
+- **Status:** Superseded by D34 for final documentation ownership.
 - **Date:** 2026-06-18.
 - **Decision:** All Enterprise planning lives under these two
   directories. The `docs/` directory contains only a short
@@ -912,14 +918,46 @@ file to list the superseding entry. Do not edit history.
     Rejected: it would blur the blocked GA state and make future agents think
     the external gates were resolved.
 - **Consequences:**
-  - `post-ga-portfolio-roadmap.md` owns the portfolio narrative.
-  - `execution-backlog.md` owns PR-sized portfolio tasks.
+  - The historical portfolio roadmap owned the portfolio narrative.
+  - The historical execution backlog owned PR-sized portfolio tasks.
   - `progress.json` may add a separate `portfolio_track`, while `current`
     remains the enterprise GA state.
   - Root README and demo work may be treated as release-quality portfolio
     work, but not as enterprise GA evidence.
 - **Revisit trigger:** real G1/G2/G3 artifacts are produced, or the project
   moves from portfolio use to an actual external customer rollout.
+
+---
+
+## D34 — Feature-frozen documentation describes the final system, not its build chronology
+
+- **Date:** 2026-06-20.
+- **Decision:** Keep the root product entry, final architecture, workflows,
+  data contracts, security, deployment, this decision log, and one case study
+  on the maintained documentation surface. Retire version roadmaps, milestone
+  checklists, execution backlogs, superseded architecture, and historical demo
+  notes from the working tree; Git history remains their archive.
+- **Rationale:** Construction plans are useful while sequencing work but become
+  misleading after feature freeze. Future maintainers need current boundaries,
+  operational truth, and reasons behind decisions more than thousands of lines
+  describing already-completed task order.
+- **Alternatives considered:**
+  - Keep every document and label it historical. Rejected because search and
+    agent routing would continue surfacing stale contracts.
+  - Delete all planning material, including decisions. Rejected because the
+    rejected alternatives and revisit triggers remain valuable for learning
+    and future architecture changes.
+  - Move a copied archive into the repository. Rejected because Git already
+    provides a complete, immutable archive without another maintenance surface.
+- **Consequences:**
+  - `enterprise-docs/README.md` indexes the maintained technical contract set.
+  - `product-planning/` retains only this log, the case study, and a short index.
+  - Documentation-presence tests protect the final set instead of historical
+    delivery artifacts.
+  - Restoring a retired plan requires a new owner and current maintenance
+    purpose; history alone is not sufficient.
+- **Revisit trigger:** active multi-release product development resumes and a
+  maintained roadmap is again needed for real scheduling decisions.
 
 ---
 

@@ -1,10 +1,10 @@
 # Enterprise Data Models
 
-**Implementation status (v1.9):** Executable contracts through v1.9 are implemented; see `.agents/context/progress.json` for live stage state.
-This document is the single source of truth for the Pydantic models
-used by the enterprise workflow. Every model lives under
-`src/safecode/enterprise/` (created in v1.0.2 onwards). Tests assert
-that the field set in the implementation matches the field set here.
+**Implementation status:** Maintained contract reference for the implemented
+v3.0 candidate models.
+This document is the human-readable map of the durable Enterprise contracts.
+The Pydantic models under `src/safecode/enterprise/` are authoritative; tests
+guard their public field sets and serialized shapes.
 
 Conventions:
 
@@ -33,8 +33,9 @@ JSON after each node.
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
+| `schema_version` | `str` | yes | Exact supported state schema version. |
 | `run_id` | `str` | yes | Globally unique. ULID prefixed with `run-`. |
-| `tenant_id` | `str` | yes | Defaults to `local` until v1.9.1. |
+| `tenant_id` | `str` | yes | Defaults to `local`; validated at service and persistence boundaries. |
 | `task_type` | `TaskType` | yes | `pr_review` \| `remediation` \| `secure_planning` \| `compliance_export`. |
 | `status` | `WorkflowStatus` | yes | See enum below. |
 | `actor_id` | `str` | yes | Local user identifier; resolved via RBAC subject. |
@@ -42,6 +43,8 @@ JSON after each node.
 | `policy_snapshot_id` | `str` | yes | References the persisted `PolicySnapshot`. |
 | `request` | `RunRequest` | yes | Original CLI request. |
 | `repo` | `RepoContext` | yes | Repo metadata. |
+| `pull_request_evidence` | `PullRequestEvidence \| None` | no | Normalized PR input. |
+| `issue_evidence` | `IssueEvidence \| None` | no | Normalized ticket input. |
 | `citations` | `list[Citation]` | yes (default empty) | Evidence used by analysis. |
 | `findings` | `list[SecurityFinding]` | yes (default empty) | Issues identified or ingested. |
 | `risk_tier` | `RiskTier \| None` | no | Set by `analyze_security_risk`. |
@@ -57,12 +60,13 @@ JSON after each node.
 | `audit_anchor_id` | `str \| None` | no | Set when the final audit anchor is written. |
 | `created_at` | `str` | yes | ISO time. |
 | `updated_at` | `str` | yes | ISO time. |
+| `missing_evidence` | `bool` | yes | Retrieval/collection routing signal. |
+| `validation_failed` | `bool` | yes | Validation routing signal. |
+| `awaiting_human_approval` | `bool` | yes | Resume gate signal. |
 
 **Persistence:** `.sac/enterprise/runs/<run_id>/state.json`.
 **Security note:** never contains raw model prompts or full file
 contents. Citations carry pointers, not bodies.
-**Future extension:** `tenant_id` becomes mandatory across multi-
-project runs at v1.9.1; the field is reserved now to avoid migrations.
 **Relation to legacy:** the run id pattern mirrors the legacy
 agent run id but lives under `.sac/enterprise/runs/` instead of
 `.sac/runs/`.
@@ -84,6 +88,7 @@ class WorkflowStatus(str, Enum):
     failed = "failed"
     rejected = "rejected"
     blocked = "blocked"
+    cancelled = "cancelled"
 
 class RiskTier(str, Enum):
     low = "low"
@@ -123,9 +128,6 @@ shell input.
 | `protected_branches` | `list[str]` | Names like `main`, `master`. |
 
 **Security note:** never stores tokens.
-**Future extension:** add `worktree_id` when multi-worktree
-parallelism arrives (post-v2.0).
-
 ---
 
 ## SecurityFinding
@@ -166,6 +168,7 @@ SafeCodeAgent represented scanner output ad hoc.
 | `citation_id` | `str` | `cite-<hash>`. Deterministic. |
 | `source_id` | `str` | Foreign key to `KnowledgeSource.source_id`. |
 | `source_type` | `SourceType` | See `KnowledgeSource`. |
+| `tenant_id` | `str` | Tenant boundary for retrieval and export. |
 | `path` | `str` | File or document path. |
 | `start_line` | `int` | 1-indexed. |
 | `end_line` | `int` | 1-indexed. |
@@ -175,12 +178,11 @@ SafeCodeAgent represented scanner output ad hoc.
 | `freshness` | `Literal['current', 'stale', 'superseded', 'unknown']` | Set by source registry metadata. |
 | `hash` | `str` | `sha256:` of the chunk text. |
 | `text_excerpt` | `str` | Bounded (≤ 1 KB); for the dashboard. |
+| `markdown` | `str` | Rendered citation with source identity. |
 
 **Security note:** `text_excerpt` is the only content field; the
 full text lives in the chunk store. The excerpt is redacted before
 storage.
-**Future extension:** add `language` and `cwe_tags` once retrieval
-metadata grows.
 **Relation to legacy:** mirrors patterns in
 `src/safecode/context/selector.py` (selection reasons) but adds
 permission + freshness.
@@ -253,9 +255,6 @@ class NodeArtifact(BaseModel):
 
 **Security note:** `state_updates` is validated against the
 `EnterpriseRunState` schema before application; unknown keys fail.
-**Future extension:** add `retry_count` once retry policy is
-introduced (v1.2.3 already plans this; persisted from v1.5).
-
 ---
 
 ## ApprovalRequest
@@ -264,6 +263,7 @@ introduced (v1.2.3 already plans this; persisted from v1.5).
 |-------|------|-------------|
 | `request_id` | `str` | `approval-<ulid>`. |
 | `run_id` | `str` | Foreign key. |
+| `tenant_id` | `str` | Tenant binding. |
 | `action` | `Action` | Enumerated below. |
 | `risk_tier` | `RiskTier` | Workflow-supplied. |
 | `requested_by_node` | `str` | E.g. `approval_gate`. |
@@ -272,6 +272,11 @@ introduced (v1.2.3 already plans this; persisted from v1.5).
 | `preview` | `str` | Bounded preview (≤ 4 KB). |
 | `policy_snapshot_id` | `str` | At time of request. |
 | `status` | `Literal['pending', 'approved', 'rejected', 'evidence_requested', 'revoked']` | |
+| `created_at` | `str` | Creation time. |
+| `decision_at` | `str \| None` | Decision time. |
+| `decision_actor` | `str \| None` | Human decision actor. |
+| `decision_note` | `str \| None` | Redacted rationale. |
+| `request_hash` | `str` | Tamper-evident request digest. |
 | `created_at` | `str` | |
 | `decision_at` | `str \| None` | |
 | `decision_actor` | `str \| None` | |
@@ -363,9 +368,6 @@ Every tool invocation, whether successful or refused.
 
 **Security note:** `inputs_redacted` and `output_excerpt` always
 pass through the redactor before persistence.
-**Future extension:** `cost` may grow `dollars_estimate` once the
-provider cost map matures.
-
 ---
 
 ## AuditTraceEvent
@@ -495,9 +497,6 @@ class Role(str, Enum):
 
 **Security note:** the subject is constructed once at run start and
 is immutable. `--as-role` is rejected unless org policy allows it.
-**Future extension:** when SSO arrives, `actor_id` will gain a
-strong identity reference; the field shape does not change.
-
 ---
 
 ## ConnectorConfig

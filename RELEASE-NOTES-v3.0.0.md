@@ -45,7 +45,8 @@ Breaking changes require a decision log entry and snapshot update in the same ch
 2. Run migration compatibility tests:
 
 ```bash
-uv run pytest tests/enterprise/contracts/test_migration_v2_rc_to_v3_0.py -q
+uv run --extra enterprise python -m pytest -q \
+  tests/enterprise/contracts/test_migration_v2_rc_to_v3_0.py
 ```
 
 3. For Team Server profile, configure `SAC_ENTERPRISE_*` settings; v2.0-era local mode (`operator_actor`) remains valid.
@@ -72,7 +73,7 @@ Location: `examples/enterprise/demos/v3.0/`
 ```bash
 uv lock --check
 python3 scripts/verify-package.py
-PYTHONPATH=src python3 -m pytest -q -m "not postgres_integration"
+uv run --extra enterprise python -m pytest -q -m "not postgres_integration"
 ```
 
 GA promotion additionally requires the three external gates listed at the top

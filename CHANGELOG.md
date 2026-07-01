@@ -2,6 +2,10 @@
 
 All notable changes to SafeCode Agent are documented here.
 
+This is the reusable kernel's historical changelog. Enterprise candidate
+release status is documented in `RELEASE-NOTES-v3.0.0.md`; paths named in old
+entries may exist only in Git history.
+
 Format: `[vX.Y.Z] — YYYY-MM-DD — short-description`
 
 ---
@@ -189,4 +193,4 @@ Format: `[vX.Y.Z] — YYYY-MM-DD — short-description`
 
 ---
 
-For earlier versions see `docs/version-notes/` and `docs/version_implementation_matrix.md`.
+For earlier versions, use Git tags and history.

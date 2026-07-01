@@ -27,7 +27,7 @@ callers, and tests. Do not treat the compact context as implementation truth.
 
 Build a governed secure-change platform for PR security review, vulnerability
 remediation, secure implementation planning, compliance evidence, and auditable
-tool use. The post-RC stages add a Team Server without weakening local mode.
+tool use. Team Server support does not weaken local mode.
 
 ## Reusable Safety Kernel
 
@@ -35,24 +35,23 @@ Preserve policy-gated writes and commands, checkpoint and rollback, hash-chain
 audit, MCP proposal and approval, sandbox lifecycle gates, redacted approved
 memory, context budgets, provider validation, and deterministic eval fixtures.
 
-## Authoritative Delivery Planning
+## Maintained Final Documentation
 
-- `product-planning/version-roadmap.md`
-- `product-planning/milestone-acceptance.md`
-- `product-planning/execution-backlog.md`
-- `product-planning/interview-master-narrative.md`
-- `product-planning/decision-log.md`
-- `product-planning/claude-code-execution-guide.md`
-- `enterprise-docs/system-architecture-v1.md`
+- `enterprise-docs/architecture.md`
+- `enterprise-docs/platform-architecture-v2.md`
 - `enterprise-docs/data-models.md`
 - `enterprise-docs/workflow-design.md`
-- `enterprise-docs/rag-implementation-plan.md`
+- `enterprise-docs/rag-and-context.md`
+- `enterprise-docs/mcp-and-tools.md`
 - `enterprise-docs/security-governance-plan.md`
-- `enterprise-docs/evaluation-plan.md`
-- `enterprise-docs/agentops-observability-plan.md`
-- `enterprise-docs/platform-architecture-v2.md` (normative for v2.1+)
+- `enterprise-docs/observability-and-evaluation.md`
+- `enterprise-docs/deployment-profiles.md`
+- `enterprise-docs/security/threat-model-v2.5.md`
+- `enterprise-docs/security/external-gates.md`
+- `product-planning/decision-log.md`
 
-Indexes: `product-planning/README.md` and `enterprise-docs/README.md`.
+Index: `enterprise-docs/README.md`. Historical roadmaps and execution backlogs
+remain available in Git history but are not active sources of truth.
 
 Foundation overviews are background only. Legacy product docs live on `main`
 and `archive/safecodeagent-final`; do not recreate them here.
@@ -60,12 +59,12 @@ and `archive/safecodeagent-final`; do not recreate them here.
 ## Task Discipline
 
 - Verify the active task and next task against `progress.json`.
-- Read the exact backlog and acceptance entries before implementation.
+- Read the final design and decision entries relevant to the requested change.
 - Apply the impact check from `project-context.md` before code changes.
 - Update progress for every progress-bearing task using the protocol in
   `AGENTS.md`.
-- Resolve context, plan, code, or test conflicts explicitly; never silently
+- Resolve context, design, code, or test conflicts explicitly; never silently
   select the interpretation that is easiest to implement.
-- For v2.1+ work, read the active stage section in
-  `platform-architecture-v2.md` and preserve the explicit local/server backend
-  boundary. Planned target-state prose is not evidence of implementation.
+- Preserve the explicit local/server backend boundary in
+  `platform-architecture-v2.md`. Design prose is not evidence of
+  implementation; verify current code and tests.

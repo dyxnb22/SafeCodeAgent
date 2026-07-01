@@ -1,6 +1,8 @@
 # Observability And Evaluation
 
-**Implementation status (v1.9):** Executable contracts through v1.9 are implemented; see `.agents/context/progress.json` for live stage state.
+**Implementation status:** Trace, audit evidence, dashboards, and deterministic
+evaluation are implemented for the v3.0 candidate.
+
 ## Observability Goals
 
 Enterprise users need to answer:
@@ -32,7 +34,7 @@ source files should not be emitted by default.
 
 ## Run Timeline
 
-The first dashboard can be Markdown or HTML. Required sections:
+Markdown and console dashboards expose:
 - request summary and final outcome
 - risk tier and approval summary
 - workflow timeline
@@ -54,7 +56,7 @@ Reuse SafeCodeAgent's discipline:
 
 ## Eval Suites
 
-Add Enterprise suites:
+Maintained Enterprise coverage includes:
 - PR security review
 - vulnerability remediation
 - policy retrieval recall
@@ -68,7 +70,7 @@ Add Enterprise suites:
 
 ## Metrics
 
-Recommended metrics:
+Recorded or derived metrics include:
 - task success
 - pass@1 and pass@N
 - policy recall
@@ -84,7 +86,7 @@ Recommended metrics:
 
 ## Release Evidence
 
-A release should include:
+Candidate verification includes:
 - pytest summary
 - Enterprise eval dashboard
 - safety invariant summary

@@ -10,11 +10,16 @@ _ROOT = Path(__file__).resolve().parent.parent.parent
 
 DOC_MARKDOWN_GLOBS = (
     "README.md",
+    "CONTRIBUTING.md",
+    "SECURITY.md",
     "RELEASE-NOTES*.md",
     "docs/**/*.md",
     "enterprise-docs/**/*.md",
     ".agents/**/*.md",
     "product-planning/**/*.md",
+    "examples/**/README.md",
+    "examples/enterprise/demos/**/*.md",
+    "skills/**/*.md",
 )
 
 BACKTICK_PATH_PREFIXES = (

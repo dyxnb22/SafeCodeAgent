@@ -3,7 +3,9 @@
 Exercise poison-message DLQ handling and transient retry recovery:
 
 ```bash
-uv run pytest tests/enterprise/worker/test_dlq_offline.py tests/enterprise/worker/test_lease_recovery.py -q
+uv run --extra enterprise python -m pytest -q \
+  tests/enterprise/worker/test_dlq_offline.py \
+  tests/enterprise/worker/test_lease_recovery.py
 ```
 
 Poison commands land in `dlq.jsonl` with redacted errors; healthy jobs

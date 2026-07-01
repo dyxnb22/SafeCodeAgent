@@ -13,8 +13,8 @@ live-provider evidence gates remain open.
 The review covers the `/v2` API, worker, local and PostgreSQL persistence,
 GitHub/Jira connectors, RAG and memory, console, deployment tooling, tracing,
 and release evidence. It is cross-checked against
-`enterprise-docs/security/threat-model-v2.5.md`, `AGENTS.md`, and the v3.0
-section of `product-planning/milestone-acceptance.md`.
+`enterprise-docs/security/threat-model-v2.5.md`, `AGENTS.md`, current
+contracts, and durable security tests.
 
 ## Findings Summary
 

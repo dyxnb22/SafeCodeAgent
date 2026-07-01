@@ -1,9 +1,10 @@
 # Workflow Design
 
-**Implementation status (v1.9):** Executable contracts through v1.9 are implemented; see `.agents/context/progress.json` for live stage state.
+**Implementation status:** PR review, remediation, and secure planning are
+implemented. Compliance evidence uses the standalone export command; the
+`compliance_export` workflow task remains fail-closed.
 This document specifies the four enterprise workflows. Each workflow
-is a sub-graph over the nine canonical nodes defined in
-`system-architecture-v1.md`. The sub-graphs share infrastructure but
+is a sub-graph over the nine canonical nodes described below. The sub-graphs share infrastructure but
 differ in inputs, conditional edges, and outputs.
 
 Conventions:
@@ -392,15 +393,15 @@ scanners. A `NodeOutput` records the skip with an explicit reason.
 ### Tests
 
 - `tests/enterprise/workflow/test_secure_planning_offline.py`
-- secure_planning eval cases are planned but not yet present under
-  `tests/enterprise/eval/cases/`
+- There is no dedicated secure-planning baseline suite; deterministic workflow
+  tests own the current contract.
 
 ### Demo flow
 
 ```text
 $ sac enterprise workflow run \
     --task secure_planning \
-    --input examples/enterprise/fixtures/ticket_password_reset.md
+    --input examples/enterprise/fixtures/ticket_password_reset/ticket.md
 
 [trace] collect_repo_context -> IssueEvidence id=TICKET-42
 [trace] retrieve_policy_and_code -> 4 citations (3 policy + 1 code)
@@ -415,108 +416,26 @@ $ sac enterprise workflow run \
 
 ## Workflow 4 — Compliance Evidence Export
 
-> **Implementation status (portfolio v3.4):** Workflow 4 is designed but
-> **not implemented** as a first-class workflow task. `task_type=compliance_export`
-> is rejected at workflow initialization. Use standalone
-> `sac enterprise evidence export --run <run_id>` for existing runs.
+`TaskType.compliance_export` is reserved but intentionally rejected at workflow
+initialization. Evidence export is a standalone, read-only operation over one
+completed run:
 
-### Goal
-
-Given a previous workflow run id (or a range of runs), produce a
-compliance evidence bundle containing redacted traces, citation
-lists, approvals, audit chain segments, and validation outcomes.
-
-### Inputs
-
-- `RunRequest.task_type = compliance_export`.
-- `RunRequest.input_kind = repo_query`.
-- `RunRequest.input_ref` is a comma-separated list of run ids or a
-  date range (`from=…&to=…`).
-
-### Outputs
-
-- `Report.kind = compliance_evidence`.
-- A zip file at `.sac/enterprise/evidence/<bundle_id>.zip`.
-
-### LangGraph state fields used
-
-- `runs_of_interest`: list of run ids (sub-model on state).
-- `bundle_manifest`: typed list of file references and hashes.
-
-### Node graph
-
-```mermaid
-flowchart LR
-  C0[classify_request] --> C1[collect_repo_context]
-  C1 --> C2[retrieve_policy_and_code]
-  C2 --> C3[analyze_security_risk]
-  C3 --> C4[plan_actions]
-  C4 --> C5[propose_report_or_patch]
-  C5 --> C6[validate]
-  C6 --> C7[approval_gate]
-  C7 -->|AUTO export| C8[finalize_with_bundle]
-  C7 -->|debug bundle requested| WAIT[(await approval)]
-  WAIT --> C7
+```bash
+sac enterprise evidence export --run <run_id> --tenant <tenant_id> --root .
 ```
 
-Compliance export *reuses* the canonical nodes:
+The exporter:
 
-- `collect_repo_context` reads the listed run directories from
-  `.sac/enterprise/runs/`.
-- `retrieve_policy_and_code` retrieves the policy snapshots that
-  governed each run.
-- `analyze_security_risk` summarizes safety invariants (audit
-  chain intact, no unauthorized writes, etc.).
-- `plan_actions` enumerates the export's contents.
-- `propose_report_or_patch` generates an evidence Markdown report
-  and the zip manifest.
-- `validate` checks hash chain integrity and redaction conformance.
-- `approval_gate` is AUTO for strict export and GATE for debug.
+1. validates the run and tenant binding;
+2. verifies the source audit chain;
+3. applies strict redaction to state, trace, approvals, citations, validation,
+   and report content;
+4. writes a zip bundle with per-file SHA-256 hashes;
+5. preserves a verifiable audit segment without rewriting hashed events.
 
-### Conditional edges
-
-- **validate → approval_gate:** unconditional.
-- **approval_gate → WAIT:** only when `--debug-bundle` requested.
-
-### Tool calls
-
-- File system reads for run directories.
-- Hash recomputation via legacy `audit.anchor`.
-- Zip writer (Python stdlib).
-
-### Human-in-the-loop points
-
-- Only when the operator requests a debug bundle that includes raw
-  artifacts (requires `allow_debug_traces=true` org policy bit and
-  explicit approval).
-
-### Failure / retry strategy
-
-- Missing run directory → typed `RunNotFoundError`; workflow lists
-  the missing id in the report and continues.
-- Audit chain mismatch → workflow finalizes with `failed`; export
-  is not produced. The report includes the mismatch evidence.
-
-### Tests
-
-- `tests/enterprise/evidence/test_export_shape.py`
-
-### Demo flow
-
-```text
-$ sac enterprise workflow run \
-    --task compliance_export \
-    --input "runs=run-01HX...,run-01HY..."
-
-[trace] collect_repo_context -> 2 run dirs
-[trace] retrieve_policy_and_code -> snapshots fetched
-[trace] analyze_security_risk -> safety invariants ok
-[trace] plan_actions -> bundle plan
-[trace] propose_report_or_patch -> evidence.md + manifest
-[trace] validate -> hash chain intact
-[trace] approval_gate -> AUTO (strict mode)
-[trace] finalize -> bundle .sac/enterprise/evidence/bundle-01HX....zip
-```
+Missing runs, tenant mismatches, chain corruption, or content that would require
+post-hash audit redaction fail closed. The maintained contract lives in
+`tests/enterprise/evidence/test_export_shape.py` and related evidence tests.
 
 ---
 
@@ -562,12 +481,12 @@ A run that has been finalized refuses to resume.
 
 ### Workflow → eval suite mapping
 
-| Workflow | Suite | Stage of first baseline |
-|----------|-------|-------------------------|
-| PR review | `pr_review` | v1.7.4 |
-| Remediation | `remediation` | v1.8.5 |
-| Secure planning | `secure_planning` | v1.9 (no MVP baseline; manual demo until then) |
-| Compliance export | `compliance_export` | v1.9.2 |
+| Workflow | Maintained coverage |
+|----------|---------------------|
+| PR review | `pr_review` eval suite + workflow tests |
+| Remediation | `remediation` eval suite + workflow tests |
+| Secure planning | Deterministic workflow tests |
+| Compliance export | Evidence export and integrity tests |
 
 ### Workflow → approval action map
 

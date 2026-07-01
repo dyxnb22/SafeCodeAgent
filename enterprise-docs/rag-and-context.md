@@ -1,6 +1,8 @@
 # RAG And Context Design
 
-**Implementation status (v1.9):** Executable contracts through v1.9 are implemented; see `.agents/context/progress.json` for live stage state.
+**Implementation status:** Permission-aware retrieval, citations, ingestion,
+and governed memory are implemented for the v3.0 candidate.
+
 ## Purpose
 
 RAG should make security decisions grounded and auditable. It should not be a
@@ -54,12 +56,13 @@ Primary retrieval targets:
 
 ## Citation Object
 
-Recommended fields:
+The durable citation contract includes:
 
 ```json
 {
   "source_id": "policy-secure-sql-001",
   "source_type": "security_policy",
+  "tenant_id": "tenant-a",
   "path": "policies/sql-injection.md",
   "start_line": 12,
   "end_line": 44,
@@ -73,7 +76,7 @@ Recommended fields:
 
 ## Eval Fixtures
 
-Add fixtures for:
+Deterministic fixtures cover:
 - retrieving the correct policy for a vulnerability class
 - finding vulnerable code and related tests
 - rejecting prompt-injection instructions inside retrieved docs

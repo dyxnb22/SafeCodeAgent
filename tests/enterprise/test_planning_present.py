@@ -1,4 +1,4 @@
-"""Verify Enterprise planning documents exist and are indexed."""
+"""Verify the feature-frozen documentation set exists and is indexed."""
 
 from pathlib import Path
 
@@ -7,54 +7,44 @@ import pytest
 _ROOT = Path(__file__).resolve().parent.parent.parent
 
 PRODUCT_PLANNING_DOCS = [
-    "product-planning/version-roadmap.md",
-    "product-planning/post-ga-portfolio-roadmap.md",
-    "product-planning/milestone-acceptance.md",
-    "product-planning/execution-backlog.md",
-    "product-planning/interview-master-narrative.md",
     "product-planning/case-study-secure-change-platform.md",
     "product-planning/decision-log.md",
-    "product-planning/claude-code-execution-guide.md",
 ]
 
 ENTERPRISE_DOCS = [
-    "enterprise-docs/system-architecture-v1.md",
+    "enterprise-docs/architecture.md",
+    "enterprise-docs/platform-architecture-v2.md",
     "enterprise-docs/data-models.md",
     "enterprise-docs/workflow-design.md",
-    "enterprise-docs/rag-implementation-plan.md",
+    "enterprise-docs/rag-and-context.md",
+    "enterprise-docs/mcp-and-tools.md",
     "enterprise-docs/security-governance-plan.md",
-    "enterprise-docs/evaluation-plan.md",
-    "enterprise-docs/agentops-observability-plan.md",
+    "enterprise-docs/observability-and-evaluation.md",
     "enterprise-docs/deployment-profiles.md",
-    "enterprise-docs/security-review-v2-0.md",
-    "enterprise-docs/platform-architecture-v2.md",
+    "enterprise-docs/security/threat-model-v2.5.md",
+    "enterprise-docs/security/security-review-v3.0.md",
     "enterprise-docs/security/external-gates.md",
 ]
 
 ALL_PLANNING_DOCS = PRODUCT_PLANNING_DOCS + ENTERPRISE_DOCS
 
 PRODUCT_PLANNING_README_FILES = [
-    "version-roadmap.md",
-    "post-ga-portfolio-roadmap.md",
-    "milestone-acceptance.md",
-    "execution-backlog.md",
-    "interview-master-narrative.md",
     "case-study-secure-change-platform.md",
     "decision-log.md",
-    "claude-code-execution-guide.md",
 ]
 
 ENTERPRISE_README_FILES = [
-    "system-architecture-v1.md",
+    "architecture.md",
+    "platform-architecture-v2.md",
     "data-models.md",
     "workflow-design.md",
-    "rag-implementation-plan.md",
+    "rag-and-context.md",
+    "mcp-and-tools.md",
     "security-governance-plan.md",
-    "evaluation-plan.md",
-    "agentops-observability-plan.md",
+    "observability-and-evaluation.md",
     "deployment-profiles.md",
-    "security-review-v2-0.md",
-    "platform-architecture-v2.md",
+    "security/threat-model-v2.5.md",
+    "security/security-review-v3.0.md",
     "security/external-gates.md",
 ]
 

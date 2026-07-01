@@ -11,7 +11,8 @@ ENTERPRISE_ROLLBACK_TAG=v2.5.1 bash scripts/enterprise-rollback.sh
 Validate the compose contract offline:
 
 ```bash
-uv run pytest tests/enterprise/deploy/test_compose_contract_offline.py -q
+uv run --extra enterprise python -m pytest -q \
+  tests/enterprise/deploy/test_compose_contract_offline.py
 ```
 
 Backup before upgrade:

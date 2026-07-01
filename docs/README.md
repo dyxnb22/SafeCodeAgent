@@ -1,12 +1,11 @@
 # Documentation
 
-This branch intentionally removed the legacy SafeCodeAgent documentation after
-extracting the parts useful for Enterprise development.
+SafeCodeAgent Enterprise is feature-frozen. Use:
 
-Use these directories instead:
-- `../product-planning/` for product direction and roadmap
-- `../enterprise-docs/` for implementation-oriented technical design
-- `architecture-poster.md` — portfolio architecture poster (implemented planes)
+- [`architecture-poster.md`](architecture-poster.md) for a one-page system map.
+- [`../enterprise-docs/README.md`](../enterprise-docs/README.md) for maintained
+  architecture, workflows, data, security, and deployment references.
+- [`../product-planning/README.md`](../product-planning/README.md) for durable
+  decisions and the end-to-end case study.
 
-For legacy SafeCodeAgent docs, inspect the `archive/safecodeagent-final` branch
-or `main`.
+Historical iteration plans remain available in Git history.

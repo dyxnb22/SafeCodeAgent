@@ -5,7 +5,7 @@ candidate. It is a portfolio review aid. It does not claim enterprise GA
 approval; external gates G1/G2/G3 remain pending (see
 `enterprise-docs/security/external-gates.md`).
 
-Normative target architecture: `enterprise-docs/platform-architecture-v2.md`.
+Detailed architecture: `enterprise-docs/platform-architecture-v2.md`.
 
 ---
 

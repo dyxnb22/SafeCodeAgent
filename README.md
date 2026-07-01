@@ -1,174 +1,97 @@
 # SafeCodeAgent Enterprise
 
-**Enterprise secure-change agent platform** — a governed enterprise security engineering agent platform for PR review, vulnerability remediation, secure
-planning, evidence export, and approval-gated workflows.
+SafeCodeAgent Enterprise is a governed enterprise security engineering agent platform for
+PR review, vulnerability remediation, secure implementation planning, evidence
+export, and approval-gated tool use.
 
-SafeCodeAgent Enterprise extends the completed SafeCodeAgent safety kernel
-(policy-gated writes, checkpoint/rollback, hash-chain audit, sandbox gates)
-into a workflow-first platform with permission-aware RAG, RBAC, human approval,
-typed connectors/MCP, trace observability, and deterministic evaluation.
+It extends the SafeCodeAgent safety kernel—policy-gated writes,
+checkpoint/rollback, hash-chain audit, sandbox gates, and redaction—with typed
+enterprise workflows, permission-aware RAG, RBAC, human approval, connectors,
+observability, and deterministic evaluation. Mutating workflows remain
+recoverable through checkpoints, rollback, or audited compensation.
 
-> **Current status:** `v3.0` **candidate** — portfolio track complete for
-> presentation; **enterprise GA external gates pending** (independent security
-> review, production-like deployment evidence, stable live-provider run).
-> Portfolio final ≠ enterprise GA. Live state:
-> [`.agents/context/progress.json`](.agents/context/progress.json).
+> **Release status:** `v3.0` candidate. Product development and the portfolio
+> track are complete; GA still requires independent security sign-off,
+> production-like deployment evidence, and a stable live-provider run. See
+> [external gates](enterprise-docs/security/external-gates.md) and
+> [live progress](.agents/context/progress.json).
 
----
+## Capabilities
 
-## What It Does
+- **PR security review** — collect PR evidence, retrieve cited policy and code,
+  assess risk, and gate network writes.
+- **Vulnerability remediation** — normalize findings, propose and validate
+  patches, and require scoped grants before mutation.
+- **Secure planning** — ground implementation plans in tickets, repository
+  context, policy, and approved memory.
+- **Evidence export** — build redacted, integrity-checked compliance bundles.
+- **Team operation** — optional FastAPI/PostgreSQL worker backend, OIDC, live
+  GitHub/Jira integration, and an operator console.
 
-- **PR security review** — ingest PR evidence, retrieve policy/code citations,
-  analyze risk, propose reports, gate high-risk writes behind human approval.
-- **Vulnerability remediation** — ingest scanner findings, plan patches, validate
-  proposals, and refuse execution without grants.
-- **Secure implementation planning** — ticket/issue grounding with governed
-  tool proposals.
-- **Evidence export** — standalone `sac enterprise evidence export --run <id>`
-  for completed runs (compliance bundle with timeline, checkpoint, and audit
-  chain verification). The `compliance_export` workflow task is not yet
-  implemented.
-- **Approval workflow** — scoped, single-use grants bound to proposal snapshots;
-  models never self-approve.
+The central invariant is simple: **model output is never execution authority.**
 
-Critical invariant: **model output is never execution authority.** Writes and
-commands stay policy-gated, auditable, and recoverable via checkpoint and
-rollback.
+## Quickstart
 
----
-
-## 30-Second Quickstart
-
-From a clean checkout (offline, no provider keys required):
+From a clean checkout, no provider key is required:
 
 ```bash
 uv sync
-PYTHONPATH=src python3 -m pytest tests/enterprise/cli/test_demo_command.py -q
 uv run sac demo --list
 uv run sac demo pr-review --offline
 ```
 
-The demo uses `examples/enterprise/fixtures/pr_sql_injection/`. By default it
-runs in a disposable temporary workspace and does **not** write persistent state
-under the repository root `.sac`. Use
-`uv run sac demo pr-review --offline --output-dir <path>` only when you
-intentionally want to keep run artifacts.
+The offline demo runs in a disposable workspace by default. A deterministic
+transcript is available at
+[examples/enterprise/demos/v3.2/transcripts/pr-review.txt](examples/enterprise/demos/v3.2/transcripts/pr-review.txt).
 
----
+## System Map
 
-## Demo
-
-Offline PR review transcript (deterministic, redacted snapshot):
-
-- [examples/enterprise/demos/v3.2/transcripts/pr-review.txt](examples/enterprise/demos/v3.2/transcripts/pr-review.txt)
-
-Run live:
-
-```bash
-uv run sac demo pr-review --offline
+```mermaid
+flowchart LR
+    User["Developer / AppSec / Operator"] --> Surface["CLI / API / Console"]
+    Surface --> Workflow["Durable workflow"]
+    Workflow --> RAG["Permission-aware RAG"]
+    Workflow --> Governance["Policy + RBAC + approval"]
+    Governance --> Tools["Tools / MCP / connectors"]
+    Tools --> Systems["GitHub / Jira / CI / scanners"]
+    Workflow --> Evidence["Trace + audit + evidence"]
 ```
 
-Case study walkthrough:
-[product-planning/case-study-secure-change-platform.md](product-planning/case-study-secure-change-platform.md)
+## Documentation
 
----
+| Need | Document |
+|---|---|
+| Concise architecture | [enterprise-docs/architecture.md](enterprise-docs/architecture.md) |
+| Detailed platform architecture | [enterprise-docs/platform-architecture-v2.md](enterprise-docs/platform-architecture-v2.md) |
+| Business and workflow design | [enterprise-docs/workflow-design.md](enterprise-docs/workflow-design.md) |
+| Data contracts | [enterprise-docs/data-models.md](enterprise-docs/data-models.md) |
+| Security governance | [enterprise-docs/security-governance-plan.md](enterprise-docs/security-governance-plan.md) |
+| Deployment | [enterprise-docs/deployment-profiles.md](enterprise-docs/deployment-profiles.md) |
+| Current security review | [enterprise-docs/security/security-review-v3.0.md](enterprise-docs/security/security-review-v3.0.md) |
+| Architecture decisions | [product-planning/decision-log.md](product-planning/decision-log.md) |
+| End-to-end case study | [product-planning/case-study-secure-change-platform.md](product-planning/case-study-secure-change-platform.md) |
+| Final project notes | [product-planning/README.md](product-planning/README.md) |
 
-## Architecture
+Historical version plans and execution backlogs are intentionally left to Git
+history. They were useful while building the product but are not current
+documentation.
 
-High-level poster (implemented planes, honest GA status):
-
-- [docs/architecture-poster.md](docs/architecture-poster.md)
-
-Normative post-RC architecture:
-
-- [enterprise-docs/platform-architecture-v2.md](enterprise-docs/platform-architecture-v2.md)
-
-Implemented v1 architecture overview:
-
-- [enterprise-docs/system-architecture-v1.md](enterprise-docs/system-architecture-v1.md)
-
----
-
-## Security and Governance
-
-External GA gates (cannot be closed by repository-local agents):
-
-- [enterprise-docs/security/external-gates.md](enterprise-docs/security/external-gates.md)
-
-`v3.0` candidate security review (not external sign-off):
-
-- [enterprise-docs/security/security-review-v3.0.md](enterprise-docs/security/security-review-v3.0.md)
-
-Governance design:
-
-- [enterprise-docs/security-governance-plan.md](enterprise-docs/security-governance-plan.md)
-
-Release notes (candidate, not GA approved):
-
-- [RELEASE-NOTES-v3.0.0.md](RELEASE-NOTES-v3.0.0.md)
-
----
-
-## Interview Materials
-
-- [product-planning/case-study-secure-change-platform.md](product-planning/case-study-secure-change-platform.md) — 15-minute secure-change walkthrough with code/test citations
-- [product-planning/interview-master-narrative.md](product-planning/interview-master-narrative.md) — talking points and demo flows
-
----
-
-## Tests
-
-Reproduce verification locally. Use command exit status and captured CI
-artifacts for the exact commit as evidence; suite growth and optional-dependency
-skips make counts copied into prose stale:
+## Verification
 
 ```bash
-PYTHONPATH=src python3 -m pytest tests/enterprise -q
-PYTHONPATH=src python3 -m pytest tests/enterprise/cli/test_demo_command.py -q
-PYTHONPATH=src python3 -m pytest tests/enterprise/test_no_false_ga_claims.py -q
+uv run --extra enterprise python -m pytest -q tests/enterprise
+uv run --extra enterprise python -m pytest -q
 ```
 
-Optional full regression (longer):
-
-```bash
-PYTHONPATH=src python3 -m pytest -q
-```
-
-Portfolio docs/link hygiene tests live under `tests/enterprise/` (false-GA
-claims, README links, documentation path references).
-
----
-
-## Links Map
-
-| Topic | Entry |
-|-------|-------|
-| Portfolio roadmap | [product-planning/post-ga-portfolio-roadmap.md](product-planning/post-ga-portfolio-roadmap.md) |
-| PR-sized tasks | [product-planning/execution-backlog.md](product-planning/execution-backlog.md) |
-| Planning index | [product-planning/README.md](product-planning/README.md) |
-| Technical docs | [enterprise-docs/README.md](enterprise-docs/README.md) |
-| Platform architecture v2 | [enterprise-docs/platform-architecture-v2.md](enterprise-docs/platform-architecture-v2.md) |
-| Progress state | [.agents/context/progress.json](.agents/context/progress.json) |
-
-### Foundation / Background Docs
-
-These predate the executable enterprise delivery track but remain useful context:
-
-- [product-planning/roadmap.md](product-planning/roadmap.md) — phase narrative (foundation)
-- [product-planning/implementation-backlog.md](product-planning/implementation-backlog.md) — coarse themes (foundation)
-- [enterprise-docs/architecture.md](enterprise-docs/architecture.md) — early architecture notes (foundation)
-- [enterprise-docs/legacy-assets.md](enterprise-docs/legacy-assets.md) — reusable kernel mapping (foundation)
-
-Legacy SafeCodeAgent product docs live on `main` and `archive/safecodeagent-final`.
-
----
+Optional PostgreSQL and live-provider lanes require operator-owned environment
+configuration and are skipped by default.
 
 ## Development
 
 ```bash
-uv sync
 uv run sac --help
 uv run sac enterprise --help
 ```
 
-Repository rules for agents: [AGENTS.md](AGENTS.md).
+Repository governance is defined in [AGENTS.md](AGENTS.md). Candidate release
+details are in [RELEASE-NOTES-v3.0.0.md](RELEASE-NOTES-v3.0.0.md).
