@@ -1,4 +1,10 @@
-"""Approval command handlers for the Team Server API (v2.1.5-T2)."""
+"""Approval command handlers for the Team Server API (v2.1.5-T2).
+
+中文模块说明：审批命令业务逻辑：decide、revoke、证据请求，并触发 durable resume。
+- 架构位置：Service 平面；被 ``routes/approvals.py`` 调用。
+- 安全不变量：RBAC 校验；决策 actor 不能是 model:*；与 store 中 grant 绑定一致。
+- 学习路径：对照 ``approvals/store.py`` 与 ``test_approval_idempotency_r8.py``。
+"""
 
 from __future__ import annotations
 

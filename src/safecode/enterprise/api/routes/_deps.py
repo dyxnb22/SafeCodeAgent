@@ -1,4 +1,10 @@
-"""Shared FastAPI route dependencies (v2.1.4-T2)."""
+"""Shared FastAPI route dependencies (v2.1.4-T2).
+
+中文模块说明：路由层 Depends 快捷方式：租户 header、RBAC 最低角色、幂等键。
+- 架构位置：``routes/*`` 的统一门禁；封装 ``dependencies.py`` 的解析结果。
+- 安全不变量：``require_minimum_role``；server 模式写操作强制 Idempotency-Key。
+- 学习路径：打开任意 ``routes/*.py`` 看 Depends 列表即懂 API 门禁。
+"""
 
 from __future__ import annotations
 

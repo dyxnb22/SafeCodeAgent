@@ -1,4 +1,10 @@
-"""Tenant-scoped read queries for the Team Server API (v2.1.4-T2)."""
+"""Tenant-scoped read queries for the Team Server API (v2.1.4-T2).
+
+中文模块说明：API 只读查询层：runs、traces、approvals、timeline 等列表与详情。
+- 架构位置：Service 平面；``routes/*`` GET 处理器委托本模块。
+- 安全不变量：``enforce_tenant_scope``；subject 与 query tenant 必须一致。
+- 学习路径：从 console ``lib/api/runs.ts`` 跟到本模块函数。
+"""
 
 from __future__ import annotations
 

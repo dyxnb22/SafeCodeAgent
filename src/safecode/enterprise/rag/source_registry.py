@@ -1,4 +1,10 @@
-"""Enterprise knowledge source registry models and manifest loader."""
+"""Enterprise knowledge source registry models and manifest loader.
+
+中文模块说明：知识源注册表与 manifest 加载，声明哪些文档可进入 RAG。
+- 架构位置：RAG Data 平面元数据；ingest 与检索的前置条件。
+- 安全不变量：source 带 tenant 与 permission；未注册源不会被检索。
+- 学习路径：读 ``tests/enterprise/rag/test_source_registry.py``。
+"""
 
 from __future__ import annotations
 

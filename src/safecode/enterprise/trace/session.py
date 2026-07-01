@@ -1,4 +1,10 @@
-"""Run-scoped trace session with optional audit dual-write."""
+"""Run-scoped trace session with optional audit dual-write.
+
+中文模块说明：单次 workflow run 的 trace 会话，可选同时写审计链。
+- 架构位置：Observability 平面；每个 workflow 节点通过它 emit 事件。
+- 安全不变量：trace 默认 redacted；debug 字段需解锁策略；与 audit 分离存储。
+- 学习路径：读 ``trace/events.py``、``timeline.py`` 与 demo 输出节点行。
+"""
 
 from __future__ import annotations
 

@@ -1,4 +1,10 @@
-"""GitHub App credential boundary and installation token exchange (v2.2.1-T1, D24)."""
+"""GitHub App credential boundary and installation token exchange (v2.2.1-T1, D24).
+
+中文模块说明：GitHub App 凭证边界，从环境/密钥库加载，禁止写入仓库。
+- 架构位置：Integration 平面身份层；live GitHub 读写的 token 来源。
+- 安全不变量：私钥不落库；token 缓存带 TTL；rate limit 耗尽 fail-closed。
+- 学习路径：读 ``SECURITY.md`` 与 ``test_github_app_credentials.py``。
+"""
 
 from __future__ import annotations
 

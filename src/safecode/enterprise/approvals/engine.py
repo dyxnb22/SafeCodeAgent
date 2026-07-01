@@ -1,4 +1,10 @@
-"""Approval tier engine."""
+"""Approval tier engine.
+
+中文模块说明：把策略快照 + 动作类别解析为 AUTO / CONFIRM / GATE / BLOCK 审批层级。
+- 架构位置：Governance 平面；workflow 节点与 connector 写前均查询。
+- 安全不变量：BLOCK 即 fail-closed；GATE 必须有人工 grant；策略不可弱化。
+- 学习路径：读 ``policy/resolver.py`` 与 ``test_decision_matrix.py``。
+"""
 
 from __future__ import annotations
 

@@ -1,4 +1,10 @@
-"""MCP adapter that registers allowlisted tools only."""
+"""MCP adapter that registers allowlisted tools only.
+
+中文模块说明：Enterprise 侧 MCP 适配层，仅注册本地 allowlist 已分类的工具。
+- 架构位置：Integration 平面；忽略 MCP server 自报的 metadata（决策 D10）。
+- 安全不变量：未在 allowlist 的工具不会注册；默认 tier 为 BLOCK。
+- 学习路径：读 ``mcp_allowlist.py`` 与 ``test_mcp_server_classification_ignored.py``。
+"""
 
 from __future__ import annotations
 

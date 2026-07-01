@@ -1,4 +1,10 @@
-"""Enterprise RAG chunk and citation models."""
+"""Enterprise RAG chunk and citation models.
+
+中文模块说明：Chunk 与 Citation 的公共数据契约。
+- 架构位置：RAG 全链路传递类型；workflow 节点与 trace 引用 citation_id。
+- 安全不变量：citation 保留 source 身份；chunk 含 permission_scope 供过滤。
+- 学习路径：读 ``ids.py`` 的 stable_citation_id 生成规则。
+"""
 
 from __future__ import annotations
 

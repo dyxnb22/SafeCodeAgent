@@ -1,4 +1,10 @@
-"""Redact secret-like content before sending context to an LLM."""
+"""Redact secret-like content before sending context to an LLM.
+
+中文模块说明：内核级秘密脱敏，在文本进入模型、日志或导出前替换敏感模式。
+- 架构位置：被 Enterprise RAG、trace、memory、connector 等多处复用。
+- 安全不变量：脱敏是结构性要求，不是可选过滤器；未知模式宁可过度脱敏。
+- 学习路径：对照 ``enterprise/trace/redaction.py``（导出 profile）与 connector redaction 测试。
+"""
 
 import re
 

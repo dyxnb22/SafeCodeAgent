@@ -1,4 +1,10 @@
-"""Compliance evidence export bundle builder."""
+"""Compliance evidence export bundle builder.
+
+中文模块说明：合规证据 ZIP 导出：checkpoint、timeline、审批、审计链校验。
+- 架构位置：Evidence 平面；CLI 与 ``/v2/evidence`` 共用逻辑。
+- 安全不变量：strict redaction；审计链断裂则导出 fail-closed，不静默改 hash。
+- 学习路径：跑 ``sac enterprise evidence export`` 对照 ``test_hash_chain_intact.py``。
+"""
 
 from __future__ import annotations
 

@@ -11,4 +11,12 @@
 - **connectors**：GitHub PR、Jira 等外部系统集成
 
 安全不变量：模型输出不具执行权限；所有写操作须经策略门与人审批准。
+
+**推荐阅读顺序（学习/面试）：**
+1. ``workflow/orchestrator.py`` + ``workflow/nodes/`` — 九节点业务流
+2. ``rag/retriever.py`` — 权限感知检索
+3. ``approvals/store.py`` + ``workflow/nodes/approval.py`` — 人机协同
+4. ``policy/resolver.py`` — 策略 precedence
+5. ``api/routes/runs.py`` + ``worker/commands.py`` — Team Server 路径
+6. ``evidence/export.py`` + ``audit/chain.py`` — 审计与合规导出
 """

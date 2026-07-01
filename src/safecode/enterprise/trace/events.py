@@ -1,4 +1,10 @@
-"""Trace event schema for enterprise workflow observability."""
+"""Trace event schema for enterprise workflow observability.
+
+中文模块说明：TraceEvent 类型与 TraceEventType 枚举，描述节点级可观测事件。
+- 架构位置：Observability 数据契约；timeline 与 console 视图的来源。
+- 安全不变量：事件 payload 可能含敏感字段，导出前须经 redaction profile。
+- 学习路径：对照 ``contracts/snapshots/trace_event.json``。
+"""
 
 from __future__ import annotations
 

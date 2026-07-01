@@ -1,4 +1,10 @@
-"""Cross-process lock coordinating run checkpoint artifacts and PostgreSQL GC."""
+"""Cross-process lock coordinating run checkpoint artifacts and PostgreSQL GC.
+
+中文模块说明：按 run 维度的跨进程文件锁，协调 checkpoint 保存、GC 与 purge。
+- 架构位置：Data 平面并发控制（R8）；local 与 PG backend 共用。
+- 安全不变量：symlink-safe；fork 子进程不继承错误锁所有权。
+- 学习路径：读 R8 maintenance 记录与 concurrency 测试。
+"""
 
 from __future__ import annotations
 

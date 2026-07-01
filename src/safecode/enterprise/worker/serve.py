@@ -1,4 +1,10 @@
-"""Worker process entrypoint for the Team Server (v2.1.7-T2)."""
+"""Worker process entrypoint for the Team Server (v2.1.7-T2).
+
+中文模块说明：Team Server worker 进程入口，轮询队列并执行 workflow runner。
+- 架构位置：Workflow 平面长期运行进程；与 ``api/server.py`` 配对部署。
+- 安全不变量：使用配置的 worker_id；租约 + 心跳保证单 run 单 writer。
+- 学习路径：Docker compose 的 worker 服务即本模块；读 ``worker/runner.py``。
+"""
 
 from __future__ import annotations
 

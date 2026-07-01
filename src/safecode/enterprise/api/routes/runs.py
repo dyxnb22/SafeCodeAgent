@@ -1,4 +1,10 @@
-"""Run read and command endpoints (v2.1.4-T2, v2.1.5-T1)."""
+"""Run read and command endpoints (v2.1.4-T2, v2.1.5-T1).
+
+中文模块说明：``/v2/runs`` 读写面：列表/详情为只读，start/resume/cancel 为异步命令。
+- 架构位置：Service 平面主入口；写操作委托 ``worker/commands.py``。
+- 安全不变量：写路由要求 developer+ RBAC、``X-Tenant-Id``、``Idempotency-Key``。
+- 学习路径：配合 ``read_service.py`` 与 ``test_run_commands.py`` 阅读。
+"""
 
 from __future__ import annotations
 

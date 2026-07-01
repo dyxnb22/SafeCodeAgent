@@ -1,4 +1,10 @@
-"""Approval read and command endpoints (v2.1.4-T2, v2.1.5-T2)."""
+"""Approval read and command endpoints (v2.1.4-T2, v2.1.5-T2).
+
+中文模块说明：``/v2/approvals`` 审批列表与 decide/revoke 命令面。
+- 架构位置：Console 与 CLI server 模式的主要人机协同 HTTP 接口。
+- 安全不变量：decide 需认证 + 幂等键；grant 单次消费；reject 后 workflow 可终态。
+- 学习路径：读 ``approval_service.py`` 与 ``console/tests/approvals.test.ts``。
+"""
 
 from __future__ import annotations
 

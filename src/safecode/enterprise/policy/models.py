@@ -1,4 +1,10 @@
-"""Enterprise policy layer models."""
+"""Enterprise policy layer models.
+
+中文模块说明：策略层 Pydantic 模型（PolicySnapshot、PolicyLayer、ApprovalTier 等）。
+- 架构位置：``policy/resolver.py`` 的输出类型；workflow 状态携带 snapshot_id。
+- 安全不变量：快照绑定审批与执行；层级越高优先级越大；blocked_override 记录弱化企图。
+- 学习路径：先读本文件字段，再读 ``resolver.py`` 与 ``test_resolver_precedence.py``。
+"""
 
 from __future__ import annotations
 

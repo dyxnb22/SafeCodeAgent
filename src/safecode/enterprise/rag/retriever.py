@@ -1,4 +1,11 @@
-"""Hybrid enterprise retriever with permission-aware filtering."""
+"""Hybrid enterprise retriever with permission-aware filtering.
+
+中文模块说明：企业 RAG 检索入口，混合 lexical + semantic 打分并按权限过滤。
+- 架构位置：Workflow 的 retrieve 节点调用；输入 actor scope，输出带 citation_id 的 Chunk 列表。
+- 安全不变量：检索结果是证据而非执行指令；越权 chunk 被丢弃；内容送模型前经 ``redact_secrets``。
+- 与内核关系：lexical/semantic 可复用 kernel context 原语；权限判定在 Enterprise ``permission_scope``。
+- 学习路径：配合 ``index_builder.py``、``source_registry.py`` 与 ``test_retrieval_actor_scope.py``。
+"""
 
 from __future__ import annotations
 

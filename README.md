@@ -67,6 +67,16 @@ PYTHONPATH=src sac demo pr-review --offline
 Fifteen-minute narrative:
 [product-planning/case-study-secure-change-platform.md](product-planning/case-study-secure-change-platform.md).
 
+**Suggested code reading order** (module docstrings are in Chinese throughout
+``src/safecode/enterprise/``):
+
+1. `src/safecode/enterprise/workflow/orchestrator.py` — workflow engine
+2. `src/safecode/enterprise/rag/retriever.py` — permission-aware RAG
+3. `src/safecode/enterprise/approvals/store.py` — grants and single-use consumption
+4. `src/safecode/enterprise/policy/resolver.py` — policy precedence
+5. `src/safecode/enterprise/api/routes/runs.py` + `worker/commands.py` — Team Server
+6. `src/safecode/enterprise/evidence/export.py` — audit bundles
+
 ### Docker full stack (API + worker + PostgreSQL + console)
 
 Requires Docker Compose v2. Uses disposable development credentials only.

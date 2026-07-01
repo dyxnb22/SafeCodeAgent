@@ -1,4 +1,10 @@
-"""Strict trace export redaction profiles."""
+"""Strict trace export redaction profiles.
+
+中文模块说明：trace/timeline 导出的 redaction profile（strict/standard/debug）。
+- 架构位置：Observability 导出与 console 显示对齐（console 有平行实现）。
+- 安全不变量：strict 为默认；debug 需策略解锁；tool_input 等字段默认隐藏。
+- 学习路径：对照 ``console/src/lib/redaction/display.ts``。
+"""
 
 from __future__ import annotations
 

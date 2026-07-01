@@ -1,4 +1,10 @@
-"""Semantic scorer wrapping the legacy embedding backend."""
+"""Semantic scorer wrapping the legacy embedding backend.
+
+中文模块说明：RAG 语义打分支路，封装 kernel embedding 后端（可选依赖）。
+- 架构位置：``retriever.py`` 混合检索的第二路打分。
+- 安全不变量：离线测试可不装语义依赖；无 embedding 时优雅降级到 lexical。
+- 学习路径：对照 ``lexical.py`` 与 ``test_vector_store_offline.py``。
+"""
 
 from __future__ import annotations
 

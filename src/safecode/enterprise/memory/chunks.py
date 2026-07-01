@@ -1,4 +1,10 @@
-"""Convert admitted memory facts into permission-scoped retrieval chunks."""
+"""Convert admitted memory facts into permission-scoped retrieval chunks.
+
+中文模块说明：把已准入 MemoryFact 转为可检索 chunk，纳入 RAG 索引。
+- 架构位置：连接 memory 与 retriever；仅 active 且未过期事实参与。
+- 安全不变量：再次 redact；permission_scope 与 fact 一致。
+- 学习路径：对照 ``rag/retriever.py`` 的 actor scope 过滤。
+"""
 
 from __future__ import annotations
 

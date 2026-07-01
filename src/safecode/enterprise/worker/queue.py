@@ -1,4 +1,10 @@
-"""Local command queue and shared queue protocol (v2.1.5-T1)."""
+"""Local command queue and shared queue protocol (v2.1.5-T1).
+
+中文模块说明：本地文件队列与 CommandQueue 协议；Postgres 队列实现同一接口。
+- 架构位置：Workflow 平面；API 入队，worker 出队执行。
+- 安全不变量：idempotency key 冲突 fail-closed；终端任务不重复执行。
+- 学习路径：对照 ``postgres_queue.py`` 与 worker recovery 测试。
+"""
 
 from __future__ import annotations
 
