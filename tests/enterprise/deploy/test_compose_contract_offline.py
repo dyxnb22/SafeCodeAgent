@@ -12,6 +12,7 @@ import yaml
 _ROOT = Path(__file__).resolve().parents[3]
 _COMPOSE = _ROOT / "compose.enterprise.yaml"
 _UP_SCRIPT = _ROOT / "scripts" / "enterprise-up.sh"
+_DEV_UP_SCRIPT = _ROOT / "scripts" / "enterprise-dev-up.sh"
 _ROLLBACK_SCRIPT = _ROOT / "scripts" / "enterprise-rollback.sh"
 _BACKUP_SCRIPT = _ROOT / "scripts" / "enterprise-backup.sh"
 _ENV_EXAMPLE = _ROOT / "compose" / "enterprise.dev.env.example"
@@ -49,10 +50,21 @@ def test_compose_config_is_valid(tmp_path: Path) -> None:
 
 
 def test_deploy_scripts_exist_and_are_executable_bash() -> None:
-    for script in (_UP_SCRIPT, _ROLLBACK_SCRIPT, _BACKUP_SCRIPT):
+    for script in (_UP_SCRIPT, _DEV_UP_SCRIPT, _ROLLBACK_SCRIPT, _BACKUP_SCRIPT):
         assert script.is_file()
         first_line = script.read_text(encoding="utf-8").splitlines()[0]
         assert first_line.startswith("#!/usr/bin/env bash")
+
+
+def test_dev_up_script_accepts_example_credentials(tmp_path: Path) -> None:
+    env_copy = tmp_path / "enterprise.dev.env"
+    shutil.copy(_ENV_EXAMPLE, env_copy)
+    text = env_copy.read_text(encoding="utf-8")
+    assert "issuer.example" in text
+    assert "safecode_dev" in text
+    script = _DEV_UP_SCRIPT.read_text(encoding="utf-8")
+    assert "enterprise-up.sh" in script
+    assert "refusing development credentials" not in script
 
 
 def test_compose_uses_pgvector_capable_postgres_image() -> None:

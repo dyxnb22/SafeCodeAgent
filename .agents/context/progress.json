@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-06-20",
+  "updated_at": "2026-07-01",
   "implemented_baseline_tag": "v7.1.5",
   "current": {
     "stage": "v3.0",
@@ -196,6 +196,7 @@
     {"id": "v3.4.4-T1", "completed_at": "2026-06-19", "evidence": "90ffe69d"}
   ],
   "recent_maintenance": [
+    {"id": "maintenance-learning-interview-onboarding", "completed_at": "2026-07-01", "evidence": "README learning/interview section with offline and Docker paths; scripts/enterprise-dev-up.sh for disposable dev compose startup and console token; examples/enterprise/dev README cross-link; deploy contract test 6 passed, 1 skipped; v3.0 GA external gates remain pending"},
     {"id": "maintenance-final-docs-polish", "completed_at": "2026-06-20", "evidence": "All maintained Markdown audited and normalized for feature freeze: security/contributing entry points rewritten; deployment profiles and data contracts aligned to implemented behavior; speculative compliance workflow removed; stale planned/future language eliminated; v3 demos renamed from GA to candidate; decision D34 records final documentation policy; documentation scan expanded to primary examples and skills; targeted docs/package lane 229 passed; full regression 6695 passed, 37 skipped; no production source changed; v3.0 GA external gates remain pending"},
     {"id": "maintenance-final-repository-cleanup", "completed_at": "2026-06-20", "evidence": "Feature-freeze cleanup: removed superseded roadmaps/backlogs, v1/v2 planning docs, RC notes, and historical demos; maintained docs reduced from 12,973 to about 4,200 lines; final architecture/workflow/security/deployment indexes refreshed; generated caches and runtime artifacts removed; documentation/package lane 183 passed; full regression 6632 passed, 37 skipped; no production source changed; v3.0 GA external gates remain pending"},
     {"id": "maintenance-code-smell-review", "completed_at": "2026-06-20", "evidence": "Reviewed and corrected uncommitted hardening/refactoring across approval, audit, connectors, persistence, scanner, worker, and workflow boundaries; removed unsupported OIDC iat/max-age contract; explicit retrieval scopes no longer expand by role; scanner stdout/stderr redacted; audit export fails closed rather than invalidating hashes; immutable workflow identity strengthened; targeted evidence 6 passed; full regression 6694 passed, 37 skipped; v3.0 GA blockers G1/G2/G3 remain pending"},
@@ -204,8 +205,7 @@
     {"id": "maintenance-r8.1-command-gc-closeout", "completed_at": "2026-06-20", "evidence": "R8.1: deterministic command_job_id + enqueue_command_job idempotent insert (local queue lock, PG ON CONFLICT); terminal/DLQ jobs not replayed; validate_command_match on all command replay paths; PG gc_runs per-run FOR UPDATE + updated_at conditional delete; recovery tests 10 passed; enterprise 889 passed, 28 skipped; full regression 6664 passed, 34 skipped (PG integration lane skipped, no DSN); v3.0 GA blockers G1/G2/G3 remain pending"},
     {"id": "maintenance-r8-worker-tenant-approval-correctness", "completed_at": "2026-06-20", "evidence": "R8: worker lease heartbeat guard + fence_token fencing; tenant fail-closed purge/gc; approval decide/revoke durable resume + API idempotency store; migration 009; R8 tests 17 passed; enterprise worker 17 passed; enterprise 879 passed, 25 skipped; full regression 6654 passed, 31 skipped (PG integration lane skipped, no DSN); v3.0 GA blockers G1/G2/G3 remain pending"},
     {"id": "maintenance-r7-lock-reentrancy-closeout", "completed_at": "2026-06-20", "evidence": "R7: keyed_exclusive_lock reentrant by canonical lock-file identity; forked children discard inherited thread ownership; outermost depth acquires OS flock/msvcrt once; test_file_lock 9 passed x10; R6 concurrency lane 11 passed, 4 skipped; enterprise 861 passed, 25 skipped; full regression 6636 passed, 31 skipped (PG integration lane skipped, no DSN); v3.0 GA blockers G1/G2/G3 remain pending"},
-    {"id": "maintenance-learning-zh-comments", "completed_at": "2026-06-20", "evidence": "94 files: Chinese module/function docstrings across kernel, enterprise workflow/API/worker/governance/RAG/approvals, 9 workflow nodes, and operator console; comment-only, no logic changes; operator-console contract digests synchronized; kernel gate/audit 153 passed; enterprise workflow/worker/api 171 passed; governance 59 passed; console typecheck + 26 tests passed"},
-    {"id": "maintenance-r6-concurrency-integrity", "completed_at": "2026-06-20", "evidence": "R6: symlink-safe file locks and atomic replace; linear local/PG audit writes; approval/queue/lease exclusion; request revocation invalidates grants; actor_id and reserved audit metadata hash coverage; concurrency tests repeat across threads/processes; eval 43 passed; enterprise 861 passed, 25 skipped; full regression 6629 passed, 31 skipped (PG integration lane skipped, no DSN); v3.0 GA blockers G1/G2/G3 remain pending"}
+    {"id": "maintenance-learning-zh-comments", "completed_at": "2026-06-20", "evidence": "94 files: Chinese module/function docstrings across kernel, enterprise workflow/API/worker/governance/RAG/approvals, 9 workflow nodes, and operator console; comment-only, no logic changes; operator-console contract digests synchronized; kernel gate/audit 153 passed; enterprise workflow/worker/api 171 passed; governance 59 passed; console typecheck + 26 tests passed"}
   ],
   "blockers": [
     "Independent security reviewer signature is required before GA promotion.",
@@ -214,9 +214,9 @@
   ],
   "decisions_required": [],
   "last_verification": {
-    "recorded_at": "2026-06-20",
-    "command": "uv run --extra enterprise python -m pytest -q",
-    "result": "6695 passed, 37 skipped",
-    "scope": "Final all-document polish: current security, contribution, deployment, data, workflow, demo, and decision contracts normalized; expanded documentation/package lane 229 passed; full regression 6695 passed, 37 skipped; production source unchanged; PostgreSQL integration skipped without DSN; v3.0 GA external gates G1/G2/G3 pending"
+    "recorded_at": "2026-07-01",
+    "command": "PYTHONPATH=src python3 -m pytest -q tests/enterprise/deploy/test_compose_contract_offline.py",
+    "result": "6 passed, 1 skipped",
+    "scope": "Learning/interview onboarding: README quick paths, enterprise-dev-up.sh, dev README cross-link; deploy contract lane 6 passed, 1 skipped; v3.0 GA external gates G1/G2/G3 pending"
   }
 }
